@@ -1,0 +1,5 @@
+# netlify.toml – SPA Routing Fix
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
