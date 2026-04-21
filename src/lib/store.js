@@ -1,10 +1,8 @@
 // ============================================================
-//  store.js – App State (Zustand)
+//  store.js – App State (ohne externe Dependencies)
 //  Pfad: src/lib/store.js
 // ============================================================
-
 import { create } from 'zustand';
-import { dataService } from '../api/dataService';
 import { persistData } from '../utils';
 
 export const useAppStore = create((set, get) => ({
@@ -13,12 +11,11 @@ export const useAppStore = create((set, get) => ({
 
   setData: (data) => {
     set({ data });
-    persistData(data);
+    try { persistData(data); } catch {}
   },
 
   setCurrentUser: (user) => set({ currentUser: user }),
 
-  // Projekt aktualisieren
   updateProject: (projectId, updates) => {
     const { data } = get();
     if (!data) return;
@@ -29,6 +26,6 @@ export const useAppStore = create((set, get) => ({
       ),
     };
     set({ data: newData });
-    persistData(newData);
+    try { persistData(newData); } catch {}
   },
 }));
