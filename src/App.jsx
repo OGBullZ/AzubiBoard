@@ -269,7 +269,7 @@ function AppLayout({ currentUser, onLogout, onNewProject, children }) {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} />
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {children}
       </div>
     </div>
