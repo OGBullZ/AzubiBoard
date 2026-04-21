@@ -1,4 +1,8 @@
-﻿// src/api/dataService.js
+﻿// ============================================================
+//  dataService.js – Datenzugriff (localStorage oder API)
+//  Pfad: src/api/dataService.js
+// ============================================================
+
 import { USE_API, API_BASE } from '../lib/constants';
 import { loadData, persistData } from '../utils';
 
@@ -13,6 +17,7 @@ export const dataService = {
       return loadData();
     }
   },
+
   async saveData(newData) {
     if (!USE_API) {
       persistData(newData);
@@ -25,7 +30,9 @@ export const dataService = {
         credentials: 'include',
         body: JSON.stringify(newData),
       });
-      return res.ok ? await res.json() : (persistData(newData), newData);
+      if (res.ok) return await res.json();
+      persistData(newData);
+      return newData;
     } catch {
       persistData(newData);
       return newData;

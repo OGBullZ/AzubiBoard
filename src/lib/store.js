@@ -1,25 +1,34 @@
-﻿// src/lib/store.js
+﻿// ============================================================
+//  store.js – App State (Zustand)
+//  Pfad: src/lib/store.js
+// ============================================================
+
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { loadData, persistData } from '../utils';
+import { dataService } from '../api/dataService';
+import { persistData } from '../utils';
 
-const SK = 'azubi_pm_v7';
+export const useAppStore = create((set, get) => ({
+  data: null,
+  currentUser: null,
 
-export const useAppStore = create(
-  persist(
-    (set, get) => ({
-      data: loadData(),
-      currentUser: null,
-      setData: (newData) => set({ data: newData }),
-      setCurrentUser: (user) => set({ currentUser: user }),
-      updateProject: (projectId, updates) => {
-        const { data, setData } = get();
-        const updatedProjects = data.projects.map(p =>
-          p.id === projectId ? { ...p, ...updates } : p
-        );
-        setData({ ...data, projects: updatedProjects });
-      },
-    }),
-    { name: SK, partialize: (state) => ({ data: state.data, currentUser: state.currentUser }) }
-  )
-);
+  setData: (data) => {
+    set({ data });
+    persistData(data);
+  },
+
+  setCurrentUser: (user) => set({ currentUser: user }),
+
+  // Projekt aktualisieren
+  updateProject: (projectId, updates) => {
+    const { data } = get();
+    if (!data) return;
+    const newData = {
+      ...data,
+      projects: data.projects.map(p =>
+        p.id === projectId ? { ...p, ...updates } : p
+      ),
+    };
+    set({ data: newData });
+    persistData(newData);
+  },
+}));
