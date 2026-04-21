@@ -267,9 +267,9 @@ function GroupsPage() {
 // ── App Layout (Sidebar + Content) ────────────────────────────
 function AppLayout({ currentUser, onLogout, onNewProject, children }) {
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', width: '100%' }}>
       <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} />
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
         {children}
       </div>
     </div>
