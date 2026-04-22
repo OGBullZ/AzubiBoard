@@ -143,7 +143,7 @@ function HeroTask({ task, onToggle, onOpen, onUpdateNote }) {
   };
 
   return (
-    <div style={{ borderRadius: 10, border: `1.5px solid ${accent}40`, background: accentBg, padding: '20px 20px', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+    <div style={{ borderRadius: 10, border: `1.5px solid ${accent}40`, background: accentBg, padding: '16px 20px', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
       <div aria-hidden="true" style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: accent + '10', pointerEvents: 'none' }} />
 
       {/* Status + Datum */}
@@ -729,10 +729,10 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
       </div>
 
       {/* 3-Spalten */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr minmax(260px, 300px)', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1.4fr) minmax(300px, 360px)', overflow: 'hidden', minHeight: 0 }}>
 
         {/* Spalte 1: Azubis Übersicht */}
-        <div style={{ padding: '20px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <PanelTitle Icon={IcoUsers}>Azubi-Übersicht</PanelTitle>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {azubis.map(a => {
@@ -771,7 +771,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
         </div>
 
         {/* Spalte 2: Projekte + Probleme */}
-        <div style={{ padding: '20px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {problems.length > 0 && (
             <div style={{ marginBottom: 14, flexShrink: 0 }}>
               <PanelTitle Icon={IcoAlert} badge={{ text: problems.length, bg: C.crd, c: C.cr }}>Projekte mit Problemen</PanelTitle>
@@ -796,7 +796,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
         {/* Spalte 3: Berichte + Kalender */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowY: 'auto' }}>
           {/* Ausstehende Berichte */}
-          <div style={{ padding: '20px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoReport} badge={pending.length > 0 ? { text: `${pending.length} ausstehend`, bg: C.ywd, c: C.yw } : undefined}>
               Berichtshefte
             </PanelTitle>
@@ -823,7 +823,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
           </div>
 
           {/* Kalender */}
-          <div style={{ padding: '20px 20px', flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', flexShrink: 0 }}>
             <PanelTitle Icon={IcoCalendar}>Nächste Termine</PanelTitle>
             <CalWidget calendarEvents={calendarEvents} projects={active} onNavigate={() => onNavigate?.('calendar')} />
           </div>
@@ -920,13 +920,13 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
       </div>
 
       {/* ── 3-SPALTEN GRID ── */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '30% 1fr minmax(260px, 300px)', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(320px, 1.4fr) minmax(300px, 360px)', overflow: 'hidden', minHeight: 0 }}>
 
         {/* ══ SPALTE 1: Aufgaben-Fokus ══ */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>
 
           {/* Top: Fokus-Aufgabe + Queue */}
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '14px 14px 10px' }}>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 16px 10px' }}>
             <PanelTitle Icon={IcoPlay} count={allTasks.length}>Meine Aufgaben</PanelTitle>
 
             {/* Hero-Karte */}
@@ -945,7 +945,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
           </div>
 
           {/* Bottom: Wochenübersicht */}
-          <div style={{ flexShrink: 0, padding: '10px 14px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
+          <div style={{ flexShrink: 0, padding: '12px 16px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
             <PanelTitle Icon={IcoTrendUp}>Wochenübersicht</PanelTitle>
             <WeekProgress tasks={allProjectTasks} userId={user.id} />
           </div>
@@ -953,7 +953,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
 
         {/* ══ SPALTE 2: Projekte ══ */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '14px 16px 10px' }}>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 10px' }}>
             <PanelTitle Icon={IcoFolder} count={mine.length}>Aktive Projekte</PanelTitle>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {mine.length === 0 ? (
@@ -967,7 +967,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
           </div>
 
           {/* Aktivitäts-Feed (echt) */}
-          <div style={{ flexShrink: 0, padding: '10px 16px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)', maxHeight: '35%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flexShrink: 0, padding: '12px 18px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)', maxHeight: '35%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <PanelTitle Icon={IcoNote}>Letzte Aktivität</PanelTitle>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {(() => {
@@ -1015,25 +1015,25 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
           {/* Deadlines */}
-          <div style={{ padding: '20px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoClock}>Deadlines</PanelTitle>
             <DeadlineWidget projects={projects} userId={user.id} isAusbilder={false} onOpen={onOpenProject} />
           </div>
 
           {/* Kalender */}
-          <div style={{ padding: '20px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoCalendar}>Nächste Termine</PanelTitle>
             <CalWidget calendarEvents={calendarEvents} projects={projects} onNavigate={() => onNavigate?.('calendar')} />
           </div>
 
           {/* Berichtsheft */}
-          <div style={{ padding: '20px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoReport}>Berichtshefte</PanelTitle>
             <ReportWidget reports={reports} userId={user.id} onNavigate={() => onNavigate?.('reports')} />
           </div>
 
           {/* Lernbereich */}
-          <div style={{ padding: '20px 20px', flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', flexShrink: 0 }}>
             <PanelTitle Icon={IcoLearn}>Lernfortschritt</PanelTitle>
             <LearnWidget userId={user.id} onNavigate={() => onNavigate?.('learn')} />
           </div>

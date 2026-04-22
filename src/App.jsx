@@ -45,7 +45,7 @@ function Sidebar({ currentUser, onLogout, onNewProject }) {
 
   return (
     <aside style={{
-      width: 168,
+      width: 200,
       flexShrink: 0,
       background: 'var(--c-sf)',
       borderRight: '1px solid var(--c-bd)',
@@ -267,9 +267,9 @@ function GroupsPage() {
 // ── App Layout (Sidebar + Content) ────────────────────────────
 function AppLayout({ currentUser, onLogout, onNewProject, children }) {
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', width: '100%' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} />
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {children}
       </div>
     </div>
