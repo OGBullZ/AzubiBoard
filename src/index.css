@@ -238,3 +238,25 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 /* ── Tabellen ── */
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; }
+<<<<<<< HEAD
+=======
+
+/* ── Flexbox-Hilfklassen ── */
+main { flex: 1; overflow: auto; }
+
+/* ── Desktop Optimierungen ── */
+@media (min-width: 1024px) {
+  body { font-size: 13px; }
+  
+  /* Sidebar-Layout auf Desktop */
+  #root {
+    flex-direction: row;
+  }
+  
+  /* Content-Bereich füllt Rest */
+  #root > * { flex-shrink: 0; }
+}
+
+/* Mindestbreite damit Layout nicht bricht */
+html { min-width: 900px; }
+>>>>>>> bbc1b397c7142cb887860f3e2103ff5ba9af7144

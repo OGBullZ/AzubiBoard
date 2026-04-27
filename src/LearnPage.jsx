@@ -469,7 +469,7 @@ function QuizMode({ questions, onFinish }) {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: 12, color: C.mu }}>
@@ -511,7 +511,7 @@ function QuizResult({ score, total, onRestart, onBack }) {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '0 24px' }}>
-      <div style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center' }}>
+      <div style={{ textAlign: 'center' }}>
       <div style={{ fontSize: 64, marginBottom: 16, lineHeight: 1 }}>{pct >= 75 ? '🎉' : pct >= 50 ? '💪' : '📚'}</div>
       <h2 style={{ fontSize: 22, fontWeight: 800, color: C.br, marginBottom: 6 }}>{grade.l}</h2>
       <div style={{ fontSize: 48, fontWeight: 800, color: grade.c, fontFamily: C.mono, letterSpacing: -2, marginBottom: 4 }}>{score}/{total}</div>
@@ -544,7 +544,7 @@ function CodingChallenge({ challenge, onBack }) {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }} className="anim">
-      <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      <div>
       <button className="btn" onClick={onBack} style={{ marginBottom: 16, fontSize: 11, padding: '5px 10px' }}>← Zurück</button>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
         <h2 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>{challenge.title}</h2>
