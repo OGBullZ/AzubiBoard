@@ -143,7 +143,7 @@ function HeroTask({ task, onToggle, onOpen, onUpdateNote }) {
   };
 
   return (
-    <div style={{ borderRadius: 10, border: `1.5px solid ${accent}40`, background: accentBg, padding: '20px 20px', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+    <div style={{ borderRadius: 10, border: `1.5px solid ${accent}40`, background: accentBg, padding: '16px 20px', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
       <div aria-hidden="true" style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: accent + '10', pointerEvents: 'none' }} />
 
       {/* Status + Datum */}
@@ -493,7 +493,7 @@ function DeadlineWidget({ projects, userId, isAusbilder, onOpen }) {
   const now = new Date();
   const items = projects
     .filter(p => p.deadline && !p.archived)
-    .filter(p => isAusbilder || p.assignees.includes(userId))
+    .filter(p => isAusbilder || (p.assignees||[]).includes(userId))
     .map(p => ({ ...p, diff: Math.ceil((new Date(p.deadline) - now) / 86400000) }))
     .filter(p => p.diff <= 21)
     .sort((a, b) => a.diff - b.diff);
@@ -729,19 +729,19 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
       </div>
 
       {/* 3-Spalten */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr minmax(260px, 300px)', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1.4fr) minmax(300px, 360px)', overflow: 'hidden', minHeight: 0 }}>
 
         {/* Spalte 1: Azubis Übersicht */}
-        <div style={{ padding: '20px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <PanelTitle Icon={IcoUsers}>Azubi-Übersicht</PanelTitle>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {azubis.map(a => {
-              const myProjects = active.filter(p => p.assignees.includes(a.id));
-              const myTasks    = myProjects.flatMap(p => p.tasks.filter(t => t.assignee === a.id && t.status !== 'done'));
-              const inProgress = myProjects.flatMap(p => p.tasks.filter(t => t.assignee === a.id && t.status === 'in_progress'));
+              const myProjects = active.filter(p => (p.assignees||[]).includes(a.id));
+              const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id && t.status !== 'done'));
+              const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id && t.status === 'in_progress'));
               const overdue    = myTasks.filter(t => t.deadline && new Date(t.deadline) < now);
-              const doneTotal  = myProjects.flatMap(p => p.tasks.filter(t => t.status === 'done' || t.done)).length;
-              const totalTasks = myProjects.flatMap(p => p.tasks).length;
+              const doneTotal  = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.status === 'done' || t.done)).length;
+              const totalTasks = myProjects.flatMap(p => (p.tasks||[])).length;
               const pct        = totalTasks > 0 ? Math.round(doneTotal / totalTasks * 100) : 0;
 
               return (
@@ -771,7 +771,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
         </div>
 
         {/* Spalte 2: Projekte + Probleme */}
-        <div style={{ padding: '20px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {problems.length > 0 && (
             <div style={{ marginBottom: 14, flexShrink: 0 }}>
               <PanelTitle Icon={IcoAlert} badge={{ text: problems.length, bg: C.crd, c: C.cr }}>Projekte mit Problemen</PanelTitle>
@@ -780,7 +780,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
                   style={{ justifyContent: 'space-between', marginBottom: 4, padding: '7px 9px', border: `1px solid ${C.cr}25`, borderRadius: 8, background: C.crd }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
-                    <div style={{ fontSize: 10, color: C.textSecondary }}>{users.filter(u => p.assignees.includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}</div>
+                    <div style={{ fontSize: 10, color: C.textSecondary }}>{users.filter(u => (p.assignees||[]).includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}</div>
                   </div>
                   <IcoChevron size={12} style={{ color: C.cr, flexShrink: 0 }} />
                 </button>
@@ -796,7 +796,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
         {/* Spalte 3: Berichte + Kalender */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowY: 'auto' }}>
           {/* Ausstehende Berichte */}
-          <div style={{ padding: '20px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoReport} badge={pending.length > 0 ? { text: `${pending.length} ausstehend`, bg: C.ywd, c: C.yw } : undefined}>
               Berichtshefte
             </PanelTitle>
@@ -823,7 +823,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
           </div>
 
           {/* Kalender */}
-          <div style={{ padding: '20px 20px', flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', flexShrink: 0 }}>
             <PanelTitle Icon={IcoCalendar}>Nächste Termine</PanelTitle>
             <CalWidget calendarEvents={calendarEvents} projects={active} onNavigate={() => onNavigate?.('calendar')} />
           </div>
@@ -838,11 +838,11 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
 // ─────────────────────────────────────────────────────────────
 function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewProject, onOpenProject, onUpdateProject, onNavigate }) {
   const now  = new Date();
-  const mine = projects.filter(p => !p.archived && p.assignees.includes(user.id));
+  const mine = projects.filter(p => !p.archived && (p.assignees||[]).includes(user.id));
 
   // Alle meine offenen Aufgaben, sortiert nach Dringlichkeit
   const allTasks = projects.flatMap(p =>
-    p.tasks
+    (p.tasks||[])
       .filter(t => t.assignee === user.id && t.status !== 'done')
       .map(t => ({
         ...t,
@@ -889,7 +889,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
 
   const inProgress = allTasks.filter(t => t.status === 'in_progress').length;
   const overdue    = allTasks.filter(t => t.isOverdue).length;
-  const allProjectTasks = projects.flatMap(p => p.tasks);
+  const allProjectTasks = projects.flatMap(p => (p.tasks||[]));
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} className="anim">
@@ -920,13 +920,13 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
       </div>
 
       {/* ── 3-SPALTEN GRID ── */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '30% 1fr minmax(260px, 300px)', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(320px, 1.4fr) minmax(300px, 360px)', overflow: 'hidden', minHeight: 0 }}>
 
         {/* ══ SPALTE 1: Aufgaben-Fokus ══ */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>
 
           {/* Top: Fokus-Aufgabe + Queue */}
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '14px 14px 10px' }}>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 16px 10px' }}>
             <PanelTitle Icon={IcoPlay} count={allTasks.length}>Meine Aufgaben</PanelTitle>
 
             {/* Hero-Karte */}
@@ -945,7 +945,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
           </div>
 
           {/* Bottom: Wochenübersicht */}
-          <div style={{ flexShrink: 0, padding: '10px 14px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
+          <div style={{ flexShrink: 0, padding: '12px 16px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
             <PanelTitle Icon={IcoTrendUp}>Wochenübersicht</PanelTitle>
             <WeekProgress tasks={allProjectTasks} userId={user.id} />
           </div>
@@ -953,7 +953,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
 
         {/* ══ SPALTE 2: Projekte ══ */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '14px 16px 10px' }}>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 10px' }}>
             <PanelTitle Icon={IcoFolder} count={mine.length}>Aktive Projekte</PanelTitle>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {mine.length === 0 ? (
@@ -967,7 +967,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
           </div>
 
           {/* Aktivitäts-Feed (echt) */}
-          <div style={{ flexShrink: 0, padding: '10px 16px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)', maxHeight: '35%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flexShrink: 0, padding: '12px 18px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)', maxHeight: '35%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <PanelTitle Icon={IcoNote}>Letzte Aktivität</PanelTitle>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {(() => {
@@ -982,7 +982,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
                   if (diff < 7) return dt.toLocaleDateString('de-DE', { weekday: 'short' });
                   return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
                 };
-                projects.filter(p => !p.archived && p.assignees.includes(user.id)).forEach(p => {
+                projects.filter(p => !p.archived && (p.assignees||[]).includes(user.id)).forEach(p => {
                   (p.tasks || []).filter(t => t.status === 'done' && t.deadline).forEach(t => {
                     events.push({ c: C.gr, Icon: IcoCheck, text: `${t.text}`, sub: `${p.title}`, date: t.deadline });
                   });
@@ -1015,25 +1015,25 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
           {/* Deadlines */}
-          <div style={{ padding: '20px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoClock}>Deadlines</PanelTitle>
             <DeadlineWidget projects={projects} userId={user.id} isAusbilder={false} onOpen={onOpenProject} />
           </div>
 
           {/* Kalender */}
-          <div style={{ padding: '20px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoCalendar}>Nächste Termine</PanelTitle>
             <CalWidget calendarEvents={calendarEvents} projects={projects} onNavigate={() => onNavigate?.('calendar')} />
           </div>
 
           {/* Berichtsheft */}
-          <div style={{ padding: '20px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoReport}>Berichtshefte</PanelTitle>
             <ReportWidget reports={reports} userId={user.id} onNavigate={() => onNavigate?.('reports')} />
           </div>
 
           {/* Lernbereich */}
-          <div style={{ padding: '20px 20px', flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', flexShrink: 0 }}>
             <PanelTitle Icon={IcoLearn}>Lernfortschritt</PanelTitle>
             <LearnWidget userId={user.id} onNavigate={() => onNavigate?.('learn')} />
           </div>
@@ -1066,7 +1066,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
   const archived = projects.filter(p => p.archived);
 
   const visible = active.filter(p => {
-    if (filter === 'mine' && !p.assignees.includes(currentUser.id) && currentUser.role !== 'ausbilder') return false;
+    if (filter === 'mine' && !(p.assignees||[]).includes(currentUser.id) && currentUser.role !== 'ausbilder') return false;
     if (['green','yellow','red'].includes(filter) && p.status !== filter) return false;
     if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !(p.description || '').toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -1074,7 +1074,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
 
   const FILTERS = [
     ['all',    'Alle',       null,  C.ac, active.length],
-    ['mine',   'Meine',      null,  C.mu, active.filter(p => p.assignees.includes(currentUser.id)).length],
+    ['mine',   'Meine',      null,  C.mu, active.filter(p => (p.assignees||[]).includes(currentUser.id)).length],
     ['green',  'In Ordnung', C.gr,  C.gr, active.filter(p => p.status === 'green').length],
     ['yellow', 'Laufend',    C.yw,  C.yw, active.filter(p => p.status === 'yellow').length],
     ['red',    'Problem',    C.cr,  C.cr, active.filter(p => p.status === 'red').length],
@@ -1137,9 +1137,9 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
             </thead>
             <tbody>
               {visible.map(p => {
-                const au    = users.filter(u => p.assignees.includes(u.id));
-                const done  = p.tasks.filter(t => t.status === 'done' || t.done).length;
-                const pct   = p.tasks.length > 0 ? Math.round(done / p.tasks.length * 100) : 0;
+                const au    = users.filter(u => (p.assignees||[]).includes(u.id));
+                const done  = (p.tasks||[]).filter(t => t.status === 'done' || t.done).length;
+                const pct   = (p.tasks||[]).length > 0 ? Math.round(done / (p.tasks||[]).length * 100) : 0;
                 const sc    = p.status === 'green' ? C.gr : p.status === 'red' ? C.cr : C.yw;
                 const over  = p.deadline && new Date(p.deadline) < new Date();
                 return (
@@ -1176,9 +1176,9 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                       {p.deadline ? (over ? '⚠ ' : '') + fmtDate(p.deadline) : '–'}
                     </td>
                     <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', fontFamily: C.mono, fontSize: 11, color: C.textSecondary }}>
-                      {done}/{p.tasks.length}
-                      {p.tasks.filter(t => t.status === 'in_progress').length > 0 &&
-                        <span style={{ color: C.ac, marginLeft: 6 }}>▶{p.tasks.filter(t => t.status === 'in_progress').length}</span>}
+                      {done}/{(p.tasks||[]).length}
+                      {(p.tasks||[]).filter(t => t.status === 'in_progress').length > 0 &&
+                        <span style={{ color: C.ac, marginLeft: 6 }}>▶{(p.tasks||[]).filter(t => t.status === 'in_progress').length}</span>}
                     </td>
                     {currentUser.role === 'ausbilder' && (
                       <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
@@ -1196,12 +1196,12 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12, alignContent: 'start' }}>
             {visible.map(p => {
-              const au     = users.filter(u => p.assignees.includes(u.id));
+              const au     = users.filter(u => (p.assignees||[]).includes(u.id));
               const grp    = groups.find(g => g.id === p.groupId);
-              const done   = p.tasks.filter(t => t.status === 'done' || t.done).length;
-              const pct    = p.tasks.length > 0 ? Math.round(done / p.tasks.length * 100) : null;
+              const done   = (p.tasks||[]).filter(t => t.status === 'done' || t.done).length;
+              const pct    = (p.tasks||[]).length > 0 ? Math.round(done / (p.tasks||[]).length * 100) : null;
               const sc     = p.status === 'green' ? C.gr : p.status === 'red' ? C.cr : C.yw;
-              const activ  = p.tasks.filter(t => t.status === 'in_progress').length;
+              const activ  = (p.tasks||[]).filter(t => t.status === 'in_progress').length;
               const lc     = (p.links || []).length;
               return (
                 <article key={p.id} role="listitem" className="card proj-card"
@@ -1233,7 +1233,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                       {au.slice(0, 5).map((u, i) => <div key={u.id} style={{ marginLeft: i > 0 ? -6 : 0, zIndex: i }}><Avatar name={u.name} size={22} /></div>)}
                       {au.length > 5 && <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--c-bd2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: C.textSecondary, marginLeft: -6 }}>+{au.length - 5}</div>}
                     </div>
-                    <span style={{ fontSize: 10, color: C.textSecondary, fontFamily: C.mono }}>{done}/{p.tasks.length}</span>
+                    <span style={{ fontSize: 10, color: C.textSecondary, fontFamily: C.mono }}>{done}/{(p.tasks||[]).length}</span>
                   </div>
                   {pct !== null && <ProgressBar value={pct} color={pct === 100 ? C.gr : C.ac} height={3} />}
                 </article>

@@ -20,7 +20,7 @@ import { Dashboard, ProjectPool } from './Views';
 import ProjectDetail from './ProjectDetail';
 import LearnPage from './LearnPage';
 import ReportsPage from './ReportsPage';
-import { NewProjectModal } from './ExtraViews';
+import { NewProjectModal, CalendarView, GroupsView } from './ExtraViews';
 import {
   IcoDashboard, IcoFolder, IcoCalendar, IcoUsers,
   IcoReport, IcoLearn, IcoPlus, IcoLogout,
@@ -45,7 +45,7 @@ function Sidebar({ currentUser, onLogout, onNewProject }) {
 
   return (
     <aside style={{
-      width: 168,
+      width: 200,
       flexShrink: 0,
       background: 'var(--c-sf)',
       borderRight: '1px solid var(--c-bd)',
@@ -189,18 +189,26 @@ function ProjectDetailWrapper() {
   const project = data?.projects?.find(p => p.id === id);
 
   const handleUpdate = useCallback((projectId, updates) => {
-    setData({ ...data, projects: data.projects.map(p => p.id === projectId ? { ...p, ...updates } : p) });
+    setData({ ...data, projects: (data?.projects||[]).map(p => p.id === projectId ? { ...p, ...updates } : p) });
   }, [data, setData]);
 
   const handleArchive = useCallback((projectId) => {
-    setData({ ...data, projects: data.projects.map(p => p.id === projectId ? { ...p, archived: true } : p) });
+    setData({ ...data, projects: (data?.projects||[]).map(p => p.id === projectId ? { ...p, archived: true } : p) });
   }, [data, setData]);
 
   if (!project) return <div className="card" style={{ margin: 24 }}>Projekt nicht gefunden</div>;
 
+  // Fehlende Arrays auffüllen (Kompatibilität mit alten Projekten)
+  const safeProject = {
+    tasks: [], steps: [], materials: [], requirements: [],
+    links: [], calendarEvents: [], assignees: [],
+    netzplan: { nodes: [], edges: [], unit: 'W', nodePositions: {} },
+    ...project,
+  };
+
   return (
     <ProjectDetail
-      project={project}
+      project={safeProject}
       users={data?.users || []}
       groups={data?.groups || []}
       currentUser={currentUser}
@@ -240,36 +248,60 @@ function ProfilePage() {
   );
 }
 
-// ── Kalender Platzhalter ──────────────────────────────────────
+// ── Kalender Page ─────────────────────────────────────────────
 function CalendarPage() {
+  const { data, setData, currentUser } = useAppStore();
+
+  const handleUpdate = useCallback((projectId, updates) => {
+    if (projectId === '_cal') {
+      const ev = updates.ev;
+      const newData = { ...data, calendarEvents: [...(data.calendarEvents || []), ev] };
+      setData(newData);
+    } else {
+      const newData = {
+        ...data,
+        projects: (data?.projects||[]).map(p => p.id === projectId ? { ...p, ...updates } : p),
+      };
+      setData(newData);
+    }
+  }, [data, setData]);
+
   return (
-    <div style={{ padding: 24 }}>
-      <div className="card">
-        <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-br)', marginBottom: 8 }}>Kalender</div>
-        <div style={{ fontSize: 13, color: 'var(--c-mu)' }}>Kalender-Ansicht – demnächst verfügbar.</div>
-      </div>
-    </div>
+    <CalendarView
+      projects={data?.projects || []}
+      calendarEvents={data?.calendarEvents || []}
+      users={data?.users || []}
+      onUpdate={handleUpdate}
+      showToast={msg => console.log(msg)}
+    />
   );
 }
 
-// ── Gruppen Platzhalter ───────────────────────────────────────
+// ── Gruppen Page ──────────────────────────────────────────────
 function GroupsPage() {
+  const { data, setData } = useAppStore();
+
+  const handleUpdateGroups = useCallback((groups) => {
+    setData({ ...data, groups });
+  }, [data, setData]);
+
   return (
-    <div style={{ padding: 24 }}>
-      <div className="card">
-        <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-br)', marginBottom: 8 }}>Gruppen</div>
-        <div style={{ fontSize: 13, color: 'var(--c-mu)' }}>Gruppen-Verwaltung – demnächst verfügbar.</div>
-      </div>
-    </div>
+    <GroupsView
+      groups={data?.groups || []}
+      users={data?.users || []}
+      projects={data?.projects || []}
+      onUpdateGroups={handleUpdateGroups}
+      showToast={msg => console.log(msg)}
+    />
   );
 }
 
 // ── App Layout (Sidebar + Content) ────────────────────────────
 function AppLayout({ currentUser, onLogout, onNewProject, children }) {
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
       <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} />
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {children}
       </div>
     </div>
@@ -282,7 +314,7 @@ function DashboardPage({ onNewProject }) {
   const { data, currentUser, setData } = useAppStore();
 
   const handleUpdate = useCallback((projectId, updates) => {
-    setData({ ...data, projects: data.projects.map(p => p.id === projectId ? { ...p, ...updates } : p) });
+    setData({ ...data, projects: (data?.projects||[]).map(p => p.id === projectId ? { ...p, ...updates } : p) });
   }, [data, setData]);
 
   return (
@@ -313,9 +345,9 @@ function ProjectsPage({ onNewProject }) {
       currentUser={currentUser}
       onOpen={id => navigate(`/project/${id}`)}
       onNew={onNewProject}
-      onDelete={id => setData({ ...data, projects: data.projects.filter(p => p.id !== id) })}
-      onArchive={id => setData({ ...data, projects: data.projects.map(p => p.id === id ? { ...p, archived: true } : p) })}
-      onUnarchive={id => setData({ ...data, projects: data.projects.map(p => p.id === id ? { ...p, archived: false } : p) })}
+      onDelete={id => setData({ ...data, projects: (data?.projects||[]).filter(p => p.id !== id) })}
+      onArchive={id => setData({ ...data, projects: (data?.projects||[]).map(p => p.id === id ? { ...p, archived: true } : p) })}
+      onUnarchive={id => setData({ ...data, projects: (data?.projects||[]).map(p => p.id === id ? { ...p, archived: false } : p) })}
     />
   );
 }
@@ -324,6 +356,7 @@ function ProjectsPage({ onNewProject }) {
 const App = () => {
   const { data, currentUser, setData, setCurrentUser } = useAppStore();
   const [showModal, setShowModal] = useState(false);
+
 
   useEffect(() => {
     dataService.getData().then(loaded => {

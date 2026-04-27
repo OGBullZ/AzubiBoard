@@ -1,31 +1,44 @@
 // ============================================================
-//  store.js – App State (ohne externe Dependencies)
+//  store.js – App State (kein Zustand, pure React)
 //  Pfad: src/lib/store.js
 // ============================================================
-import { create } from 'zustand';
+import { useState, useEffect, useCallback } from 'react';
 import { persistData } from '../utils';
 
-export const useAppStore = create((set, get) => ({
+// Globaler State als einfaches Objekt (kein Zustand nötig)
+let _state = {
   data: null,
   currentUser: null,
+};
+const _listeners = new Set();
 
-  setData: (data) => {
-    set({ data });
+function setState(patch) {
+  _state = { ..._state, ...patch };
+  _listeners.forEach(fn => fn(_state));
+}
+
+export function useAppStore() {
+  const [state, setLocalState] = useState(_state);
+
+  useEffect(() => {
+    const listener = (s) => setLocalState({ ...s });
+    _listeners.add(listener);
+    return () => _listeners.delete(listener);
+  }, []);
+
+  const setData = useCallback((data) => {
+    setState({ data });
     try { persistData(data); } catch {}
-  },
+  }, []);
 
-  setCurrentUser: (user) => set({ currentUser: user }),
+  const setCurrentUser = useCallback((currentUser) => {
+    setState({ currentUser });
+  }, []);
 
-  updateProject: (projectId, updates) => {
-    const { data } = get();
-    if (!data) return;
-    const newData = {
-      ...data,
-      projects: data.projects.map(p =>
-        p.id === projectId ? { ...p, ...updates } : p
-      ),
-    };
-    set({ data: newData });
-    try { persistData(newData); } catch {}
-  },
-}));
+  return {
+    data:           state.data,
+    currentUser:    state.currentUser,
+    setData,
+    setCurrentUser,
+  };
+}

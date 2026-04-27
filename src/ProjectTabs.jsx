@@ -246,31 +246,31 @@ export function TasksTab({ project, users, currentUser, onUpdate }) {
   const [showAdd,  setShowAdd]  = useState(false);
   const [newTask,  setNewTask]  = useState(mkTask({ assignee: currentUser.id }));
 
-  const assignable = users.filter(u => project.assignees?.includes(u.id) || u.id === currentUser.id);
+  const assignable = users.filter(u => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
 
   const updateTask = (taskId, patch) =>
-    onUpdate(project.id, { tasks: project.tasks.map(t => t.id === taskId ? { ...t, ...patch } : t) });
+    onUpdate(project.id, { tasks: (project.tasks||[]).map(t => t.id === taskId ? { ...t, ...patch } : t) });
   const removeTask = (taskId) => {
-    onUpdate(project.id, { tasks: project.tasks.filter(t => t.id !== taskId) });
+    onUpdate(project.id, { tasks: (project.tasks||[]).filter(t => t.id !== taskId) });
     if (openTask === taskId) setOpenTask(null);
   };
   const addTask = () => {
     if (!newTask.text.trim()) return;
-    onUpdate(project.id, { tasks: [...project.tasks, { ...newTask, links: newTask.links || [] }] });
+    onUpdate(project.id, { tasks: [...(project.tasks||[]), { ...newTask, links: newTask.links || [] }] });
     setNewTask(mkTask({ assignee: currentUser.id }));
     setShowAdd(false);
   };
 
   const total = project.tasks.length;
-  const done  = project.tasks.filter(t => t.status === 'done' || t.done).length;
+  const done  = (project.tasks||[]).filter(t => t.status === 'done' || t.done).length;
   const pct   = total > 0 ? Math.round(done / total * 100) : 0;
 
   const grouped = STATUS_ORDER.reduce((acc, s) => {
-    acc[s] = project.tasks.filter(t => (t.status || 'not_started') === s);
+    acc[s] = (project.tasks||[]).filter(t => (t.status || 'not_started') === s);
     return acc;
   }, {});
 
-  const activeWorkers = project.tasks
+  const activeWorkers = (project.tasks||[])
     .filter(t => t.status === 'in_progress' && t.assignee)
     .map(t => ({ task: t, user: users.find(u => u.id === t.assignee) }))
     .filter(x => x.user);
@@ -359,9 +359,9 @@ export function TasksTab({ project, users, currentUser, onUpdate }) {
 // ── Materials Tab ─────────────────────────────────────────────
 export function MaterialsTab({ project, onUpdate }) {
   const [form, setForm] = useState({ name: '', qty: 1, cost: 0 });
-  const add    = () => { if (!form.name.trim()) return; onUpdate(project.id, { materials: [...project.materials, { id: uid(), name: form.name.trim(), qty: Number(form.qty)||1, cost: Number(form.cost)||0 }] }); setForm({ name:'',qty:1,cost:0 }); };
-  const remove = id => onUpdate(project.id, { materials: project.materials.filter(m => m.id !== id) });
-  const total  = project.materials.reduce((s,m) => s + (m.cost||0)*(m.qty||1), 0);
+  const add    = () => { if (!form.name.trim()) return; onUpdate(project.id, { materials: [...(project.materials||[]), { id: uid(), name: form.name.trim(), qty: Number(form.qty)||1, cost: Number(form.cost)||0 }] }); setForm({ name:'',qty:1,cost:0 }); };
+  const remove = id => onUpdate(project.id, { materials: (project.materials||[]).filter(m => m.id !== id) });
+  const total  = (project.materials||[]).reduce((s,m) => s + (m.cost||0)*(m.qty||1), 0);
 
   return (
     <div className="anim">
@@ -377,8 +377,8 @@ export function MaterialsTab({ project, onUpdate }) {
         <div style={{ display:'grid', gridTemplateColumns:'1fr 70px 90px 90px 36px', padding:'7px 14px', borderBottom:`1px solid ${C.bd}`, fontSize:10, color:C.mu, textTransform:'uppercase', letterSpacing:.8, fontWeight:700 }}>
           <div>Bezeichnung</div><div>Menge</div><div>Einzelpreis</div><div>Gesamt</div><div />
         </div>
-        {project.materials.length===0 ? <div style={{padding:'20px',textAlign:'center',color:C.mu,fontSize:12}}>Noch kein Material</div>
-         : project.materials.map(m => (
+        {(project.materials||[]).length===0 ? <div style={{padding:'20px',textAlign:'center',color:C.mu,fontSize:12}}>Noch kein Material</div>
+         : (project.materials||[]).map(m => (
           <div key={m.id} style={{ display:'grid', gridTemplateColumns:'1fr 70px 90px 90px 36px', padding:'9px 14px', borderBottom:`1px solid ${C.bd}22`, alignItems:'center' }}>
             <div style={{fontSize:13,color:C.br,fontWeight:600}}>{m.name}</div>
             <div style={{fontSize:12,fontFamily:C.mono}}>{m.qty}×</div>
@@ -387,7 +387,7 @@ export function MaterialsTab({ project, onUpdate }) {
             <IconBtn Icon={IcoTrash} onClick={()=>remove(m.id)} label={`${m.name} löschen`} danger size={12} />
           </div>
         ))}
-        {project.materials.length > 0 && (
+        {(project.materials||[]).length > 0 && (
           <div style={{padding:'8px 14px',borderTop:`1px solid ${C.bd}`,display:'flex',justifyContent:'flex-end',gap:8,alignItems:'center'}}>
             <span style={{fontSize:12,color:C.mu}}>Gesamt:</span>
             <span style={{fontSize:16,fontWeight:800,color:C.ac,fontFamily:C.mono}}>{total.toFixed(2)} €</span>
@@ -401,11 +401,11 @@ export function MaterialsTab({ project, onUpdate }) {
 // ── Requirements Tab ──────────────────────────────────────────
 export function RequirementsTab({ project, onUpdate }) {
   const [text,setText]=useState('');
-  const add    = () => { if(!text.trim())return; onUpdate(project.id,{requirements:[...project.requirements,{id:uid(),text:text.trim(),done:false}]}); setText(''); };
-  const toggle = id => onUpdate(project.id,{requirements:project.requirements.map(r=>r.id===id?{...r,done:!r.done}:r)});
-  const remove = id => onUpdate(project.id,{requirements:project.requirements.filter(r=>r.id!==id)});
-  const done   = project.requirements.filter(r=>r.done).length;
-  const pct    = project.requirements.length ? Math.round(done/project.requirements.length*100) : 0;
+  const add    = () => { if(!text.trim())return; onUpdate(project.id,{requirements:[...(project.requirements||[]),{id:uid(),text:text.trim(),done:false}]}); setText(''); };
+  const toggle = id => onUpdate(project.id,{requirements:(project.requirements||[]).map(r=>r.id===id?{...r,done:!r.done}:r)});
+  const remove = id => onUpdate(project.id,{requirements:(project.requirements||[]).filter(r=>r.id!==id)});
+  const done   = (project.requirements||[]).filter(r=>r.done).length;
+  const pct    = (project.requirements||[]).length ? Math.round(done/(project.requirements||[]).length*100) : 0;
 
   return (
     <div className="anim">
@@ -415,7 +415,7 @@ export function RequirementsTab({ project, onUpdate }) {
           <button className="abtn" onClick={add}>+ Hinzufügen</button>
         </div>
       </div>
-      {project.requirements.length > 0 && (
+      {(project.requirements||[]).length > 0 && (
         <div style={{marginBottom:8,display:'flex',alignItems:'center',gap:8}}>
           <div style={{flex:1,height:4,background:C.bd2,borderRadius:2,overflow:'hidden'}}>
             <div style={{height:'100%',width:`${pct}%`,background:C.gr,borderRadius:2,transition:'width .3s'}} />
@@ -423,7 +423,7 @@ export function RequirementsTab({ project, onUpdate }) {
           <span style={{fontSize:10,color:C.gr,fontFamily:C.mono,fontWeight:700}}>{pct}%</span>
         </div>
       )}
-      {project.requirements.map(r => (
+      {(project.requirements||[]).map(r => (
         <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',background:C.sf2,border:`1px solid ${r.done?C.gr+'28':C.bd}`,borderRadius:7,marginBottom:4,transition:'border-color .15s'}}>
           <button onClick={()=>toggle(r.id)} style={{width:18,height:18,borderRadius:4,border:`2px solid ${r.done?C.gr:C.bd2}`,background:r.done?C.gr:'transparent',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .12s'}}>
             {r.done && <IcoCheck size={10} style={{color:'#fff'}} />}
@@ -432,8 +432,8 @@ export function RequirementsTab({ project, onUpdate }) {
           <IconBtn Icon={IcoTrash} onClick={()=>remove(r.id)} label="Löschen" danger size={12} />
         </div>
       ))}
-      {project.requirements.length===0 && <EmptyState Icon={IcoRequire||IcoCheck} title="Noch keine Anforderungen" />}
-      {project.requirements.length > 0 && <div style={{marginTop:8,fontSize:11,color:C.mu,textAlign:'right'}}>{done} von {project.requirements.length} erfüllt</div>}
+      {(project.requirements||[]).length===0 && <EmptyState Icon={IcoRequire||IcoCheck} title="Noch keine Anforderungen" />}
+      {(project.requirements||[]).length > 0 && <div style={{marginTop:8,fontSize:11,color:C.mu,textAlign:'right'}}>{done} von {(project.requirements||[]).length} erfüllt</div>}
     </div>
   );
 }
@@ -442,9 +442,9 @@ export function RequirementsTab({ project, onUpdate }) {
 export function StepsTab({ project, onUpdate }) {
   const [form, setForm] = useState({ title: '', date: today(), note: '' });
   const [open, setOpen] = useState(null);
-  const add    = () => { if(!form.title.trim())return; onUpdate(project.id,{steps:[...project.steps,{id:uid(),...form}]}); setForm({title:'',date:today(),note:''}); };
-  const remove = id => onUpdate(project.id,{steps:project.steps.filter(s=>s.id!==id)});
-  const sorted = [...project.steps].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const add    = () => { if(!form.title.trim())return; onUpdate(project.id,{steps:[...(project.steps||[]),{id:uid(),...form}]}); setForm({title:'',date:today(),note:''}); };
+  const remove = id => onUpdate(project.id,{steps:(project.steps||[]).filter(s=>s.id!==id)});
+  const sorted = [...(project.steps||[])].sort((a,b)=>new Date(b.date)-new Date(a.date));
 
   return (
     <div className="anim">
@@ -478,7 +478,7 @@ export function StepsTab({ project, onUpdate }) {
             </div>
           </div>
         ))}
-        {project.steps.length===0 && <EmptyState Icon={IcoDoc} title="Noch keine Schritte" subtitle="Dokumentiere den Fortschritt" />}
+        {(project.steps||[]).length===0 && <EmptyState Icon={IcoDoc} title="Noch keine Schritte" subtitle="Dokumentiere den Fortschritt" />}
       </div>
     </div>
   );
