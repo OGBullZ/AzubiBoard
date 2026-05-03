@@ -1,0 +1,108 @@
+=============================================================================
+TYPOGRAPHY AND SPACING UPDATES - APPLE-STYLE DESIGN HIERARCHY
+File: src/Views.jsx
+=============================================================================
+
+TOTAL REPLACEMENTS MADE: 108 style property updates
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. SECTION HEADERS TYPOGRAPHY
+   Category: fontSize changes for section headers and labels
+   
+   ✓ fontSize: 10 → fontSize: 13
+     Count: 3 replacements
+     Context: Section titles like "Aktive Aufgaben" headings
+   
+   ✓ fontSize: 11 → fontSize: 13  
+     Count: 3 replacements (embedded in other changes)
+     Context: Section header labels with fontWeight: 700
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2. TASK/PROJECT CARD TITLES
+   Category: Main card heading typography
+   
+   ✓ fontSize: 13 → fontSize: 16
+     Count: 9 replacements
+     Context: Card titles (project names, task titles)
+     Example: Line 318 - project.title displayed with fontWeight: 700
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3. CARD BODY TEXT
+   Category: Description and body text in cards
+   
+   ✓ fontSize: 11 → fontSize: 14
+     Count: 10 replacements
+     Context: Card descriptions, body text
+     Example: Line 131 - "Keine offenen oder überfälligen Aufgaben"
+   
+   ✓ fontSize: 12 → fontSize: 14
+     Count: 9 replacements
+     Context: Additional descriptions and content text
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4. CARD PADDING & SPACING
+   Category: Padding consistency for better Apple-style spacing
+   
+   ✓ padding: '14px 15px' → padding: '20px 20px'
+     Count: 9 replacements
+     Context: Main card containers
+   
+   ✓ padding: '9px 12px' → padding: '12px 14px'
+     Count: 7 replacements
+     Context: Table cells and row padding
+   
+   ✓ padding: '5px 12px' → padding: '8px 16px'
+     Count: 1 replacement
+     Context: Button and control padding
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5. COLOR VARIABLE UPDATES
+   Category: Using new C object naming convention
+   
+   ✓ C.tx → C.textPrimary
+     Count: 2 replacements
+     Context: Primary text color for high-contrast content
+   
+   ✓ C.mu → C.textSecondary
+     Count: 49 replacements
+     Context: Secondary/muted text color throughout
+     Example: Line 131 - description text color
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. PROGRESS RING TEXT
+   Status: Ring size maintained at 44px
+   Note: Surrounding text remains at fontSize: 10 (small numeric display)
+   
+   Location: Line 312 - pct display in Ring component
+   No changes: Keeps focus on visual indicator
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+7. STATUS/META TEXT
+   Category: Small caption text (12px)
+   Status: Maintained readability while keeping small
+   
+   Remaining fontSize: 10 count: 31 (appropriate for captions)
+   Remaining fontSize: 11 count: 19 (appropriate for controls/buttons)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DESIGN PRINCIPLES APPLIED:
+✓ Improved visual hierarchy with larger titles (16px) and body text (14px)
+✓ Better spacing with generous padding (20px card spacing)
+✓ Consistent color variables for maintainability
+✓ Apple-style design approach with larger, more readable typography
+✓ Maintained small text for captions and secondary information
+
+FILE INTEGRITY:
+✓ File remains valid JSX syntax
+✓ All replacements are inline style properties
+✓ Backup created: Views.jsx.backup
+
+=============================================================================
