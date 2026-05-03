@@ -3,10 +3,10 @@ import { C, fmtDate } from '../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoCheck, IcoClock, IcoSearch, IcoTrash,
-  IcoPlus, IcoLink, IcoArchive, IcoChevron
+  IcoPlus, IcoLink, IcoArchive, IcoChevron, IcoDoc
 } from '../../components/Icons.jsx';
 
-export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNew, onDelete, onArchive, onUnarchive }) {
+export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNew, onDelete, onArchive, onUnarchive, onDuplicate }) {
   const [filter,      setFilter]      = useState('all');
   const [search,      setSearch]      = useState('');
   const [showArchive, setShowArchive] = useState(false);
@@ -128,6 +128,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                     {currentUser.role === 'ausbilder' && (
                       <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: 4 }}>
+                          <IconBtn Icon={IcoDoc}     onClick={() => onDuplicate?.(p.id)} label="Duplizieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
                           <IconBtn Icon={IcoArchive} onClick={() => onArchive?.(p.id)} label="Archivieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
                           <IconBtn Icon={IcoTrash}   onClick={() => onDelete(p.id, p.title)} label="Löschen" danger />
                         </div>
@@ -156,6 +157,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                   onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderLeftColor = sc; }}>
                   {currentUser.role === 'ausbilder' && (
                     <div className="hover-action" style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4 }}>
+                      <IconBtn Icon={IcoDoc}     onClick={e => { e.stopPropagation(); onDuplicate?.(p.id); }} label="Duplizieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
                       <IconBtn Icon={IcoArchive} onClick={e => { e.stopPropagation(); onArchive?.(p.id); }} label="Archivieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
                       <IconBtn Icon={IcoTrash}   onClick={e => { e.stopPropagation(); onDelete(p.id, p.title); }} label="Löschen" danger />
                     </div>

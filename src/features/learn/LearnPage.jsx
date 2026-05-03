@@ -1,29 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { C, uid } from '../../lib/utils.js';
-import { ProgressBar, EmptyState, Modal } from '../../components/UI.jsx';
+import { ProgressBar, EmptyState, Modal, Field } from '../../components/UI.jsx';
+import JAVA_QUIZ from '../../data/quiz.json';
 
-const JAVA_QUIZ = [
-  { id: 1, category: 'Grundlagen', difficulty: 'easy', question: 'Wie lautet die korrekte Syntax für ein Hello-World-Programm in Java?', type: 'single', answers: [{ id: 'a', text: 'System.out.println("Hello World");', correct: true },{ id: 'b', text: 'print("Hello World");', correct: false },{ id: 'c', text: 'Console.WriteLine("Hello World");', correct: false },{ id: 'd', text: 'echo "Hello World";', correct: false }], explanation: 'In Java gibt man Text mit System.out.println() auf der Konsole aus. System ist die Klasse, out ist der Ausgabestream, println() die Methode.' },
-  { id: 2, category: 'Grundlagen', difficulty: 'easy', question: 'Was ist die Hauptmethode (Einstiegspunkt) in einem Java-Programm?', type: 'single', answers: [{ id: 'a', text: 'public static void main(String[] args)', correct: true },{ id: 'b', text: 'public void start()', correct: false },{ id: 'c', text: 'static int main()', correct: false },{ id: 'd', text: 'void run(String args)', correct: false }], explanation: 'Die main-Methode ist der Startpunkt jedes Java-Programms. Sie muss public, static und void sein und ein String-Array als Parameter haben.' },
-  { id: 3, category: 'Grundlagen', difficulty: 'easy', question: 'Welches Schlüsselwort wird verwendet, um eine Klasse in Java zu definieren?', type: 'single', answers: [{ id: 'a', text: 'class', correct: true },{ id: 'b', text: 'object', correct: false },{ id: 'c', text: 'define', correct: false },{ id: 'd', text: 'struct', correct: false }], explanation: 'Mit dem Schlüsselwort "class" wird eine Klasse in Java definiert. Z.B.: public class MeineKlasse { }' },
-  { id: 4, category: 'Grundlagen', difficulty: 'easy', question: 'Mit welchem Symbol werden Anweisungen in Java abgeschlossen?', type: 'single', answers: [{ id: 'a', text: ';  (Semikolon)', correct: true },{ id: 'b', text: '.  (Punkt)', correct: false },{ id: 'c', text: ':  (Doppelpunkt)', correct: false },{ id: 'd', text: 'Zeilenumbruch', correct: false }], explanation: 'In Java muss jede Anweisung mit einem Semikolon (;) abgeschlossen werden.' },
-  { id: 5, category: 'Datentypen', difficulty: 'easy', question: 'Welcher Datentyp wird für ganze Zahlen in Java verwendet?', type: 'single', answers: [{ id: 'a', text: 'int', correct: true },{ id: 'b', text: 'float', correct: false },{ id: 'c', text: 'char', correct: false },{ id: 'd', text: 'bool', correct: false }], explanation: '"int" steht für Integer (ganze Zahl). In Java gibt es auch byte, short, long für andere Ganzzahl-Bereiche.' },
-  { id: 6, category: 'Datentypen', difficulty: 'easy', question: 'Was ist der Unterschied zwischen int und double in Java?', type: 'single', answers: [{ id: 'a', text: 'int speichert ganze Zahlen, double speichert Dezimalzahlen', correct: true },{ id: 'b', text: 'int ist größer als double', correct: false },{ id: 'c', text: 'double kann nur positive Zahlen speichern', correct: false },{ id: 'd', text: 'Es gibt keinen Unterschied', correct: false }], explanation: 'int nimmt Ganzzahlen (z.B. 5, -3, 100), double nimmt Fließkommazahlen (z.B. 3.14, -0.5).' },
-  { id: 7, category: 'Datentypen', difficulty: 'easy', question: 'Wie deklariert man eine Variable vom Typ String in Java?', type: 'single', answers: [{ id: 'a', text: 'String name = "Max";', correct: true },{ id: 'b', text: 'string name = "Max";', correct: false },{ id: 'c', text: 'TEXT name = "Max";', correct: false },{ id: 'd', text: 'var name : String = "Max";', correct: false }], explanation: 'In Java beginnt String mit einem Großbuchstaben, da es eine Klasse ist, kein primitiver Typ.' },
-  { id: 8, category: 'Operatoren', difficulty: 'easy', question: 'Was gibt folgender Code aus?\n\nint x = 10;\nint y = 3;\nSystem.out.println(x % y);', type: 'single', answers: [{ id: 'a', text: '1', correct: true },{ id: 'b', text: '3', correct: false },{ id: 'c', text: '3.33', correct: false },{ id: 'd', text: '0', correct: false }], explanation: '% ist der Modulo-Operator. 10 % 3 = 1, weil 10 / 3 = 3 Rest 1.' },
-  { id: 9, category: 'Kontrollstrukturen', difficulty: 'medium', question: 'Was gibt folgender Code aus?\n\nfor (int i = 0; i < 3; i++) {\n  System.out.print(i + " ");\n}', type: 'single', answers: [{ id: 'a', text: '0 1 2', correct: true },{ id: 'b', text: '1 2 3', correct: false },{ id: 'c', text: '0 1 2 3', correct: false },{ id: 'd', text: '1 2', correct: false }], explanation: 'Die Schleife beginnt bei i=0, läuft solange i < 3. Also 0, 1, 2. print() macht keinen Zeilenumbruch.' },
-  { id: 10, category: 'Kontrollstrukturen', difficulty: 'medium', question: 'Welche Schleife wird MINDESTENS einmal ausgeführt, auch wenn die Bedingung falsch ist?', type: 'single', answers: [{ id: 'a', text: 'do-while', correct: true },{ id: 'b', text: 'while', correct: false },{ id: 'c', text: 'for', correct: false },{ id: 'd', text: 'foreach', correct: false }], explanation: 'Bei do-while wird der Code-Block zuerst ausgeführt, dann die Bedingung geprüft. Daher läuft sie immer mindestens einmal.' },
-  { id: 11, category: 'OOP', difficulty: 'medium', question: 'Was bedeutet das Schlüsselwort "this" in Java?', type: 'single', answers: [{ id: 'a', text: 'Referenz auf das aktuelle Objekt', correct: true },{ id: 'b', text: 'Referenz auf die Klasse', correct: false },{ id: 'c', text: 'Ein neues Objekt erstellen', correct: false },{ id: 'd', text: 'Das übergeordnete Objekt', correct: false }], explanation: '"this" verweist auf die aktuelle Instanz der Klasse. Nützlich um Attribute von lokalen Variablen zu unterscheiden.' },
-  { id: 12, category: 'OOP', difficulty: 'medium', question: 'Was ist ein Konstruktor in Java?', type: 'single', answers: [{ id: 'a', text: 'Eine spezielle Methode zum Erstellen von Objekten', correct: true },{ id: 'b', text: 'Eine Methode zum Löschen von Objekten', correct: false },{ id: 'c', text: 'Eine statische Klasse', correct: false },{ id: 'd', text: 'Ein Interface', correct: false }], explanation: 'Ein Konstruktor hat denselben Namen wie die Klasse und keinen Rückgabetyp. Er wird mit "new" aufgerufen.' },
-  { id: 13, category: 'OOP', difficulty: 'medium', question: 'Welche der folgenden Aussagen zu "extends" ist korrekt?', type: 'single', answers: [{ id: 'a', text: 'Eine Klasse erbt von einer anderen Klasse', correct: true },{ id: 'b', text: 'Eine Klasse implementiert ein Interface', correct: false },{ id: 'c', text: 'Eine Methode wird überschrieben', correct: false },{ id: 'd', text: 'Eine Variable wird erweitert', correct: false }], explanation: '"extends" wird für Vererbung genutzt. "implements" ist für Interfaces. In Java kann eine Klasse nur von einer anderen Klasse erben.' },
-  { id: 14, category: 'Arrays', difficulty: 'medium', question: 'Wie erstellt man ein int-Array mit 5 Elementen in Java?', type: 'single', answers: [{ id: 'a', text: 'int[] arr = new int[5];', correct: true },{ id: 'b', text: 'int arr[5];', correct: false },{ id: 'c', text: 'array int arr = 5;', correct: false },{ id: 'd', text: 'int arr = new int(5);', correct: false }], explanation: 'In Java wird ein Array mit dem Typ, eckigen Klammern und new erstellt. Der Index geht von 0 bis 4 bei 5 Elementen.' },
-  { id: 15, category: 'Arrays', difficulty: 'medium', question: 'Was ist der Index des ersten Elements eines Arrays in Java?', type: 'single', answers: [{ id: 'a', text: '0', correct: true },{ id: 'b', text: '1', correct: false },{ id: 'c', text: '-1', correct: false },{ id: 'd', text: 'Abhängig von der Größe', correct: false }], explanation: 'Arrays in Java sind nullbasiert. Das erste Element hat immer Index 0, das letzte Index (Länge - 1).' },
-  { id: 16, category: 'Methoden', difficulty: 'medium', question: 'Was bedeutet "void" als Rückgabetyp einer Methode?', type: 'single', answers: [{ id: 'a', text: 'Die Methode gibt keinen Wert zurück', correct: true },{ id: 'b', text: 'Die Methode gibt null zurück', correct: false },{ id: 'c', text: 'Die Methode gibt einen leeren String zurück', correct: false },{ id: 'd', text: 'Die Methode gibt 0 zurück', correct: false }], explanation: '"void" bedeutet, die Methode hat keinen Rückgabewert. Methoden mit void brauchen kein "return".' },
-  { id: 17, category: 'Exceptions', difficulty: 'hard', question: 'Was passiert bei einer NullPointerException?', type: 'single', answers: [{ id: 'a', text: 'Auf ein Objekt wird zugegriffen, das null ist', correct: true },{ id: 'b', text: 'Eine Zahl wird durch null geteilt', correct: false },{ id: 'c', text: 'Ein Array hat zu viele Elemente', correct: false },{ id: 'd', text: 'Eine Variable hat keinen Namen', correct: false }], explanation: 'NullPointerException tritt auf, wenn man Methoden oder Attribute eines Objekts aufruft, das nicht initialisiert wurde (null ist).' },
-  { id: 18, category: 'Exceptions', difficulty: 'hard', question: 'Welche Blöcke gehören zu einer Try-Catch-Struktur?', type: 'multiple', answers: [{ id: 'a', text: 'try', correct: true },{ id: 'b', text: 'catch', correct: true },{ id: 'c', text: 'finally', correct: true },{ id: 'd', text: 'handle', correct: false }], explanation: 'try enthält den risikoreichen Code, catch fängt Fehler ab, finally wird immer ausgeführt (optional). "handle" existiert nicht.' },
-  { id: 19, category: 'OOP', difficulty: 'hard', question: 'Was sind die vier Säulen der objektorientierten Programmierung?', type: 'multiple', answers: [{ id: 'a', text: 'Kapselung (Encapsulation)', correct: true },{ id: 'b', text: 'Vererbung (Inheritance)', correct: true },{ id: 'c', text: 'Polymorphismus', correct: true },{ id: 'd', text: 'Abstraktion', correct: true }], explanation: 'Die vier OOP-Prinzipien: Kapselung (Daten verbergen), Vererbung (Klassen erweitern), Polymorphismus (gleiche Schnittstelle, verschiedene Implementierungen), Abstraktion (Komplexität verbergen).' },
-  { id: 20, category: 'Grundlagen', difficulty: 'easy', question: 'Was ist ein Java-Paket (Package)?', type: 'single', answers: [{ id: 'a', text: 'Eine Gruppe von verwandten Klassen und Interfaces', correct: true },{ id: 'b', text: 'Eine Datei mit Java-Code', correct: false },{ id: 'c', text: 'Ein Komprimierungsformat', correct: false },{ id: 'd', text: 'Eine Art von Methode', correct: false }], explanation: 'Pakete organisieren Java-Klassen in Namensräume. Z.B. java.util enthält Hilfsklassen, java.io für Ein-/Ausgabe.' },
-];
+const CUSTOM_QUIZ_KEY = 'azubiboard_custom_quiz';
 
 const CODING_CHALLENGES = [
   { id: 'c1', title: 'Hello World', difficulty: 'easy', category: 'Grundlagen', description: 'Schreibe ein Java-Programm, das "Hello, World!" auf der Konsole ausgibt.\n\nDie Klasse heißt bereits "HelloWorld". Füge nur die fehlende Ausgabe-Anweisung ein.', starterCode: `public class HelloWorld {\n    public static void main(String[] args) {\n        // Schreibe hier deine Ausgabe\n        \n    }\n}`, solution: `public class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}`, checks: ['System.out.println', '"Hello, World!"'], hint: 'Nutze System.out.println() für die Ausgabe.' },
@@ -34,7 +14,16 @@ const CODING_CHALLENGES = [
 ];
 
 const DIFF = { easy: { l: 'Einfach', c: C.gr }, medium: { l: 'Mittel', c: C.yw }, hard: { l: 'Schwer', c: C.cr } };
-const CATS = [...new Set(JAVA_QUIZ.map(q => q.category))];
+
+const EMPTY_FORM = {
+  question: '', category: '', difficulty: 'easy', type: 'single', explanation: '',
+  answers: [
+    { id: 'a', text: '', correct: true },
+    { id: 'b', text: '', correct: false },
+    { id: 'c', text: '', correct: false },
+    { id: 'd', text: '', correct: false },
+  ],
+};
 
 function QuizQuestion({ q, onAnswer, answered, selected }) {
   const isMultiple = q.type === 'multiple';
@@ -227,18 +216,51 @@ function CodingChallenge({ challenge, onBack }) {
 }
 
 export default function LearnPage({ currentUser }) {
-  const [view, setView]         = useState('home');
-  const [quizQuestions, setQ]   = useState([]);
-  const [quizScore, setScore]   = useState(null);
-  const [quizTotal, setTotal]   = useState(null);
-  const [selChallenge, setChall]= useState(null);
-  const [catFilter, setCat]     = useState('Alle');
-  const [diffFilter, setDiff]   = useState('Alle');
+  const [view, setView]             = useState('home');
+  const [quizQuestions, setQ]       = useState([]);
+  const [quizScore, setScore]       = useState(null);
+  const [quizTotal, setTotal]       = useState(null);
+  const [selChallenge, setChall]    = useState(null);
+  const [catFilter, setCat]         = useState('Alle');
+  const [diffFilter, setDiff]       = useState('Alle');
+  const [customQuestions, setCustom]= useState(() => {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_QUIZ_KEY) || '[]'); } catch { return []; }
+  });
+  const [showAddQ, setShowAddQ]     = useState(false);
+  const [qForm, setQForm]           = useState(EMPTY_FORM);
 
-  const filteredQ = JAVA_QUIZ.filter(q =>
+  const isAusbilder = currentUser?.role === 'ausbilder';
+  const allQuestions = [...JAVA_QUIZ, ...customQuestions];
+  const CATS = [...new Set(allQuestions.map(q => q.category))];
+
+  const filteredQ = allQuestions.filter(q =>
     (catFilter === 'Alle' || q.category === catFilter) &&
     (diffFilter === 'Alle' || q.difficulty === diffFilter)
   );
+
+  const saveCustom = (next) => {
+    setCustom(next);
+    try { localStorage.setItem(CUSTOM_QUIZ_KEY, JSON.stringify(next)); } catch {}
+  };
+
+  const addQuestion = () => {
+    const filled = qForm.answers.filter(a => a.text.trim());
+    if (!qForm.question.trim() || !qForm.category.trim() || filled.length < 2) return;
+    if (!filled.some(a => a.correct)) return;
+    const newQ = {
+      ...qForm,
+      id: uid(),
+      question: qForm.question.trim(),
+      category: qForm.category.trim(),
+      answers: qForm.answers.map(a => ({ ...a, text: a.text.trim() })).filter(a => a.text),
+      custom: true,
+    };
+    saveCustom([...customQuestions, newQ]);
+    setQForm(EMPTY_FORM);
+    setShowAddQ(false);
+  };
+
+  const deleteCustomQ = (id) => saveCustom(customQuestions.filter(q => q.id !== id));
 
   const startQuiz = (questions) => {
     const shuffled = [...questions].sort(() => Math.random() - .5).slice(0, Math.min(10, questions.length));
@@ -268,7 +290,12 @@ export default function LearnPage({ currentUser }) {
       <section style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: C.br }}>Java Quiz</div>
-          <div style={{ fontSize: 11, color: C.mu }}>{JAVA_QUIZ.length} Fragen insgesamt</div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ fontSize: 11, color: C.mu }}>{allQuestions.length} Fragen{customQuestions.length > 0 && ` (${customQuestions.length} eigene)`}</div>
+            {isAusbilder && (
+              <button className="abtn" onClick={() => setShowAddQ(true)} style={{ fontSize: 11, padding: '4px 10px' }}>+ Frage hinzufügen</button>
+            )}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -288,10 +315,10 @@ export default function LearnPage({ currentUser }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))', gap: 12, marginBottom: 14 }}>
           {[
-            { l: 'Schnell-Quiz',   icon: '⚡', desc: '10 zufällige Fragen', q: JAVA_QUIZ },
-            { l: 'Nur Grundlagen', icon: '🟢', desc: 'Einstieg ins Thema',  q: JAVA_QUIZ.filter(q => q.category === 'Grundlagen') },
-            { l: 'OOP Fokus',      icon: '🔷', desc: 'Klassen & Objekte',   q: JAVA_QUIZ.filter(q => q.category === 'OOP') },
-            { l: 'Nur Schwere',    icon: '🔴', desc: 'Hard-Level Fragen',   q: JAVA_QUIZ.filter(q => q.difficulty === 'hard') },
+            { l: 'Schnell-Quiz',   icon: '⚡', desc: '10 zufällige Fragen', q: allQuestions },
+            { l: 'Nur Grundlagen', icon: '🟢', desc: 'Einstieg ins Thema',  q: allQuestions.filter(q => q.category === 'Grundlagen') },
+            { l: 'OOP Fokus',      icon: '🔷', desc: 'Klassen & Objekte',   q: allQuestions.filter(q => q.category === 'OOP') },
+            { l: 'Nur Schwere',    icon: '🔴', desc: 'Hard-Level Fragen',   q: allQuestions.filter(q => q.difficulty === 'hard') },
           ].map(card => (
             <button key={card.l} onClick={() => startQuiz(card.q)} disabled={card.q.length === 0}
               style={{ padding: '16px', borderRadius: 10, background: C.sf2, border: `1px solid ${C.bd}`, cursor: 'pointer', textAlign: 'left', transition: 'all .15s' }}
@@ -311,7 +338,7 @@ export default function LearnPage({ currentUser }) {
         )}
       </section>
 
-      <section>
+      <section style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: C.br, marginBottom: 14 }}>Programmieraufgaben 💻</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 12 }}>
           {CODING_CHALLENGES.map(c => (
@@ -329,6 +356,84 @@ export default function LearnPage({ currentUser }) {
           ))}
         </div>
       </section>
+
+      {isAusbilder && customQuestions.length > 0 && (
+        <section>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.br, marginBottom: 14 }}>Eigene Quiz-Fragen 📝</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {customQuestions.map(q => (
+              <div key={q.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.br, marginBottom: 5 }}>{q.question}</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <span className="tag" style={{ background: C.sf2, color: C.mu, border: `1px solid ${C.bd}` }}>{q.category}</span>
+                    <span className="tag" style={{ background: DIFF[q.difficulty]?.c + '20', color: DIFF[q.difficulty]?.c, border: `1px solid ${DIFF[q.difficulty]?.c}40` }}>{DIFF[q.difficulty]?.l}</span>
+                    <span className="tag" style={{ background: C.sf2, color: C.mu, border: `1px solid ${C.bd}` }}>{q.answers.filter(a => a.correct).length > 1 ? 'Mehrfach' : 'Einfach'}</span>
+                  </div>
+                </div>
+                <button className="del" onClick={() => deleteCustomQ(q.id)} aria-label="Frage löschen">×</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {showAddQ && (
+        <Modal title="Neue Quiz-Frage erstellen" onClose={() => { setShowAddQ(false); setQForm(EMPTY_FORM); }}>
+          <Field label="Frage">
+            <textarea value={qForm.question} onChange={e => setQForm(f => ({ ...f, question: e.target.value }))}
+              placeholder="Fragetext eingeben..." rows={3} style={{ resize: 'vertical' }} autoFocus />
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <Field label="Kategorie">
+              <input value={qForm.category} onChange={e => setQForm(f => ({ ...f, category: e.target.value }))}
+                placeholder="z.B. OOP" list="cat-list" />
+              <datalist id="cat-list">{CATS.map(c => <option key={c} value={c} />)}</datalist>
+            </Field>
+            <Field label="Schwierigkeit">
+              <select value={qForm.difficulty} onChange={e => setQForm(f => ({ ...f, difficulty: e.target.value }))}>
+                <option value="easy">Einfach</option>
+                <option value="medium">Mittel</option>
+                <option value="hard">Schwer</option>
+              </select>
+            </Field>
+            <Field label="Typ">
+              <select value={qForm.type} onChange={e => setQForm(f => ({ ...f, type: e.target.value }))}>
+                <option value="single">Einfachauswahl</option>
+                <option value="multiple">Mehrfachauswahl</option>
+              </select>
+            </Field>
+          </div>
+          <Field label="Antwortmöglichkeiten (mind. 2 ausfüllen, mind. 1 korrekt markieren)">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 4 }}>
+              {qForm.answers.map((ans, i) => (
+                <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.mu, width: 14, flexShrink: 0 }}>{ans.id.toUpperCase()}</div>
+                  <input value={ans.text} onChange={e => setQForm(f => ({ ...f, answers: f.answers.map((a, j) => j === i ? { ...a, text: e.target.value } : a) }))}
+                    placeholder={`Antwort ${ans.id.toUpperCase()}`} style={{ flex: 1 }} />
+                  <button onClick={() => setQForm(f => ({
+                    ...f,
+                    answers: f.answers.map((a, j) => qForm.type === 'single'
+                      ? { ...a, correct: j === i }
+                      : j === i ? { ...a, correct: !a.correct } : a)
+                  }))} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
+                    background: ans.correct ? C.acd : C.sf2, border: `1px solid ${ans.correct ? C.ac : C.bd2}`, color: ans.correct ? C.ac : C.mu }}>
+                    {ans.correct ? '✓ Korrekt' : 'Markieren'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Field>
+          <Field label="Erklärung (optional)">
+            <textarea value={qForm.explanation} onChange={e => setQForm(f => ({ ...f, explanation: e.target.value }))}
+              placeholder="Erklärung zur richtigen Antwort..." rows={2} style={{ resize: 'vertical' }} />
+          </Field>
+          <button className="abtn" onClick={addQuestion} style={{ width: '100%', marginTop: 8, padding: 11 }}
+            disabled={!qForm.question.trim() || !qForm.category.trim() || qForm.answers.filter(a => a.text.trim()).length < 2 || !qForm.answers.some(a => a.correct && a.text.trim())}>
+            Frage speichern
+          </button>
+        </Modal>
+      )}
     </div>
   );
 }

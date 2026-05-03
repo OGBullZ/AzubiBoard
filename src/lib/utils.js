@@ -183,6 +183,26 @@ export function computeLayout(nodes, edges) {
   }));
 }
 
+// ── Session-Management ────────────────────────────────────────
+const SESSION_KEY = 'azubiboard_session';
+const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 Stunden
+
+export function saveSession(userId) {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId, expires: Date.now() + SESSION_TTL })); } catch {}
+}
+
+export function loadSession() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+    if (s?.userId && s.expires > Date.now()) return s.userId;
+  } catch {}
+  return null;
+}
+
+export function clearSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+}
+
 // ── Datenpersistenz ───────────────────────────────────────────
 const STORAGE_KEY = 'azubiboard_v2';
 
@@ -203,24 +223,12 @@ export function persistData(data) {
 }
 
 function getDefaultData() {
+  // SHA-256('1234') – Passwörter niemals im Klartext speichern
+  const PW = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
   return {
     users: [
-      {
-        id: 'u1',
-        name: 'Max Müller',
-        email: 'ausbilder@firma.de',
-        password: '1234',
-        role: 'ausbilder',
-        apprenticeship_year: null,
-      },
-      {
-        id: 'u2',
-        name: 'Anna Schmidt',
-        email: 'anna@azubi.de',
-        password: '1234',
-        role: 'azubi',
-        apprenticeship_year: 2,
-      },
+      { id: 'u1', name: 'Max Müller',   email: 'ausbilder@firma.de', password: PW, role: 'ausbilder', apprenticeship_year: null },
+      { id: 'u2', name: 'Anna Schmidt', email: 'anna@azubi.de',       password: PW, role: 'azubi',     apprenticeship_year: 2   },
     ],
     projects: [],
     groups: [],

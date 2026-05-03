@@ -227,10 +227,81 @@ function TaskGroup({ status, tasks, users, openTask, onToggleTask, onUpdate, onR
   );
 }
 
+// ── Kanban Card ───────────────────────────────────────────────
+function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }) {
+  const assignee = users.find(u => u.id === task.assignee);
+  const pr  = PRIORITY[task.priority] || PRIORITY.medium;
+  const st  = TASK_STATUS[task.status] || TASK_STATUS.not_started;
+  const over = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
+
+  return (
+    <div style={{ background: C.sf2, border: `1px solid ${C.bd}`, borderRadius: 8, padding: '9px 10px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: C.br, lineHeight: 1.45, wordBreak: 'break-word' }}>
+        {task.text || <span style={{ color: C.mu, fontStyle: 'italic' }}>Kein Titel</span>}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: pr.c }}>{pr.l}</span>
+        {task.deadline && (
+          <span style={{ fontSize: 9, fontFamily: C.mono, color: over ? C.cr : C.mu, fontWeight: over ? 700 : 400 }}>
+            {over ? '⚠ ' : ''}{fmtDate(task.deadline)}
+          </span>
+        )}
+        {assignee && <Avatar name={assignee.name} size={16} />}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 3 }}>
+          {statusIdx > 0 && (
+            <button onClick={() => onUpdate(task.id, { status: STATUS_ORDER[statusIdx - 1] })}
+              title={`← ${TASK_STATUS[STATUS_ORDER[statusIdx - 1]]?.label}`}
+              style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid ${C.bd2}`, background: 'transparent', color: C.mu, cursor: 'pointer' }}>←</button>
+          )}
+          {statusIdx < totalCols - 1 && (
+            <button onClick={() => onUpdate(task.id, { status: STATUS_ORDER[statusIdx + 1] })}
+              title={`→ ${TASK_STATUS[STATUS_ORDER[statusIdx + 1]]?.label}`}
+              style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid ${st.color}50`, background: st.bg, color: st.color, cursor: 'pointer', fontWeight: 700 }}>→</button>
+          )}
+        </div>
+        <button onClick={() => onRemove(task.id)}
+          style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid ${C.cr}30`, background: 'transparent', color: C.cr, cursor: 'pointer', fontWeight: 700 }}>×</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Kanban Board ──────────────────────────────────────────────
+function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
+      {STATUS_ORDER.map((status, idx) => {
+        const st   = TASK_STATUS[status];
+        const cols = tasks.filter(t => (t.status || 'not_started') === status);
+        return (
+          <div key={status} style={{ minWidth: 200, flex: '0 0 200px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: st.bg, border: `1px solid ${st.color}28`, borderRadius: '8px 8px 0 0' }}>
+              <st.Icon size={11} style={{ color: st.color }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: st.color, flex: 1 }}>{st.label}</span>
+              <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `${st.color}18`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
+            </div>
+            <div style={{ background: C.sf3, border: `1px solid ${st.color}18`, borderTop: 'none', borderRadius: '0 0 8px 8px', padding: 6, display: 'flex', flexDirection: 'column', gap: 5, minHeight: 160 }}>
+              {cols.map(task => (
+                <KanbanCard key={task.id} task={task} users={users} statusIdx={idx} totalCols={STATUS_ORDER.length} onUpdate={onUpdate} onRemove={onRemove} />
+              ))}
+              {cols.length === 0 && (
+                <div style={{ textAlign: 'center', fontSize: 10, color: C.mu, padding: '20px 0', opacity: .5 }}>Leer</div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function TasksTab({ project, users, currentUser, onUpdate }) {
-  const [openTask, setOpenTask] = useState(null);
-  const [showAdd,  setShowAdd]  = useState(false);
-  const [newTask,  setNewTask]  = useState(mkTask({ assignee: currentUser.id }));
+  const [openTask,  setOpenTask]  = useState(null);
+  const [showAdd,   setShowAdd]   = useState(false);
+  const [newTask,   setNewTask]   = useState(mkTask({ assignee: currentUser.id }));
+  const [viewMode,  setViewMode]  = useState('list');
 
   const assignable = users.filter(u => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
 
@@ -279,11 +350,21 @@ export function TasksTab({ project, users, currentUser, onUpdate }) {
       )}
 
       <div className="card" style={{ marginBottom: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: total > 0 ? 7 : 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: total > 0 ? 7 : 0, gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .8 }}>Arbeitspakete <span style={{ color: C.mu, fontWeight: 400 }}>({total})</span></span>
-          <button className="abtn" onClick={() => setShowAdd(s => !s)} style={{ fontSize: 11, padding: '4px 10px' }}>
-            <IcoPlus size={12} />{showAdd ? 'Abbrechen' : 'Neu'}
-          </button>
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            <div style={{ display: 'flex', background: C.sf3, borderRadius: 6, padding: 2, border: `1px solid ${C.bd}`, gap: 2 }}>
+              {[['list','☰ Liste'],['kanban','⊞ Kanban']].map(([m, l]) => (
+                <button key={m} onClick={() => setViewMode(m)}
+                  style={{ padding: '3px 9px', borderRadius: 4, border: 'none', background: viewMode === m ? C.ac : 'transparent', color: viewMode === m ? '#fff' : C.mu, fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all .12s' }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <button className="abtn" onClick={() => setShowAdd(s => !s)} style={{ fontSize: 11, padding: '4px 10px' }}>
+              <IcoPlus size={12} />{showAdd ? 'Abbrechen' : 'Neu'}
+            </button>
+          </div>
         </div>
         {total > 0 && (
           <div>
@@ -323,18 +404,20 @@ export function TasksTab({ project, users, currentUser, onUpdate }) {
 
       {total === 0
         ? <EmptyState Icon={IcoCheck} title="Noch keine Arbeitspakete" subtitle="Klicke auf '+ Neu' um zu starten" />
-        : <>
-            {STATUS_ORDER.filter(s => s !== 'done').map(s => (
-              <TaskGroup key={s} status={s} tasks={grouped[s]} users={assignable}
+        : viewMode === 'kanban'
+          ? <KanbanBoard tasks={project.tasks || []} users={assignable} onUpdate={updateTask} onRemove={removeTask} />
+          : <>
+              {STATUS_ORDER.filter(s => s !== 'done').map(s => (
+                <TaskGroup key={s} status={s} tasks={grouped[s]} users={assignable}
+                  openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
+                  onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={false}
+                  projectMaterials={project.materials || []} />
+              ))}
+              <TaskGroup status="done" tasks={grouped.done} users={assignable}
                 openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
-                onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={false}
+                onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={true}
                 projectMaterials={project.materials || []} />
-            ))}
-            <TaskGroup status="done" tasks={grouped.done} users={assignable}
-              openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
-              onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={true}
-              projectMaterials={project.materials || []} />
-          </>}
+            </>}
     </div>
   );
 }

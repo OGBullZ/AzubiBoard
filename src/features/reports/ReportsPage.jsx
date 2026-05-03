@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { C, uid, today, fmtDate } from '../../lib/utils.js';
 import { Avatar, Field, EmptyState } from '../../components/UI.jsx';
+import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
   IcoReport, IcoCheck, IcoEdit, IcoPlus, IcoBack,
   IcoDoc, IcoNote, IcoAlert, IcoUsers, IcoClock,
@@ -144,6 +145,27 @@ function ReportEditor({ report, currentUser, onSave, onClose, showToast }) {
     showToast('✓ Berichtsheft gespeichert');
   };
 
+  const printReport = () => {
+    const w = window.open('', '_blank');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berichtsheft KW ${kw} – ${currentUser.name}</title>
+    <style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;color:#111;font-size:14px;line-height:1.7}h1{font-size:22px;margin-bottom:4px}h2{font-size:15px;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #eee;padding-bottom:4px}p,pre{margin:0 0 14px;white-space:pre-wrap;word-break:break-word}.meta{color:#666;font-size:12px;margin-bottom:24px}.status{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;background:#e8f5e9;color:#2e7d32}hr{border:none;border-top:1px solid #ddd;margin:24px 0}@media print{body{margin:20px}}</style>
+    </head><body>
+    <h1>Ausbildungsnachweis – KW ${kw} / ${new Date(form.week_start).getFullYear()}</h1>
+    <div class="meta">
+      <strong>${currentUser.name}</strong> · Woche vom ${new Date(form.week_start).toLocaleDateString('de-DE')} ·
+      <span class="status">${STATUS_REPORT[form.status]?.l || form.status}</span>
+    </div>
+    ${form.title ? `<h2>Thema</h2><p>${form.title}</p>` : ''}
+    <h2>Durchgeführte Tätigkeiten</h2><pre>${form.activities || '–'}</pre>
+    <h2>Unterweisungen / Lerninhalt</h2><pre>${form.learnings || '–'}</pre>
+    ${form.reviewer_comment ? `<hr><h2>Kommentar des Ausbilders</h2><pre>${form.reviewer_comment}</pre>` : ''}
+    <hr><p style="font-size:11px;color:#999">Erstellt mit AzubiBoard · ${new Date().toLocaleDateString('de-DE')}</p>
+    </body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 400);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }} className="anim">
       <div style={{ background: 'var(--c-sf)', borderBottom: `1px solid var(--c-bd)`, padding: '10px 20px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -160,6 +182,7 @@ function ReportEditor({ report, currentUser, onSave, onClose, showToast }) {
             </button>
           ))}
         </div>
+        <button className="btn" onClick={printReport} title="Als PDF drucken" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>🖨 PDF</button>
         {isOwner && !readOnly && (
           <button className="abtn" onClick={save} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><IcoCheck size={13} /> Speichern</button>
         )}
@@ -292,6 +315,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   const [view,    setView]   = useState('list');
   const [editing, setEditing]= useState(null);
   const [filter,  setFilter] = useState('alle');
+  const [confirmDel, setConfirmDel] = useState(null);
 
   const myReports = currentUser.role === 'azubi' ? reports.filter(r => r.user_id === currentUser.id) : reports;
   const filtered = myReports.filter(r => filter === 'alle' || r.status === filter);
@@ -302,8 +326,8 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   };
 
   const deleteReport = (id) => {
-    if (!confirm('Berichtsheft wirklich löschen?')) return;
-    onUpdateData({ reports: reports.filter(r => r.id !== id) });
+    setConfirmDel(id);
+    // Actual deletion handled in ConfirmDialog.onConfirm
     showToast('Berichtsheft gelöscht');
   };
 
@@ -376,6 +400,14 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
           </div>
         )}
       </div>
+
+      {confirmDel && (
+        <ConfirmDialog
+          message="Berichtsheft wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+          onConfirm={() => { onUpdateData({ reports: reports.filter(r => r.id !== confirmDel) }); showToast('Berichtsheft gelöscht'); setConfirmDel(null); }}
+          onCancel={() => setConfirmDel(null)}
+        />
+      )}
     </div>
   );
 }

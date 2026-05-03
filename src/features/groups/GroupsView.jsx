@@ -1,12 +1,23 @@
 import { useState } from "react";
 import { C, uid } from '../../lib/utils.js';
 import { Avatar, Modal, Field, EmptyState } from '../../components/UI.jsx';
+import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 
 export function GroupsView({ groups, users, projects, onUpdateGroups, showToast }) {
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'team', members: [] });
-  const add = () => { if (!form.name.trim()) return; onUpdateGroups([...groups, { id: uid(), name: form.name.trim(), type: form.type, members: form.members }]); setShowNew(false); setForm({ name: '', type: 'team', members: [] }); showToast('✓ Gruppe erstellt'); };
-  const remove = id => { if (!confirm('Gruppe wirklich löschen?')) return; onUpdateGroups(groups.filter(g => g.id !== id)); showToast('Gruppe gelöscht'); };
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  const add = () => {
+    if (!form.name.trim()) return;
+    onUpdateGroups([...groups, { id: uid(), name: form.name.trim(), type: form.type, members: form.members }]);
+    setShowNew(false);
+    setForm({ name: '', type: 'team', members: [] });
+    showToast('✓ Gruppe erstellt');
+  };
+
+  const remove = id => setConfirmDel(id);
+
   const toggleMember = uid2 => {
     const m = form.members.includes(uid2) ? form.members.filter(x => x !== uid2) : [...form.members, uid2];
     setForm(f => ({ ...f, members: m }));
@@ -24,7 +35,7 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast 
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: 14 }}>
           {groups.map(g => {
-            const members = users.filter(u => g.members.includes(u.id));
+            const members  = users.filter(u => g.members.includes(u.id));
             const gProjects = projects.filter(p => p.groupId === g.id);
             return (
               <article key={g.id} className="card" aria-label={`Gruppe: ${g.name}`}>
@@ -106,6 +117,14 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast 
             Gruppe erstellen ({form.members.length} Mitglieder)
           </button>
         </Modal>
+      )}
+
+      {confirmDel && (
+        <ConfirmDialog
+          message={`Gruppe „${groups.find(g => g.id === confirmDel)?.name}" wirklich löschen?`}
+          onConfirm={() => { onUpdateGroups(groups.filter(g => g.id !== confirmDel)); showToast('Gruppe gelöscht'); setConfirmDel(null); }}
+          onCancel={() => setConfirmDel(null)}
+        />
       )}
     </main>
   );

@@ -8,8 +8,65 @@ import {
   IcoBack, IcoEdit, IcoCheck,
   IcoFolder, IcoMaterial, IcoRequire, IcoDoc,
   IcoNetwork, IcoGantt, IcoLink, IcoSave,
-  IcoArchive, IcoPlus
+  IcoArchive, IcoPlus, IcoChat, IcoTrash
 } from '../../components/Icons.jsx';
+
+function CommentsSection({ project, currentUser, onUpdate }) {
+  const [text, setText] = useState('');
+  const comments = project.comments || [];
+
+  const post = () => {
+    if (!text.trim()) return;
+    const c = { id: uid(), authorId: currentUser.id, authorName: currentUser.name, text: text.trim(), date: new Date().toISOString() };
+    onUpdate(project.id, { comments: [...comments, c] });
+    setText('');
+  };
+
+  const remove = (id) => onUpdate(project.id, { comments: comments.filter(c => c.id !== id) });
+
+  return (
+    <section className="card" style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
+        <IcoChat size={14} style={{ color: C.ac }} />
+        <label style={{ fontSize: 12, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, margin: 0 }}>
+          Kommentare ({comments.length})
+        </label>
+      </div>
+      {comments.length === 0 && (
+        <div style={{ fontSize: 12, color: C.mu, fontStyle: 'italic', marginBottom: 14 }}>Noch keine Kommentare</div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: comments.length > 0 ? 14 : 0 }}>
+        {comments.map(c => (
+          <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <Avatar name={c.authorName} size={28} />
+            <div style={{ flex: 1, background: C.sf3, borderRadius: 8, padding: '8px 11px', border: `1px solid ${C.bd}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.br }}>{c.authorName}</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <time style={{ fontSize: 10, color: C.mu }}>{new Date(c.date).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</time>
+                  {(c.authorId === currentUser?.id || currentUser?.role === 'ausbilder') && (
+                    <button onClick={() => remove(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: C.mu, lineHeight: 1 }} title="Kommentar löschen"><IcoTrash size={11} /></button>
+                  )}
+                </div>
+              </div>
+              <div style={{ fontSize: 13, color: C.tx, lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{c.text}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Avatar name={currentUser?.name || '?'} size={28} />
+        <div style={{ flex: 1, display: 'flex', gap: 8 }}>
+          <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Kommentar schreiben…" rows={2}
+            style={{ flex: 1, resize: 'none', fontSize: 13 }}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) post(); }} />
+          <button className="abtn" onClick={post} disabled={!text.trim()} style={{ alignSelf: 'flex-end', padding: '7px 14px', fontSize: 12 }}>Senden</button>
+        </div>
+      </div>
+      <div style={{ fontSize: 10, color: C.mu, marginTop: 4, paddingLeft: 36 }}>Strg+Enter zum Senden</div>
+    </section>
+  );
+}
 
 const TABS = [
   { k: 'overview',     l: 'Übersicht',     Icon: IcoDoc      },
@@ -377,6 +434,8 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 {linkCount > 3 && <div style={{ fontSize: 10, color: C.mu, marginTop: 3 }}>+{linkCount - 3} weitere</div>}
               </div>
             </div>
+
+          <CommentsSection project={project} currentUser={currentUser} onUpdate={onUpdate} />
           </div>
         )}
 
