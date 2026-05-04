@@ -11,16 +11,38 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
   const [search,      setSearch]      = useState('');
   const [showArchive, setShowArchive] = useState(false);
   const [viewMode,    setViewMode]    = useState('grid');
+  const [sort,        setSort]        = useState('title_asc');
 
   const active   = projects.filter(p => !p.archived);
   const archived = projects.filter(p => p.archived);
 
-  const visible = active.filter(p => {
-    if (filter === 'mine' && !(p.assignees||[]).includes(currentUser.id) && currentUser.role !== 'ausbilder') return false;
-    if (['green','yellow','red'].includes(filter) && p.status !== filter) return false;
-    if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !(p.description || '').toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const STATUS_ORDER = { green: 0, yellow: 1, red: 2 };
+
+  const visible = active
+    .filter(p => {
+      if (filter === 'mine' && !(p.assignees||[]).includes(currentUser.id) && currentUser.role !== 'ausbilder') return false;
+      if (['green','yellow','red'].includes(filter) && p.status !== filter) return false;
+      if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !(p.description || '').toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sort) {
+        case 'title_asc':  return a.title.localeCompare(b.title, 'de');
+        case 'title_desc': return b.title.localeCompare(a.title, 'de');
+        case 'status':     return (STATUS_ORDER[a.status] ?? 1) - (STATUS_ORDER[b.status] ?? 1);
+        case 'deadline': {
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline) - new Date(b.deadline);
+        }
+        case 'progress': {
+          const pct = p => (p.tasks||[]).length === 0 ? 0 : (p.tasks||[]).filter(t => t.status === 'done' || t.done).length / (p.tasks||[]).length;
+          return pct(b) - pct(a);
+        }
+        default: return 0;
+      }
+    });
 
   const FILTERS = [
     ['all',    'Alle',       null,  C.ac, active.length],
@@ -49,6 +71,14 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
               </button>
             ))}
           </div>
+          <select value={sort} onChange={e => setSort(e.target.value)} aria-label="Sortierung"
+            style={{ fontSize: 11, padding: '5px 28px 5px 9px', width: 'auto', color: C.mu, background: 'var(--c-sf2)', border: `1px solid var(--c-bd)` }}>
+            <option value="title_asc">A → Z</option>
+            <option value="title_desc">Z → A</option>
+            <option value="status">Status</option>
+            <option value="deadline">Deadline</option>
+            <option value="progress">Fortschritt</option>
+          </select>
           <button className="abtn" onClick={onNew} style={{ fontSize: 12 }}>
             <IcoPlus size={13} /> Neu
           </button>

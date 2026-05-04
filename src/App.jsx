@@ -44,6 +44,26 @@ function useToast() {
   return { toast, showToast };
 }
 
+// ── Page Title ────────────────────────────────────────────────
+const ROUTE_TITLES = {
+  '/dashboard': 'Dashboard',
+  '/projects':  'Projekte',
+  '/calendar':  'Kalender',
+  '/groups':    'Gruppen',
+  '/learn':     'Lernportal',
+  '/reports':   'Berichte',
+  '/users':     'Nutzer',
+  '/profile':   'Profil',
+  '/project':   'Projekt',
+};
+function usePageTitle() {
+  const location = useLocation();
+  useEffect(() => {
+    const match = Object.entries(ROUTE_TITLES).find(([k]) => location.pathname.startsWith(k));
+    document.title = match ? `${match[1]} · AzubiBoard` : 'AzubiBoard';
+  }, [location.pathname]);
+}
+
 // ── Theme ─────────────────────────────────────────────────────
 function useTheme() {
   const [theme, setTheme] = useState(() => {
@@ -556,6 +576,7 @@ function ProjectsPage({ onNewProject, showToast }) {
 function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, children }) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
   const { theme, toggleTheme } = useTheme();
+  usePageTitle();
 
   const handleToggleCollapse = useCallback(() => {
     setCollapsed(c => {
