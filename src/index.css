@@ -57,6 +57,28 @@ body {
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 }
 
+/* ── Light-Mode ── */
+[data-theme="light"] {
+  --c-bg:   #f5f5f7;
+  --c-sf:   #ffffff;
+  --c-sf2:  #f0f0f2;
+  --c-sf3:  #e8e8eb;
+  --c-tx:   #1d1d1f;
+  --c-br:   #000000;
+  --c-mu:   #6e6e73;
+  --c-bd:   #d2d2d7;
+  --c-bd2:  #c7c7cc;
+  --c-acd:  rgba(0, 113, 227, 0.08);
+  --c-grd:  rgba(52, 199, 89, 0.12);
+  --c-crd:  rgba(255, 59, 48, 0.1);
+  --c-ywd:  rgba(255, 149, 0, 0.1);
+  --st-green-bg: #e8f5e9;
+  --shadow:    0 4px 16px rgba(0,0,0,.1);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.15);
+  --shadow-sm: 0 2px 8px  rgba(0,0,0,.08);
+  --shadow-xs: 0 1px 4px  rgba(0,0,0,.06);
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

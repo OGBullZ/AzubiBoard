@@ -29,7 +29,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import {
   IcoDashboard, IcoFolder, IcoCalendar, IcoUsers,
   IcoReport, IcoLearn, IcoPlus, IcoLogout, IcoUserEdit, IcoSearch,
-  IcoBell, IcoAlert, IcoClock, IcoX,
+  IcoBell, IcoAlert, IcoClock, IcoX, IcoSun, IcoMoon,
 } from './components/Icons.jsx';
 
 // ── Global Toast Hook ─────────────────────────────────────────
@@ -42,6 +42,24 @@ function useToast() {
     timer.current = setTimeout(() => setToast(null), 2800);
   }, []);
   return { toast, showToast };
+}
+
+// ── Theme ─────────────────────────────────────────────────────
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    const t = localStorage.getItem('azubiboard_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    return t;
+  });
+  const toggleTheme = useCallback(() => {
+    setTheme(t => {
+      const next = t === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('azubiboard_theme', next);
+      document.documentElement.setAttribute('data-theme', next);
+      return next;
+    });
+  }, []);
+  return { theme, toggleTheme };
 }
 
 // ── Notifications ─────────────────────────────────────────────
@@ -268,7 +286,7 @@ function GlobalSearch({ data, onClose }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────
-function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, collapsed, onToggleCollapse, onSearch }) {
+function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme }) {
   const navigate = useNavigate();
   const location = useLocation();
   const path     = location.pathname;
@@ -376,6 +394,14 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
             <IcoPlus size={14} />
           </button>
         )}
+
+        <button onClick={onToggleTheme} title={theme === 'dark' ? 'Light-Mode' : 'Dark-Mode'}
+          style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 7, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '8px' : '7px 10px', borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--c-mu)', fontSize: 12, cursor: 'pointer', marginBottom: 2 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--c-sf2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          {theme === 'dark' ? <IcoSun size={13} /> : <IcoMoon size={13} />}
+          {!collapsed && (theme === 'dark' ? 'Light-Mode' : 'Dark-Mode')}
+        </button>
 
         <button onClick={onLogout} title="Abmelden"
           style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 7, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '8px' : '7px 10px', borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--c-cr)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
@@ -528,10 +554,20 @@ function ProjectsPage({ onNewProject, showToast }) {
 
 // ── AppLayout ─────────────────────────────────────────────────
 function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, children }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
+  const { theme, toggleTheme } = useTheme();
+
+  const handleToggleCollapse = useCallback(() => {
+    setCollapsed(c => {
+      const next = !c;
+      localStorage.setItem('azubiboard_sidebar_collapsed', String(next));
+      return next;
+    });
+  }, []);
+
   return (
     <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
-      <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} onExport={onExport} onImport={onImport} onSearch={onSearch} collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />
+      <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} onExport={onExport} onImport={onImport} onSearch={onSearch} collapsed={collapsed} onToggleCollapse={handleToggleCollapse} theme={theme} onToggleTheme={toggleTheme} />
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {children}
       </div>
