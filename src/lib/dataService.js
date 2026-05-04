@@ -6,7 +6,9 @@ import { loadData, persistData } from './utils';
 import { authHeader, clearToken } from './auth';
 
 const USE_API  = import.meta.env.VITE_USE_API === 'true';
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+// VITE_API_BASE_URL explizit setzen, oder aus Basispfad ableiten
+const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/azubiboard/';
+const API_BASE  = import.meta.env.VITE_API_BASE_URL || `${BASE_PATH}api`;
 
 /** Fetch-Wrapper: hängt Auth-Header an, behandelt 401 global */
 async function apiFetch(path, options = {}) {

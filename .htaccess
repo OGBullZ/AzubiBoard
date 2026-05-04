@@ -25,10 +25,11 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
 # ── SPA-Routing: alles → index.html (außer api/ und echte Dateien) ──
 RewriteEngine On
-RewriteCond %{REQUEST_URI} !^/api/
+RewriteBase /azubiboard/
+RewriteCond %{REQUEST_URI} !^/azubiboard/api/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ /index.html [L]
+RewriteRule ^ index.html [L]
 
 # ── Cache-Header für statische Assets ────────────────────────
 <IfModule mod_expires.c>
