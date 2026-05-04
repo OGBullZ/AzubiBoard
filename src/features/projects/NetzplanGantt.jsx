@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { C, PAL, UDAYS, detectCycle, computeCPM, computeLayout } from '../../lib/utils.js';
 
 const NW = 162, NH = 92, CG = 178, RG = 138, NP = 36;
@@ -239,9 +239,9 @@ export function NetzplanTab({ project, onUpdate }) {
                     setIsDrag(true);
                   }}>
                   <rect x={x + 2} y={y + 3} width={NW} height={NH} rx={8} fill="#000" fillOpacity={.4} />
-                  <rect x={x} y={y} width={NW} height={NH} rx={8} fill={C.sf2} stroke={bc} strokeWidth={ic ? 1.5 : 1} strokeOpacity={.85} />
-                  <rect x={x} y={y} width={NW} height={rh} rx={8} fill={ic ? '#fde8e8' : '#e8f3fc'} />
-                  <rect x={x} y={y + rh - 1} width={NW} height={2} fill={ic ? '#fde8e8' : '#e8f3fc'} />
+                  <rect x={x} y={y} width={NW} height={NH} rx={8} fill={ic ? C.crd : C.sf2} stroke={bc} strokeWidth={ic ? 1.5 : 1} strokeOpacity={.85} />
+                  <rect x={x} y={y} width={NW} height={rh} rx={8} fill={ic ? 'rgba(255,59,48,.22)' : 'rgba(0,113,227,.12)'} />
+                  <rect x={x} y={y + rh - 1} width={NW} height={2} fill={ic ? 'rgba(255,59,48,.22)' : 'rgba(0,113,227,.12)'} />
                   {[1, 2].map(i => <line key={i} x1={x + i * NW / 3} y1={y + 2} x2={x + i * NW / 3} y2={y + rh - 1} stroke={bc} strokeWidth={.5} strokeOpacity={.2} />)}
                   <text x={x + NW / 6} y={y + 14} textAnchor="middle" fontFamily={C.mono} fontSize={12} fontWeight={500} fill={C.br}>{n.faz}</text>
                   <text x={x + NW / 2} y={y + 14} textAnchor="middle" fontFamily={C.mono} fontSize={14} fontWeight={800} fill={bc}>{n.d}</text>
@@ -294,10 +294,63 @@ export function NetzplanTab({ project, onUpdate }) {
 export function GanttTab({ project }) {
   const np = project.netzplan || { nodes: [], edges: [], unit: 'W', nodePositions: {} };
   const computed = useMemo(() => computeCPM(np.nodes, np.edges), [np.nodes, np.edges]);
-  const laid = useMemo(() => computeLayout(computed, np.edges), [computed, np.edges]);
+  const laid     = useMemo(() => computeLayout(computed, np.edges), [computed, np.edges]);
 
+  // ── Row order (drag-to-reorder, purely visual) ──────────────
+  const [ganttOrder, setGanttOrder] = useState(() => laid.map(n => n.id));
+  const dragId  = useRef(null);
+  const [dropTarget, setDropTarget] = useState(null); // id of row being hovered over
+
+  // Sync when nodes are added / removed in Netzplan
+  useEffect(() => {
+    setGanttOrder(prev => {
+      const ids   = laid.map(n => n.id);
+      const kept  = prev.filter(id => ids.includes(id));
+      const added = ids.filter(id => !kept.includes(id));
+      return [...kept, ...added];
+    });
+  }, [laid]);
+
+  const orderedLaid = useMemo(
+    () => ganttOrder.map(id => laid.find(n => n.id === id)).filter(Boolean),
+    [ganttOrder, laid]
+  );
+
+  const onDragStart = useCallback((e, id) => {
+    dragId.current = id;
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const onDragOver = useCallback((e, id) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTarget(id);
+  }, []);
+
+  const onDrop = useCallback((e, targetId) => {
+    e.preventDefault();
+    const src = dragId.current;
+    if (!src || src === targetId) { setDropTarget(null); return; }
+    setGanttOrder(prev => {
+      const next = [...prev];
+      const si   = next.indexOf(src);
+      const ti   = next.indexOf(targetId);
+      next.splice(si, 1);
+      next.splice(ti, 0, src);
+      return next;
+    });
+    dragId.current = null;
+    setDropTarget(null);
+  }, []);
+
+  const onDragEnd = useCallback(() => {
+    dragId.current = null;
+    setDropTarget(null);
+  }, []);
+
+  // ── Constants ───────────────────────────────────────────────
   const totalDur = laid.length ? Math.max(...laid.map(n => n.fez)) : 0;
-  const cols = Array.from({ length: totalDur + 1 }, (_, i) => i);
+  const cols     = Array.from({ length: totalDur + 1 }, (_, i) => i);
   const CW = 52, RH = 36, HH = 44, NMW = 175;
   const ud = UDAYS[np.unit] || 7;
 
@@ -308,11 +361,10 @@ export function GanttTab({ project }) {
     return d;
   };
 
-  const critSet = new Set(laid.filter(n => n.gp === 0).map(n => n.id));
-  const now = new Date();
-  const ps = project.startDate ? new Date(project.startDate) : null;
-  const todayOff = ps ? Math.floor((now - ps) / (86400000 * ud)) : null;
-  const endDate = addDays(project.startDate, totalDur * ud);
+  const critSet  = new Set(laid.filter(n => n.gp === 0).map(n => n.id));
+  const ps       = project.startDate ? new Date(project.startDate) : null;
+  const todayOff = ps ? Math.floor((new Date() - ps) / (86400000 * ud)) : null;
+  const endDate  = addDays(project.startDate, totalDur * ud);
   const unitLabel = { W: 'Wochen', T: 'Tage', M: 'Monate' }[np.unit] || np.unit;
 
   if (laid.length === 0) {
@@ -326,6 +378,7 @@ export function GanttTab({ project }) {
 
   return (
     <div style={{ border: `1px solid ${C.bd}`, borderRadius: 10, overflow: 'hidden' }} role="figure" aria-label="Gantt-Diagramm">
+      {/* Header */}
       <div style={{ padding: '9px 16px', background: C.sf, borderBottom: `1px solid ${C.bd}`, display: 'flex', gap: 20, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: C.tx }}>{unitLabel}-Plan</div>
         <div style={{ display: 'flex', gap: 14, fontSize: 11, color: C.mu, flexWrap: 'wrap' }}>
@@ -338,19 +391,31 @@ export function GanttTab({ project }) {
           <span><span style={{ color: C.ac }}>■</span> Unkritisch</span>
           <span><span style={{ color: C.yw }}>▭</span> Puffer</span>
           {todayOff !== null && <span><span style={{ color: C.ac }}>│</span> Heute</span>}
+          <span style={{ opacity: .5 }}>⠿ Zeile ziehen</span>
         </div>
       </div>
 
       <div style={{ overflow: 'auto', maxHeight: 450 }}>
         <div style={{ display: 'flex', minWidth: NMW + cols.length * CW + 'px' }}>
+
+          {/* Label-Spalte (sticky) */}
           <div style={{ width: NMW, flexShrink: 0, borderRight: `1px solid ${C.bd}`, position: 'sticky', left: 0, background: C.sf, zIndex: 2 }}>
             <div style={{ height: HH, borderBottom: `1px solid ${C.bd}`, padding: '0 12px', display: 'flex', alignItems: 'center' }}>
               <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700 }}>Vorgang</div>
             </div>
-            {laid.map(n => {
-              const bc = n.color || (critSet.has(n.id) ? C.cr : C.ac);
+            {orderedLaid.map(n => {
+              const bc        = n.color || (critSet.has(n.id) ? C.cr : C.ac);
+              const isDrop    = dropTarget === n.id;
+              const isDragged = dragId.current === n.id;
               return (
-                <div key={n.id} style={{ height: RH, borderBottom: `1px solid ${C.bd}22`, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 7, borderLeft: `3px solid ${bc}` }}>
+                <div key={n.id}
+                  draggable
+                  onDragStart={e => onDragStart(e, n.id)}
+                  onDragOver={e  => onDragOver(e, n.id)}
+                  onDrop={e      => onDrop(e, n.id)}
+                  onDragEnd={onDragEnd}
+                  style={{ height: RH, borderBottom: `1px solid ${C.bd}22`, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 7, borderLeft: `3px solid ${bc}`, cursor: 'grab', opacity: isDragged ? .4 : 1, background: isDrop ? C.acd : 'transparent', transition: 'background .1s' }}>
+                  <span aria-hidden="true" style={{ fontSize: 11, color: C.mu, opacity: .4, flexShrink: 0, lineHeight: 1 }}>⠿</span>
                   <div aria-hidden="true" style={{ width: 15, height: 15, borderRadius: 3, background: bc + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: bc, fontFamily: C.mono, flexShrink: 0 }}>{n.id}</div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.name}</div>
                 </div>
@@ -358,10 +423,12 @@ export function GanttTab({ project }) {
             })}
           </div>
 
+          {/* Balken-Bereich */}
           <div style={{ flex: 1, position: 'relative' }}>
+            {/* Zeitspalten-Header */}
             <div style={{ display: 'flex', height: HH, borderBottom: `1px solid ${C.bd}`, position: 'sticky', top: 0, background: C.sf, zIndex: 1 }}>
               {cols.map(i => {
-                const d = addDays(project.startDate, i * ud);
+                const d   = addDays(project.startDate, i * ud);
                 const isT = todayOff === i;
                 return (
                   <div key={i} style={{ width: CW, flexShrink: 0, borderRight: `1px solid ${C.bd}22`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isT ? C.acd : 'transparent', transition: 'background .15s' }}>
@@ -374,17 +441,25 @@ export function GanttTab({ project }) {
               })}
             </div>
 
-            {laid.map(n => {
-              const bc = n.color || (critSet.has(n.id) ? C.cr : C.ac);
-              const ic = critSet.has(n.id);
+            {/* Zeilen */}
+            {orderedLaid.map(n => {
+              const bc      = n.color || (critSet.has(n.id) ? C.cr : C.ac);
+              const ic      = critSet.has(n.id);
               const barLeft = n.faz * CW + 2;
-              const barW = Math.max(n.d * CW - 4, 10);
-              const bufW = n.gp > 0 ? Math.max(n.gp * CW - 2, 4) : 0;
-              const startD = addDays(project.startDate, n.faz * ud);
-              const endD = addDays(project.startDate, n.fez * ud);
+              const barW    = Math.max(n.d * CW - 4, 10);
+              const bufW    = n.gp > 0 ? Math.max(n.gp * CW - 2, 4) : 0;
+              const startD  = addDays(project.startDate, n.faz * ud);
+              const endD    = addDays(project.startDate, n.fez * ud);
+              const isDrop  = dropTarget === n.id;
 
               return (
-                <div key={n.id} style={{ height: RH, borderBottom: `1px solid ${C.bd}22`, position: 'relative', display: 'flex' }}>
+                <div key={n.id}
+                  draggable
+                  onDragStart={e => onDragStart(e, n.id)}
+                  onDragOver={e  => onDragOver(e, n.id)}
+                  onDrop={e      => onDrop(e, n.id)}
+                  onDragEnd={onDragEnd}
+                  style={{ height: RH, borderBottom: `1px solid ${C.bd}22`, position: 'relative', display: 'flex', opacity: dragId.current === n.id ? .4 : 1, background: isDrop ? C.acd : 'transparent', transition: 'background .1s', cursor: 'grab' }}>
                   {cols.map(i => <div key={i} style={{ width: CW, flexShrink: 0, borderRight: `1px solid ${C.bd}22`, background: todayOff === i ? C.acd : 'transparent' }} />)}
                   <div title={`${n.name}\n${startD?.toLocaleDateString('de-DE')} → ${endD?.toLocaleDateString('de-DE')}\nDauer: ${n.d} ${np.unit} · Puffer: ${n.gp} ${np.unit}`}
                     style={{ position: 'absolute', left: barLeft, top: '50%', transform: 'translateY(-50%)', width: barW, height: 22, background: ic ? `${bc}35` : `${bc}22`, border: `1.5px solid ${bc}`, borderRadius: 5, display: 'flex', alignItems: 'center', paddingLeft: 7, overflow: 'hidden', boxShadow: ic ? `0 0 8px ${bc}25` : 'none' }}>
