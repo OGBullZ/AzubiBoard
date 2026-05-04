@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { C, fmtDate } from '../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import {
@@ -635,10 +635,10 @@ function LearnWidget({ userId, onNavigate }) {
 // ─────────────────────────────────────────────────────────────
 function AusbilderDashboard({ user, projects, users, reports, calendarEvents, onOpenProject, onUpdateProject, onNavigate }) {
   const now      = new Date();
-  const azubis   = users.filter(u => u.role === 'azubi');
-  const active   = projects.filter(p => !p.archived);
-  const pending  = reports.filter(r => r.status === 'submitted');
-  const problems = active.filter(p => p.status === 'red');
+  const azubis   = useMemo(() => users.filter(u => u.role === 'azubi'),              [users]);
+  const active   = useMemo(() => projects.filter(p => !p.archived),                  [projects]);
+  const pending  = useMemo(() => reports.filter(r => r.status === 'submitted'),      [reports]);
+  const problems = useMemo(() => active.filter(p => p.status === 'red'),             [active]);
 
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Guten Morgen' : hour < 17 ? 'Guten Tag' : 'Guten Abend';
@@ -761,31 +761,39 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
 // ─────────────────────────────────────────────────────────────
 function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewProject, onOpenProject, onUpdateProject, onNavigate }) {
   const now  = new Date();
-  const mine = projects.filter(p => !p.archived && (p.assignees||[]).includes(user.id));
 
-  const allTasks = projects.flatMap(p =>
-    (p.tasks||[])
-      .filter(t => t.assignee === user.id && t.status !== 'done')
-      .map(t => ({
-        ...t,
-        projectTitle: p.title,
-        projectId:    p.id,
-        isOverdue:    !!(t.deadline && new Date(t.deadline) < now),
-      }))
-  ).sort((a, b) => {
-    if (a.isOverdue && !b.isOverdue) return -1;
-    if (!a.isOverdue && b.isOverdue) return 1;
-    if (a.status === 'in_progress' && b.status !== 'in_progress') return -1;
-    if (a.status !== 'in_progress' && b.status === 'in_progress') return 1;
-    if (a.deadline && !b.deadline) return -1;
-    if (!a.deadline && b.deadline) return 1;
-    if (a.deadline && b.deadline) return a.deadline < b.deadline ? -1 : 1;
-    const prio = { high: 0, medium: 1, low: 2 };
-    return (prio[a.priority] ?? 1) - (prio[b.priority] ?? 1);
-  });
+  const mine = useMemo(
+    () => projects.filter(p => !p.archived && (p.assignees||[]).includes(user.id)),
+    [projects, user.id]
+  );
 
-  const heroTask   = allTasks[0] || null;
-  const queueTasks = allTasks.slice(1);
+  const allTasks = useMemo(() =>
+    projects.flatMap(p =>
+      (p.tasks||[])
+        .filter(t => t.assignee === user.id && t.status !== 'done')
+        .map(t => ({
+          ...t,
+          projectTitle: p.title,
+          projectId:    p.id,
+          isOverdue:    !!(t.deadline && new Date(t.deadline) < now),
+        }))
+    ).sort((a, b) => {
+      if (a.isOverdue && !b.isOverdue) return -1;
+      if (!a.isOverdue && b.isOverdue) return 1;
+      if (a.status === 'in_progress' && b.status !== 'in_progress') return -1;
+      if (a.status !== 'in_progress' && b.status === 'in_progress') return 1;
+      if (a.deadline && !b.deadline) return -1;
+      if (!a.deadline && b.deadline) return 1;
+      if (a.deadline && b.deadline) return a.deadline < b.deadline ? -1 : 1;
+      const prio = { high: 0, medium: 1, low: 2 };
+      return (prio[a.priority] ?? 1) - (prio[b.priority] ?? 1);
+    }),
+    [projects, user.id] // now absichtlich ausgelassen — ändert sich nicht sinnvoll innerhalb einer Session
+  );
+
+  const heroTask        = useMemo(() => allTasks[0] || null,    [allTasks]);
+  const queueTasks      = useMemo(() => allTasks.slice(1),       [allTasks]);
+  const allProjectTasks = useMemo(() => projects.flatMap(p => (p.tasks||[])), [projects]);
 
   const toggleTask = useCallback((projectId, taskId) => {
     if (!onUpdateProject) return;
@@ -808,9 +816,8 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Guten Morgen' : hour < 17 ? 'Guten Tag' : 'Guten Abend';
 
-  const inProgress      = allTasks.filter(t => t.status === 'in_progress').length;
-  const overdue         = allTasks.filter(t => t.isOverdue).length;
-  const allProjectTasks = projects.flatMap(p => (p.tasks||[]));
+  const inProgress = useMemo(() => allTasks.filter(t => t.status === 'in_progress').length, [allTasks]);
+  const overdue    = useMemo(() => allTasks.filter(t => t.isOverdue).length,                [allTasks]);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} className="anim">
