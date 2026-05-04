@@ -96,17 +96,22 @@ export default function AuthPage({ onLogin, users, onRegister }) {
             </button>
           </form>
 
-          <div style={{ marginTop: 16, padding: '12px 16px', background: C.sf2, borderRadius: 8, fontSize: 12, color: C.mu, borderLeft: `3px solid ${C.ac}` }}>
-            <div style={{ fontWeight: 700, marginBottom: 8, color: C.tx, fontSize: 13 }}>Demo-Zugänge</div>
-            <div style={{ marginBottom: 2 }}>
-              <span style={{ color: C.mu }}>Ausbilder: </span>
-              <span style={{ fontFamily: C.mono, color: C.ac }}>ausbilder@firma.de</span>
+          <div style={{ marginTop: 16, padding: '11px 14px', background: C.sf2, borderRadius: 8, fontSize: 12, color: C.mu, borderLeft: `3px solid ${C.ac}` }}>
+            <div style={{ fontWeight: 700, marginBottom: 9, color: C.tx, fontSize: 12 }}>Demo — Schnellzugang</div>
+            <div style={{ display: 'flex', gap: 7 }}>
+              {[
+                { label: 'Ausbilder', email: 'ausbilder@firma.de' },
+                { label: 'Azubi',     email: 'anna@azubi.de'      },
+              ].map(({ label, email: demoEmail }) => (
+                <button key={label} type="button"
+                  onClick={() => { setMode('login'); setEmail(demoEmail); setPw('1234'); setErr(''); }}
+                  style={{ flex: 1, padding: '7px 6px', borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf, color: C.tx, fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'border-color .15s' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = C.ac}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = C.bd2}>
+                  {label}
+                </button>
+              ))}
             </div>
-            <div style={{ marginBottom: 2 }}>
-              <span style={{ color: C.mu }}>Azubi: </span>
-              <span style={{ fontFamily: C.mono, color: C.ac }}>anna@azubi.de</span>
-            </div>
-            <div style={{ marginTop: 6, color: C.mu }}>Passwort für beide: <span style={{ fontFamily: C.mono, color: C.ac }}>1234</span></div>
           </div>
         </div>
       </div>
