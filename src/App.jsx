@@ -44,6 +44,18 @@ function useToast() {
   return { toast, showToast };
 }
 
+// ── Mobile Breakpoint ─────────────────────────────────────────
+function useIsMobile(bp = 768) {
+  const [m, setM] = useState(() => window.innerWidth < bp);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${bp - 1}px)`);
+    const h = e => setM(e.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, [bp]);
+  return m;
+}
+
 // ── Page Title ────────────────────────────────────────────────
 const ROUTE_TITLES = {
   '/dashboard': 'Dashboard',
@@ -306,11 +318,13 @@ function GlobalSearch({ data, onClose }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────
-function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme }) {
+function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer }) {
   const navigate = useNavigate();
   const location = useLocation();
   const path     = location.pathname;
   const isAusbilder = currentUser?.role === 'ausbilder';
+
+  const handleNav = (to) => { navigate(to); if (isMobile) onCloseDrawer?.(); };
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard',      Icon: IcoDashboard },
@@ -323,10 +337,21 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
   ];
 
   const hue = (currentUser?.name?.charCodeAt(0) || 100) * 37 % 360;
-  const w   = collapsed ? 52 : 200;
+  const w   = isMobile ? 220 : (collapsed ? 52 : 200);
+
+  const drawerStyle = isMobile ? {
+    position:  'fixed',
+    left:      0,
+    top:       0,
+    zIndex:    900,
+    height:    '100dvh',
+    transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
+    transition: 'transform .25s ease',
+    boxShadow: drawerOpen ? '4px 0 32px rgba(0,0,0,.45)' : 'none',
+  } : {};
 
   return (
-    <aside style={{ width: w, flexShrink: 0, background: 'var(--c-sf)', borderRight: '1px solid var(--c-bd)', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', transition: 'width .2s ease' }}>
+    <aside style={{ width: w, flexShrink: 0, background: 'var(--c-sf)', borderRight: '1px solid var(--c-bd)', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', transition: isMobile ? 'transform .25s ease' : 'width .2s ease', ...drawerStyle }}>
 
       {/* Logo + Collapse Toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, padding: collapsed ? '14px 11px' : '14px 12px 10px', borderBottom: '1px solid var(--c-bd)', flexShrink: 0, justifyContent: collapsed ? 'center' : 'space-between' }}>
@@ -339,10 +364,14 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
             </div>
           )}
         </div>
-        <button onClick={onToggleCollapse} title={collapsed ? 'Aufklappen' : 'Einklappen'}
-          style={{ width: 22, height: 22, borderRadius: 5, border: 'none', background: 'transparent', color: 'var(--c-mu)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, padding: 0 }}>
-          {collapsed ? '›' : '‹'}
-        </button>
+        {isMobile
+          ? <button onClick={onCloseDrawer} aria-label="Menü schließen"
+              style={{ width: 22, height: 22, borderRadius: 5, border: 'none', background: 'transparent', color: 'var(--c-mu)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16, padding: 0 }}>×</button>
+          : <button onClick={onToggleCollapse} title={collapsed ? 'Aufklappen' : 'Einklappen'}
+              style={{ width: 22, height: 22, borderRadius: 5, border: 'none', background: 'transparent', color: 'var(--c-mu)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, padding: 0 }}>
+              {collapsed ? '›' : '‹'}
+            </button>
+        }
       </div>
 
       {/* Search */}
@@ -365,7 +394,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
         {navItems.map(({ to, label, Icon }) => {
           const active = path === to || (to !== '/dashboard' && path.startsWith(to));
           return (
-            <button key={to} onClick={() => navigate(to)} title={collapsed ? label : undefined}
+            <button key={to} onClick={() => handleNav(to)} title={collapsed ? label : undefined}
               style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '9px' : '8px 10px', borderRadius: 8, border: 'none', background: active ? 'var(--c-acd)' : 'transparent', color: active ? 'var(--c-ac)' : 'var(--c-mu)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', marginBottom: 1, transition: 'all .12s', borderLeft: active ? '2px solid var(--c-ac)' : '2px solid transparent' }}
               onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--c-sf2)'; e.currentTarget.style.color = 'var(--c-br)'; }}}
               onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-mu)'; }}}>
@@ -574,22 +603,56 @@ function ProjectsPage({ onNewProject, showToast }) {
 
 // ── AppLayout ─────────────────────────────────────────────────
 function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, children }) {
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
+  const [collapsed,   setCollapsed]   = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
+  const [drawerOpen,  setDrawerOpen]  = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const isMobile = useIsMobile();
   usePageTitle();
 
+  // Drawer schließen wenn auf Desktop gewechselt wird
+  useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
+
   const handleToggleCollapse = useCallback(() => {
-    setCollapsed(c => {
-      const next = !c;
-      localStorage.setItem('azubiboard_sidebar_collapsed', String(next));
-      return next;
-    });
-  }, []);
+    if (isMobile) {
+      setDrawerOpen(o => !o);
+    } else {
+      setCollapsed(c => {
+        const next = !c;
+        localStorage.setItem('azubiboard_sidebar_collapsed', String(next));
+        return next;
+      });
+    }
+  }, [isMobile]);
 
   return (
     <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
-      <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} onExport={onExport} onImport={onImport} onSearch={onSearch} collapsed={collapsed} onToggleCollapse={handleToggleCollapse} theme={theme} onToggleTheme={toggleTheme} />
+      {/* Overlay bei offenem Drawer */}
+      {isMobile && drawerOpen && (
+        <div onClick={() => setDrawerOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 899, backdropFilter: 'blur(2px)' }} />
+      )}
+
+      <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} onExport={onExport} onImport={onImport} onSearch={onSearch}
+        collapsed={isMobile ? false : collapsed} onToggleCollapse={handleToggleCollapse}
+        theme={theme} onToggleTheme={toggleTheme}
+        isMobile={isMobile} drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)} />
+
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Mobile Topbar */}
+        {isMobile && (
+          <div style={{ height: 48, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '1px solid var(--c-bd)', background: 'var(--c-sf)', gap: 12 }}>
+            <button onClick={() => setDrawerOpen(o => !o)} aria-label="Menü öffnen"
+              style={{ padding: '6px 8px', borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--c-br)', fontSize: 20, cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              ☰
+            </button>
+            <div style={{ width: 24, height: 24, borderRadius: 6, background: 'linear-gradient(135deg, var(--c-ac), #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff' }}>A</div>
+            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--c-br)', flex: 1 }}>AzubiBoard</span>
+            <button onClick={toggleTheme} aria-label="Theme wechseln"
+              style={{ padding: '5px', borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--c-mu)', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center' }}>
+              {theme === 'dark' ? <IcoSun size={16} /> : <IcoMoon size={16} />}
+            </button>
+          </div>
+        )}
         {children}
       </div>
     </div>
