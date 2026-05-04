@@ -1,4 +1,5 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData } from './lib/utils';
@@ -28,6 +29,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import {
   IcoDashboard, IcoFolder, IcoCalendar, IcoUsers,
   IcoReport, IcoLearn, IcoPlus, IcoLogout, IcoUserEdit, IcoSearch,
+  IcoBell, IcoAlert, IcoClock, IcoX,
 } from './components/Icons.jsx';
 
 // ── Global Toast Hook ─────────────────────────────────────────
@@ -40,6 +42,158 @@ function useToast() {
     timer.current = setTimeout(() => setToast(null), 2800);
   }, []);
   return { toast, showToast };
+}
+
+// ── Notifications ─────────────────────────────────────────────
+function useNotifications(data, currentUser) {
+  const storageKey = `azubiboard_notif_read_${currentUser?.id || 'anon'}`;
+  const [readIds, setReadIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
+    catch { return new Set(); }
+  });
+
+  const notifications = useMemo(() => {
+    if (!data || !currentUser) return [];
+    const items = [];
+    const now = new Date();
+
+    (data.projects || []).filter(p => !p.archived).forEach(project => {
+      (project.tasks || []).forEach(task => {
+        if (task.assignee !== currentUser.id || task.status === 'done' || !task.deadline) return;
+        const d = Math.ceil((new Date(task.deadline) - now) / 86400000);
+        if (d < 0)
+          items.push({ id: `task-${task.id}-overdue`, type: 'deadline', severity: 'critical', title: task.text, message: `Überfällig seit ${Math.abs(d)} Tag${Math.abs(d) !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
+        else if (d <= 3)
+          items.push({ id: `task-${task.id}-soon`, type: 'deadline', severity: 'warning', title: task.text, message: d === 0 ? 'Heute fällig' : `Fällig in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
+      });
+
+      if (project.assignees?.includes(currentUser.id) && project.deadline) {
+        const d = Math.ceil((new Date(project.deadline) - now) / 86400000);
+        if (d < 0)
+          items.push({ id: `project-${project.id}-overdue`, type: 'project', severity: 'critical', title: project.title, message: 'Projektdeadline überschritten', projectId: project.id });
+        else if (d <= 3)
+          items.push({ id: `project-${project.id}-soon`, type: 'project', severity: 'warning', title: project.title, message: d === 0 ? 'Projektdeadline heute' : `Projektdeadline in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id });
+      }
+    });
+
+    if (currentUser.role === 'ausbilder') {
+      (data.reports || []).filter(r => r.status === 'submitted').forEach(r => {
+        items.push({ id: `report-${r.id}-submitted`, type: 'report', severity: 'info', title: 'Bericht zur Prüfung', message: `${r.user_name || 'Azubi'} · KW ${r.week_number}/${r.year}` });
+      });
+    } else {
+      (data.reports || []).filter(r => r.user_id === currentUser.id && (r.status === 'reviewed' || r.status === 'signed')).forEach(r => {
+        items.push({ id: `report-${r.id}-${r.status}`, type: 'report', severity: 'info', title: r.status === 'signed' ? 'Bericht unterschrieben' : 'Bericht geprüft', message: `KW ${r.week_number}/${r.year} · Feedback verfügbar` });
+      });
+    }
+
+    const order = { critical: 0, warning: 1, info: 2 };
+    return items.sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
+  }, [data, currentUser]);
+
+  const unreadCount = useMemo(() => notifications.filter(n => !readIds.has(n.id)).length, [notifications, readIds]);
+
+  const markRead = useCallback((id) => {
+    setReadIds(prev => {
+      const next = new Set([...prev, id]);
+      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, [storageKey]);
+
+  const markAllRead = useCallback(() => {
+    const ids = notifications.map(n => n.id);
+    const next = new Set(ids);
+    setReadIds(next);
+    try { localStorage.setItem(storageKey, JSON.stringify(ids)); } catch {}
+  }, [notifications, storageKey]);
+
+  return { notifications, unreadCount, readIds, markRead, markAllRead };
+}
+
+function NotificationItem({ n, read, onMarkRead, navigate, onClose }) {
+  const clr = { critical: 'var(--c-cr)', warning: 'var(--c-yw)', info: 'var(--c-ac)' }[n.severity] || 'var(--c-ac)';
+  const Icon = n.severity === 'critical' ? IcoAlert : n.type === 'report' ? IcoReport : IcoClock;
+  const handleClick = () => {
+    onMarkRead(n.id);
+    onClose();
+    if (n.projectId) navigate(`/project/${n.projectId}`);
+    else if (n.type === 'report') navigate('/reports');
+  };
+  return (
+    <button onClick={handleClick}
+      style={{ width: '100%', display: 'flex', gap: 10, padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--c-bd)', background: read ? 'transparent' : 'rgba(0,113,227,.05)', cursor: 'pointer', textAlign: 'left', transition: 'background .1s' }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--c-sf2)'}
+      onMouseLeave={e => e.currentTarget.style.background = read ? 'transparent' : 'rgba(0,113,227,.05)'}>
+      <div style={{ width: 26, height: 26, borderRadius: 6, background: clr + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+        <Icon size={12} style={{ color: clr }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: read ? 500 : 700, color: 'var(--c-br)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</div>
+        <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 1 }}>{n.message}</div>
+        {n.projectTitle && <div style={{ fontSize: 10, color: 'var(--c-mu)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📁 {n.projectTitle}</div>}
+      </div>
+      {!read && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-ac)', flexShrink: 0, marginTop: 7 }} />}
+    </button>
+  );
+}
+
+function NotificationBell({ collapsed }) {
+  const { data, currentUser } = useAppStore();
+  const navigate = useNavigate();
+  const { notifications, unreadCount, readIds, markRead, markAllRead } = useNotifications(data, currentUser);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const fn = e => { if (!panelRef.current?.contains(e.target) && !btnRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, [open]);
+
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.top, left: r.right + 8 });
+    }
+    setOpen(o => !o);
+  };
+
+  return (
+    <div style={{ padding: '0 6px 4px' }}>
+      <button ref={btnRef} onClick={handleToggle} title={collapsed ? 'Benachrichtigungen' : undefined}
+        style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 8, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '8px' : '7px 10px', borderRadius: 7, border: '1px solid var(--c-bd)', background: open ? 'var(--c-acd)' : 'var(--c-sf2)', color: unreadCount > 0 ? 'var(--c-br)' : 'var(--c-mu)', fontSize: 12, cursor: 'pointer', position: 'relative', transition: 'background .1s' }}>
+        <IcoBell size={13} />
+        {!collapsed && <span style={{ flex: 1, textAlign: 'left' }}>Benachrichtigungen</span>}
+        {unreadCount > 0 && (
+          <span style={{ ...(collapsed ? { position: 'absolute', top: 3, right: 3 } : {}), background: 'var(--c-cr)', color: '#fff', borderRadius: 10, fontSize: 9, fontWeight: 800, minWidth: 15, height: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && createPortal(
+        <div ref={panelRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: 310, maxHeight: 460, background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 12, boxShadow: '0 8px 40px rgba(0,0,0,.6)', zIndex: 850, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid var(--c-bd)', flexShrink: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-br)' }}>Benachrichtigungen</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {unreadCount > 0 && <button onClick={markAllRead} style={{ fontSize: 11, color: 'var(--c-ac)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Alle gelesen</button>}
+              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-mu)', padding: 0, display: 'flex', alignItems: 'center' }}><IcoX size={14} /></button>
+            </div>
+          </div>
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {notifications.length === 0
+              ? <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--c-mu)', fontSize: 13 }}>Alles erledigt ✓</div>
+              : notifications.map(n => <NotificationItem key={n.id} n={n} read={readIds.has(n.id)} onMarkRead={markRead} navigate={navigate} onClose={() => setOpen(false)} />)
+            }
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
 }
 
 // ── Global Search ─────────────────────────────────────────────
@@ -164,6 +318,9 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
           </>}
         </button>
       </div>
+
+      {/* Benachrichtigungen */}
+      <NotificationBell collapsed={collapsed} />
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '4px 6px', overflowY: 'auto' }}>
