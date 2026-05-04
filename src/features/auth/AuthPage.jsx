@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { C, uid, saveSession } from '../../lib/utils.js';
 import { hashPassword, isHashed } from '../../lib/crypto.js';
+import { dataService } from '../../lib/dataService.js';
+import { setToken } from '../../lib/auth.js';
+
+const USE_API = import.meta.env.VITE_USE_API === 'true';
 
 export default function AuthPage({ onLogin, users, onRegister }) {
   const [mode, setMode] = useState('login');
@@ -15,14 +19,24 @@ export default function AuthPage({ onLogin, users, onRegister }) {
     if (!email.trim() || !pw.trim()) { setErr('Bitte alle Felder ausfüllen.'); return; }
     setLoading(true);
     try {
-      const u = users.find(x => x.email.toLowerCase() === email.toLowerCase());
-      if (!u) { setErr('E-Mail oder Passwort falsch.'); setLoading(false); return; }
-      const inputHash = await hashPassword(pw);
-      // Migration: ältere Klartextpasswörter noch akzeptieren
-      const match = isHashed(u.password) ? inputHash === u.password : pw === u.password;
-      if (match) { saveSession(u.id); onLogin(u); }
-      else { setErr('E-Mail oder Passwort falsch.'); setLoading(false); }
-    } catch { setErr('Anmeldung fehlgeschlagen. Bitte erneut versuchen.'); setLoading(false); }
+      if (USE_API) {
+        // ── API-Modus: bcrypt via PHP ────────────────────────
+        const { token, user } = await dataService.login(email.trim(), pw);
+        setToken(token);
+        onLogin(user);
+      } else {
+        // ── Lokaler Modus: SHA-256 (Entwicklung) ────────────
+        const u = users.find(x => x.email.toLowerCase() === email.toLowerCase());
+        if (!u) { setErr('E-Mail oder Passwort falsch.'); setLoading(false); return; }
+        const inputHash = await hashPassword(pw);
+        const match = isHashed(u.password) ? inputHash === u.password : pw === u.password;
+        if (match) { saveSession(u.id); onLogin(u); }
+        else { setErr('E-Mail oder Passwort falsch.'); setLoading(false); }
+      }
+    } catch (err) {
+      setErr(err.message || 'Anmeldung fehlgeschlagen. Bitte erneut versuchen.');
+      setLoading(false);
+    }
   }
 
   async function handleRegister(e) {
@@ -30,14 +44,27 @@ export default function AuthPage({ onLogin, users, onRegister }) {
     if (!name.trim()) { setErr('Bitte Namen eingeben.'); return; }
     if (!email.trim()) { setErr('Bitte E-Mail eingeben.'); return; }
     if (!pw.trim() || pw.length < 6) { setErr('Passwort muss mindestens 6 Zeichen haben.'); return; }
-    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) { setErr('Diese E-Mail ist bereits registriert.'); return; }
     setLoading(true);
     try {
-      const hashed = await hashPassword(pw);
-      const newUser = { id: uid(), name: name.trim(), email: email.trim(), password: hashed, role: 'azubi' };
-      saveSession(newUser.id);
-      onRegister(newUser);
-    } catch { setErr('Registrierung fehlgeschlagen. Bitte erneut versuchen.'); setLoading(false); }
+      if (USE_API) {
+        // ── API-Modus ────────────────────────────────────────
+        const { token, user } = await dataService.register(name.trim(), email.trim(), pw);
+        setToken(token);
+        onLogin(user);
+      } else {
+        // ── Lokaler Modus ────────────────────────────────────
+        if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+          setErr('Diese E-Mail ist bereits registriert.'); setLoading(false); return;
+        }
+        const hashed = await hashPassword(pw);
+        const newUser = { id: uid(), name: name.trim(), email: email.trim(), password: hashed, role: 'azubi' };
+        saveSession(newUser.id);
+        onRegister(newUser);
+      }
+    } catch (err) {
+      setErr(err.message || 'Registrierung fehlgeschlagen. Bitte erneut versuchen.');
+      setLoading(false);
+    }
   }
 
   return (

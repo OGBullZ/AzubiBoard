@@ -1,0 +1,15 @@
+Options -Indexes
+DirectoryIndex index.php
+
+# Alle Anfragen durch index.php routen
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]
+
+# Kein direkter Zugriff auf config oder routes
+<FilesMatch "^(config|\.env)">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^(config\.php)$">
+    Require all denied
+</FilesMatch>

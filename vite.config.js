@@ -5,13 +5,21 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,           // Standard-Port
-    strictPort: true,     // Fehlermeldung statt automatischer Port-Änderung
-    host: true,           // Zugänglich im Netzwerk (falls gewünscht)
+    port: 5173,
+    strictPort: true,
+    host: true,
+    proxy: {
+      // Im Dev-Modus: /api → PHP-Server (XAMPP o.ä.)
+      '/api': {
+        target:       process.env.VITE_PHP_DEV_URL || 'http://localhost:8080',
+        changeOrigin: true,
+        secure:       false,
+      },
+    },
   },
   build: {
-    outDir: 'dist',
-    sourcemap: false
+    outDir:    'dist',
+    sourcemap: false,
   },
-  base: '/netplan'  
+  base: '/',
 });

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData } from './lib/utils';
+import { setToken, clearToken, getToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
   BrowserRouter as Router,
@@ -694,6 +695,7 @@ const App = () => {
 
   const handleLogout = useCallback(() => {
     clearSession();
+    clearToken();
     setCurrentUser(null);
   }, [setCurrentUser]);
 
