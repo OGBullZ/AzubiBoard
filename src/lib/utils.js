@@ -217,8 +217,8 @@ export function loadData() {
 export function persistData(data) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.warn('Speichern fehlgeschlagen:', e);
+  } catch {
+    // localStorage full or unavailable — fail silently
   }
 }
 

@@ -327,8 +327,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
   const deleteReport = (id) => {
     setConfirmDel(id);
-    // Actual deletion handled in ConfirmDialog.onConfirm
-    showToast('Berichtsheft gelöscht');
+    // Toast fires in ConfirmDialog.onConfirm, not here
   };
 
   const submitReport = (id) => {
