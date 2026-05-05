@@ -23,15 +23,24 @@ const PRIORITY = {
 };
 
 function mkTask(overrides = {}) {
-  return { id: uid(), text: '', status: 'not_started', priority: 'medium', assignee: null, deadline: '', note: '', doc: '', protocol: '', links: [], created: today(), ...overrides };
+  return { id: uid(), text: '', status: 'not_started', priority: 'medium', assignee: null, deadline: '', note: '', doc: '', protocol: '', links: [], labelIds: [], created: today(), ...overrides };
 }
 
-function TaskCard({ task, users, onUpdate, onRemove, isOpen, onToggle, projectMaterials }) {
-  const assignee = users.find(u => u.id === task.assignee);
-  const st   = TASK_STATUS[task.status] || TASK_STATUS.not_started;
-  const pr   = PRIORITY[task.priority]  || PRIORITY.medium;
-  const over = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
-  const lc   = (task.links || []).length;
+function LabelChip({ label, tiny = false }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: tiny ? 9 : 10, fontWeight: 700, color: '#fff', background: label.color, borderRadius: 4, padding: tiny ? '1px 5px' : '2px 7px', lineHeight: 1.3 }}>
+      {label.name}
+    </span>
+  );
+}
+
+function TaskCard({ task, users, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels }) {
+  const assignee   = users.find(u => u.id === task.assignee);
+  const st         = TASK_STATUS[task.status] || TASK_STATUS.not_started;
+  const pr         = PRIORITY[task.priority]  || PRIORITY.medium;
+  const over       = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
+  const lc         = (task.links || []).length;
+  const taskLabels = (projectLabels || []).filter(lb => (task.labelIds || []).includes(lb.id));
 
   return (
     <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${isOpen ? st.color + '50' : C.bd}`, background: C.sf2, overflow: 'hidden', transition: 'border-color .15s', opacity: task.status === 'done' ? .6 : 1 }}>
@@ -66,6 +75,7 @@ function TaskCard({ task, users, onUpdate, onRemove, isOpen, onToggle, projectMa
                 <IcoLink size={9} />{lc}
               </span>
             )}
+            {taskLabels.map(lb => <LabelChip key={lb.id} label={lb} tiny />)}
           </div>
         </div>
 
@@ -115,6 +125,28 @@ function TaskCard({ task, users, onUpdate, onRemove, isOpen, onToggle, projectMa
               ))}
             </div>
           </div>
+
+          {(projectLabels || []).length > 0 && (
+            <div>
+              <label>Labels</label>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
+                {(projectLabels || []).map(lb => {
+                  const active = (task.labelIds || []).includes(lb.id);
+                  return (
+                    <button key={lb.id} onClick={() => {
+                      const ids = task.labelIds || [];
+                      onUpdate(task.id, { labelIds: active ? ids.filter(x => x !== lb.id) : [...ids, lb.id] });
+                    }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, border: `2px solid ${active ? lb.color : C.bd2}`, background: active ? lb.color + '22' : C.sf2, color: active ? lb.color : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color, display: 'inline-block', flexShrink: 0 }} />
+                      {lb.name}
+                      {active && <IcoCheck size={10} style={{ color: lb.color }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <ContentTabs task={task} onUpdate={onUpdate} projectMaterials={projectMaterials || []} />
         </div>
@@ -194,7 +226,7 @@ function MaterialRef({ materials, taskRef, onUpdate }) {
   );
 }
 
-function TaskGroup({ status, tasks, users, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials }) {
+function TaskGroup({ status, tasks, users, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
   const st = TASK_STATUS[status];
   if (!tasks.length) return null;
@@ -219,7 +251,7 @@ function TaskGroup({ status, tasks, users, openTask, onToggleTask, onUpdate, onR
             <TaskCard key={t.id} task={t} users={users}
               isOpen={openTask === t.id} onToggle={() => onToggleTask(t.id)}
               onUpdate={onUpdate} onRemove={onRemove}
-              projectMaterials={projectMaterials} />
+              projectMaterials={projectMaterials} projectLabels={projectLabels} />
           ))}
         </div>
       )}
@@ -298,11 +330,13 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
 }
 
 export function TasksTab({ project, users, currentUser, onUpdate }) {
-  const [openTask,  setOpenTask]  = useState(null);
-  const [showAdd,   setShowAdd]   = useState(false);
-  const [newTask,   setNewTask]   = useState(mkTask({ assignee: currentUser.id }));
-  const [viewMode,  setViewMode]  = useState('list');
+  const [openTask,     setOpenTask]     = useState(null);
+  const [showAdd,      setShowAdd]      = useState(false);
+  const [newTask,      setNewTask]      = useState(mkTask({ assignee: currentUser.id }));
+  const [viewMode,     setViewMode]     = useState('list');
+  const [filterLabel,  setFilterLabel]  = useState(null);
 
+  const projectLabels = project.labels || [];
   const assignable = users.filter(u => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
 
   const updateTask = (taskId, patch) =>
@@ -313,17 +347,22 @@ export function TasksTab({ project, users, currentUser, onUpdate }) {
   };
   const addTask = () => {
     if (!newTask.text.trim()) return;
-    onUpdate(project.id, { tasks: [...(project.tasks||[]), { ...newTask, links: newTask.links || [] }] });
+    onUpdate(project.id, { tasks: [...(project.tasks||[]), { ...newTask, links: newTask.links || [], labelIds: newTask.labelIds || [] }] });
     setNewTask(mkTask({ assignee: currentUser.id }));
     setShowAdd(false);
   };
 
-  const total = project.tasks.length;
-  const done  = (project.tasks||[]).filter(t => t.status === 'done' || t.done).length;
+  const allTasks  = project.tasks || [];
+  const visibleTasks = filterLabel
+    ? allTasks.filter(t => (t.labelIds || []).includes(filterLabel))
+    : allTasks;
+
+  const total = allTasks.length;
+  const done  = allTasks.filter(t => t.status === 'done' || t.done).length;
   const pct   = total > 0 ? Math.round(done / total * 100) : 0;
 
   const grouped = STATUS_ORDER.reduce((acc, s) => {
-    acc[s] = (project.tasks||[]).filter(t => (t.status || 'not_started') === s);
+    acc[s] = visibleTasks.filter(t => (t.status || 'not_started') === s);
     return acc;
   }, {});
 
@@ -402,21 +441,38 @@ export function TasksTab({ project, users, currentUser, onUpdate }) {
         )}
       </div>
 
+      {projectLabels.length > 0 && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7, marginRight: 2 }}>Filter:</span>
+          <button onClick={() => setFilterLabel(null)}
+            style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `1px solid ${!filterLabel ? C.ac : C.bd2}`, background: !filterLabel ? C.acd : C.sf2, color: !filterLabel ? C.ac : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
+            Alle
+          </button>
+          {projectLabels.map(lb => (
+            <button key={lb.id} onClick={() => setFilterLabel(filterLabel === lb.id ? null : lb.id)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `2px solid ${filterLabel === lb.id ? lb.color : lb.color + '50'}`, background: filterLabel === lb.id ? lb.color + '22' : C.sf2, color: filterLabel === lb.id ? lb.color : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: lb.color, display: 'inline-block', flexShrink: 0 }} />
+              {lb.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {total === 0
         ? <EmptyState Icon={IcoCheck} title="Noch keine Arbeitspakete" subtitle="Klicke auf '+ Neu' um zu starten" />
         : viewMode === 'kanban'
-          ? <KanbanBoard tasks={project.tasks || []} users={assignable} onUpdate={updateTask} onRemove={removeTask} />
+          ? <KanbanBoard tasks={visibleTasks} users={assignable} onUpdate={updateTask} onRemove={removeTask} />
           : <>
               {STATUS_ORDER.filter(s => s !== 'done').map(s => (
                 <TaskGroup key={s} status={s} tasks={grouped[s]} users={assignable}
                   openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
                   onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={false}
-                  projectMaterials={project.materials || []} />
+                  projectMaterials={project.materials || []} projectLabels={projectLabels} />
               ))}
               <TaskGroup status="done" tasks={grouped.done} users={assignable}
                 openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
                 onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={true}
-                projectMaterials={project.materials || []} />
+                projectMaterials={project.materials || []} projectLabels={projectLabels} />
             </>}
     </div>
   );

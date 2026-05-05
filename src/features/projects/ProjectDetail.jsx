@@ -11,6 +11,72 @@ import {
   IcoArchive, IcoPlus, IcoChat, IcoTrash
 } from '../../components/Icons.jsx';
 
+const LABEL_PRESETS = ['#0071e3','#3fb950','#f78166','#a371f7','#f0883e','#e3b341','#58a6ff','#ff7b72'];
+
+function LabelsManager({ project, onUpdate }) {
+  const [name,  setName]  = useState('');
+  const [color, setColor] = useState(LABEL_PRESETS[0]);
+  const labels = project.labels || [];
+
+  const addLabel = () => {
+    if (!name.trim()) return;
+    onUpdate(project.id, { labels: [...labels, { id: uid(), name: name.trim(), color }] });
+    setName('');
+    setColor(LABEL_PRESETS[0]);
+  };
+
+  const removeLabel = (id) => {
+    onUpdate(project.id, { labels: labels.filter(l => l.id !== id) });
+    // also strip labelId from tasks
+    const tasks = (project.tasks || []).map(t => ({
+      ...t, labelIds: (t.labelIds || []).filter(x => x !== id)
+    }));
+    onUpdate(project.id, { tasks });
+  };
+
+  return (
+    <section className="card">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+        <span style={{ width: 10, height: 10, borderRadius: 3, background: C.ac, display: 'inline-block' }} />
+        <label style={{ fontSize: 12, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, margin: 0 }}>
+          Labels
+        </label>
+      </div>
+
+      <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+        <input value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addLabel()}
+          placeholder="Label-Name…" style={{ flex: '1 1 100px', minWidth: 80, fontSize: 12 }} />
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          {LABEL_PRESETS.map(c => (
+            <button key={c} onClick={() => setColor(c)}
+              style={{ width: 18, height: 18, borderRadius: '50%', background: c, border: `2.5px solid ${color === c ? '#fff' : 'transparent'}`, outline: color === c ? `2px solid ${c}` : 'none', cursor: 'pointer', transition: 'outline .1s', padding: 0 }} />
+          ))}
+        </div>
+        <button className="abtn" onClick={addLabel} style={{ fontSize: 11, padding: '4px 10px', flexShrink: 0 }}>
+          <IcoPlus size={12} /> Neu
+        </button>
+      </div>
+
+      {labels.length > 0 ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {labels.map(lb => (
+            <div key={lb.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 5, background: lb.color + '22', border: `1.5px solid ${lb.color}60` }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: lb.color }}>{lb.name}</span>
+              <button onClick={() => {
+                if (window.confirm(`Label "${lb.name}" löschen?`)) removeLabel(lb.id);
+              }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: lb.color, fontSize: 13, lineHeight: 1, padding: '0 1px', opacity: .7, fontWeight: 700 }} title="Löschen">×</button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: C.mu, fontStyle: 'italic' }}>Noch keine Labels — erstelle das erste oben.</div>
+      )}
+    </section>
+  );
+}
+
 function CommentsSection({ project, currentUser, onUpdate }) {
   const [text, setText] = useState('');
   const comments = project.comments || [];
@@ -368,6 +434,8 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                         : <span style={{ fontStyle: 'italic' }}>Keine Gruppe</span>}
                     </div>}
               </section>
+
+              <LabelsManager project={project} onUpdate={onUpdate} />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
