@@ -424,25 +424,37 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
               </label>
             </div>
 
-            {/* User */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--c-sf2)', marginBottom: 5 }}>
+            {/* User → klickbar → Profil-Seite */}
+            <button onClick={() => handleNav('/profile')} title="Mein Profil"
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--c-sf2)', marginBottom: 5, border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background .1s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--c-sf3)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--c-sf2)'}>
               <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
                 {currentUser?.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
               </div>
-              <div style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-br)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser?.name?.split(' ')[0]}</div>
                 <div style={{ fontSize: 9, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5 }}>
                   {currentUser?.role === 'azubi' ? `Azubi · LJ ${currentUser?.apprenticeship_year || 1}` : 'Ausbilder'}
                 </div>
               </div>
-            </div>
+              <span style={{ fontSize: 9, color: 'var(--c-mu)', flexShrink: 0 }}>›</span>
+            </button>
           </>
         )}
 
         {collapsed && (
-          <button onClick={onNewProject} title="Neues Projekt" className="abtn" style={{ width: '100%', padding: '8px', justifyContent: 'center', marginBottom: 6, fontSize: 14 }}>
-            <IcoPlus size={14} />
-          </button>
+          <>
+            <button onClick={onNewProject} title="Neues Projekt" className="abtn" style={{ width: '100%', padding: '8px', justifyContent: 'center', marginBottom: 4, fontSize: 14 }}>
+              <IcoPlus size={14} />
+            </button>
+            <button onClick={() => handleNav('/profile')} title="Mein Profil"
+              style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: 'var(--c-sf2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
+                {currentUser?.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+              </div>
+            </button>
+          </>
         )}
 
         <button onClick={onToggleTheme} title={theme === 'dark' ? 'Light-Mode' : 'Dark-Mode'}
