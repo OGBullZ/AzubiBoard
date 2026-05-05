@@ -3,7 +3,7 @@ import { C, fmtDate } from '../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoCheck, IcoClock, IcoPlay, IcoChevron, IcoChevronD,
-  IcoTrendUp, IcoSearch, IcoTrash, IcoPlus, IcoLink, IcoDoc,
+  IcoTrendUp, IcoSearch, IcoTrash, IcoPlus, IcoLink,
   IcoArchive, IcoLearn, IcoReport, IcoCalendar,
   IcoAlert, IcoNote, IcoUsers, IcoPause, IcoBlock
 } from '../../components/Icons.jsx';
@@ -631,9 +631,76 @@ function LearnWidget({ userId, onNavigate }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  ACTIVITY FEED WIDGET
+// ─────────────────────────────────────────────────────────────
+
+function relTime(ts) {
+  if (!ts) return '';
+  const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (diff < 60)       return 'gerade eben';
+  if (diff < 3600)     return `vor ${Math.floor(diff / 60)} Min`;
+  if (diff < 86400)    return `vor ${Math.floor(diff / 3600)}h`;
+  if (diff < 172800)   return 'Gestern';
+  return new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
+const ACTIVITY_CONFIG = {
+  project_created:  { icon: '📁', color: C.ac  },
+  task_done:        { icon: '✅', color: C.gr  },
+  task_created:     { icon: '➕', color: C.yw  },
+  user_registered:  { icon: '👤', color: '#a371f7' },
+};
+
+function activityText(entry) {
+  switch (entry.type) {
+    case 'project_created':
+      return <>{entry.userName} hat Projekt <strong style={{ color: C.br }}>{entry.entityTitle}</strong> erstellt</>;
+    case 'task_done':
+      return <>{entry.userName} hat Aufgabe <strong style={{ color: C.br }}>{entry.entityTitle}</strong> abgeschlossen{entry.projectTitle ? <span style={{ color: C.mu }}> · {entry.projectTitle}</span> : null}</>;
+    case 'task_created':
+      return <>{entry.userName} hat Aufgabe <strong style={{ color: C.br }}>{entry.entityTitle}</strong> hinzugefügt{entry.projectTitle ? <span style={{ color: C.mu }}> · {entry.projectTitle}</span> : null}</>;
+    case 'user_registered':
+      return <><strong style={{ color: C.br }}>{entry.userName}</strong> hat sich registriert</>;
+    default:
+      return entry.action || '–';
+  }
+}
+
+function ActivityFeed({ activityLog = [] }) {
+  const entries = activityLog.slice(0, 15);
+
+  return (
+    <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+      {entries.length === 0 ? (
+        <div style={{ fontSize: 12, color: C.textSecondary, fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+          Noch keine Aktivitäten
+        </div>
+      ) : entries.map(entry => {
+        const cfg = ACTIVITY_CONFIG[entry.type] || { icon: '📋', color: C.mu };
+        return (
+          <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 2px', borderBottom: `1px solid ${C.bd}22` }}>
+            <div style={{ width: 24, height: 24, borderRadius: 6, background: cfg.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12 }}>
+              {cfg.icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: C.tx, lineHeight: 1.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {activityText(entry)}
+              </div>
+              <div style={{ fontSize: 9, color: C.mu, marginTop: 1, fontFamily: C.mono }}>
+                {relTime(entry.ts)}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 //  AUSBILDER-DASHBOARD
 // ─────────────────────────────────────────────────────────────
-function AusbilderDashboard({ user, projects, users, reports, calendarEvents, onOpenProject, onUpdateProject, onNavigate }) {
+function AusbilderDashboard({ user, projects, users, reports, calendarEvents, activityLog, onOpenProject, onUpdateProject, onNavigate }) {
   const now      = new Date();
   const azubis   = useMemo(() => users.filter(u => u.role === 'azubi'),              [users]);
   const active   = useMemo(() => projects.filter(p => !p.archived),                  [projects]);
@@ -750,6 +817,10 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
             <PanelTitle Icon={IcoCalendar}>Nächste Termine</PanelTitle>
             <CalWidget calendarEvents={calendarEvents} projects={active} onNavigate={() => onNavigate?.('calendar')} />
           </div>
+          <div style={{ padding: '16px 20px', flexShrink: 0, borderTop: `1px solid var(--c-bd)` }}>
+            <PanelTitle Icon={IcoNote}>Letzte Aktivitäten</PanelTitle>
+            <ActivityFeed activityLog={activityLog} />
+          </div>
         </div>
       </div>
     </div>
@@ -759,7 +830,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, on
 // ─────────────────────────────────────────────────────────────
 //  AZUBI-DASHBOARD
 // ─────────────────────────────────────────────────────────────
-function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewProject, onOpenProject, onUpdateProject, onNavigate }) {
+function AzubiDashboard({ user, projects, users, reports, calendarEvents, activityLog, onNewProject, onOpenProject, onUpdateProject, onNavigate }) {
   const now  = new Date();
 
   const mine = useMemo(
@@ -876,47 +947,9 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
               ))}
             </div>
           </div>
-          <div style={{ flexShrink: 0, padding: '12px 18px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)', maxHeight: '35%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <PanelTitle Icon={IcoNote}>Letzte Aktivität</PanelTitle>
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {(() => {
-                const events = [];
-                const now2 = new Date();
-                const fmt = d => {
-                  if (!d) return '';
-                  const dt = new Date(d);
-                  const diff = Math.floor((now2 - dt) / 86400000);
-                  if (diff === 0) return 'Heute';
-                  if (diff === 1) return 'Gestern';
-                  if (diff < 7) return dt.toLocaleDateString('de-DE', { weekday: 'short' });
-                  return dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-                };
-                projects.filter(p => !p.archived && (p.assignees||[]).includes(user.id)).forEach(p => {
-                  (p.tasks || []).filter(t => t.status === 'done' && t.deadline).forEach(t => {
-                    events.push({ c: C.gr, Icon: IcoCheck, text: t.text, sub: p.title, date: t.deadline });
-                  });
-                  (p.steps || []).forEach(s => {
-                    events.push({ c: C.ac, Icon: IcoDoc, text: s.title, sub: p.title, date: s.date });
-                  });
-                  (p.links || []).filter(l => l.created).forEach(l => {
-                    events.push({ c: C.yw, Icon: IcoLink, text: l.title || l.url, sub: p.title, date: l.created.split('T')[0] });
-                  });
-                });
-                const sorted = events.sort((a, b) => (b.date || '') > (a.date || '') ? 1 : -1).slice(0, 8);
-                if (sorted.length === 0) return <div style={{ fontSize: 14, color: C.textSecondary, fontStyle: 'italic', padding: '4px 0' }}>Noch keine Aktivität</div>;
-                return sorted.map((a, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0', borderBottom: `1px solid var(--c-bd)22` }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 5, background: a.c + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <a.Icon size={11} style={{ color: a.c }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.text}</div>
-                      <div style={{ fontSize: 9, color: C.textSecondary }}>{a.sub} · {fmt(a.date)}</div>
-                    </div>
-                  </div>
-                ));
-              })()}
-            </div>
+          <div style={{ flexShrink: 0, padding: '12px 18px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
+            <PanelTitle Icon={IcoNote}>Letzte Aktivitäten</PanelTitle>
+            <ActivityFeed activityLog={activityLog} />
           </div>
         </div>
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -947,9 +980,9 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, onNewP
 // ─────────────────────────────────────────────────────────────
 export function Dashboard(props) {
   if (props.user?.role === 'ausbilder') {
-    return <AusbilderDashboard {...props} />;
+    return <AusbilderDashboard {...props} activityLog={props.activityLog || []} />;
   }
-  return <AzubiDashboard {...props} />;
+  return <AzubiDashboard {...props} activityLog={props.activityLog || []} />;
 }
 
 export default Dashboard;

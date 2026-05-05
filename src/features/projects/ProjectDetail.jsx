@@ -266,7 +266,7 @@ function LinksPopup({ project, onUpdate, onClose }) {
   );
 }
 
-export default function ProjectDetail({ project, users, groups, currentUser, onUpdate, onBack, onArchive, showToast }) {
+export default function ProjectDetail({ project, users, groups, currentUser, onUpdate, onBack, onArchive, showToast, onActivity }) {
   const [tab,       setTab]      = useState('overview');
   const [editMode,  setEditMode] = useState(false);
   const [form,      setForm]     = useState({ ...project });
@@ -507,7 +507,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
           </div>
         )}
 
-        {tab === 'tasks'        && <TasksTab        project={project} users={users} currentUser={currentUser} onUpdate={onUpdate} />}
+        {tab === 'tasks'        && <TasksTab        project={project} users={users} currentUser={currentUser} onUpdate={onUpdate} onActivity={onActivity} />}
         {tab === 'materials'    && <MaterialsTab    project={project} onUpdate={onUpdate} />}
         {tab === 'requirements' && <RequirementsTab project={project} onUpdate={onUpdate} />}
         {tab === 'steps'        && <StepsTab        project={project} onUpdate={onUpdate} />}

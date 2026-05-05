@@ -183,6 +183,15 @@ export function computeLayout(nodes, edges) {
   }));
 }
 
+// ── Activity Log ─────────────────────────────────────────────
+export function addActivity(data, entry) {
+  // entry = { type, userId, userName, entityTitle, projectId, projectTitle, action }
+  const log = data.activityLog || [];
+  const newEntry = { id: uid(), ts: new Date().toISOString(), ...entry };
+  // Max 100 Einträge, neueste zuerst
+  return { ...data, activityLog: [newEntry, ...log].slice(0, 100) };
+}
+
 // ── Session-Management ────────────────────────────────────────
 const SESSION_KEY = 'azubiboard_session';
 const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 Stunden

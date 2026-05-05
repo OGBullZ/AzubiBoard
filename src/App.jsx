@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
-import { today, loadSession, clearSession, persistData } from './lib/utils';
+import { today, loadSession, clearSession, persistData, addActivity } from './lib/utils';
 import { setToken, clearToken, getToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
@@ -505,6 +505,10 @@ function ProjectDetailWrapper({ showToast }) {
     showToast('Projekt archiviert');
   }, [data, setData, showToast]);
 
+  const handleActivity = useCallback((entry) => {
+    setData(prev => addActivity(prev, entry));
+  }, [setData]);
+
   if (!project) return <div className="card" style={{ margin: 24 }}>Projekt nicht gefunden</div>;
 
   const safeProject = {
@@ -524,6 +528,7 @@ function ProjectDetailWrapper({ showToast }) {
       onArchive={handleArchive}
       onBack={() => navigate('/projects')}
       showToast={showToast}
+      onActivity={handleActivity}
     />
   );
 }
@@ -741,6 +746,7 @@ function DashboardPage({ onNewProject, showToast }) {
   }, [data, setData]);
   return (
     <Dashboard user={currentUser} projects={data?.projects||[]} users={data?.users||[]} reports={data?.reports||[]} calendarEvents={data?.calendarEvents||[]}
+      activityLog={data?.activityLog||[]}
       onOpenProject={id => navigate(`/project/${id}`)} onUpdateProject={handleUpdate} onNewProject={onNewProject} onNavigate={path => navigate('/' + path.replace(/^\//, ''))} />
   );
 }
@@ -922,10 +928,20 @@ const App = () => {
 
   const handleCreate = useCallback((projectData) => {
     const newProject = { ...projectData, id: `proj_${Date.now()}`, tasks: [], steps: [], calendarEvents: [], archived: false };
-    setData({ ...data, projects: [...(data?.projects || []), newProject] });
+    const withProject = { ...data, projects: [...(data?.projects || []), newProject] };
+    const withActivity = addActivity(withProject, {
+      type: 'project_created',
+      userId: currentUser?.id,
+      userName: currentUser?.name,
+      entityTitle: newProject.title,
+      projectId: newProject.id,
+      projectTitle: newProject.title,
+      action: `${currentUser?.name} hat Projekt "${newProject.title}" erstellt`,
+    });
+    setData(withActivity);
     setShowModal(false);
     showToast('✓ Projekt erstellt');
-  }, [data, setData, showToast]);
+  }, [data, setData, showToast, currentUser]);
 
   // Daten-Export
   const handleExport = useCallback(() => {
@@ -965,8 +981,17 @@ const App = () => {
           onLogin={handleLogin}
           users={data?.users || []}
           onRegister={async newUser => {
-            const updated = { ...data, users: [...(data?.users || []), newUser] };
-            setData(updated);
+            const withUser = { ...data, users: [...(data?.users || []), newUser] };
+            const withActivity = addActivity(withUser, {
+              type: 'user_registered',
+              userId: newUser.id,
+              userName: newUser.name,
+              entityTitle: newUser.name,
+              projectId: null,
+              projectTitle: null,
+              action: `${newUser.name} hat sich registriert`,
+            });
+            setData(withActivity);
             setCurrentUser(newUser);
             // In API-Modus: frische Nutzerliste nach Registrierung laden
             if (USE_API) {

@@ -329,7 +329,7 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
   );
 }
 
-export function TasksTab({ project, users, currentUser, onUpdate }) {
+export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) {
   const [openTask,     setOpenTask]     = useState(null);
   const [showAdd,      setShowAdd]      = useState(false);
   const [newTask,      setNewTask]      = useState(mkTask({ assignee: currentUser.id }));
@@ -339,8 +339,23 @@ export function TasksTab({ project, users, currentUser, onUpdate }) {
   const projectLabels = project.labels || [];
   const assignable = users.filter(u => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
 
-  const updateTask = (taskId, patch) =>
+  const updateTask = (taskId, patch) => {
+    if (patch.status === 'done') {
+      const task = (project.tasks||[]).find(t => t.id === taskId);
+      if (task && task.status !== 'done') {
+        onActivity?.({
+          type: 'task_done',
+          userId: currentUser.id,
+          userName: currentUser.name,
+          entityTitle: task.text,
+          projectId: project.id,
+          projectTitle: project.title,
+          action: `${currentUser.name} hat Aufgabe "${task.text}" abgeschlossen`,
+        });
+      }
+    }
     onUpdate(project.id, { tasks: (project.tasks||[]).map(t => t.id === taskId ? { ...t, ...patch } : t) });
+  };
   const removeTask = (taskId) => {
     onUpdate(project.id, { tasks: (project.tasks||[]).filter(t => t.id !== taskId) });
     if (openTask === taskId) setOpenTask(null);
@@ -348,6 +363,15 @@ export function TasksTab({ project, users, currentUser, onUpdate }) {
   const addTask = () => {
     if (!newTask.text.trim()) return;
     onUpdate(project.id, { tasks: [...(project.tasks||[]), { ...newTask, links: newTask.links || [], labelIds: newTask.labelIds || [] }] });
+    onActivity?.({
+      type: 'task_created',
+      userId: currentUser.id,
+      userName: currentUser.name,
+      entityTitle: newTask.text,
+      projectId: project.id,
+      projectTitle: project.title,
+      action: `${currentUser.name} hat Aufgabe "${newTask.text}" hinzugefügt`,
+    });
     setNewTask(mkTask({ assignee: currentUser.id }));
     setShowAdd(false);
   };
