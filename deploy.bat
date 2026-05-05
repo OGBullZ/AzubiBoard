@@ -41,8 +41,8 @@ echo  [OK] uploads/
 
 :: ── 5b. Seed-Script kopieren (einmalig für Demo-Daten) ──────
 if not exist "%TARGET%\database" mkdir "%TARGET%\database"
-copy /Y "%SOURCE%database\seed.php" "%TARGET%\database\seed.php" >nul
-echo  [OK] database/seed.php
+xcopy /E /Y /I /Q "%SOURCE%database\*" "%TARGET%\database\"
+echo  [OK] database/ (seed.php + .htaccess)
 
 :: ── 6. .env prüfen ──────────────────────────────────────────
 if not exist "%TARGET%\.env" (
