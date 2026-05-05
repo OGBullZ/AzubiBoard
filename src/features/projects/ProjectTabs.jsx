@@ -23,7 +23,7 @@ const PRIORITY = {
 };
 
 function mkTask(overrides = {}) {
-  return { id: uid(), text: '', status: 'not_started', priority: 'medium', assignee: null, deadline: '', note: '', doc: '', protocol: '', links: [], labelIds: [], created: today(), ...overrides };
+  return { id: uid(), text: '', status: 'not_started', priority: 'medium', assignee: null, deadline: '', note: '', doc: '', protocol: '', links: [], labelIds: [], estimatedHours: 0, timeLog: [], created: today(), ...overrides };
 }
 
 function LabelChip({ label, tiny = false }) {
@@ -34,7 +34,97 @@ function LabelChip({ label, tiny = false }) {
   );
 }
 
-function TaskCard({ task, users, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels }) {
+// ── Zeit-Tab (Stunden-Log) ────────────────────────────────────
+function ZeitTab({ task, onUpdate, currentUser }) {
+  const [hours, setHours] = useState('');
+  const [desc,  setDesc]  = useState('');
+
+  const timeLog     = task.timeLog || [];
+  const totalLogged = timeLog.reduce((s, e) => s + (Number(e.hours) || 0), 0);
+  const estimated   = Number(task.estimatedHours) || 0;
+  const pct         = estimated > 0 ? Math.min(100, Math.round(totalLogged / estimated * 100)) : 0;
+
+  const addEntry = () => {
+    const h = parseFloat(hours);
+    if (!h || h <= 0) return;
+    const entry = {
+      id: uid(),
+      hours: h,
+      description: desc.trim(),
+      date: today(),
+      userId:   currentUser?.id,
+      userName: currentUser?.name,
+    };
+    onUpdate(task.id, { timeLog: [...timeLog, entry] });
+    setHours('');
+    setDesc('');
+  };
+
+  const removeEntry = (entryId) =>
+    onUpdate(task.id, { timeLog: timeLog.filter(e => e.id !== entryId) });
+
+  return (
+    <div>
+      {/* Schätzung */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+        <label style={{ marginBottom: 0, flexShrink: 0, fontSize: 11 }}>Schätzung:</label>
+        <input type="number" min="0" step="0.5"
+          value={task.estimatedHours || ''}
+          onChange={e => onUpdate(task.id, { estimatedHours: parseFloat(e.target.value) || 0 })}
+          placeholder="0" style={{ width: 72 }} />
+        <span style={{ fontSize: 11, color: C.mu }}>Stunden geplant</span>
+      </div>
+
+      {/* Neuer Eintrag */}
+      <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr auto', gap: 6, marginBottom: 9 }}>
+        <div>
+          <label>Std.</label>
+          <input type="number" min="0.25" step="0.25" value={hours}
+            onChange={e => setHours(e.target.value)} placeholder="0.5" />
+        </div>
+        <div>
+          <label>Beschreibung</label>
+          <input value={desc} onChange={e => setDesc(e.target.value)}
+            placeholder="Was wurde gemacht?" onKeyDown={e => e.key === 'Enter' && addEntry()} />
+        </div>
+        <button className="abtn" onClick={addEntry}
+          style={{ alignSelf: 'flex-end', padding: '7px 12px' }}>
+          <IcoPlus size={11} />
+        </button>
+      </div>
+
+      {/* Fortschritt */}
+      {(estimated > 0 || totalLogged > 0) && (
+        <div style={{ marginBottom: 9 }}>
+          <ProgressBar value={pct} color={pct > 100 ? C.cr : C.ac} height={5} />
+          <div style={{ fontSize: 10, color: C.mu, marginTop: 3, display: 'flex', justifyContent: 'space-between' }}>
+            <span>Geloggt: <strong style={{ color: pct > 100 ? C.cr : C.ac, fontFamily: C.mono }}>{totalLogged.toFixed(1)}h</strong></span>
+            {estimated > 0 && <span>{pct}% von {estimated}h</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Log-Einträge */}
+      {timeLog.length === 0
+        ? <div style={{ textAlign: 'center', fontSize: 11, color: C.mu, padding: '6px 0', opacity: .6 }}>Noch keine Zeiteinträge · Trage oben Stunden ein</div>
+        : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {[...timeLog].reverse().map(entry => (
+              <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 6, background: C.sf2, border: `1px solid ${C.bd}` }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: C.ac, fontFamily: C.mono, minWidth: 38, flexShrink: 0 }}>{entry.hours}h</span>
+                <span style={{ flex: 1, fontSize: 12, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.description || <span style={{ color: C.mu, fontStyle: 'italic' }}>—</span>}</span>
+                <span style={{ fontSize: 10, color: C.mu, fontFamily: C.mono, flexShrink: 0 }}>{fmtDate(entry.date)}</span>
+                {entry.userName && <span style={{ fontSize: 10, color: C.mu, flexShrink: 0, opacity: .7 }}>{entry.userName.split(' ')[0]}</span>}
+                <IconBtn Icon={IcoTrash} onClick={() => removeEntry(entry.id)} label="Eintrag löschen" danger size={11} />
+              </div>
+            ))}
+          </div>
+        )}
+    </div>
+  );
+}
+
+function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels }) {
   const assignee   = users.find(u => u.id === task.assignee);
   const st         = TASK_STATUS[task.status] || TASK_STATUS.not_started;
   const pr         = PRIORITY[task.priority]  || PRIORITY.medium;
@@ -75,6 +165,16 @@ function TaskCard({ task, users, onUpdate, onRemove, isOpen, onToggle, projectMa
                 <IcoLink size={9} />{lc}
               </span>
             )}
+            {(task.timeLog || []).length > 0 && (() => {
+              const logged = (task.timeLog || []).reduce((s, e) => s + (Number(e.hours) || 0), 0);
+              const est    = Number(task.estimatedHours) || 0;
+              const over   = est > 0 && logged > est;
+              return (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9, fontFamily: C.mono, color: over ? C.cr : C.mu, background: over ? C.crd : C.sf3, border: `1px solid ${over ? C.cr + '30' : C.bd}`, borderRadius: 4, padding: '1px 5px' }}>
+                  <IcoClock size={9} />{logged.toFixed(1)}{est > 0 ? `/${est}h` : 'h'}
+                </span>
+              );
+            })()}
             {taskLabels.map(lb => <LabelChip key={lb.id} label={lb} tiny />)}
           </div>
         </div>
@@ -148,16 +248,17 @@ function TaskCard({ task, users, onUpdate, onRemove, isOpen, onToggle, projectMa
             </div>
           )}
 
-          <ContentTabs task={task} onUpdate={onUpdate} projectMaterials={projectMaterials || []} />
+          <ContentTabs task={task} onUpdate={onUpdate} projectMaterials={projectMaterials || []} currentUser={currentUser} />
         </div>
       )}
     </div>
   );
 }
 
-function ContentTabs({ task, onUpdate, projectMaterials = [] }) {
+function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }) {
   const [active, setActive] = useState('note');
-  const lc = (task.links || []).length;
+  const lc         = (task.links || []).length;
+  const zeitLogged = (task.timeLog || []).reduce((s, e) => s + (Number(e.hours) || 0), 0);
 
   const TABS = [
     { k: 'note',     l: 'Notiz',     Icon: IcoNote, val: task.note,     ph: 'Kurze Notiz, Hinweis für andere…' },
@@ -165,6 +266,16 @@ function ContentTabs({ task, onUpdate, projectMaterials = [] }) {
     { k: 'protocol', l: 'Protokoll', Icon: IcoMic,  val: task.protocol, ph: 'Datum, Teilnehmer, Entscheidungen…' },
   ];
   const cur = TABS.find(t => t.k === active);
+
+  const tabBtn = (key, icon, label, accentColor = C.ac, accentBg = C.acd) => {
+    const isActive = active === key;
+    return (
+      <button onClick={() => setActive(key)}
+        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: isActive ? `2px solid ${accentColor}` : '2px solid transparent', background: isActive ? accentBg : 'transparent', color: isActive ? accentColor : C.mu, transition: 'all .12s' }}>
+        {icon}{label}
+      </button>
+    );
+  };
 
   return (
     <div>
@@ -179,6 +290,11 @@ function ContentTabs({ task, onUpdate, projectMaterials = [] }) {
           style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === 'links' ? `2px solid ${C.ac}` : '2px solid transparent', background: active === 'links' ? C.acd : 'transparent', color: active === 'links' ? C.ac : C.mu, transition: 'all .12s' }}>
           <IcoLink size={10} />Links{lc > 0 ? ` (${lc})` : ''}
         </button>
+        {tabBtn('zeit',
+          <IcoClock size={10} />,
+          <>Zeit{zeitLogged > 0 ? <span style={{ fontFamily: C.mono, fontSize: 9, marginLeft: 3, opacity: .8 }}>{zeitLogged.toFixed(1)}h</span> : ''}</>,
+          C.gr, 'var(--st-green-bg)'
+        )}
         {projectMaterials.length > 0 && (
           <button onClick={() => setActive('materials')}
             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === 'materials' ? `2px solid ${C.yw}` : '2px solid transparent', background: active === 'materials' ? C.ywd : 'transparent', color: active === 'materials' ? C.yw : C.mu, transition: 'all .12s' }}>
@@ -192,6 +308,8 @@ function ContentTabs({ task, onUpdate, projectMaterials = [] }) {
         ) : active === 'materials' ? (
           <MaterialRef materials={projectMaterials} taskRef={task.materialRef || []}
             onUpdate={refs => onUpdate(task.id, { materialRef: refs })} />
+        ) : active === 'zeit' ? (
+          <ZeitTab task={task} onUpdate={onUpdate} currentUser={currentUser} />
         ) : (
           <textarea value={cur?.val || ''} onChange={e => onUpdate(task.id, { [active]: e.target.value })} placeholder={cur?.ph}
             style={{ minHeight: 68, fontSize: 12, background: 'transparent', border: 'none', padding: 0, resize: 'vertical', width: '100%' }} />
@@ -226,7 +344,7 @@ function MaterialRef({ materials, taskRef, onUpdate }) {
   );
 }
 
-function TaskGroup({ status, tasks, users, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels }) {
+function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
   const st = TASK_STATUS[status];
   if (!tasks.length) return null;
@@ -248,7 +366,7 @@ function TaskGroup({ status, tasks, users, openTask, onToggleTask, onUpdate, onR
             if (!b.deadline) return -1;
             return new Date(a.deadline) - new Date(b.deadline);
           }).map(t => (
-            <TaskCard key={t.id} task={t} users={users}
+            <TaskCard key={t.id} task={t} users={users} currentUser={currentUser}
               isOpen={openTask === t.id} onToggle={() => onToggleTask(t.id)}
               onUpdate={onUpdate} onRemove={onRemove}
               projectMaterials={projectMaterials} projectLabels={projectLabels} />
@@ -488,12 +606,12 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
           ? <KanbanBoard tasks={visibleTasks} users={assignable} onUpdate={updateTask} onRemove={removeTask} />
           : <>
               {STATUS_ORDER.filter(s => s !== 'done').map(s => (
-                <TaskGroup key={s} status={s} tasks={grouped[s]} users={assignable}
+                <TaskGroup key={s} status={s} tasks={grouped[s]} users={assignable} currentUser={currentUser}
                   openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
                   onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={false}
                   projectMaterials={project.materials || []} projectLabels={projectLabels} />
               ))}
-              <TaskGroup status="done" tasks={grouped.done} users={assignable}
+              <TaskGroup status="done" tasks={grouped.done} users={assignable} currentUser={currentUser}
                 openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
                 onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={true}
                 projectMaterials={project.materials || []} projectLabels={projectLabels} />
