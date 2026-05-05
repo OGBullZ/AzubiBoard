@@ -140,6 +140,45 @@ export const dataService = {
     return await res.json();
   },
 
+  // ── Profil-Felder aktualisieren (name, profession, etc.) ──
+  async updateProfile(fields) {
+    if (!USE_API) return null;
+    const res = await apiFetch('/auth/profile', {
+      method: 'PATCH',
+      body:   JSON.stringify(fields),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Profil konnte nicht gespeichert werden');
+    }
+    return await res.json();
+  },
+
+  // ── Passwort des eingeloggten Nutzers ändern ──────────────
+  async changePassword(old_password, new_password) {
+    if (!USE_API) throw new Error('Passwortänderung nur im API-Modus verfügbar');
+    const res = await apiFetch('/auth/password', {
+      method: 'PATCH',
+      body:   JSON.stringify({ old_password, new_password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Passwort konnte nicht geändert werden');
+    }
+    return await res.json();
+  },
+
+  // ── Theme in DB persistieren (fire & forget) ─────────────
+  async syncTheme(theme) {
+    if (!USE_API || !isTokenValid()) return;
+    try {
+      await apiFetch('/auth/theme', {
+        method: 'PATCH',
+        body:   JSON.stringify({ theme }),
+      });
+    } catch {} // UI-unabhängig, kein Toast nötig
+  },
+
   // ── Login ─────────────────────────────────────────────────
   async login(email, password) {
     if (!USE_API) return null;   // lokaler Modus: null → App macht's selbst

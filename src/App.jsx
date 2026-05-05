@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData } from './lib/utils';
-import { setToken, clearToken, getToken, isTokenValid, authHeader } from './lib/auth';
+import { setToken, clearToken, getToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
   BrowserRouter as Router,
@@ -32,6 +32,16 @@ import {
   IcoReport, IcoLearn, IcoPlus, IcoLogout, IcoUserEdit, IcoSearch,
   IcoBell, IcoAlert, IcoClock, IcoX, IcoSun, IcoMoon,
 } from './components/Icons.jsx';
+
+// ── App-Mode (einmalig auf Modulebene) ───────────────────────
+const USE_API = import.meta.env.VITE_USE_API === 'true';
+
+// ── Theme aus User-Objekt übernehmen (nach Login / Startup) ──
+function applyUserTheme(theme) {
+  if (!theme) return;
+  localStorage.setItem('azubiboard_theme', theme);
+  document.documentElement.setAttribute('data-theme', theme);
+}
 
 // ── Global Toast Hook ─────────────────────────────────────────
 function useToast() {
@@ -89,6 +99,8 @@ function useTheme() {
       const next = t === 'dark' ? 'light' : 'dark';
       localStorage.setItem('azubiboard_theme', next);
       document.documentElement.setAttribute('data-theme', next);
+      // In API-Modus: Theme-Präferenz in der DB persistieren
+      if (USE_API) dataService.syncTheme(next);
       return next;
     });
   }, []);
@@ -517,47 +529,46 @@ function ProjectDetailWrapper({ showToast }) {
 }
 
 // ── Profil-Seite ──────────────────────────────────────────────
-const USE_API_PROFILE = import.meta.env.VITE_USE_API === 'true';
-
 function ProfilePage({ showToast }) {
   const { currentUser, data, setCurrentUser, setData } = useAppStore();
-  const [tab, setTab]       = useState('info');   // 'info' | 'password'
-  const [name, setName]     = useState(() => currentUser?.name || '');
-  const [oldPw, setOldPw]   = useState('');
-  const [newPw, setNewPw]   = useState('');
-  const [saving, setSaving] = useState(false);
+  const [tab, setTab]               = useState('info');
+  const [name, setName]             = useState(() => currentUser?.name || '');
+  const [profession, setProfession] = useState(() => currentUser?.profession || '');
+  const [year, setYear]             = useState(() => String(currentUser?.apprenticeship_year || 1));
+  const [oldPw, setOldPw]           = useState('');
+  const [newPw, setNewPw]           = useState('');
+  const [saving, setSaving]         = useState(false);
   const toast = showToast || (() => {});
 
   if (!currentUser) return null;
 
+  const isAzubi = currentUser.role === 'azubi';
   const myProjects = (data?.projects || []).filter(p => !p.archived && p.assignees?.includes(currentUser.id));
   const hue = (currentUser.name?.charCodeAt(0) || 100) * 37 % 360;
 
-  const saveName = async () => {
-    if (!name.trim() || name.trim() === currentUser.name) return;
+  // Eingabe-Style wiederverwenden
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' };
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 };
+
+  const saveProfile = async () => {
+    const trimName = name.trim();
+    const trimProf = profession.trim();
+    const parsedYear = Number(year);
+    if (!trimName) return;
+
+    const changes = {};
+    if (trimName !== currentUser.name)                             changes.name = trimName;
+    if (trimProf !== (currentUser.profession || ''))              changes.profession = trimProf;
+    if (isAzubi && parsedYear !== (currentUser.apprenticeship_year || 1)) changes.apprenticeship_year = parsedYear;
+    if (Object.keys(changes).length === 0) return;
+
     setSaving(true);
     try {
-      if (USE_API_PROFILE) {
-        const BASE = (import.meta.env.VITE_BASE_PATH || '/azubiboard/') + 'api';
-        const res = await fetch(`${BASE}/auth/profile`, {
-          method:  'PATCH',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          body:    JSON.stringify({ name: name.trim() }),
-        });
-        if (!res.ok) throw new Error('Fehler beim Speichern');
-      }
-      const updatedUser = { ...currentUser, name: name.trim() };
+      if (USE_API) await dataService.updateProfile(changes);
+      const updatedUser = { ...currentUser, ...changes };
       setCurrentUser(updatedUser);
-      // Auch data.users synchronisieren (für Aufgabenanzeigen etc.)
-      if (data) {
-        setData({
-          ...data,
-          users: (data.users || []).map(u =>
-            u.id === currentUser.id ? { ...u, name: name.trim() } : u
-          ),
-        });
-      }
-      toast('✓ Name gespeichert');
+      if (data) setData({ ...data, users: (data.users || []).map(u => u.id === currentUser.id ? { ...u, ...changes } : u) });
+      toast('✓ Profil gespeichert');
     } catch (e) { toast('⚠ ' + e.message); }
     finally { setSaving(false); }
   };
@@ -566,17 +577,8 @@ function ProfilePage({ showToast }) {
     if (!oldPw || newPw.length < 4) return;
     setSaving(true);
     try {
-      if (USE_API_PROFILE) {
-        const BASE = (import.meta.env.VITE_BASE_PATH || '/azubiboard/') + 'api';
-        const res = await fetch(`${BASE}/auth/password`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          body:   JSON.stringify({ old_password: oldPw, new_password: newPw }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Passwort konnte nicht geändert werden');
-        }
+      if (USE_API) {
+        await dataService.changePassword(oldPw, newPw);
         toast('✓ Passwort geändert');
         setOldPw(''); setNewPw('');
       } else {
@@ -608,9 +610,12 @@ function ProfilePage({ showToast }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-br)' }}>{currentUser.name}</div>
           <div style={{ fontSize: 12, color: 'var(--c-mu)', marginTop: 2 }}>
-            {currentUser.email} · {currentUser.role === 'azubi'
-              ? `Azubi · Lehrjahr ${currentUser.apprenticeship_year || 1}`
-              : 'Ausbilder'}
+            {currentUser.email}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 2 }}>
+            {isAzubi
+              ? `Azubi · Lehrjahr ${currentUser.apprenticeship_year || 1}${currentUser.profession ? ` · ${currentUser.profession}` : ''}`
+              : `Ausbilder${currentUser.profession ? ` · ${currentUser.profession}` : ''}`}
           </div>
         </div>
       </div>
@@ -618,8 +623,8 @@ function ProfilePage({ showToast }) {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {[
-          { label: 'Aktive Projekte', value: myProjects.length, color: 'var(--c-ac)' },
-          { label: 'Offene Aufgaben', value: myProjects.flatMap(p => p.tasks||[]).filter(t => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
+          { label: 'Aktive Projekte',  value: myProjects.length,                                                                                     color: 'var(--c-ac)' },
+          { label: 'Offene Aufgaben',  value: myProjects.flatMap(p => p.tasks||[]).filter(t => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ borderLeft: `3px solid ${s.color}`, padding: '10px 14px' }}>
             <div style={{ fontSize: 10, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{s.label}</div>
@@ -638,41 +643,57 @@ function ProfilePage({ showToast }) {
         {tab === 'info' && (
           <div>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 }}>Anzeigename</label>
-              <input value={name} onChange={e => setName(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <label style={labelStyle}>Anzeigename</label>
+              <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 }}>E-Mail</label>
-              <input value={currentUser.email} disabled
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd)', background: 'var(--c-sf3)', color: 'var(--c-mu)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', opacity: .7 }} />
+              <label style={labelStyle}>Ausbildungsberuf</label>
+              <input value={profession} onChange={e => setProfession(e.target.value)}
+                placeholder="z. B. Fachinformatiker Anwendungsentwicklung"
+                style={inputStyle} />
             </div>
-            <button className="abtn" onClick={saveName} disabled={saving || !name.trim() || name.trim() === currentUser.name}
+            {isAzubi && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Lehrjahr</label>
+                <select value={year} onChange={e => setYear(e.target.value)}
+                  style={{ ...inputStyle, appearance: 'auto' }}>
+                  <option value="1">1. Lehrjahr</option>
+                  <option value="2">2. Lehrjahr</option>
+                  <option value="3">3. Lehrjahr</option>
+                </select>
+              </div>
+            )}
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>E-Mail</label>
+              <input value={currentUser.email} disabled
+                style={{ ...inputStyle, border: '1px solid var(--c-bd)', background: 'var(--c-sf3)', color: 'var(--c-mu)', opacity: .7 }} />
+            </div>
+            <button className="abtn" onClick={saveProfile} disabled={saving || !name.trim()}
               style={{ width: '100%', padding: 11, fontSize: 13 }}>
-              {saving ? 'Speichern…' : 'Name speichern'}
+              {saving ? 'Speichern…' : 'Profil speichern'}
             </button>
           </div>
         )}
 
         {tab === 'password' && (
           <div>
-            {!USE_API_PROFILE && (
+            {!USE_API && (
               <div style={{ fontSize: 12, color: 'var(--c-mu)', background: 'var(--c-sf2)', borderRadius: 7, padding: '10px 12px', marginBottom: 14, borderLeft: '3px solid var(--c-yw)' }}>
                 Passwortänderung ist nur im API-Modus verfügbar (VITE_USE_API=true).
               </div>
             )}
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 }}>Aktuelles Passwort</label>
-              <input type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} disabled={!USE_API_PROFILE}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <label style={labelStyle}>Aktuelles Passwort</label>
+              <input type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} disabled={!USE_API}
+                style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 }}>Neues Passwort (min. 4 Zeichen)</label>
-              <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} disabled={!USE_API_PROFILE}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <label style={labelStyle}>Neues Passwort (min. 4 Zeichen)</label>
+              <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} disabled={!USE_API}
+                style={inputStyle} />
             </div>
             <button className="abtn" onClick={savePassword}
-              disabled={saving || !USE_API_PROFILE || !oldPw || newPw.length < 4}
+              disabled={saving || !USE_API || !oldPw || newPw.length < 4}
               style={{ width: '100%', padding: 11, fontSize: 13 }}>
               {saving ? 'Ändern…' : 'Passwort ändern'}
             </button>
@@ -812,8 +833,6 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
 }
 
 // ── Root App ──────────────────────────────────────────────────
-const USE_API = import.meta.env.VITE_USE_API === 'true';
-
 const App = () => {
   const { data, currentUser, setData, setCurrentUser } = useAppStore();
   const [showModal, setShowModal] = useState(false);
@@ -853,6 +872,7 @@ const App = () => {
           const me = await dataService.getMe();
           if (me) {
             setCurrentUser(me);
+            applyUserTheme(me.theme);  // Theme aus DB beim Start übernehmen
             // Nutzerliste aus MySQL laden (bleibt synchron mit Auth-DB)
             const apiUsers = await dataService.getUsers();
             if (apiUsers) finalData = { ...finalData, users: apiUsers };
@@ -876,6 +896,7 @@ const App = () => {
   // Nach Login: MySQL-User laden und in Blob mergen (API-Modus)
   const handleLogin = useCallback(async (user) => {
     setCurrentUser(user);
+    applyUserTheme(user.theme);  // Theme aus DB nach Login anwenden
     if (USE_API) {
       const apiUsers = await dataService.getUsers();
       if (apiUsers) setData(prev => prev ? { ...prev, users: apiUsers } : prev);
