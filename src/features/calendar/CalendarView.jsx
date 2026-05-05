@@ -152,6 +152,51 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
     return Math.ceil(((dt - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
   };
 
+  const exportIcal = () => {
+    const pad = n => String(n).padStart(2, '0');
+    const toIcsDate = dateStr => dateStr.replace(/-/g, '');
+    const nextDay = dateStr => {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + 1);
+      return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+    };
+    const escapeIcs = str => (str || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//AzubiBoard//AzubiBoard//DE',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+    ];
+
+    allEv.forEach(ev => {
+      if (!ev.date) return;
+      lines.push('BEGIN:VEVENT');
+      lines.push(`UID:${ev.id || uid()}@azubiboard`);
+      lines.push(`SUMMARY:${escapeIcs(ev.title)}`);
+      lines.push(`DTSTART;VALUE=DATE:${toIcsDate(ev.date)}`);
+      lines.push(`DTEND;VALUE=DATE:${nextDay(ev.date)}`);
+      if (ev.note) lines.push(`DESCRIPTION:${escapeIcs(ev.note)}`);
+      if (ev.type) lines.push(`CATEGORIES:${escapeIcs(ev.type)}`);
+      lines.push('END:VEVENT');
+    });
+
+    lines.push('END:VCALENDAR');
+
+    const icsContent = lines.join('\r\n') + '\r\n';
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const fileName = `azubiboard_kalender_${y}-${pad(m + 1)}.ics`;
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const isWeekMode = viewMode === 'week';
   const mondayKW = (() => {
     const dt = monday;
@@ -193,6 +238,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
               <button className="btn" onClick={() => setDate(new Date(y,m+1,1))} aria-label="Nächster Monat">Weiter →</button>
             </>
           )}
+          <button className="btn" onClick={exportIcal} aria-label="Kalender als iCal exportieren" title="Alle Termine als .ics herunterladen">📅 iCal</button>
         </div>
       </div>
 
