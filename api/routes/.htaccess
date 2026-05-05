@@ -1,0 +1,2 @@
+# routes/ werden nur von api/index.php eingebunden — kein direkter Webzugriff
+Require all denied

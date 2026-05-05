@@ -1,11 +1,20 @@
 <?php
 // ============================================================
 //  AzubiBoard – Demo-Daten Seeder
-//  Ausführen:
+//  Ausführen via CLI:
 //    php database/seed.php
-//  ODER: http://localhost/azubiboard/database/seed.php
-//  (danach Datei löschen oder durch .htaccess sperren!)
+//  ODER auf XAMPP:
+//    C:\xampp\php\php.exe C:\xampp\htdocs\azubiboard\database\seed.php
+//
+//  SICHERHEIT: Direkter Webzugriff ist durch database/.htaccess gesperrt.
 // ============================================================
+
+// Kein direkter Webzugriff (Fallback falls .htaccess fehlt)
+if (PHP_SAPI !== 'cli' && isset($_SERVER['HTTP_HOST'])) {
+    http_response_code(403);
+    die("403 Forbidden: Dieses Script darf nicht über den Browser aufgerufen werden.\n"
+      . "Bitte via CLI ausführen: php database/seed.php\n");
+}
 
 // .env einlesen
 $envFile = dirname(__DIR__) . '/.env';

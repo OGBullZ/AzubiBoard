@@ -69,9 +69,9 @@ echo  Naechste Schritte:
 echo    1. .env bearbeiten (DB_USER, DB_PASS, JWT_SECRET)
 echo    2. MySQL-Tabellen anlegen:
 echo       mysql -u root -p ^< database\setup.sql
-echo    3. Demo-Nutzer anlegen (einmalig):
-echo       http://localhost/azubiboard/database/seed.php
-echo       Danach loeschen: del %TARGET%\database\seed.php
+echo    3. Demo-Nutzer anlegen (einmalig, via CLI):
+echo       C:\xampp\php\php.exe %TARGET%\database\seed.php
+echo       (Webzugriff ist durch .htaccess gesperrt)
 echo  ============================================
 echo.
 pause
