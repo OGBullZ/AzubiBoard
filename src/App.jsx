@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData } from './lib/utils';
-import { setToken, clearToken, getToken, isTokenValid } from './lib/auth';
+import { setToken, clearToken, getToken, isTokenValid, authHeader } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
   BrowserRouter as Router,
@@ -505,28 +505,160 @@ function ProjectDetailWrapper({ showToast }) {
 }
 
 // ── Profil-Seite ──────────────────────────────────────────────
-function ProfilePage() {
-  const { currentUser, data } = useAppStore();
+const USE_API_PROFILE = import.meta.env.VITE_USE_API === 'true';
+
+function ProfilePage({ showToast }) {
+  const { currentUser, data, setCurrentUser } = useAppStore();
+  const [tab, setTab]           = useState('info');   // 'info' | 'password'
+  const [name, setName]         = useState('');
+  const [oldPw, setOldPw]       = useState('');
+  const [newPw, setNewPw]       = useState('');
+  const [saving, setSaving]     = useState(false);
+  const toast = showToast || (() => {});
+
   if (!currentUser) return null;
+
+  // Initialisierung beim ersten Render
+  if (name === '' && currentUser.name) setName(currentUser.name);
+
   const myProjects = (data?.projects || []).filter(p => !p.archived && p.assignees?.includes(currentUser.id));
+  const hue = (currentUser.name?.charCodeAt(0) || 100) * 37 % 360;
+
+  const saveName = async () => {
+    if (!name.trim() || name.trim() === currentUser.name) return;
+    setSaving(true);
+    try {
+      if (USE_API_PROFILE) {
+        const BASE = (import.meta.env.VITE_BASE_PATH || '/azubiboard/') + 'api';
+        const res = await fetch(`${BASE}/auth/profile`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body:    JSON.stringify({ name: name.trim() }),
+        });
+        if (!res.ok) throw new Error('Fehler beim Speichern');
+      }
+      setCurrentUser({ ...currentUser, name: name.trim() });
+      toast('✓ Name gespeichert');
+    } catch (e) { toast('⚠ ' + e.message); }
+    finally { setSaving(false); }
+  };
+
+  const savePassword = async () => {
+    if (!oldPw || newPw.length < 4) return;
+    setSaving(true);
+    try {
+      if (USE_API_PROFILE) {
+        const BASE = (import.meta.env.VITE_BASE_PATH || '/azubiboard/') + 'api';
+        const res = await fetch(`${BASE}/auth/password`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body:   JSON.stringify({ old_password: oldPw, new_password: newPw }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Passwort konnte nicht geändert werden');
+        }
+        toast('✓ Passwort geändert');
+        setOldPw(''); setNewPw('');
+      } else {
+        toast('⚠ Passwortänderung nur im API-Modus verfügbar');
+      }
+    } catch (e) { toast('⚠ ' + e.message); }
+    finally { setSaving(false); }
+  };
+
+  const tabBtn = (key, label) => (
+    <button key={key} onClick={() => setTab(key)}
+      style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none',
+        background: tab === key ? 'var(--c-ac)' : 'transparent',
+        color: tab === key ? '#fff' : 'var(--c-mu)', transition: 'all .15s' }}>
+      {label}
+    </button>
+  );
+
   return (
     <div style={{ padding: 24, maxWidth: 560 }}>
+      {/* Avatar + Header */}
+      <div className="card" style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
+          background: `hsl(${hue},45%,22%)`, border: '2px solid rgba(255,255,255,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 18, fontWeight: 800, color: `hsl(${hue},65%,75%)` }}>
+          {currentUser.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-br)' }}>{currentUser.name}</div>
+          <div style={{ fontSize: 12, color: 'var(--c-mu)', marginTop: 2 }}>
+            {currentUser.email} · {currentUser.role === 'azubi'
+              ? `Azubi · Lehrjahr ${currentUser.apprenticeship_year || 1}`
+              : 'Ausbilder'}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+        {[
+          { label: 'Aktive Projekte', value: myProjects.length, color: 'var(--c-ac)' },
+          { label: 'Offene Aufgaben', value: myProjects.flatMap(p => p.tasks||[]).filter(t => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
+        ].map(s => (
+          <div key={s.label} className="card" style={{ borderLeft: `3px solid ${s.color}`, padding: '10px 14px' }}>
+            <div style={{ fontSize: 10, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
       <div className="card">
-        <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-br)', marginBottom: 4 }}>{currentUser.name}</div>
-        <div style={{ fontSize: 12, color: 'var(--c-mu)', marginBottom: 16 }}>
-          {currentUser.email} · {currentUser.role === 'azubi' ? `Lehrjahr ${currentUser.apprenticeship_year || 1}` : 'Ausbilder'}
+        <div role="tablist" style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, marginBottom: 18, gap: 3 }}>
+          {tabBtn('info', 'Profil')}
+          {tabBtn('password', 'Passwort')}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          {[
-            { label: 'Aktive Projekte', value: myProjects.length, color: 'var(--c-ac)' },
-            { label: 'Offene Aufgaben', value: myProjects.flatMap(p => p.tasks || []).filter(t => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
-          ].map(s => (
-            <div key={s.label} className="card" style={{ borderLeft: `3px solid ${s.color}`, padding: '10px 14px' }}>
-              <div style={{ fontSize: 10, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+
+        {tab === 'info' && (
+          <div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 }}>Anzeigename</label>
+              <input value={name} onChange={e => setName(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
             </div>
-          ))}
-        </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 }}>E-Mail</label>
+              <input value={currentUser.email} disabled
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd)', background: 'var(--c-sf3)', color: 'var(--c-mu)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', opacity: .7 }} />
+            </div>
+            <button className="abtn" onClick={saveName} disabled={saving || !name.trim() || name.trim() === currentUser.name}
+              style={{ width: '100%', padding: 11, fontSize: 13 }}>
+              {saving ? 'Speichern…' : 'Name speichern'}
+            </button>
+          </div>
+        )}
+
+        {tab === 'password' && (
+          <div>
+            {!USE_API_PROFILE && (
+              <div style={{ fontSize: 12, color: 'var(--c-mu)', background: 'var(--c-sf2)', borderRadius: 7, padding: '10px 12px', marginBottom: 14, borderLeft: '3px solid var(--c-yw)' }}>
+                Passwortänderung ist nur im API-Modus verfügbar (VITE_USE_API=true).
+              </div>
+            )}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 }}>Aktuelles Passwort</label>
+              <input type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} disabled={!USE_API_PROFILE}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 }}>Neues Passwort (min. 4 Zeichen)</label>
+              <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} disabled={!USE_API_PROFILE}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+            <button className="abtn" onClick={savePassword}
+              disabled={saving || !USE_API_PROFILE || !oldPw || newPw.length < 4}
+              style={{ width: '100%', padding: 11, fontSize: 13 }}>
+              {saving ? 'Ändern…' : 'Passwort ändern'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -815,7 +947,7 @@ const App = () => {
             <Route path="/dashboard"   element={<DashboardPage onNewProject={handleNewProject} showToast={showToast} />} />
             <Route path="/projects"    element={<ProjectsPage  onNewProject={handleNewProject} showToast={showToast} />} />
             <Route path="/project/:id" element={<ProjectDetailWrapper showToast={showToast} />} />
-            <Route path="/profile"     element={<ProfilePage />} />
+            <Route path="/profile"     element={<ProfilePage showToast={showToast} />} />
             <Route path="/calendar"    element={<CalendarPage showToast={showToast} />} />
             <Route path="/groups"      element={<GroupsPage showToast={showToast} />} />
             <Route path="/learn"       element={<LearnPage currentUser={currentUser} />} />

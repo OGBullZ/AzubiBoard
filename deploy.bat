@@ -39,6 +39,11 @@ echo  [OK] .htaccess
 if not exist "%TARGET%\uploads" mkdir "%TARGET%\uploads"
 echo  [OK] uploads/
 
+:: ── 5b. Seed-Script kopieren (einmalig für Demo-Daten) ──────
+if not exist "%TARGET%\database" mkdir "%TARGET%\database"
+copy /Y "%SOURCE%database\seed.php" "%TARGET%\database\seed.php" >nul
+echo  [OK] database/seed.php
+
 :: ── 6. .env prüfen ──────────────────────────────────────────
 if not exist "%TARGET%\.env" (
     copy /Y "%SOURCE%.env.example" "%TARGET%\.env" >nul
@@ -59,6 +64,14 @@ echo.
 echo  ============================================
 echo  Fertig! App erreichbar unter:
 echo  http://localhost/azubiboard/
+echo.
+echo  Naechste Schritte:
+echo    1. .env bearbeiten (DB_USER, DB_PASS, JWT_SECRET)
+echo    2. MySQL-Tabellen anlegen:
+echo       mysql -u root -p ^< database\setup.sql
+echo    3. Demo-Nutzer anlegen (einmalig):
+echo       http://localhost/azubiboard/database/seed.php
+echo       Danach loeschen: del %TARGET%\database\seed.php
 echo  ============================================
 echo.
 pause

@@ -26,8 +26,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      outDir:    'dist',
-      sourcemap: false,
+      outDir:              'dist',
+      sourcemap:           false,
+      chunkSizeWarningLimit: 600,  // SPA-Monolith ist OK bis 600 kB
     },
   };
 });
