@@ -520,18 +520,15 @@ function ProjectDetailWrapper({ showToast }) {
 const USE_API_PROFILE = import.meta.env.VITE_USE_API === 'true';
 
 function ProfilePage({ showToast }) {
-  const { currentUser, data, setCurrentUser } = useAppStore();
-  const [tab, setTab]           = useState('info');   // 'info' | 'password'
-  const [name, setName]         = useState('');
-  const [oldPw, setOldPw]       = useState('');
-  const [newPw, setNewPw]       = useState('');
-  const [saving, setSaving]     = useState(false);
+  const { currentUser, data, setCurrentUser, setData } = useAppStore();
+  const [tab, setTab]       = useState('info');   // 'info' | 'password'
+  const [name, setName]     = useState(() => currentUser?.name || '');
+  const [oldPw, setOldPw]   = useState('');
+  const [newPw, setNewPw]   = useState('');
+  const [saving, setSaving] = useState(false);
   const toast = showToast || (() => {});
 
   if (!currentUser) return null;
-
-  // Initialisierung beim ersten Render
-  if (name === '' && currentUser.name) setName(currentUser.name);
 
   const myProjects = (data?.projects || []).filter(p => !p.archived && p.assignees?.includes(currentUser.id));
   const hue = (currentUser.name?.charCodeAt(0) || 100) * 37 % 360;
@@ -549,7 +546,17 @@ function ProfilePage({ showToast }) {
         });
         if (!res.ok) throw new Error('Fehler beim Speichern');
       }
-      setCurrentUser({ ...currentUser, name: name.trim() });
+      const updatedUser = { ...currentUser, name: name.trim() };
+      setCurrentUser(updatedUser);
+      // Auch data.users synchronisieren (für Aufgabenanzeigen etc.)
+      if (data) {
+        setData({
+          ...data,
+          users: (data.users || []).map(u =>
+            u.id === currentUser.id ? { ...u, name: name.trim() } : u
+          ),
+        });
+      }
       toast('✓ Name gespeichert');
     } catch (e) { toast('⚠ ' + e.message); }
     finally { setSaving(false); }
