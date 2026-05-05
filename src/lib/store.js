@@ -4,6 +4,7 @@
 // ============================================================
 import { useState, useEffect, useCallback } from 'react';
 import { persistData } from './utils';
+import { dataService } from './dataService';
 
 // ── Globaler State ───────────────────────────────────────────
 let _state = {
@@ -42,12 +43,16 @@ export function useAppStore() {
     return () => _listeners.delete(listener);
   }, []);
 
-  const setData = useCallback((data) => {
-    setState({ data });
-    try { persistData(data); } catch {}
+  const setData = useCallback((dataOrFn) => {
+    // Funktionale Updates erlaubt: setData(prev => ({ ...prev, users: newList }))
+    const next = typeof dataOrFn === 'function' ? dataOrFn(_state.data) : dataOrFn;
+    setState({ data: next });
+    try { persistData(next); } catch {}
+    // API-Persistenz (fire & forget) — kein Reload auf 401, nur localStorage-Fallback
+    dataService.saveData(next).catch(() => {});
     // Andere Tabs informieren (eigener Tab empfängt seine eigene
     // Nachricht NICHT — BroadcastChannel-Spec § 6.1)
-    _ch?.postMessage({ type: 'data', payload: data });
+    _ch?.postMessage({ type: 'data', payload: next });
   }, []);
 
   const setCurrentUser = useCallback((currentUser) => {

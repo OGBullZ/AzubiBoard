@@ -50,7 +50,9 @@ export default function AuthPage({ onLogin, users, onRegister }) {
         // ── API-Modus ────────────────────────────────────────
         const { token, user } = await dataService.register(name.trim(), email.trim(), pw);
         setToken(token);
-        onLogin(user);
+        // onRegister statt onLogin: fügt Nutzer auch zum Blob hinzu
+        // (wichtig für Aufgabenzuweisungen etc.)
+        onRegister({ ...user, id: String(user.id) });
       } else {
         // ── Lokaler Modus ────────────────────────────────────
         if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {

@@ -7,12 +7,14 @@ cors();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$parts  = array_values(array_filter(explode('/', trim($uri, '/'))));
 
-// Präfix /api entfernen
-while (!empty($parts) && in_array($parts[0], ['api', 'v1'])) {
-    array_shift($parts);
+// ── Basispfad des API-Verzeichnisses ermitteln und wegkürzen ──
+// Funktioniert korrekt egal ob die App auf / oder /azubiboard/ liegt.
+$scriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');  // z. B. /azubiboard/api
+if ($scriptDir !== '' && str_starts_with($uri, $scriptDir)) {
+    $uri = substr($uri, strlen($scriptDir));
 }
+$parts = array_values(array_filter(explode('/', trim($uri, '/'))));
 
 $resource = $parts[0] ?? '';
 $id       = isset($parts[1]) && is_numeric($parts[1]) ? (int)$parts[1] : null;

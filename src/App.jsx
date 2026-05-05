@@ -661,6 +661,8 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
 }
 
 // ── Root App ──────────────────────────────────────────────────
+const USE_API = import.meta.env.VITE_USE_API === 'true';
+
 const App = () => {
   const { data, currentUser, setData, setCurrentUser } = useAppStore();
   const [showModal, setShowModal] = useState(false);
@@ -668,9 +670,19 @@ const App = () => {
   const { toast, showToast } = useToast();
   const importRef = useRef(null);
 
-  // Daten laden, Passwörter migrieren, Session prüfen
+  // ── 401-Handler: Token abgelaufen → sauber ausloggen ─────
   useEffect(() => {
-    dataService.getData().then(async (loaded) => {
+    const fn = () => { clearToken(); setCurrentUser(null); };
+    window.addEventListener('azubiboard:unauthorized', fn);
+    return () => window.removeEventListener('azubiboard:unauthorized', fn);
+  }, [setCurrentUser]);
+
+  // ── Daten laden, Passwörter migrieren, Session prüfen ────
+  useEffect(() => {
+    (async () => {
+      const loaded = await dataService.getData();
+
+      // Passwort-Migration: Klartext → SHA-256 (nur local-mode)
       let migrated = false;
       const migratedUsers = await Promise.all(
         (loaded.users || []).map(async (u) => {
@@ -681,17 +693,43 @@ const App = () => {
           return u;
         })
       );
-      const finalData = migrated ? { ...loaded, users: migratedUsers } : loaded;
+      let finalData = migrated ? { ...loaded, users: migratedUsers } : loaded;
       if (migrated) persistData(finalData);
-      setData(finalData);
 
-      const sessionUserId = loadSession();
-      if (sessionUserId && !currentUser) {
-        const sessionUser = migratedUsers.find(u => u.id === sessionUserId);
-        if (sessionUser) setCurrentUser(sessionUser);
+      if (USE_API) {
+        // ── API-Modus: JWT prüfen und Nutzer vom Server laden ─
+        if (isTokenValid()) {
+          const me = await dataService.getMe();
+          if (me) {
+            setCurrentUser(me);
+            // Nutzerliste aus MySQL laden (bleibt synchron mit Auth-DB)
+            const apiUsers = await dataService.getUsers();
+            if (apiUsers) finalData = { ...finalData, users: apiUsers };
+          } else {
+            clearToken();  // Token war ungültig
+          }
+        }
+      } else {
+        // ── Lokaler Modus: userId aus sessionStorage ──────────
+        const sessionUserId = loadSession();
+        if (sessionUserId && !currentUser) {
+          const sessionUser = migratedUsers.find(u => u.id === sessionUserId);
+          if (sessionUser) setCurrentUser(sessionUser);
+        }
       }
-    });
+
+      setData(finalData);
+    })();
   }, []); // eslint-disable-line
+
+  // Nach Login: MySQL-User laden und in Blob mergen (API-Modus)
+  const handleLogin = useCallback(async (user) => {
+    setCurrentUser(user);
+    if (USE_API) {
+      const apiUsers = await dataService.getUsers();
+      if (apiUsers) setData(prev => prev ? { ...prev, users: apiUsers } : prev);
+    }
+  }, [setCurrentUser, setData]);
 
   const handleLogout = useCallback(() => {
     clearSession();
@@ -752,12 +790,17 @@ const App = () => {
     return (
       <ErrorBoundary>
         <AuthPage
-          onLogin={setCurrentUser}
+          onLogin={handleLogin}
           users={data?.users || []}
-          onRegister={newUser => {
+          onRegister={async newUser => {
             const updated = { ...data, users: [...(data?.users || []), newUser] };
             setData(updated);
             setCurrentUser(newUser);
+            // In API-Modus: frische Nutzerliste nach Registrierung laden
+            if (USE_API) {
+              const apiUsers = await dataService.getUsers();
+              if (apiUsers) setData(prev => prev ? { ...prev, users: apiUsers } : prev);
+            }
           }}
         />
       </ErrorBoundary>
