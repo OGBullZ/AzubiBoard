@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { C, ST } from '../lib/utils.js';
 import { IcoMoon, IcoSun } from './Icons.jsx';
 
@@ -21,33 +22,32 @@ export function StatusBadge({ status }) {
   );
 }
 
-// ── Avatar (APPLE-STYLE: better sizing, subtle border) ───────────
-export function Avatar({ name, size = 28 }) {
-  const initials = (name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-  const hue = (name?.charCodeAt(0) || 200) * 37 % 360;
-  const fontSize = Math.max(size * 0.36, 10);
+// ── Avatar — zeigt Profilbild oder Initialen ──────────────────
+export function Avatar({ name, url, size = 28 }) {
+  const [imgErr, setImgErr] = useState(false);
+  const initials  = (name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  const hue       = (name?.charCodeAt(0) || 200) * 37 % 360;
+  const fontSize  = Math.max(size * 0.36, 10);
+  const baseStyle = {
+    width: size, height: size, borderRadius: '50%', flexShrink: 0,
+    border: '2px solid rgba(255,255,255,0.2)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+    transition: 'all 0.15s cubic-bezier(0.4,0,0.2,1)',
+  };
 
+  if (url && !imgErr) {
+    return (
+      <div role="img" aria-label={name} title={name}
+        style={{ ...baseStyle, overflow: 'hidden' }}>
+        <img src={url} alt={name}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          onError={() => setImgErr(true)} />
+      </div>
+    );
+  }
   return (
     <div role="img" aria-label={name} title={name}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: `hsl(${hue},45%,22%)`,
-        border: `2px solid rgba(255, 255, 255, 0.2)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: fontSize,
-        fontWeight: 700,
-        color: `hsl(${hue},65%,75%)`,
-        flexShrink: 0,
-        userSelect: 'none',
-        lineHeight: 1,
-        fontFamily: C.mono,
-        transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-      }}>
+      style={{ ...baseStyle, background: `hsl(${hue},45%,22%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize, fontWeight: 700, color: `hsl(${hue},65%,75%)`, userSelect: 'none', lineHeight: 1, fontFamily: C.mono }}>
       {initials}
     </div>
   );

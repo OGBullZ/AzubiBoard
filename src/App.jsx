@@ -441,9 +441,11 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--c-sf2)', marginBottom: 5, border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background .1s' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--c-sf3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--c-sf2)'}>
-              <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
-                {currentUser?.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
-              </div>
+              {currentUser?.avatar_url
+                ? <img src={currentUser.avatar_url} alt={currentUser.name} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.1)' }} />
+                : <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
+                    {currentUser?.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+                  </div>}
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-br)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser?.name?.split(' ')[0]}</div>
                 <div style={{ fontSize: 9, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5 }}>
@@ -462,9 +464,11 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
             </button>
             <button onClick={() => handleNav('/profile')} title="Mein Profil"
               style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: 'var(--c-sf2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
-                {currentUser?.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
-              </div>
+              {currentUser?.avatar_url
+                ? <img src={currentUser.avatar_url} alt={currentUser.name} style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.1)' }} />
+                : <div style={{ width: 22, height: 22, borderRadius: '50%', background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
+                    {currentUser?.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+                  </div>}
             </button>
           </>
         )}
@@ -543,6 +547,8 @@ function ProfilePage({ showToast }) {
   const [oldPw, setOldPw]           = useState('');
   const [newPw, setNewPw]           = useState('');
   const [saving, setSaving]         = useState(false);
+  const [avatarHov, setAvatarHov]   = useState(false);
+  const avatarInputRef              = useRef(null);
   const toast = showToast || (() => {});
 
   if (!currentUser) return null;
@@ -593,6 +599,24 @@ function ProfilePage({ showToast }) {
     finally { setSaving(false); }
   };
 
+  const handleAvatarClick = () => {
+    if (!USE_API) { toast('⚠ Avatar-Upload nur im API-Modus verfügbar'); return; }
+    avatarInputRef.current?.click();
+  };
+  const handleAvatarFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSaving(true);
+    try {
+      const { avatar_url } = await dataService.uploadAvatar(file);
+      const updatedUser = { ...currentUser, avatar_url };
+      setCurrentUser(updatedUser);
+      if (data) setData({ ...data, users: (data.users || []).map(u => u.id === currentUser.id ? { ...u, avatar_url } : u) });
+      toast('✓ Profilbild gespeichert');
+    } catch (err) { toast('⚠ ' + err.message); }
+    finally { setSaving(false); e.target.value = ''; }
+  };
+
   const tabBtn = (key, label) => (
     <button key={key} onClick={() => setTab(key)}
       style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none',
@@ -606,11 +630,23 @@ function ProfilePage({ showToast }) {
     <div style={{ padding: 24, maxWidth: 560 }}>
       {/* Avatar + Header */}
       <div className="card" style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
-          background: `hsl(${hue},45%,22%)`, border: '2px solid rgba(255,255,255,0.1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 18, fontWeight: 800, color: `hsl(${hue},65%,75%)` }}>
-          {currentUser.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+        {/* Klickbarer Avatar mit Kamera-Overlay */}
+        <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }}
+          onClick={handleAvatarClick}
+          onMouseEnter={() => setAvatarHov(true)}
+          onMouseLeave={() => setAvatarHov(false)}
+          title="Profilbild ändern">
+          {currentUser.avatar_url
+            ? <img src={currentUser.avatar_url} alt={currentUser.name}
+                style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)', display: 'block' }} />
+            : <div style={{ width: 56, height: 56, borderRadius: '50%', background: `hsl(${hue},45%,22%)`, border: '2px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: `hsl(${hue},65%,75%)` }}>
+                {currentUser.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+              </div>}
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: avatarHov ? 1 : 0, transition: 'opacity .15s' }}>
+            <span style={{ fontSize: 16 }}>📷</span>
+          </div>
+          <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp"
+            style={{ display: 'none' }} onChange={handleAvatarFile} />
         </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-br)' }}>{currentUser.name}</div>

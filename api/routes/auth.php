@@ -172,4 +172,46 @@ if ($method === 'POST' && $sub_action === 'logout') {
     respond(['message' => 'Logout erfolgreich']);
 }
 
+// ── POST /api/auth/avatar ── Profilbild hochladen ─────────────
+if ($method === 'POST' && $sub_action === 'avatar') {
+    $auth = require_auth();
+
+    if (empty($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK)
+        error('Keine gültige Datei hochgeladen');
+
+    $file = $_FILES['avatar'];
+    if ($file['size'] > MAX_FILE_MB * 1024 * 1024)
+        error('Datei zu groß (max. ' . MAX_FILE_MB . ' MB)');
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime  = $finfo->file($file['tmp_name']);
+    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif']))
+        error('Nur Bilder erlaubt (JPEG, PNG, WebP, GIF)');
+
+    // Altes Avatar löschen
+    $stmt = db()->prepare('SELECT avatar_url FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$auth['sub']]);
+    $old = $stmt->fetchColumn();
+    if ($old) {
+        $oldFile = UPLOAD_DIR . basename($old);
+        if (file_exists($oldFile)) @unlink($oldFile);
+    }
+
+    // Neuen Dateinamen erzeugen und Datei verschieben
+    $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION) ?: 'jpg');
+    $filename = 'avatar_' . $auth['sub'] . '_' . time() . '.' . $ext;
+    $dest     = UPLOAD_DIR . $filename;
+    if (!move_uploaded_file($file['tmp_name'], $dest))
+        error('Datei konnte nicht gespeichert werden');
+
+    // Relativer URL-Pfad (aus SCRIPT_NAME ableiten — funktioniert egal ob / oder /azubiboard/)
+    $appBase = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
+    $url     = $appBase . '/uploads/' . $filename;
+
+    db()->prepare('UPDATE users SET avatar_url = ?, updated_at = NOW() WHERE id = ?')
+        ->execute([$url, $auth['sub']]);
+
+    respond(['avatar_url' => $url]);
+}
+
 error('Auth-Route nicht gefunden', 404);

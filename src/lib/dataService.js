@@ -168,6 +168,24 @@ export const dataService = {
     return await res.json();
   },
 
+  // ── Profilbild hochladen (multipart/form-data) ───────────
+  async uploadAvatar(file) {
+    if (!USE_API) throw new Error('Avatar-Upload nur im API-Modus verfügbar');
+    const formData = new FormData();
+    formData.append('avatar', file);
+    // Kein Content-Type setzen — Browser setzt multipart/form-data + Boundary automatisch
+    const res = await fetch(`${API_BASE}/auth/avatar`, {
+      method:  'POST',
+      headers: { ...authHeader() },
+      body:    formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Avatar konnte nicht hochgeladen werden');
+    }
+    return await res.json(); // { avatar_url }
+  },
+
   // ── Theme in DB persistieren (fire & forget) ─────────────
   async syncTheme(theme) {
     if (!USE_API || !isTokenValid()) return;

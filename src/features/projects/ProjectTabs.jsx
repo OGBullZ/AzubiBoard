@@ -81,7 +81,7 @@ function TaskCard({ task, users, onUpdate, onRemove, isOpen, onToggle, projectMa
 
         {assignee
           ? <div style={{ position: 'relative', flexShrink: 0 }} title={assignee.name}>
-              <Avatar name={assignee.name} size={24} />
+              <Avatar name={assignee.name} url={assignee.avatar_url} size={24} />
               {task.status === 'in_progress' && <div style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderRadius: '50%', background: C.gr, border: `1.5px solid ${C.sf2}` }} />}
             </div>
           : <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2px dashed ${C.bd2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10, color: C.mu }}>?</div>}
@@ -278,7 +278,7 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }) {
             {over ? '⚠ ' : ''}{fmtDate(task.deadline)}
           </span>
         )}
-        {assignee && <Avatar name={assignee.name} size={16} />}
+        {assignee && <Avatar name={assignee.name} url={assignee.avatar_url} size={16} />}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 3 }}>
