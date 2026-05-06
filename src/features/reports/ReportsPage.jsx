@@ -102,7 +102,7 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete })
   );
 }
 
-function ReportEditor({ report, currentUser, onSave, onClose, showToast }) {
+function ReportEditor({ report, currentUser, projects, onSave, onClose, showToast }) {
   const [form, setForm] = useState({
     title:            report?.title            || '',
     activities:       report?.activities       || '',
@@ -122,6 +122,22 @@ function ReportEditor({ report, currentUser, onSave, onClose, showToast }) {
   const kw       = getKW(form.week_start);
 
   const applyTemplate = (tmpl) => { setForm(f => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
+
+  const autoFillFromTasks = () => {
+    const ws  = form.week_start;
+    const we  = (() => { const d = new Date(ws); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; })();
+    const groups = [];
+    (projects || []).forEach(p => {
+      const wt = (p.tasks || []).filter(t => t.text && t.deadline && t.deadline >= ws && t.deadline <= we);
+      if (wt.length) groups.push({ title: p.title, tasks: wt });
+    });
+    if (!groups.length) { showToast('⚠ Keine Aufgaben mit Deadline in dieser KW'); return; }
+    const text = groups.map(g =>
+      `${g.title}:\n${g.tasks.map(t => `- ${t.text}${t.status === 'done' ? ' ✓' : ''}`).join('\n')}`
+    ).join('\n\n');
+    setForm(f => ({ ...f, activities: f.activities ? `${f.activities}\n\n${text}` : text }));
+    showToast(`✓ ${groups.reduce((s, g) => s + g.tasks.length, 0)} Aufgaben eingefügt`);
+  };
 
   const copyToClipboard = async (text, key) => {
     try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 2000); } catch {}
@@ -203,7 +219,15 @@ function ReportEditor({ report, currentUser, onSave, onClose, showToast }) {
 
           {isOwner && !readOnly && tab === 'text' && (
             <div className="card">
-              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>Vorlage einfügen</div>
+              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>Autofill</div>
+              <button onClick={autoFillFromTasks} className="abtn"
+                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, background: C.gr }}>
+                ⚡ Aus Aufgaben befüllen
+              </button>
+              <div style={{ fontSize: 9, color: C.mu, marginBottom: 10, lineHeight: 1.5 }}>
+                Fügt alle Aufgaben mit Deadline in KW {kw} automatisch ins Tätigkeitsfeld ein.
+              </div>
+              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 8 }}>Vorlage</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {TEMPLATES.map(t => (
                   <button key={t.label} onClick={() => applyTemplate(t)} className="btn"
@@ -343,6 +367,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   if (view === 'edit') {
     return (
       <ReportEditor report={editing} currentUser={currentUser}
+        projects={data.projects || []}
         onSave={(rep) => { saveReport(rep); setView('list'); }}
         onClose={() => setView('list')} showToast={showToast} />
     );

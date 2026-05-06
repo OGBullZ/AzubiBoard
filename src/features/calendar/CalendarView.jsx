@@ -61,8 +61,8 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
 
   const openEdit = (ev, e) => {
     e.stopPropagation();
-    const isDerived = ev.id?.startsWith('dl-') || ev._project;
-    if (isDerived && ev.id?.startsWith('dl-')) return;
+    const isDerived = ev.id?.startsWith('dl-') || ev.id?.startsWith('tdl-') || ev._project;
+    if (isDerived && (ev.id?.startsWith('dl-') || ev.id?.startsWith('tdl-'))) return;
     setEditEv(ev);
     setEditForm({ title: ev.title, note: ev.note || '', projectId: ev.projectId || '', type: ev.type || 'event' });
   };
@@ -109,6 +109,9 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
     ...projects.flatMap(p => [
       p.deadline ? [{ id: `dl-${p.id}`, date: p.deadline, title: `📌 ${p.title}`, projectId: p.id, type: 'deadline', _project: p.title }] : [],
       ...(p.calendarEvents || []).map(e => ({ ...e, _project: p.title })),
+      ...(p.tasks || [])
+        .filter(t => t.deadline && t.status !== 'done' && t.text)
+        .map(t => ({ id: `tdl-${t.id}`, date: t.deadline, title: `⚡ ${t.text}`, projectId: p.id, type: 'deadline', _project: p.title, _isTaskDeadline: true })),
     ].flat()),
   ];
 
@@ -298,7 +301,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                   </div>
                   {ev.map(e => {
                     const et = EV_TYPES[e.type] || EV_TYPES.event;
-                    const editable = !e.id?.startsWith('dl-');
+                    const editable = !e.id?.startsWith('dl-') && !e.id?.startsWith('tdl-');
                     return (
                       <div key={e.id} onClick={editable ? ev2 => openEdit(e, ev2) : undefined}
                         style={{ fontSize: 10, fontWeight: 600, color: et.color, background: et.bg, borderRadius: 4, padding: '3px 6px', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: `1px solid ${et.color}30`, cursor: editable ? 'pointer' : 'default' }}>
@@ -348,7 +351,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                         </div>
                         {ev.slice(0, 3).map(e => {
                           const et = EV_TYPES[e.type] || EV_TYPES.event;
-                          const editable = !e.id?.startsWith('dl-');
+                          const editable = !e.id?.startsWith('dl-') && !e.id?.startsWith('tdl-');
                           return (
                             <div key={e.id} onClick={editable ? ev2 => openEdit(e, ev2) : undefined}
                               style={{ fontSize: 9, fontWeight: 600, color: et.color, background: et.bg, borderRadius: 4, padding: '2px 5px', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: `1px solid ${et.color}30`, cursor: editable ? 'pointer' : 'default' }}>
