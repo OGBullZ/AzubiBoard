@@ -111,7 +111,9 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     status:           report?.status           || 'draft',
     reviewer_comment: report?.reviewer_comment || '',
     file:             report?.file             || null,
+    sectionComments:  report?.sectionComments  || { activities: [], learnings: [] },
   });
+  const [newComment, setNewComment] = useState({ activities: '', learnings: '' });
   const [tab,    setTab]    = useState('text');
   const [copied, setCopied] = useState('');
   const fileRef = useRef();
@@ -268,30 +270,63 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {tab === 'text' ? (
             <>
-              <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <IcoDoc size={13} style={{ color: C.ac }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7 }}>Tätigkeitsbericht</span>
+              {[
+                { key: 'activities', label: 'Tätigkeitsbericht', Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200 },
+                { key: 'learnings',  label: 'Lernbericht',       Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160 },
+              ].map(({ key, label, Icon, color, ph, minH }) => {
+                const comments = (form.sectionComments?.[key] || []);
+                const addComment = () => {
+                  const txt = newComment[key]?.trim();
+                  if (!txt) return;
+                  const entry = { id: Date.now().toString(36), text: txt, reviewerName: currentUser.name, ts: new Date().toISOString() };
+                  setForm(f => ({ ...f, sectionComments: { ...f.sectionComments, [key]: [...(f.sectionComments?.[key]||[]), entry] } }));
+                  setNewComment(n => ({ ...n, [key]: '' }));
+                };
+                const delComment = (id) => {
+                  setForm(f => ({ ...f, sectionComments: { ...f.sectionComments, [key]: (f.sectionComments?.[key]||[]).filter(c => c.id !== id) } }));
+                };
+                return (
+                  <div key={key} className="card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Icon size={13} style={{ color }} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7 }}>{label}</span>
+                        {comments.length > 0 && <span style={{ fontSize: 9, background: C.ywd, color: C.yw, borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>{comments.length} Kommentar{comments.length !== 1 ? 'e' : ''}</span>}
+                      </div>
+                      <button onClick={() => copyToClipboard(form[key], key)} className="btn" style={{ fontSize: 10, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {copied === key ? <><IcoCheck size={10} /> Kopiert</> : 'Kopieren'}
+                      </button>
+                    </div>
+                    <textarea value={form[key]} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={ph}
+                      style={{ minHeight: minH, fontSize: 12, lineHeight: 1.7 }} />
+
+                    {/* Ausbilder-Kommentare */}
+                    {(comments.length > 0 || isReview) && (
+                      <div style={{ marginTop: 10, borderTop: `1px solid ${C.bd}`, paddingTop: 10 }}>
+                        <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 7 }}>Ausbilder-Kommentare</div>
+                        {comments.map(c => (
+                          <div key={c.id} style={{ display: 'flex', gap: 8, padding: '6px 9px', background: C.ywd, border: `1px solid ${C.yw}25`, borderRadius: 7, marginBottom: 5 }}>
+                            <IcoNote size={11} style={{ color: C.yw, flexShrink: 0, marginTop: 2 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 11, color: C.br, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.text}</div>
+                              <div style={{ fontSize: 9, color: C.mu, marginTop: 3 }}>{c.reviewerName} · {new Date(c.ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                            {isReview && <button onClick={() => delComment(c.id)} className="del" style={{ fontSize: 13, alignSelf: 'flex-start' }}>×</button>}
+                          </div>
+                        ))}
+                        {isReview && (
+                          <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
+                            <input value={newComment[key] || ''} onChange={e => setNewComment(n => ({ ...n, [key]: e.target.value }))}
+                              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())}
+                              placeholder="Kommentar hinzufügen… (Enter)" style={{ flex: 1, fontSize: 11, padding: '5px 9px' }} />
+                            <button className="abtn" onClick={addComment} style={{ fontSize: 11, padding: '5px 11px', background: C.yw }}>+</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <button onClick={() => copyToClipboard(form.activities, 'activities')} className="btn" style={{ fontSize: 10, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {copied === 'activities' ? <><IcoCheck size={10} /> Kopiert</> : 'Kopieren'}
-                  </button>
-                </div>
-                <textarea value={form.activities} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, activities: e.target.value }))} placeholder="Beschreibe deine Tätigkeiten der Woche..." style={{ minHeight: 200, fontSize: 12, lineHeight: 1.7 }} />
-              </div>
-              <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <IcoNote size={13} style={{ color: C.yw }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7 }}>Lernbericht</span>
-                  </div>
-                  <button onClick={() => copyToClipboard(form.learnings, 'learnings')} className="btn" style={{ fontSize: 10, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {copied === 'learnings' ? <><IcoCheck size={10} /> Kopiert</> : 'Kopieren'}
-                  </button>
-                </div>
-                <textarea value={form.learnings} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, learnings: e.target.value }))} placeholder="Was hast du diese Woche gelernt? Neue Erkenntnisse?" style={{ minHeight: 160, fontSize: 12, lineHeight: 1.7 }} />
-              </div>
+                );
+              })}
             </>
           ) : (
             <div className="card">

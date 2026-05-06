@@ -698,6 +698,92 @@ function ActivityFeed({ activityLog = [] }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  ZEITERFASSUNG KW-WIDGET (Ausbilder)
+// ─────────────────────────────────────────────────────────────
+function ZeiterfassungWidget({ users, projects }) {
+  const getMonStr = (offset = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() - ((d.getDay()+6)%7) + offset * 7);
+    d.setHours(0,0,0,0);
+    return d.toISOString().split('T')[0];
+  };
+  const [monStr, setMonStr] = useState(() => getMonStr(0));
+  const today = new Date().toISOString().split('T')[0];
+
+  const sunStr = (() => { const d = new Date(monStr); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; })();
+  const kwNum  = Math.ceil((new Date(monStr) - new Date(new Date(monStr).getFullYear(), 0, 1)) / 604800000);
+
+  const azubis = users.filter(u => u.role === 'azubi');
+
+  const rows = azubis.map(a => {
+    const breakdown = projects.filter(p => !p.archived).reduce((acc, p) => {
+      const h = (p.tasks||[]).filter(t => t.assignee === a.id)
+        .flatMap(t => (t.timeLog||[]).filter(e => e.date >= monStr && e.date <= sunStr))
+        .reduce((s, e) => s + (Number(e.hours)||0), 0);
+      if (h > 0) acc.push({ title: p.title, hours: h });
+      return acc;
+    }, []);
+    return { azubi: a, total: breakdown.reduce((s, b) => s + b.hours, 0), breakdown };
+  });
+
+  const maxH = Math.max(...rows.map(r => r.total), 0.1);
+
+  const exportCSV = () => {
+    const lines = ['"KW";"Azubi";"Projekt";"Stunden"'];
+    rows.forEach(r => {
+      if (r.breakdown.length) r.breakdown.forEach(b => lines.push(`"${kwNum}";"${r.azubi.name}";"${b.title}";"${b.hours.toFixed(2).replace('.',',')}"`));
+      else lines.push(`"${kwNum}";"${r.azubi.name}";"–";"0"`);
+    });
+    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(blob); a2.download = `zeiterfassung_kw${kwNum}.csv`;
+    document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+  };
+
+  const hasAny = rows.some(r => r.total > 0);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 9 }}>
+        <button className="btn" style={{ padding: '2px 7px', fontSize: 11 }}
+          onClick={() => { const d = new Date(monStr); d.setDate(d.getDate()-7); setMonStr(d.toISOString().split('T')[0]); }}>←</button>
+        <span style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700, color: C.br }}>KW {kwNum}</span>
+        <button className="btn" style={{ padding: '2px 7px', fontSize: 11 }}
+          disabled={monStr >= getMonStr(0)}
+          onClick={() => { const d = new Date(monStr); d.setDate(d.getDate()+7); if (d.toISOString().split('T')[0] <= today) setMonStr(d.toISOString().split('T')[0]); }}>→</button>
+        {hasAny && <button className="btn" style={{ padding: '2px 6px', fontSize: 9 }} onClick={exportCSV} title="CSV exportieren">↓CSV</button>}
+      </div>
+      {!hasAny ? (
+        <div style={{ fontSize: 11, color: C.textSecondary, textAlign: 'center', padding: '8px 0' }}>
+          Keine Zeiteinträge für KW {kwNum}
+        </div>
+      ) : rows.map(({ azubi, total, breakdown }) => (
+        <div key={azubi.id} style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+            <Avatar name={azubi.name} url={azubi.avatar_url} size={18} />
+            <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {azubi.name.split(' ')[0]}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 800, fontFamily: C.mono, color: total > 0 ? C.gr : C.mu }}>
+              {total.toFixed(1)}h
+            </span>
+          </div>
+          <div style={{ height: 4, background: C.bd2, borderRadius: 2, overflow: 'hidden', marginLeft: 25, marginBottom: 3 }}>
+            <div style={{ height: '100%', width: `${Math.min(100, total / maxH * 100)}%`, background: total > 0 ? C.gr : C.bd2, borderRadius: 2, transition: 'width .4s' }} />
+          </div>
+          {breakdown.map(b => (
+            <div key={b.title} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: C.textSecondary, marginLeft: 25 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>· {b.title}</span>
+              <span style={{ fontFamily: C.mono, flexShrink: 0 }}>{b.hours.toFixed(1)}h</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 //  AUSBILDER-DASHBOARD
 // ─────────────────────────────────────────────────────────────
 function AusbilderDashboard({ user, projects, users, reports, calendarEvents, activityLog, onOpenProject, onUpdateProject, onNavigate }) {
@@ -733,7 +819,9 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
         <div style={{ padding: '16px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <PanelTitle Icon={IcoUsers}>Azubi-Übersicht</PanelTitle>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {azubis.map(a => {
+            {azubis.length === 0
+              ? <div style={{ fontSize: 12, color: C.textSecondary, fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>Keine Azubis vorhanden</div>
+              : azubis.map(a => {
               const myProjects = active.filter(p => (p.assignees||[]).includes(a.id));
               const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id && t.status !== 'done'));
               const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id && t.status === 'in_progress'));
@@ -741,25 +829,86 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               const doneTotal  = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.status === 'done' || t.done)).length;
               const totalTasks = myProjects.flatMap(p => (p.tasks||[])).length;
               const pct        = totalTasks > 0 ? Math.round(doneTotal / totalTasks * 100) : 0;
+
+              // Bericht dieser Woche
+              const weekMon    = (() => { const d = new Date(now); d.setDate(d.getDate() - ((d.getDay()+6)%7)); d.setHours(0,0,0,0); return d.toISOString().split('T')[0]; })();
+              const myReports  = reports.filter(r => r.user_id === a.id).sort((x,y) => y.week_start.localeCompare(x.week_start));
+              const lastReport = myReports[0] || null;
+              const hasThisWeek = myReports.some(r => r.week_start >= weekMon);
+              const REPORT_ST  = { draft: { l: 'Entwurf', c: C.mu }, submitted: { l: 'Eingereicht', c: C.ac }, reviewed: { l: 'Geprüft', c: C.yw }, signed: { l: 'Fertig', c: C.gr } };
+
+              // Stunden diese Woche
+              const weekEnd    = (() => { const d = new Date(weekMon); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; })();
+              const weekHours  = active.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id))
+                .flatMap(t => (t.timeLog||[]).filter(e => e.date >= weekMon && e.date <= weekEnd))
+                .reduce((s, e) => s + (Number(e.hours)||0), 0);
+
+              // Ampel
+              const ampel = overdue.length > 2 ? C.cr
+                : (overdue.length > 0 || !hasThisWeek) ? C.yw
+                : C.gr;
+              const ampelLabel = overdue.length > 2 ? 'Kritisch'
+                : overdue.length > 0 ? 'Überfällig'
+                : !hasThisWeek ? 'Bericht fehlt'
+                : 'Alles OK';
+
               return (
-                <div key={a.id} style={{ padding: '11px 12px', background: 'var(--c-sf2)', border: `1px solid var(--c-bd)`, borderRadius: 9, marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    <Avatar name={a.name} size={34} />
+                <div key={a.id} style={{ padding: '11px 12px', background: 'var(--c-sf2)', border: `1px solid ${ampel}30`, borderLeft: `3px solid ${ampel}`, borderRadius: 9, marginBottom: 8, transition: 'border-color .2s' }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
+                    <Avatar name={a.name} url={a.avatar_url} size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: C.br }}>{a.name}</div>
-                      <div style={{ fontSize: 10, color: C.textSecondary }}>Lehrjahr {a.apprenticeship_year || 1} · {a.email}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+                      <div style={{ fontSize: 9, color: C.textSecondary }}>Lehrjahr {a.apprenticeship_year || 1} · {a.profession || a.email}</div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: C.ac, fontFamily: C.mono }}>{pct}%</div>
-                      <div style={{ fontSize: 9, color: C.textSecondary }}>Gesamt</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: ampel, background: ampel + '18', border: `1px solid ${ampel}30`, borderRadius: 4, padding: '1px 7px' }}>
+                        ● {ampelLabel}
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.ac, fontFamily: C.mono }}>{pct}%</div>
                     </div>
                   </div>
-                  <ProgressBar value={pct} color={pct === 100 ? C.gr : C.ac} height={4} />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 7, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10, color: C.textSecondary }}>📁 {myProjects.length} Projekte</span>
-                    {inProgress.length > 0 && <span style={{ fontSize: 10, color: C.ac }}>▶ {inProgress.length} aktiv</span>}
-                    {overdue.length > 0   && <span style={{ fontSize: 10, color: C.cr, fontWeight: 700 }}>⚠ {overdue.length} überfällig</span>}
-                    <span style={{ fontSize: 10, color: C.textSecondary }}>{myTasks.length} offen</span>
+                  <ProgressBar value={pct} color={pct === 100 ? C.gr : C.ac} height={3} />
+
+                  {/* Stats-Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginTop: 8 }}>
+                    <div style={{ background: 'var(--c-sf3)', borderRadius: 6, padding: '5px 7px' }}>
+                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>Offen</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: myTasks.length > 0 ? C.ac : C.mu, fontFamily: C.mono, lineHeight: 1.2 }}>{myTasks.length}</div>
+                      {inProgress.length > 0 && <div style={{ fontSize: 8, color: C.ac }}>▶ {inProgress.length} aktiv</div>}
+                    </div>
+                    <div style={{ background: overdue.length > 0 ? C.crd : 'var(--c-sf3)', borderRadius: 6, padding: '5px 7px', border: overdue.length > 0 ? `1px solid ${C.cr}25` : 'none' }}>
+                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>Überfällig</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: overdue.length > 0 ? C.cr : C.mu, fontFamily: C.mono, lineHeight: 1.2 }}>{overdue.length}</div>
+                      {overdue.length > 0 && <div style={{ fontSize: 8, color: C.cr }}>⚠ zu spät</div>}
+                    </div>
+                    <div style={{ background: 'var(--c-sf3)', borderRadius: 6, padding: '5px 7px' }}>
+                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>Std KW</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: weekHours > 0 ? C.gr : C.mu, fontFamily: C.mono, lineHeight: 1.2 }}>{weekHours.toFixed(1)}</div>
+                      <div style={{ fontSize: 8, color: C.textSecondary }}>geloggt</div>
+                    </div>
+                  </div>
+
+                  {/* Bericht-Status */}
+                  <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <IcoReport size={10} style={{ color: C.textSecondary, flexShrink: 0 }} />
+                    {lastReport ? (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 10, color: C.textSecondary }}>
+                          KW {lastReport.week_number}/{lastReport.year}
+                        </span>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: (REPORT_ST[lastReport.status]||REPORT_ST.draft).c, background: (REPORT_ST[lastReport.status]||REPORT_ST.draft).c + '18', borderRadius: 4, padding: '1px 6px' }}>
+                          {(REPORT_ST[lastReport.status]||REPORT_ST.draft).l}
+                        </span>
+                        {!hasThisWeek && (
+                          <span style={{ fontSize: 9, fontWeight: 700, color: C.yw, background: C.ywd, borderRadius: 4, padding: '1px 6px', marginLeft: 'auto' }}>
+                            ⚠ KW fehlt
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 10, color: C.cr, fontWeight: 700 }}>Noch kein Berichtsheft</span>
+                    )}
                   </div>
                 </div>
               );
@@ -813,7 +962,11 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               Alle Berichtshefte →
             </button>
           </div>
-          <div style={{ padding: '16px 20px', flexShrink: 0 }}>
+          <div style={{ padding: '16px 20px', borderTop: `1px solid var(--c-bd)`, flexShrink: 0 }}>
+            <PanelTitle Icon={IcoClock}>Zeiterfassung</PanelTitle>
+            <ZeiterfassungWidget users={users} projects={active} />
+          </div>
+          <div style={{ padding: '16px 20px', borderTop: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoCalendar}>Nächste Termine</PanelTitle>
             <CalWidget calendarEvents={calendarEvents} projects={active} onNavigate={() => onNavigate?.('calendar')} />
           </div>
