@@ -90,16 +90,34 @@ function usePageTitle() {
 // ── Theme ─────────────────────────────────────────────────────
 function useTheme() {
   const [theme, setTheme] = useState(() => {
-    const t = localStorage.getItem('azubiboard_theme') || 'dark';
+    const stored = localStorage.getItem('azubiboard_theme');
+    // Beim ersten Besuch (kein gespeicherter Wert): OS-Präferenz übernehmen
+    const t = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    if (!stored) localStorage.setItem('azubiboard_theme', t);
     document.documentElement.setAttribute('data-theme', t);
     return t;
   });
+  // OS-Theme-Änderungen live mitsynchronisieren (nur wenn kein manuelles Override)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: light)');
+    const handler = (e) => {
+      // Nur anpassen wenn das Theme noch dem OS-Standard entspricht (kein manuelles Toggle)
+      const stored = localStorage.getItem('azubiboard_theme_manual');
+      if (stored) return; // Nutzer hat manuell gewählt → ignorieren
+      const next = e.matches ? 'light' : 'dark';
+      setTheme(next);
+      localStorage.setItem('azubiboard_theme', next);
+      document.documentElement.setAttribute('data-theme', next);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
   const toggleTheme = useCallback(() => {
     setTheme(t => {
       const next = t === 'dark' ? 'light' : 'dark';
       localStorage.setItem('azubiboard_theme', next);
+      localStorage.setItem('azubiboard_theme_manual', '1'); // OS-Sync deaktivieren
       document.documentElement.setAttribute('data-theme', next);
-      // In API-Modus: Theme-Präferenz in der DB persistieren
       if (USE_API) dataService.syncTheme(next);
       return next;
     });

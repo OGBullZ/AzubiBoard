@@ -124,7 +124,7 @@ function ZeitTab({ task, onUpdate, currentUser }) {
   );
 }
 
-function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels }) {
+function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels, selected, onToggleSelect }) {
   const assignee   = users.find(u => u.id === task.assignee);
   const st         = TASK_STATUS[task.status] || TASK_STATUS.not_started;
   const pr         = PRIORITY[task.priority]  || PRIORITY.medium;
@@ -133,10 +133,16 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   const taskLabels = (projectLabels || []).filter(lb => (task.labelIds || []).includes(lb.id));
 
   return (
-    <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${isOpen ? st.color + '50' : C.bd}`, background: C.sf2, overflow: 'hidden', transition: 'border-color .15s', opacity: task.status === 'done' ? .6 : 1 }}>
+    <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? C.ac + '70' : isOpen ? st.color + '50' : C.bd}`, background: selected ? C.acd + '44' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer' }}
         onClick={onToggle} role="button" tabIndex={0} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onToggle()}>
+
+        {/* Bulk-Checkbox */}
+        {onToggleSelect && (
+          <input type="checkbox" checked={!!selected} onChange={e => { e.stopPropagation(); onToggleSelect(task.id); }} onClick={e => e.stopPropagation()}
+            style={{ width: 14, height: 14, flexShrink: 0, cursor: 'pointer', accentColor: C.ac }} />
+        )}
 
         <button onClick={e => { e.stopPropagation(); onUpdate(task.id, { status: task.status === 'done' ? 'not_started' : 'done' }); }}
           style={{ width: 19, height: 19, borderRadius: 5, border: `2px solid ${st.color}`, background: task.status === 'done' ? C.gr : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .12s' }}>
@@ -344,7 +350,7 @@ function MaterialRef({ materials, taskRef, onUpdate }) {
   );
 }
 
-function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels }) {
+function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels, selection, onToggleSelect }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
   const st = TASK_STATUS[status];
   if (!tasks.length) return null;
@@ -369,7 +375,8 @@ function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, 
             <TaskCard key={t.id} task={t} users={users} currentUser={currentUser}
               isOpen={openTask === t.id} onToggle={() => onToggleTask(t.id)}
               onUpdate={onUpdate} onRemove={onRemove}
-              projectMaterials={projectMaterials} projectLabels={projectLabels} />
+              projectMaterials={projectMaterials} projectLabels={projectLabels}
+              selected={selection?.has(t.id)} onToggleSelect={onToggleSelect} />
           ))}
         </div>
       )}
@@ -453,6 +460,20 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
   const [newTask,      setNewTask]      = useState(mkTask({ assignee: currentUser.id }));
   const [viewMode,     setViewMode]     = useState('list');
   const [filterLabel,  setFilterLabel]  = useState(null);
+  const [selection,    setSelection]    = useState(new Set());
+
+  const toggleSelect   = (id) => setSelection(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const clearSelection = () => setSelection(new Set());
+  const selectAll      = () => setSelection(new Set(visibleTasks.map(t => t.id)));
+
+  const bulkSetStatus = (status) => {
+    onUpdate(project.id, { tasks: (project.tasks||[]).map(t => selection.has(t.id) ? { ...t, status } : t) });
+    clearSelection();
+  };
+  const bulkDelete = () => {
+    onUpdate(project.id, { tasks: (project.tasks||[]).filter(t => !selection.has(t.id)) });
+    clearSelection();
+  };
 
   const projectLabels = project.labels || [];
   const assignable = users.filter(u => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
@@ -605,16 +626,45 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
         : viewMode === 'kanban'
           ? <KanbanBoard tasks={visibleTasks} users={assignable} onUpdate={updateTask} onRemove={removeTask} />
           : <>
+              {selection.size > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', marginBottom: 8, background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.ac, marginRight: 4 }}>{selection.size} ausgewählt</span>
+                  {STATUS_ORDER.map(s => {
+                    const st = TASK_STATUS[s];
+                    return (
+                      <button key={s} onClick={() => bulkSetStatus(s)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${st.color}50`, background: st.bg, color: st.color, cursor: 'pointer' }}>
+                        <st.Icon size={10} /> → {st.label}
+                      </button>
+                    );
+                  })}
+                  <div style={{ flex: 1 }} />
+                  <button onClick={selectAll}
+                    style={{ padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu, cursor: 'pointer' }}>
+                    Alle wählen
+                  </button>
+                  <button onClick={bulkDelete}
+                    style={{ padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${C.cr}40`, background: `${C.cr}12`, color: C.cr, cursor: 'pointer' }}>
+                    🗑 Löschen
+                  </button>
+                  <button onClick={clearSelection}
+                    style={{ padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu, cursor: 'pointer' }}>
+                    ✕ Auswahl
+                  </button>
+                </div>
+              )}
               {STATUS_ORDER.filter(s => s !== 'done').map(s => (
                 <TaskGroup key={s} status={s} tasks={grouped[s]} users={assignable} currentUser={currentUser}
                   openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
                   onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={false}
-                  projectMaterials={project.materials || []} projectLabels={projectLabels} />
+                  projectMaterials={project.materials || []} projectLabels={projectLabels}
+                  selection={selection} onToggleSelect={toggleSelect} />
               ))}
               <TaskGroup status="done" tasks={grouped.done} users={assignable} currentUser={currentUser}
                 openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
                 onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={true}
-                projectMaterials={project.materials || []} projectLabels={projectLabels} />
+                projectMaterials={project.materials || []} projectLabels={projectLabels}
+                selection={selection} onToggleSelect={toggleSelect} />
             </>}
     </div>
   );

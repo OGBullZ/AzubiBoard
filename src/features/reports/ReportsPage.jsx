@@ -5,7 +5,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
   IcoReport, IcoCheck, IcoEdit, IcoPlus, IcoBack,
   IcoDoc, IcoNote, IcoAlert, IcoUsers, IcoClock,
-  IcoStar, IcoChevron
+  IcoStar, IcoChevron, IcoSearch, IcoX
 } from '../../components/Icons.jsx';
 
 const STATUS_REPORT = {
@@ -374,10 +374,20 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   const [view,    setView]   = useState('list');
   const [editing, setEditing]= useState(null);
   const [filter,  setFilter] = useState('alle');
+  const [search,  setSearch] = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
 
   const myReports = currentUser.role === 'azubi' ? reports.filter(r => r.user_id === currentUser.id) : reports;
-  const filtered = myReports.filter(r => filter === 'alle' || r.status === filter);
+  const q = search.trim().toLowerCase();
+  const filtered = myReports
+    .filter(r => filter === 'alle' || r.status === filter)
+    .filter(r => !q || (
+      (r.title || '').toLowerCase().includes(q) ||
+      (r.activities || '').toLowerCase().includes(q) ||
+      (r.learnings || '').toLowerCase().includes(q) ||
+      (r.user_name || '').toLowerCase().includes(q) ||
+      String(r.week_number).includes(q)
+    ));
 
   const saveReport = (rep) => {
     const existing = reports.find(r => r.id === rep.id);
@@ -425,6 +435,18 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         )}
       </div>
 
+      {/* Suche */}
+      <div style={{ position: 'relative', marginBottom: 10, flexShrink: 0 }}>
+        <IcoSearch size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.mu, pointerEvents: 'none' }} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Berichte durchsuchen… (Titel, Tätigkeiten, Lernbericht, Name)"
+          style={{ width: '100%', paddingLeft: 32, paddingRight: search ? 32 : 10, fontSize: 13 }} />
+        {search && (
+          <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.mu, display: 'flex' }}>
+            <IcoX size={13} />
+          </button>
+        )}
+      </div>
+
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         {Object.entries(STATUS_REPORT).map(([k, v]) => {
           const cnt = myReports.filter(r => r.status === k).length;
@@ -444,10 +466,10 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
           <EmptyState Icon={IcoReport}
-            title="Keine Berichtshefte"
-            subtitle={currentUser.role === 'azubi' ? 'Erstelle deinen ersten Wochenbericht.' : 'Noch keine Berichte in dieser Kategorie.'}
-            action={currentUser.role === 'azubi' ? '+ Neuer Bericht' : undefined}
-            onAction={currentUser.role === 'azubi' ? () => { setEditing(null); setView('edit'); } : undefined} />
+            title={q ? `Keine Ergebnisse für „${q}"` : 'Keine Berichtshefte'}
+            subtitle={q ? 'Versuche einen anderen Suchbegriff.' : (currentUser.role === 'azubi' ? 'Erstelle deinen ersten Wochenbericht.' : 'Noch keine Berichte in dieser Kategorie.')}
+            action={!q && currentUser.role === 'azubi' ? '+ Neuer Bericht' : undefined}
+            onAction={!q && currentUser.role === 'azubi' ? () => { setEditing(null); setView('edit'); } : undefined} />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, alignContent: 'start' }}>
             {[...filtered].sort((a, b) => new Date(b.week_start) - new Date(a.week_start)).map(r => (
