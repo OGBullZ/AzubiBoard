@@ -25,12 +25,14 @@ import NewProjectModal from './features/projects/NewProjectModal';
 import CalendarView from './features/calendar/CalendarView';
 import GroupsView from './features/groups/GroupsView';
 import UsersView from './features/users/UsersView';
+import TrainingPlanPage from './features/training/TrainingPlanPage';
+import AzubiProfilePage from './features/users/AzubiProfilePage';
 import { Toast } from './components/UI.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import {
   IcoDashboard, IcoFolder, IcoCalendar, IcoUsers,
   IcoReport, IcoLearn, IcoPlus, IcoLogout, IcoUserEdit, IcoSearch,
-  IcoBell, IcoAlert, IcoClock, IcoX, IcoSun, IcoMoon,
+  IcoBell, IcoAlert, IcoClock, IcoX, IcoSun, IcoMoon, IcoRequire,
 } from './components/Icons.jsx';
 
 // ── App-Mode (einmalig auf Modulebene) ───────────────────────
@@ -73,6 +75,7 @@ const ROUTE_TITLES = {
   '/projects':  'Projekte',
   '/calendar':  'Kalender',
   '/groups':    'Gruppen',
+  '/training':  'Ausbildungsplan',
   '/learn':     'Lernportal',
   '/reports':   'Berichte',
   '/users':     'Nutzer',
@@ -277,6 +280,51 @@ function NotificationBell({ collapsed }) {
   );
 }
 
+// ── Keyboard Shortcuts Help ───────────────────────────────────
+function ShortcutsHelp({ onClose }) {
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape' || e.key === '?') onClose(); };
+    document.addEventListener('keydown', fn);
+    return () => document.removeEventListener('keydown', fn);
+  }, [onClose]);
+
+  const groups = [
+    { title: 'Navigation', items: [['G dann D', 'Dashboard'],['G dann P', 'Projekte'],['G dann K', 'Kalender'],['G dann R', 'Berichte'],['G dann U', 'Nutzer (Ausbilder)']] },
+    { title: 'Aktionen', items: [['N', 'Neues Projekt'],['Ctrl+K', 'Suche öffnen'],['?', 'Shortcuts anzeigen']] },
+    { title: 'Allgemein', items: [['Esc', 'Dialog schließen'],['←→', 'Kanban: Status verschieben']] },
+  ];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 910, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 14, width: 480, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--c-bd)' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-br)' }}>⌨️ Tastaturkürzel</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--c-mu)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {groups.map(g => (
+            <div key={g.title}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>{g.title}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {g.items.map(([k, l]) => (
+                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <kbd style={{ fontSize: 11, padding: '3px 8px', borderRadius: 5, background: 'var(--c-sf3)', border: '1px solid var(--c-bd2)', color: 'var(--c-br)', fontFamily: 'monospace', minWidth: 90, textAlign: 'center', flexShrink: 0 }}>{k}</kbd>
+                    <span style={{ fontSize: 13, color: 'var(--c-mu)' }}>{l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '10px 18px', borderTop: '1px solid var(--c-bd)', fontSize: 11, color: 'var(--c-mu)', textAlign: 'center' }}>
+          Drücke <kbd style={{ fontSize: 10, padding: '1px 5px', borderRadius: 3, background: 'var(--c-sf3)', border: '1px solid var(--c-bd2)' }}>?</kbd> um diese Übersicht zu schließen
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Global Search ─────────────────────────────────────────────
 function GlobalSearch({ data, onClose }) {
   const navigate = useNavigate();
@@ -363,6 +411,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
     { to: '/calendar',  label: 'Kalender',       Icon: IcoCalendar  },
     { to: '/groups',    label: 'Gruppen',        Icon: IcoUsers     },
     { to: '/reports',   label: 'Berichtshefte',  Icon: IcoReport    },
+    { to: '/training',  label: 'Ausbildungsplan', Icon: IcoRequire   },
     { to: '/learn',     label: 'Lernbereich',    Icon: IcoLearn     },
     ...(isAusbilder ? [{ to: '/users', label: 'Nutzer', Icon: IcoUserEdit }] : []),
   ];
@@ -786,6 +835,14 @@ function GroupsPage({ showToast }) {
   return <GroupsView groups={data?.groups||[]} users={data?.users||[]} projects={data?.projects||[]} onUpdateGroups={handleUpdateGroups} showToast={showToast} />;
 }
 
+function AzubiProfileWrapper() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { data, currentUser } = useAppStore();
+  const azubi = (data?.users || []).find(u => u.id === id);
+  return <AzubiProfilePage azubi={azubi} data={data} currentUser={currentUser} onBack={() => navigate(-1)} />;
+}
+
 function UsersPage({ showToast }) {
   const { data, setData } = useAppStore();
   const handleUpdate = useCallback((users) => setData({ ...data, users }), [data, setData]);
@@ -840,7 +897,15 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
   const [drawerOpen,  setDrawerOpen]  = useState(false);
   const { theme, toggleTheme } = useTheme();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   usePageTitle();
+
+  // G+letter navigation from global keyboard handler
+  useEffect(() => {
+    const fn = e => navigate(e.detail);
+    window.addEventListener('azubiboard:navigate', fn);
+    return () => window.removeEventListener('azubiboard:navigate', fn);
+  }, [navigate]);
 
   // Drawer schließen wenn auf Desktop gewechselt wird
   useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
@@ -895,8 +960,9 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
 // ── Root App ──────────────────────────────────────────────────
 const App = () => {
   const { data, currentUser, setData, setCurrentUser } = useAppStore();
-  const [showModal, setShowModal] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
+  const [showModal,    setShowModal]    = useState(false);
+  const [showSearch,   setShowSearch]   = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const { toast, showToast } = useToast();
   const importRef = useRef(null);
 
@@ -972,12 +1038,25 @@ const App = () => {
   const handleNewProject = useCallback(() => setShowModal(true), []);
 
   useEffect(() => {
+    let gPrefix = false;
+    let gTimer  = null;
     const fn = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); if (currentUser) setShowSearch(s => !s); }
-      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && e.target.tagName === 'BODY' && currentUser) setShowModal(true);
+      const inInput = ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName) || e.target.isContentEditable;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); if (currentUser) setShowSearch(s => !s); return; }
+      if (inInput) return;
+      if (e.key === '?') { if (currentUser) setShowShortcuts(s => !s); return; }
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && currentUser) { setShowModal(true); return; }
+      // G + letter navigation prefix
+      if (e.key === 'g' && !e.ctrlKey && !e.metaKey) { gPrefix = true; clearTimeout(gTimer); gTimer = setTimeout(() => { gPrefix = false; }, 1200); return; }
+      if (gPrefix) {
+        gPrefix = false; clearTimeout(gTimer);
+        // Navigation dispatched via custom event (AppLayout handles it inside Router)
+        const map = { d: '/dashboard', p: '/projects', k: '/calendar', r: '/reports', u: '/users' };
+        if (map[e.key]) window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: map[e.key] }));
+      }
     };
     document.addEventListener('keydown', fn);
-    return () => document.removeEventListener('keydown', fn);
+    return () => { document.removeEventListener('keydown', fn); clearTimeout(gTimer); };
   }, [currentUser]);
 
   const handleCreate = useCallback((projectData) => {
@@ -1069,9 +1148,11 @@ const App = () => {
             <Route path="/profile"     element={<ProfilePage showToast={showToast} />} />
             <Route path="/calendar"    element={<CalendarPage showToast={showToast} />} />
             <Route path="/groups"      element={<GroupsPage showToast={showToast} />} />
+            <Route path="/training"    element={<TrainingPlanPage currentUser={currentUser} data={data} onUpdateData={setData} />} />
             <Route path="/learn"       element={<LearnPage currentUser={currentUser} />} />
             <Route path="/reports"     element={<ReportsPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
             <Route path="/users"       element={<UsersPage showToast={showToast} />} />
+            <Route path="/azubi/:id"   element={<AzubiProfileWrapper />} />
             <Route path="/"  element={<Navigate to="/dashboard" replace />} />
             <Route path="*"  element={<Navigate to="/dashboard" replace />} />
           </Routes>
@@ -1088,7 +1169,8 @@ const App = () => {
         </AppLayout>
 
         {toast && <Toast msg={toast} />}
-        {showSearch && <GlobalSearch data={data} onClose={() => setShowSearch(false)} />}
+        {showSearch    && <GlobalSearch   data={data} onClose={() => setShowSearch(false)} />}
+        {showShortcuts && <ShortcutsHelp  onClose={() => setShowShortcuts(false)} />}
       </Router>
     </ErrorBoundary>
   );

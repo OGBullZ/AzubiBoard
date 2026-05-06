@@ -8,7 +8,7 @@ import {
   IcoBack, IcoEdit, IcoCheck,
   IcoFolder, IcoMaterial, IcoRequire, IcoDoc,
   IcoNetwork, IcoGantt, IcoLink, IcoSave,
-  IcoArchive, IcoPlus, IcoChat, IcoTrash
+  IcoArchive, IcoPlus, IcoChat, IcoTrash, IcoTrendUp
 } from '../../components/Icons.jsx';
 
 const LABEL_PRESETS = ['#0071e3','#3fb950','#f78166','#a371f7','#f0883e','#e3b341','#58a6ff','#ff7b72'];
@@ -137,12 +137,141 @@ function CommentsSection({ project, currentUser, onUpdate }) {
 const TABS = [
   { k: 'overview',     l: 'Übersicht',     Icon: IcoDoc      },
   { k: 'tasks',        l: 'Aufgaben',      Icon: IcoCheck    },
+  { k: 'burndown',     l: 'Burndown',      Icon: IcoTrendUp  },
   { k: 'materials',    l: 'Material',      Icon: IcoMaterial  },
   { k: 'requirements', l: 'Anforderungen', Icon: IcoRequire  },
   { k: 'steps',        l: 'Dokumentation', Icon: IcoDoc      },
   { k: 'netzplan',     l: 'Netzplan',      Icon: IcoNetwork  },
   { k: 'gantt',        l: 'Gantt',         Icon: IcoGantt    },
 ];
+
+// ── Burndown Chart (H2) ───────────────────────────────────────
+function BurndownTab({ project }) {
+  const tasks = project.tasks || [];
+  if (tasks.length === 0) return (
+    <div className="card anim" style={{ padding: 40, textAlign: 'center', color: C.mu }}>Noch keine Aufgaben für den Burndown-Chart.</div>
+  );
+
+  // Build daily snapshots: for each date from startDate to today,
+  // count tasks that were NOT done (= remaining work)
+  const start = project.startDate ? new Date(project.startDate) : (() => {
+    const dates = tasks.filter(t => t.created).map(t => new Date(t.created));
+    return dates.length ? new Date(Math.min(...dates)) : new Date();
+  })();
+  const end   = project.deadline ? new Date(project.deadline) : new Date();
+  const today = new Date();
+
+  const dayMs  = 86400000;
+  const numDays = Math.max(1, Math.min(120, Math.ceil((end - start) / dayMs) + 1));
+
+  // Ideal burndown line: from total tasks → 0 over the period
+  const totalTasks = tasks.length;
+
+  // Actual: estimate "remaining" at each day by checking task completion date (use updated_at as proxy)
+  // Since we don't have a strict completedAt field, we'll use the task's status and deadlines as proxy
+  const points = Array.from({ length: numDays }, (_, i) => {
+    const d = new Date(start.getTime() + i * dayMs);
+    const ds = d.toISOString().split('T')[0];
+    // remaining = tasks where deadline > d (or no deadline) AND status not done,
+    // OR status was done after d (if updated_at is available)
+    const remaining = tasks.filter(t => {
+      if (t.status !== 'done') return true;           // still open
+      // Check if it was done after this day
+      const doneDate = t.updated_at ? t.updated_at.split('T')[0] : null;
+      if (!doneDate) return false;
+      return doneDate > ds;                           // done after this point
+    }).length;
+    return { date: ds, remaining, ideal: Math.max(0, Math.round(totalTasks - (totalTasks * i / (numDays - 1 || 1)))) };
+  });
+
+  // Only show up to today
+  const visPoints = points.filter(p => p.date <= today.toISOString().split('T')[0]);
+
+  // SVG dimensions
+  const W = 600, H = 220, PAD = { l: 40, r: 20, t: 20, b: 40 };
+  const iW = W - PAD.l - PAD.r;
+  const iH = H - PAD.t - PAD.b;
+
+  const xFor = i => PAD.l + (i / Math.max(1, numDays - 1)) * iW;
+  const yFor = v => PAD.t + iH - (v / Math.max(1, totalTasks)) * iH;
+
+  const idealLine = points.map((p, i) => `${xFor(i)},${yFor(p.ideal)}`).join(' ');
+  const actualLine = visPoints.map((p, i) => `${xFor(i)},${yFor(p.remaining)}`).join(' ');
+
+  const donePct  = Math.round((totalTasks - (visPoints.at(-1)?.remaining ?? totalTasks)) / totalTasks * 100);
+  const doneCount = tasks.filter(t => t.status === 'done').length;
+
+  // Y-axis labels
+  const yLabels = [0, Math.round(totalTasks/4), Math.round(totalTasks/2), Math.round(3*totalTasks/4), totalTasks];
+
+  return (
+    <div style={{ padding: 4 }} className="anim">
+      <div className="card" style={{ marginBottom: 12, display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 2 }}>Aufgaben gesamt</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: C.br, fontFamily: C.mono }}>{totalTasks}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 2 }}>Abgeschlossen</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: C.gr, fontFamily: C.mono }}>{doneCount}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 2 }}>Fortschritt</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: donePct === 100 ? C.gr : C.ac, fontFamily: C.mono }}>{donePct}%</div>
+        </div>
+        <div style={{ flex: 1, display: 'flex', gap: 14, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.mu }}>
+            <div style={{ width: 24, height: 2, background: C.bd2, borderRadius: 1 }} /> Ideal
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.mu }}>
+            <div style={{ width: 24, height: 2, background: C.ac, borderRadius: 1 }} /> Tatsächlich
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ overflow: 'auto' }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block', minWidth: 320 }}>
+          {/* Grid */}
+          {yLabels.map(v => (
+            <g key={v}>
+              <line x1={PAD.l} x2={W - PAD.r} y1={yFor(v)} y2={yFor(v)} stroke={C.bd} strokeWidth={0.5} />
+              <text x={PAD.l - 5} y={yFor(v) + 4} fontSize={9} fill={C.mu} textAnchor="end">{v}</text>
+            </g>
+          ))}
+          {/* X-axis labels (start / mid / end) */}
+          {[0, Math.floor(numDays/2), numDays-1].map(i => (
+            <text key={i} x={xFor(i)} y={H - PAD.b + 14} fontSize={9} fill={C.mu} textAnchor="middle">
+              {points[i]?.date?.slice(5) || ''}
+            </text>
+          ))}
+          {/* Ideal line (dashed) */}
+          {points.length > 1 && (
+            <polyline points={idealLine} fill="none" stroke={C.bd2} strokeWidth={1.5} strokeDasharray="5,4" />
+          )}
+          {/* Actual line */}
+          {visPoints.length > 1 && (
+            <polyline points={actualLine} fill="none" stroke={C.ac} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+          )}
+          {/* Today marker */}
+          {visPoints.length > 0 && (
+            <line
+              x1={xFor(visPoints.length - 1)} x2={xFor(visPoints.length - 1)}
+              y1={PAD.t} y2={H - PAD.b}
+              stroke={C.yw} strokeWidth={1} strokeDasharray="3,3" />
+          )}
+          {/* Axes */}
+          <line x1={PAD.l} x2={PAD.l} y1={PAD.t} y2={H - PAD.b} stroke={C.bd2} strokeWidth={1} />
+          <line x1={PAD.l} x2={W - PAD.r} y1={H - PAD.b} y2={H - PAD.b} stroke={C.bd2} strokeWidth={1} />
+        </svg>
+        <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center', fontSize: 10, color: C.mu }}>
+          <span style={{ color: C.yw }}>│</span> Heute ·
+          <span style={{ color: C.bd2 }}>- -</span> Ideallinie ·
+          <span style={{ color: C.ac }}>──</span> Tatsächlicher Fortschritt
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatCard({ label, value, sub, color, Icon, onClick, hint }) {
   const [hov, setHov] = useState(false);
@@ -508,6 +637,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
         )}
 
         {tab === 'tasks'        && <TasksTab        project={project} users={users} currentUser={currentUser} onUpdate={onUpdate} onActivity={onActivity} />}
+        {tab === 'burndown'     && <BurndownTab     project={project} />}
         {tab === 'materials'    && <MaterialsTab    project={project} onUpdate={onUpdate} />}
         {tab === 'requirements' && <RequirementsTab project={project} onUpdate={onUpdate} />}
         {tab === 'steps'        && <StepsTab        project={project} onUpdate={onUpdate} />}

@@ -369,6 +369,45 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   );
 }
 
+function printJahresmappe(reports, year) {
+  const yearReports = reports
+    .filter(r => r.year === year || new Date(r.week_start).getFullYear() === year)
+    .sort((a, b) => new Date(a.week_start) - new Date(b.week_start));
+
+  const byUser = yearReports.reduce((acc, r) => {
+    if (!acc[r.user_id]) acc[r.user_id] = { name: r.user_name || 'Unbekannt', reports: [] };
+    acc[r.user_id].reports.push(r);
+    return acc;
+  }, {});
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Jahresmappe ${year}</title>
+  <style>body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;color:#111;font-size:13px}
+  h1{font-size:24px;text-align:center;border-bottom:3px solid #333;padding-bottom:10px}
+  h2{font-size:17px;margin-top:40px;border-bottom:2px solid #555;padding-bottom:6px}
+  h3{font-size:14px;margin:24px 0 6px;color:#555}pre{white-space:pre-wrap;margin:6px 0 10px}
+  .kw{font-weight:800;font-size:15px}.meta{font-size:11px;color:#666}.status{font-size:10px;padding:1px 8px;border-radius:4px;background:#e8f5e9;color:#2e7d32;font-weight:700}
+  .divider{border:none;border-top:1px dashed #ccc;margin:20px 0}@media print{.pagebreak{page-break-before:always}}</style>
+  </head><body>
+  <h1>📚 Ausbildungsnachweis-Mappe ${year}</h1>
+  ${Object.values(byUser).map(u => `
+    <h2>👤 ${u.name}</h2>
+    ${u.reports.map((r, i) => `
+      ${i > 0 ? '<hr class="divider">' : ''}
+      <div class="kw">KW ${r.week_number}/${r.year}</div>
+      <div class="meta">${new Date(r.week_start).toLocaleDateString('de-DE')} · <span class="status">${r.status}</span></div>
+      ${r.title ? `<h3>${r.title}</h3>` : ''}
+      <h3>Tätigkeiten</h3><pre>${r.activities || '–'}</pre>
+      <h3>Lerninhalt</h3><pre>${r.learnings || '–'}</pre>
+      ${r.reviewer_comment ? `<h3>Ausbilder-Kommentar</h3><pre>${r.reviewer_comment}</pre>` : ''}
+    `).join('')}
+  `).join('<div class="pagebreak"></div>')}
+  <p style="margin-top:50px;font-size:10px;color:#999;text-align:center">Erstellt mit AzubiBoard · ${new Date().toLocaleDateString('de-DE')}</p>
+  </body></html>`);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+}
+
 export default function ReportsPage({ currentUser, data, onUpdateData, showToast }) {
   const reports              = data.reports || [];
   const [view,    setView]   = useState('list');
@@ -427,12 +466,20 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             {currentUser.role === 'ausbilder' ? 'Alle eingereichten Berichte' : 'Deine wöchentlichen Ausbildungsberichte'}
           </p>
         </div>
-        {currentUser.role === 'azubi' && (
-          <button className="abtn" onClick={() => { setEditing(null); setView('edit'); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            <IcoPlus size={13} /> Neuer Bericht
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          {currentUser.role === 'ausbilder' && (
+            <button className="btn" onClick={() => printJahresmappe(reports, new Date().getFullYear())}
+              style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
+              📚 Jahresmappe {new Date().getFullYear()}
+            </button>
+          )}
+          {currentUser.role === 'azubi' && (
+            <button className="abtn" onClick={() => { setEditing(null); setView('edit'); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              <IcoPlus size={13} /> Neuer Bericht
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Suche */}

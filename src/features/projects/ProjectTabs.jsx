@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDroppable, useDraggable } from '@dnd-kit/core';
 import { C, uid, today, fmtDate } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import { LinksManager } from './LinksManager.jsx';
@@ -425,32 +426,78 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }) {
   );
 }
 
+// ── Kanban DnD ────────────────────────────────────────────────
+function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+  return (
+    <div ref={setNodeRef} {...listeners} {...attributes}
+      style={{ opacity: isDragging ? 0.3 : 1, cursor: 'grab', touchAction: 'none' }}>
+      <KanbanCard task={task} users={users} statusIdx={statusIdx} totalCols={totalCols} onUpdate={onUpdate} onRemove={onRemove} />
+    </div>
+  );
+}
+
+function DroppableColumn({ status, children }) {
+  const { isOver, setNodeRef } = useDroppable({ id: status });
+  const st = TASK_STATUS[status];
+  return (
+    <div ref={setNodeRef}
+      style={{ background: isOver ? `${st.color}12` : C.sf3, border: `1px solid ${isOver ? st.color + '55' : st.color + '18'}`, borderTop: 'none', borderRadius: '0 0 8px 8px', padding: 6, display: 'flex', flexDirection: 'column', gap: 5, minHeight: 160, transition: 'background .12s, border-color .12s' }}>
+      {children}
+    </div>
+  );
+}
+
 // ── Kanban Board ──────────────────────────────────────────────
 function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
+  const [activeId, setActiveId] = useState(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+  const activeIdx  = activeTask ? STATUS_ORDER.indexOf(activeTask.status || 'not_started') : 0;
+
+  const handleDragEnd = ({ active, over }) => {
+    if (over && over.id !== (active.data?.current?.status || 'not_started')) {
+      onUpdate(active.id, { status: over.id });
+    }
+    setActiveId(null);
+  };
+
   return (
-    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
-      {STATUS_ORDER.map((status, idx) => {
-        const st   = TASK_STATUS[status];
-        const cols = tasks.filter(t => (t.status || 'not_started') === status);
-        return (
-          <div key={status} style={{ minWidth: 200, flex: '0 0 200px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: st.bg, border: `1px solid ${st.color}28`, borderRadius: '8px 8px 0 0' }}>
-              <st.Icon size={11} style={{ color: st.color }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: st.color, flex: 1 }}>{st.label}</span>
-              <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `${st.color}18`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
+    <DndContext sensors={sensors}
+      onDragStart={({ active }) => setActiveId(active.id)}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}>
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
+        {STATUS_ORDER.map((status, idx) => {
+          const st   = TASK_STATUS[status];
+          const cols = tasks.filter(t => (t.status || 'not_started') === status);
+          return (
+            <div key={status} style={{ minWidth: 200, flex: '0 0 200px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: st.bg, border: `1px solid ${st.color}28`, borderRadius: '8px 8px 0 0' }}>
+                <st.Icon size={11} style={{ color: st.color }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: st.color, flex: 1 }}>{st.label}</span>
+                <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `${st.color}18`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
+              </div>
+              <DroppableColumn status={status}>
+                {cols.map(task => (
+                  <DraggableCard key={task.id} task={task} users={users} statusIdx={idx} totalCols={STATUS_ORDER.length} onUpdate={onUpdate} onRemove={onRemove} />
+                ))}
+                {cols.length === 0 && !activeId && (
+                  <div style={{ textAlign: 'center', fontSize: 10, color: C.mu, padding: '20px 0', opacity: .5 }}>Leer</div>
+                )}
+              </DroppableColumn>
             </div>
-            <div style={{ background: C.sf3, border: `1px solid ${st.color}18`, borderTop: 'none', borderRadius: '0 0 8px 8px', padding: 6, display: 'flex', flexDirection: 'column', gap: 5, minHeight: 160 }}>
-              {cols.map(task => (
-                <KanbanCard key={task.id} task={task} users={users} statusIdx={idx} totalCols={STATUS_ORDER.length} onUpdate={onUpdate} onRemove={onRemove} />
-              ))}
-              {cols.length === 0 && (
-                <div style={{ textAlign: 'center', fontSize: 10, color: C.mu, padding: '20px 0', opacity: .5 }}>Leer</div>
-              )}
-            </div>
+          );
+        })}
+      </div>
+      <DragOverlay>
+        {activeTask && (
+          <div style={{ cursor: 'grabbing', opacity: .95, boxShadow: '0 8px 24px rgba(0,0,0,.4)', borderRadius: 8 }}>
+            <KanbanCard task={activeTask} users={users} statusIdx={activeIdx} totalCols={STATUS_ORDER.length} onUpdate={() => {}} onRemove={() => {}} />
           </div>
-        );
-      })}
-    </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
