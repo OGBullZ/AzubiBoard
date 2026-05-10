@@ -154,6 +154,19 @@ export const dataService = {
     return saveQueue.status();
   },
 
+  // ── Polling-Endpoint: Liefert nur Version der serverseitigen Daten ─
+  //    Frontend ruft das alle 20-30s auf; bei neuer Version → getData().
+  async getDataVersion() {
+    if (!USE_API || !isTokenValid()) return null;
+    try {
+      const res = await apiFetch('/data/version');
+      if (!res.ok) return null;
+      return await res.json(); // { version, updated_at }
+    } catch {
+      return null;
+    }
+  },
+
   // ── Aktuellen Nutzer von Server laden (JWT-Session-Restore) ─
   async getMe() {
     if (!USE_API || !isTokenValid()) return null;

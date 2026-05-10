@@ -18,6 +18,18 @@ db()->exec("
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
+// ── GET /api/data/version ────────────────────────────────────
+// Billiger Endpoint nur für Polling: liefert "Version" der letzten
+// Änderung als Unix-Timestamp. Frontend pollt alle 20-30s und holt
+// /api/data nur bei Änderung. FastCGI-kompatibel (keine SSE-Probleme).
+if ($method === 'GET' && (($parts[1] ?? null) === 'version')) {
+    $row = db()->query('SELECT updated_at FROM app_data WHERE id = 1')->fetch();
+    respond([
+        'version'    => $row ? strtotime($row['updated_at']) : 0,
+        'updated_at' => $row['updated_at'] ?? null,
+    ]);
+}
+
 // ── GET /api/data ────────────────────────────────────────────
 if ($method === 'GET') {
     $row = db()->query('SELECT content FROM app_data WHERE id = 1')->fetch();

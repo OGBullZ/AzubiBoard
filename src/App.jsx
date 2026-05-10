@@ -31,6 +31,7 @@ import { Toast } from './components/UI.jsx';
 import SyncIndicator from './components/SyncIndicator.jsx';
 import BackupReminder from './components/BackupReminder.jsx';
 import { recordBackup } from './lib/backup.js';
+import { useDataSync } from './lib/useDataSync.js';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import {
   IcoDashboard, IcoFolder, IcoCalendar, IcoUsers,
@@ -1000,6 +1001,10 @@ const App = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const { toast, showToast, dismissToast } = useToast();
   const importRef = useRef(null);
+
+  // I12: Smart-Polling — wenn ein anderer Tab/User auf dem Server speichert,
+  //      holen wir die neue Version. Pausiert in Background-Tab + bei Save-Queue.
+  useDataSync(setData, currentUser, () => data);
 
   // ── 401-Handler: Token abgelaufen → sauber ausloggen ─────
   useEffect(() => {
