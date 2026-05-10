@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDroppable, useDraggable } from '@dnd-kit/core';
+import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, useDraggable } from '@dnd-kit/core';
 import { C, uid, today, fmtDate } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import { LinksManager } from './LinksManager.jsx';
@@ -451,12 +451,21 @@ function DroppableColumn({ status, children }) {
 // ── Kanban Board ──────────────────────────────────────────────
 function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
   const [activeId, setActiveId] = useState(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // PointerSensor: Maus/Stift (8 px Toleranz für Klick-vs-Drag).
+  // TouchSensor: 200 ms Press + 5 px Toleranz für mobile Geräte (verhindert Scroll-Konflikt).
+  // KeyboardSensor: Tab + Space + Pfeiltasten für a11y.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
   const activeIdx  = activeTask ? STATUS_ORDER.indexOf(activeTask.status || 'not_started') : 0;
 
   const handleDragEnd = ({ active, over }) => {
-    if (over && over.id !== (active.data?.current?.status || 'not_started')) {
+    if (!over) { setActiveId(null); return; }
+    const fromStatus = tasks.find(t => t.id === active.id)?.status || 'not_started';
+    if (over.id !== fromStatus) {
       onUpdate(active.id, { status: over.id });
     }
     setActiveId(null);

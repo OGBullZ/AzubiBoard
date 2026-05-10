@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { C, uid, today, fmtDate } from '../../lib/utils.js';
+import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate } from '../../lib/utils.js';
 import { Avatar, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
@@ -16,16 +16,11 @@ const STATUS_REPORT = {
 };
 
 function getMonday(d = new Date()) {
-  const dt = new Date(d);
-  const day = dt.getDay();
-  dt.setDate(dt.getDate() - day + (day === 0 ? -6 : 1));
-  return dt.toISOString().split('T')[0];
-}
-
-function getKW(dateStr) {
-  const d = new Date(dateStr);
-  const start = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
+  // ISO-Montag, lokal (DST-sicher)
+  const dt = d instanceof Date ? new Date(d) : new Date(d);
+  dt.setHours(0, 0, 0, 0);
+  dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+  return fmtLocalDate(dt);
 }
 
 const TEMPLATES = [
@@ -36,7 +31,9 @@ const TEMPLATES = [
 
 function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete }) {
   const st       = STATUS_REPORT[report.status] || STATUS_REPORT.draft;
-  const kw       = getKW(report.week_start);
+  const iso      = getISOWeek(report.week_start);
+  const kw       = iso.week;
+  const isoYear  = iso.year ?? new Date(report.week_start).getFullYear();
   const canSubmit = report.status === 'draft' && report.user_id === currentUser.id;
   const canSign   = ['submitted','reviewed'].includes(report.status) && currentUser.role === 'ausbilder';
   const canDelete = report.user_id === currentUser.id || currentUser.role === 'ausbilder';
@@ -51,7 +48,7 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete })
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 9, gap: 8 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>KW {kw} · {new Date(report.week_start).getFullYear()}</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>KW {kw} · {isoYear}</div>
           <div style={{ fontSize: 11, color: C.mu, marginTop: 2 }}>{fmtDate(report.week_start)} – {fmtDate(weekEnd)}</div>
           {currentUser.role === 'ausbilder' && report.user_name && (
             <div style={{ fontSize: 11, color: C.ac, marginTop: 3, fontWeight: 600 }}>{report.user_name}</div>
@@ -165,10 +162,25 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
 
   const printReport = () => {
     const w = window.open('', '_blank');
+    if (!w) { showToast('⚠ Popup blockiert – bitte Pop-ups erlauben'); return; }
+    const isoYear = getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear();
     w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berichtsheft KW ${kw} – ${currentUser.name}</title>
-    <style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;color:#111;font-size:14px;line-height:1.7}h1{font-size:22px;margin-bottom:4px}h2{font-size:15px;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #eee;padding-bottom:4px}p,pre{margin:0 0 14px;white-space:pre-wrap;word-break:break-word}.meta{color:#666;font-size:12px;margin-bottom:24px}.status{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;background:#e8f5e9;color:#2e7d32}hr{border:none;border-top:1px solid #ddd;margin:24px 0}@media print{body{margin:20px}}</style>
+    <style>
+      body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;color:#111;font-size:14px;line-height:1.7}
+      h1{font-size:22px;margin-bottom:4px}
+      h2{font-size:15px;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #eee;padding-bottom:4px}
+      p,pre{margin:0 0 14px;white-space:pre-wrap;word-break:break-word}
+      .meta{color:#666;font-size:12px;margin-bottom:24px}
+      .status{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;background:#e8f5e9;color:#2e7d32}
+      hr{border:none;border-top:1px solid #ddd;margin:24px 0}
+      @media print{
+        body{margin:20px}
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+      }
+    </style>
     </head><body>
-    <h1>Ausbildungsnachweis – KW ${kw} / ${new Date(form.week_start).getFullYear()}</h1>
+    <h1>Ausbildungsnachweis – KW ${kw} / ${isoYear}</h1>
     <div class="meta">
       <strong>${currentUser.name}</strong> · Woche vom ${new Date(form.week_start).toLocaleDateString('de-DE')} ·
       <span class="status">${STATUS_REPORT[form.status]?.l || form.status}</span>
@@ -181,7 +193,9 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     </body></html>`);
     w.document.close();
     w.focus();
-    setTimeout(() => w.print(), 400);
+    // onload statt fixem Timeout (verhindert Race-Condition mit großen Dokumenten)
+    if (w.document.readyState === 'complete') w.print();
+    else w.onload = () => w.print();
   };
 
   return (
@@ -369,10 +383,19 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   );
 }
 
-function printJahresmappe(reports, year) {
+function printJahresmappe(reports, year, showToast) {
   const yearReports = reports
-    .filter(r => r.year === year || new Date(r.week_start).getFullYear() === year)
+    .filter(r => {
+      const iso = getISOWeek(r.week_start);
+      const ry  = r.year ?? iso.year ?? new Date(r.week_start).getFullYear();
+      return ry === year;
+    })
     .sort((a, b) => new Date(a.week_start) - new Date(b.week_start));
+
+  if (!yearReports.length) {
+    showToast?.(`⚠ Keine Berichte für ${year} vorhanden`);
+    return;
+  }
 
   const byUser = yearReports.reduce((acc, r) => {
     if (!acc[r.user_id]) acc[r.user_id] = { name: r.user_name || 'Unbekannt', reports: [] };
@@ -381,31 +404,50 @@ function printJahresmappe(reports, year) {
   }, {});
 
   const w = window.open('', '_blank');
+  if (!w) { showToast?.('⚠ Popup blockiert – bitte Pop-ups erlauben'); return; }
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Jahresmappe ${year}</title>
-  <style>body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;color:#111;font-size:13px}
-  h1{font-size:24px;text-align:center;border-bottom:3px solid #333;padding-bottom:10px}
-  h2{font-size:17px;margin-top:40px;border-bottom:2px solid #555;padding-bottom:6px}
-  h3{font-size:14px;margin:24px 0 6px;color:#555}pre{white-space:pre-wrap;margin:6px 0 10px}
-  .kw{font-weight:800;font-size:15px}.meta{font-size:11px;color:#666}.status{font-size:10px;padding:1px 8px;border-radius:4px;background:#e8f5e9;color:#2e7d32;font-weight:700}
-  .divider{border:none;border-top:1px dashed #ccc;margin:20px 0}@media print{.pagebreak{page-break-before:always}}</style>
+  <style>
+    body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;color:#111;font-size:13px}
+    h1{font-size:24px;text-align:center;border-bottom:3px solid #333;padding-bottom:10px}
+    h2{font-size:17px;margin-top:40px;border-bottom:2px solid #555;padding-bottom:6px}
+    h3{font-size:14px;margin:24px 0 6px;color:#555}
+    pre{white-space:pre-wrap;margin:6px 0 10px;word-break:break-word}
+    .kw{font-weight:800;font-size:15px}
+    .meta{font-size:11px;color:#666}
+    .status{font-size:10px;padding:1px 8px;border-radius:4px;background:#e8f5e9;color:#2e7d32;font-weight:700}
+    .divider{border:none;border-top:1px dashed #ccc;margin:20px 0}
+    @media print{
+      .pagebreak{page-break-before:always}
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+      h2{page-break-after:avoid}
+      h3{page-break-after:avoid}
+      pre{page-break-inside:avoid}
+    }
+  </style>
   </head><body>
-  <h1>📚 Ausbildungsnachweis-Mappe ${year}</h1>
+  <h1>Ausbildungsnachweis-Mappe ${year}</h1>
   ${Object.values(byUser).map(u => `
-    <h2>👤 ${u.name}</h2>
-    ${u.reports.map((r, i) => `
+    <h2>${u.name}</h2>
+    ${u.reports.map((r, i) => {
+      const iso = getISOWeek(r.week_start);
+      const kw  = r.week_number ?? iso.week ?? '';
+      const yr  = r.year ?? iso.year ?? year;
+      return `
       ${i > 0 ? '<hr class="divider">' : ''}
-      <div class="kw">KW ${r.week_number}/${r.year}</div>
+      <div class="kw">KW ${kw}/${yr}</div>
       <div class="meta">${new Date(r.week_start).toLocaleDateString('de-DE')} · <span class="status">${r.status}</span></div>
       ${r.title ? `<h3>${r.title}</h3>` : ''}
       <h3>Tätigkeiten</h3><pre>${r.activities || '–'}</pre>
       <h3>Lerninhalt</h3><pre>${r.learnings || '–'}</pre>
       ${r.reviewer_comment ? `<h3>Ausbilder-Kommentar</h3><pre>${r.reviewer_comment}</pre>` : ''}
-    `).join('')}
+    `;}).join('')}
   `).join('<div class="pagebreak"></div>')}
   <p style="margin-top:50px;font-size:10px;color:#999;text-align:center">Erstellt mit AzubiBoard · ${new Date().toLocaleDateString('de-DE')}</p>
   </body></html>`);
   w.document.close();
-  setTimeout(() => w.print(), 500);
+  if (w.document.readyState === 'complete') w.print();
+  else w.onload = () => w.print();
 }
 
 export default function ReportsPage({ currentUser, data, onUpdateData, showToast }) {
@@ -430,7 +472,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
   const saveReport = (rep) => {
     const existing = reports.find(r => r.id === rep.id);
-    onUpdateData({ reports: existing ? reports.map(r => r.id === rep.id ? rep : r) : [...reports, rep] });
+    onUpdateData({ ...data, reports: existing ? reports.map(r => r.id === rep.id ? rep : r) : [...reports, rep] });
   };
 
   const deleteReport = (id) => {
@@ -439,12 +481,12 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   };
 
   const submitReport = (id) => {
-    onUpdateData({ reports: reports.map(r => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) });
+    onUpdateData({ ...data, reports: reports.map(r => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) });
     showToast('✓ Berichtsheft eingereicht');
   };
 
   const signReport = (id) => {
-    onUpdateData({ reports: reports.map(r => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) });
+    onUpdateData({ ...data, reports: reports.map(r => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) });
     showToast('✓ Berichtsheft bestätigt');
   };
 
@@ -468,7 +510,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {currentUser.role === 'ausbilder' && (
-            <button className="btn" onClick={() => printJahresmappe(reports, new Date().getFullYear())}
+            <button className="btn" onClick={() => printJahresmappe(reports, new Date().getFullYear(), showToast)}
               style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
               📚 Jahresmappe {new Date().getFullYear()}
             </button>
@@ -532,7 +574,12 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
       {confirmDel && (
         <ConfirmDialog
           message="Berichtsheft wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
-          onConfirm={() => { onUpdateData({ reports: reports.filter(r => r.id !== confirmDel) }); showToast('Berichtsheft gelöscht'); setConfirmDel(null); }}
+          onConfirm={() => {
+            const snapshot = data;
+            onUpdateData({ ...data, reports: reports.filter(r => r.id !== confirmDel) });
+            showToast('🗑 Berichtsheft gelöscht', { undo: () => onUpdateData(snapshot) });
+            setConfirmDel(null);
+          }}
           onCancel={() => setConfirmDel(null)}
         />
       )}

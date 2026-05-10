@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { C, fmtDate } from '../../lib/utils.js';
+import { C, fmtDate, getKW, fmtLocalDate } from '../../lib/utils.js';
 import { Avatar, ProgressBar } from '../../components/UI.jsx';
 import { IcoBack, IcoCheck, IcoClock, IcoAlert, IcoFolder, IcoReport, IcoTrendUp } from '../../components/Icons.jsx';
 
@@ -55,10 +55,28 @@ function StatBox({ label, value, color, sub }) {
 
 // ── Main ──────────────────────────────────────────────────────
 export default function AzubiProfilePage({ azubi, data, currentUser, onBack }) {
+  // Hooks IMMER vor Early-Return aufrufen (Rules of Hooks).
+  const projects  = useMemo(() => (data?.projects || []).filter(p => !p.archived && (p.assignees || []).includes(azubi?.id)), [data?.projects, azubi?.id]);
+  const allTasks  = useMemo(() => projects.flatMap(p => (p.tasks || []).filter(t => t.assignee === azubi?.id)), [projects, azubi?.id]);
+
+  // Last 8 weeks of hours (DST-sicher via lokalen Daten + ISO-Wochenmontag)
+  const weeksData = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 8 }, (_, i) => {
+      const d = new Date(now);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - (7 - i) * 7);
+      const mon = new Date(d); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+      const fri = new Date(mon); fri.setDate(fri.getDate() + 6);
+      const ms = fmtLocalDate(mon);
+      const me = fmtLocalDate(fri);
+      const h  = allTasks.flatMap(t => (t.timeLog || []).filter(e => e.date >= ms && e.date <= me)).reduce((s, e) => s + (Number(e.hours) || 0), 0);
+      return { label: `KW${getKW(ms)}`, h };
+    });
+  }, [allTasks]);
+
   if (!azubi) return <div className="card" style={{ margin: 24 }}>Azubi nicht gefunden.</div>;
 
-  const projects  = (data?.projects || []).filter(p => !p.archived && (p.assignees || []).includes(azubi.id));
-  const allTasks  = projects.flatMap(p => (p.tasks || []).filter(t => t.assignee === azubi.id));
   const reports   = (data?.reports || []).filter(r => r.user_id === azubi.id).sort((a, b) => new Date(b.week_start) - new Date(a.week_start));
   const plan      = data?.trainingPlan || { goals: [] };
   const goals     = plan.goals || [];
@@ -73,21 +91,6 @@ export default function AzubiProfilePage({ azubi, data, currentUser, onBack }) {
 
   // Total hours logged
   const totalHours = allTasks.flatMap(t => t.timeLog || []).reduce((s, e) => s + (Number(e.hours) || 0), 0);
-
-  // Last 8 weeks of hours
-  const weeksData = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 8 }, (_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (7 - i) * 7);
-      const mon = new Date(d); mon.setDate(mon.getDate() - mon.getDay() + (mon.getDay() === 0 ? -6 : 1));
-      const fri = new Date(mon); fri.setDate(fri.getDate() + 6);
-      const ms = mon.toISOString().split('T')[0];
-      const me = fri.toISOString().split('T')[0];
-      const h  = allTasks.flatMap(t => (t.timeLog || []).filter(e => e.date >= ms && e.date <= me)).reduce((s, e) => s + (Number(e.hours) || 0), 0);
-      return { label: `KW${getKW(ms)}`, h };
-    });
-  }, [allTasks]);
 
   const hue = (azubi.name?.charCodeAt(0) || 100) * 37 % 360;
 
@@ -225,8 +228,3 @@ export default function AzubiProfilePage({ azubi, data, currentUser, onBack }) {
   );
 }
 
-function getKW(dateStr) {
-  const d = new Date(dateStr);
-  const start = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
-}

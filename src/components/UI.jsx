@@ -3,11 +3,34 @@ import { C, ST } from '../lib/utils.js';
 import { IcoMoon, IcoSun } from './Icons.jsx';
 
 // ── Toast ─────────────────────────────────────────────────────
-export function Toast({ msg }) {
+// payload kann String oder { msg, undo, duration } sein
+export function Toast({ payload, onDismiss }) {
+  const isObj = payload && typeof payload === 'object';
+  const msg   = isObj ? payload.msg  : payload;
+  const undo  = isObj ? payload.undo : null;
   return (
     <div role="status" aria-live="polite"
-      style={{ position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 9, padding: '9px 18px', fontSize: 13, color: C.br, zIndex: 9999, fontWeight: 600, boxShadow: 'var(--shadow-lg)', animation: 'toastIn .2s ease', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}>
-      {msg}
+      style={{
+        position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)',
+        background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 9,
+        padding: '9px 14px 9px 18px', fontSize: 13, color: 'var(--c-br)', zIndex: 9999,
+        fontWeight: 600, boxShadow: 'var(--shadow-lg)', animation: 'toastIn .2s ease',
+        whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 12, maxWidth: '90vw'
+      }}>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg}</span>
+      {undo && (
+        <button
+          onClick={() => { undo(); onDismiss?.(); }}
+          aria-label="Aktion rückgängig machen"
+          style={{
+            background: 'transparent', border: '1px solid var(--c-ac)', color: 'var(--c-ac)',
+            borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700,
+            cursor: 'pointer', textTransform: 'uppercase', letterSpacing: .6,
+            flexShrink: 0
+          }}>
+          ↶ Rückgängig
+        </button>
+      )}
     </div>
   );
 }

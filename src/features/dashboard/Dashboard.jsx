@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { C, fmtDate } from '../../lib/utils.js';
+import { C, fmtDate, fmtLocalDate } from '../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoCheck, IcoClock, IcoPlay, IcoChevron, IcoChevronD,
@@ -816,15 +816,32 @@ function MonthReportModal({ projects, users, reports, onClose }) {
     return { azubi: a, hours, done, reports: myReports };
   });
 
+  const [printing, setPrinting] = useState(false);
   const printReport = () => {
     const w = window.open('', '_blank');
+    if (!w) { alert('Popup blockiert – bitte Pop-ups erlauben'); return; }
+    setPrinting(true);
+    const totalHours = rows.reduce((s, r) => s + r.hours, 0);
+    const totalDone  = rows.reduce((s, r) => s + r.done,  0);
+    const totalReps  = rows.reduce((s, r) => s + r.reports.length, 0);
     w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Monatsreport ${monthName}</title>
-    <style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;color:#111;font-size:13px}
-    h1{font-size:20px}h2{font-size:14px;border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:20px}
-    table{width:100%;border-collapse:collapse}th,td{padding:8px 12px;border-bottom:1px solid #eee;text-align:left}
-    th{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#666}</style>
+    <style>
+      body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;color:#111;font-size:13px}
+      h1{font-size:20px}
+      h2{font-size:14px;border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:20px}
+      table{width:100%;border-collapse:collapse}
+      th,td{padding:8px 12px;border-bottom:1px solid #eee;text-align:left}
+      th{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#666}
+      tfoot td{font-weight:700;border-top:2px solid #333;background:#fafafa}
+      @media print{
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+        thead{display:table-header-group}
+        tr{page-break-inside:avoid}
+      }
+    </style>
     </head><body>
-    <h1>📊 Monatsreport – ${monthName}</h1>
+    <h1>Monatsreport – ${monthName}</h1>
     <table><thead><tr><th>Azubi</th><th>Stunden</th><th>Aufgaben ✓</th><th>Berichte</th><th>Status</th></tr></thead>
     <tbody>${rows.map(r => `<tr>
       <td>${r.azubi.name}</td>
@@ -832,11 +849,15 @@ function MonthReportModal({ projects, users, reports, onClose }) {
       <td>${r.done}</td>
       <td>${r.reports.length}</td>
       <td>${r.reports.map(rep => rep.status).join(', ') || '–'}</td>
-    </tr>`).join('')}</tbody></table>
+    </tr>`).join('')}</tbody>
+    <tfoot><tr><td>Gesamt</td><td>${totalHours.toFixed(1)}h</td><td>${totalDone}</td><td>${totalReps}</td><td>–</td></tr></tfoot>
+    </table>
     <p style="font-size:10px;color:#999;margin-top:30px">Erstellt mit AzubiBoard · ${new Date().toLocaleDateString('de-DE')}</p>
     </body></html>`);
     w.document.close();
-    setTimeout(() => w.print(), 400);
+    const fire = () => { try { w.print(); } finally { setPrinting(false); } };
+    if (w.document.readyState === 'complete') fire();
+    else w.onload = fire;
   };
 
   return (
@@ -854,7 +875,10 @@ function MonthReportModal({ projects, users, reports, onClose }) {
             style={{ padding: '4px 8px', fontSize: 12, borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.br }}>
             {[now.getFullYear()-1, now.getFullYear(), now.getFullYear()+1].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button onClick={printReport} style={{ padding: '5px 10px', fontSize: 11, borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu, cursor: 'pointer' }}>🖨 PDF</button>
+          <button onClick={printReport} disabled={printing || rows.length === 0} aria-label="Monatsreport drucken"
+            style={{ padding: '5px 10px', fontSize: 11, borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf2, color: printing ? C.mu : C.br, cursor: printing ? 'wait' : 'pointer', opacity: (printing || rows.length === 0) ? .5 : 1 }}>
+            {printing ? '⏳ ...' : '🖨 PDF'}
+          </button>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.mu, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
         </div>
         {/* Table */}
@@ -953,15 +977,15 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               const totalTasks = myProjects.flatMap(p => (p.tasks||[])).length;
               const pct        = totalTasks > 0 ? Math.round(doneTotal / totalTasks * 100) : 0;
 
-              // Bericht dieser Woche
-              const weekMon    = (() => { const d = new Date(now); d.setDate(d.getDate() - ((d.getDay()+6)%7)); d.setHours(0,0,0,0); return d.toISOString().split('T')[0]; })();
+              // Bericht dieser Woche (ISO-Wochenmontag, lokal — DST-sicher)
+              const weekMon    = (() => { const d = new Date(now); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return fmtLocalDate(d); })();
               const myReports  = reports.filter(r => r.user_id === a.id).sort((x,y) => y.week_start.localeCompare(x.week_start));
               const lastReport = myReports[0] || null;
               const hasThisWeek = myReports.some(r => r.week_start >= weekMon);
               const REPORT_ST  = { draft: { l: 'Entwurf', c: C.mu }, submitted: { l: 'Eingereicht', c: C.ac }, reviewed: { l: 'Geprüft', c: C.yw }, signed: { l: 'Fertig', c: C.gr } };
 
               // Stunden diese Woche
-              const weekEnd    = (() => { const d = new Date(weekMon); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; })();
+              const weekEnd    = (() => { const d = new Date(weekMon + 'T12:00:00'); d.setDate(d.getDate()+6); return fmtLocalDate(d); })();
               const weekHours  = active.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id))
                 .flatMap(t => (t.timeLog||[]).filter(e => e.date >= weekMon && e.date <= weekEnd))
                 .reduce((s, e) => s + (Number(e.hours)||0), 0);

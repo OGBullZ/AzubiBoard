@@ -47,14 +47,25 @@ function applyUserTheme(theme) {
 
 // ── Global Toast Hook ─────────────────────────────────────────
 function useToast() {
+  // toast = null | string | { msg, undo, duration }
   const [toast, setToast] = useState(null);
   const timer = useRef(null);
-  const showToast = useCallback((msg) => {
+  const showToast = useCallback((msg, opts) => {
     clearTimeout(timer.current);
-    setToast(msg);
-    timer.current = setTimeout(() => setToast(null), 2800);
+    if (opts && typeof opts === 'object') {
+      const duration = opts.duration ?? (opts.undo ? 6000 : 2800);
+      setToast({ msg, undo: opts.undo || null, duration });
+      timer.current = setTimeout(() => setToast(null), duration);
+    } else {
+      setToast(msg);
+      timer.current = setTimeout(() => setToast(null), 2800);
+    }
   }, []);
-  return { toast, showToast };
+  const dismissToast = useCallback(() => {
+    clearTimeout(timer.current);
+    setToast(null);
+  }, []);
+  return { toast, showToast, dismissToast };
 }
 
 // ── Mobile Breakpoint ─────────────────────────────────────────
@@ -175,6 +186,18 @@ function useNotifications(data, currentUser) {
   }, [data, currentUser]);
 
   const unreadCount = useMemo(() => notifications.filter(n => !readIds.has(n.id)).length, [notifications, readIds]);
+
+  // Garbage-Collect: readIds die nicht mehr in aktuellen Notifications vorkommen entfernen.
+  // Verhindert unbegrenztes Wachstum von localStorage über Wochen/Monate.
+  useEffect(() => {
+    if (!notifications.length || !readIds.size) return;
+    const liveIds = new Set(notifications.map(n => n.id));
+    const next = new Set([...readIds].filter(id => liveIds.has(id)));
+    if (next.size !== readIds.size) {
+      setReadIds(next);
+      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch {}
+    }
+  }, [notifications, readIds, storageKey]);
 
   const markRead = useCallback((id) => {
     setReadIds(prev => {
@@ -883,8 +906,16 @@ function ProjectsPage({ onNewProject, showToast }) {
   return (
     <ProjectPool projects={data?.projects||[]} users={data?.users||[]} groups={data?.groups||[]} currentUser={currentUser}
       onOpen={id => navigate(`/project/${id}`)} onNew={onNewProject}
-      onDelete={id => { setData({ ...data, projects: (data?.projects||[]).filter(p => p.id !== id) }); showToast('Projekt gelöscht'); }}
-      onArchive={id => { setData({ ...data, projects: (data?.projects||[]).map(p => p.id === id ? { ...p, archived: true } : p) }); showToast('Projekt archiviert'); }}
+      onDelete={id => {
+        const snapshot = data;
+        setData({ ...data, projects: (data?.projects||[]).filter(p => p.id !== id) });
+        showToast('🗑 Projekt gelöscht', { undo: () => setData(snapshot) });
+      }}
+      onArchive={id => {
+        const snapshot = data;
+        setData({ ...data, projects: (data?.projects||[]).map(p => p.id === id ? { ...p, archived: true } : p) });
+        showToast('📦 Projekt archiviert', { undo: () => setData(snapshot) });
+      }}
       onUnarchive={id => { setData({ ...data, projects: (data?.projects||[]).map(p => p.id === id ? { ...p, archived: false } : p) }); showToast('Projekt wiederhergestellt'); }}
       onDuplicate={duplicate}
     />
@@ -963,7 +994,7 @@ const App = () => {
   const [showModal,    setShowModal]    = useState(false);
   const [showSearch,   setShowSearch]   = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const { toast, showToast } = useToast();
+  const { toast, showToast, dismissToast } = useToast();
   const importRef = useRef(null);
 
   // ── 401-Handler: Token abgelaufen → sauber ausloggen ─────
@@ -1148,7 +1179,7 @@ const App = () => {
             <Route path="/profile"     element={<ProfilePage showToast={showToast} />} />
             <Route path="/calendar"    element={<CalendarPage showToast={showToast} />} />
             <Route path="/groups"      element={<GroupsPage showToast={showToast} />} />
-            <Route path="/training"    element={<TrainingPlanPage currentUser={currentUser} data={data} onUpdateData={setData} />} />
+            <Route path="/training"    element={<TrainingPlanPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
             <Route path="/learn"       element={<LearnPage currentUser={currentUser} />} />
             <Route path="/reports"     element={<ReportsPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
             <Route path="/users"       element={<UsersPage showToast={showToast} />} />
@@ -1168,7 +1199,7 @@ const App = () => {
           )}
         </AppLayout>
 
-        {toast && <Toast msg={toast} />}
+        {toast && <Toast payload={toast} onDismiss={dismissToast} />}
         {showSearch    && <GlobalSearch   data={data} onClose={() => setShowSearch(false)} />}
         {showShortcuts && <ShortcutsHelp  onClose={() => setShowShortcuts(false)} />}
       </Router>

@@ -244,11 +244,12 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
 }
 
 // ── Main Page ─────────────────────────────────────────────────
-export default function TrainingPlanPage({ currentUser, data, onUpdateData }) {
+export default function TrainingPlanPage({ currentUser, data, onUpdateData, showToast }) {
   const plan       = data?.trainingPlan || { goals: [], examDate: null };
   const goals      = plan.goals || [];
   const azubis     = (data?.users || []).filter(u => u.role === 'azubi');
   const isAusbilder = currentUser.role === 'ausbilder';
+  const toast       = showToast || (() => {});
 
   const [showAdd,   setShowAdd]   = useState(false);
   const [editGoal,  setEditGoal]  = useState(null);
@@ -262,6 +263,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData }) {
   const addGoal = (goal) => {
     savePlan({ goals: [...goals, goal] });
     setShowAdd(false);
+    toast('✓ Lernziel hinzugefügt');
   };
 
   const updateGoal = (updated) => {
@@ -270,7 +272,10 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData }) {
   };
 
   const deleteGoal = (id) => {
+    const snapshot = data;
+    const goal     = goals.find(g => g.id === id);
     savePlan({ goals: goals.filter(g => g.id !== id) });
+    toast(`🗑 Lernziel „${goal?.title || 'gelöscht'}"`, { undo: () => onUpdateData(snapshot) });
   };
 
   // Filter & group

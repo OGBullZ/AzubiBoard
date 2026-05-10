@@ -86,6 +86,48 @@ export const getDeadlineDaysLeft = (deadline) => {
   return diff;
 };
 
+// ── ISO-8601 Kalenderwoche ───────────────────────────────────
+// Korrekt für Jahresgrenzen: 29.12.2025 → KW1/2026, 01.01.2024 → KW1/2024
+// Akzeptiert ISO-Datumsstring ('YYYY-MM-DD') oder Date-Objekt.
+export function getISOWeek(input) {
+  if (!input) return { year: null, week: null };
+  const d = input instanceof Date ? new Date(input) : new Date(input + 'T12:00:00');
+  if (isNaN(d.getTime())) return { year: null, week: null };
+  // Donnerstag der gleichen Woche bestimmt das Jahr (ISO 8601)
+  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNr = (target.getUTCDay() + 6) % 7;          // Mo=0 … So=6
+  target.setUTCDate(target.getUTCDate() - dayNr + 3);  // Donnerstag dieser Woche
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  const firstDayNr = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNr + 3);
+  const week = 1 + Math.round((target - firstThursday) / (7 * 86400000));
+  return { year: target.getUTCFullYear(), week };
+}
+
+// Kompakte Variante – gibt nur Wochennummer zurück
+export const getKW = (input) => getISOWeek(input).week;
+
+// Montag der ISO-Woche zu einem Datum (lokale Zeit, 00:00:00)
+export function getISOWeekMonday(input) {
+  const d = input instanceof Date ? new Date(input) : new Date(input + 'T12:00:00');
+  if (isNaN(d.getTime())) return null;
+  const dayNr = (d.getDay() + 6) % 7;
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - dayNr);
+  return d;
+}
+
+// Lokales Datum als YYYY-MM-DD ohne UTC-Shift
+export function fmtLocalDate(d) {
+  if (!d) return '';
+  const date = d instanceof Date ? d : new Date(d);
+  if (isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // ── Netzplan: Zyklus-Erkennung ───────────────────────────────
 export function detectCycle(edges, from, to) {
   const adj = {};
