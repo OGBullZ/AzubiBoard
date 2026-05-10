@@ -1,0 +1,61 @@
+{
+  "common": {
+    "save":         "Speichern",
+    "cancel":       "Abbrechen",
+    "delete":       "Löschen",
+    "edit":         "Bearbeiten",
+    "back":         "Zurück",
+    "loading":      "Lädt …",
+    "all":          "Alle",
+    "none":         "Keine",
+    "yes":          "Ja",
+    "no":           "Nein",
+    "confirm":      "Bestätigen",
+    "close":        "Schließen",
+    "search":       "Suchen",
+    "filter":       "Filter",
+    "category":     "Kategorie",
+    "status":       "Status",
+    "deadline":     "Frist",
+    "today":        "Heute",
+    "tomorrow":     "Morgen",
+    "yesterday":    "Gestern",
+    "undo":         "Rückgängig"
+  },
+  "nav": {
+    "dashboard":   "Dashboard",
+    "projects":    "Projekte",
+    "calendar":    "Kalender",
+    "groups":      "Gruppen",
+    "training":    "Ausbildungsplan",
+    "learn":       "Lernportal",
+    "reports":     "Berichte",
+    "users":       "Nutzer",
+    "profile":     "Profil",
+    "logout":      "Abmelden"
+  },
+  "auth": {
+    "login":            "Anmelden",
+    "register":         "Registrieren",
+    "email":            "E-Mail",
+    "password":         "Passwort",
+    "passwordHint":     "Mindestens 8 Zeichen",
+    "name":             "Name",
+    "wrongCredentials": "E-Mail oder Passwort falsch",
+    "alreadyRegistered":"Diese E-Mail ist bereits registriert"
+  },
+  "sync": {
+    "syncing":  "Synchronisiere …",
+    "saved":    "Gespeichert",
+    "error":    "Verbindungsfehler – wird wiederholt",
+    "fatal":    "Nicht eingeloggt – Änderungen nur lokal",
+    "offline":  "Offline – Änderungen werden gequeued"
+  },
+  "backup": {
+    "neverDone":   "Du hast noch nie ein Backup deiner Daten erstellt.",
+    "lastBackup":  "Dein letztes Backup ist {{when}}.",
+    "recommend":   "Empfohlen: alle 7 Tage einen Daten-Export.",
+    "doBackup":    "Jetzt sichern",
+    "snooze":      "Für 24 Stunden ausblenden"
+  }
+}

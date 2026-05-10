@@ -134,3 +134,74 @@ function require_role(string ...$roles): array {
     if (!in_array($u['role'], $roles)) error('Keine Berechtigung', 403);
     return $u;
 }
+
+// ── Rate-Limiting ────────────────────────────────────────────
+//  Datei-basiertes Sliding-Window pro IP+Route. Auf Shared-Hosting
+//  ohne Redis ausreichend. Schreibt in sys_get_temp_dir()/azubiboard_rl/.
+//
+//  Usage: rate_limit('login', 5, 900);  // 5 Versuche pro 15 min pro IP
+function client_ip(): string {
+    // Vertrauen nur in REMOTE_ADDR (X-Forwarded-For ist trivial fälschbar).
+    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+function rate_limit(string $bucket, int $max, int $windowSec): void {
+    $dir = sys_get_temp_dir() . '/azubiboard_rl';
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+
+    $key  = $bucket . '_' . hash('sha256', client_ip());
+    $file = $dir . '/' . $key;
+    $now  = time();
+    $cutoff = $now - $windowSec;
+
+    // File-Lock gegen Race-Conditions.
+    $fp = @fopen($file, 'c+');
+    if (!$fp) return; // failsafe: lieber durchlassen als crashen
+    flock($fp, LOCK_EX);
+
+    $hits = [];
+    $contents = stream_get_contents($fp);
+    if ($contents) {
+        $decoded = json_decode($contents, true);
+        if (is_array($decoded)) $hits = array_filter($decoded, fn($t) => is_int($t) && $t >= $cutoff);
+    }
+
+    if (count($hits) >= $max) {
+        flock($fp, LOCK_UN); fclose($fp);
+        // Retry-After in Sekunden: bis ältester Treffer aus Fenster fällt
+        $oldest = min($hits);
+        header('Retry-After: ' . max(1, ($oldest + $windowSec) - $now));
+        error('Zu viele Anfragen – bitte später erneut versuchen', 429);
+    }
+
+    $hits[] = $now;
+    ftruncate($fp, 0);
+    rewind($fp);
+    fwrite($fp, json_encode(array_values($hits)));
+    flock($fp, LOCK_UN);
+    fclose($fp);
+
+    // Gelegentliches GC: alte Bucket-Files entfernen
+    if (mt_rand(1, 200) === 1) {
+        foreach (glob($dir . '/*') as $f) {
+            if (@filemtime($f) < $now - 86400) @unlink($f);
+        }
+    }
+}
+
+// ── Input-Validierung (length + type) ────────────────────────
+function clean_str(mixed $v, int $max = 200, bool $required = true, string $field = 'Feld'): ?string {
+    if ($v === null || $v === '') {
+        if ($required) error("$field erforderlich", 400);
+        return null;
+    }
+    if (!is_string($v)) error("$field muss Text sein", 400);
+    $v = trim($v);
+    if (mb_strlen($v) > $max) error("$field zu lang (max. $max Zeichen)", 400);
+    return $v;
+}
+function clean_int(mixed $v, int $min, int $max, string $field = 'Wert'): int {
+    if (!is_numeric($v)) error("$field muss eine Zahl sein", 400);
+    $n = (int)$v;
+    if ($n < $min || $n > $max) error("$field außerhalb des erlaubten Bereichs ($min–$max)", 400);
+    return $n;
+}

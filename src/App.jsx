@@ -29,6 +29,8 @@ import TrainingPlanPage from './features/training/TrainingPlanPage';
 import AzubiProfilePage from './features/users/AzubiProfilePage';
 import { Toast } from './components/UI.jsx';
 import SyncIndicator from './components/SyncIndicator.jsx';
+import BackupReminder from './components/BackupReminder.jsx';
+import { recordBackup } from './lib/backup.js';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import {
   IcoDashboard, IcoFolder, IcoCalendar, IcoUsers,
@@ -676,7 +678,7 @@ function ProfilePage({ showToast }) {
   };
 
   const savePassword = async () => {
-    if (!oldPw || newPw.length < 4) return;
+    if (!oldPw || newPw.length < 8) return;
     setSaving(true);
     try {
       if (USE_API) {
@@ -820,12 +822,12 @@ function ProfilePage({ showToast }) {
                 style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Neues Passwort (min. 4 Zeichen)</label>
+              <label style={labelStyle}>Neues Passwort (min. 8 Zeichen)</label>
               <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} disabled={!USE_API}
                 style={inputStyle} />
             </div>
             <button className="abtn" onClick={savePassword}
-              disabled={saving || !USE_API || !oldPw || newPw.length < 4}
+              disabled={saving || !USE_API || !oldPw || newPw.length < 8}
               style={{ width: '100%', padding: 11, fontSize: 13 }}>
               {saving ? 'Ändern…' : 'Passwort ändern'}
             </button>
@@ -924,7 +926,7 @@ function ProjectsPage({ onNewProject, showToast }) {
 }
 
 // ── AppLayout ─────────────────────────────────────────────────
-function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, children }) {
+function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, onBackup, children }) {
   const [collapsed,   setCollapsed]   = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
   const [drawerOpen,  setDrawerOpen]  = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -983,6 +985,7 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
             </button>
           </div>
         )}
+        {onBackup && <BackupReminder onBackup={onBackup} />}
         {children}
       </div>
     </div>
@@ -1117,6 +1120,7 @@ const App = () => {
     a.download = `azubiboard_backup_${today()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    recordBackup();                 // I8: Reminder-Tracker auffrischen
     showToast('✓ Daten exportiert');
   }, [data, showToast]);
 
@@ -1172,7 +1176,7 @@ const App = () => {
   return (
     <ErrorBoundary>
       <Router>
-        <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)}>
+        <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport}>
           <Routes>
             <Route path="/dashboard"   element={<DashboardPage onNewProject={handleNewProject} showToast={showToast} />} />
             <Route path="/projects"    element={<ProjectsPage  onNewProject={handleNewProject} showToast={showToast} />} />

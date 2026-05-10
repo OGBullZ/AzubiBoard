@@ -3,8 +3,10 @@
 //  Lauscht auf 'azubiboard:sync' Events von dataService
 // ============================================================
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function SyncIndicator() {
+  const { t } = useTranslation();
   // null = idle (nicht zeigen); sonst aktueller Status
   const [state, setState] = useState(null);
   const [hideAt, setHideAt] = useState(0);
@@ -39,11 +41,11 @@ export default function SyncIndicator() {
   if (state.kind === 'success' && hideAt && Date.now() >= hideAt) return null;
 
   const cfg = {
-    syncing: { icon: '⟳', label: 'Synchronisiere …', color: 'var(--c-mu)',  spin: true  },
-    success: { icon: '✓', label: 'Gespeichert',       color: 'var(--c-gr)', spin: false },
-    error:   { icon: '⚠', label: 'Verbindungsfehler – wird wiederholt', color: 'var(--c-yw)', spin: false },
-    fatal:   { icon: '⚠', label: 'Nicht eingeloggt – Änderungen nur lokal', color: 'var(--c-cr)', spin: false },
-    offline: { icon: '⚡', label: 'Offline – Änderungen werden gequeued',  color: 'var(--c-yw)', spin: false },
+    syncing: { icon: '⟳', label: t('sync.syncing'),  color: 'var(--c-mu)', spin: true  },
+    success: { icon: '✓', label: t('sync.saved'),    color: 'var(--c-gr)', spin: false },
+    error:   { icon: '⚠', label: t('sync.error'),    color: 'var(--c-yw)', spin: false },
+    fatal:   { icon: '⚠', label: t('sync.fatal'),    color: 'var(--c-cr)', spin: false },
+    offline: { icon: '⚡', label: t('sync.offline'),  color: 'var(--c-yw)', spin: false },
   }[state.kind];
 
   return (

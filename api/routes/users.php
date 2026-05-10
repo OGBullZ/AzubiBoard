@@ -26,14 +26,15 @@ if ($method === 'GET' && !$id) {
 if ($method === 'POST' && !$id) {
     require_role('ausbilder');
     $b     = body();
-    $name  = trim($b['name'] ?? '');
+    $name  = clean_str($b['name'] ?? null, 100, true, 'Name');
     $email = strtolower(trim($b['email'] ?? ''));
     $pw    = $b['password'] ?? '';
-    $year  = (int)($b['apprenticeship_year'] ?? 1);
+    $year  = clean_int($b['apprenticeship_year'] ?? 1, 1, 5, 'Lehrjahr');
 
-    if (!$name)                                          error('Name erforderlich');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL))      error('Ungültige E-Mail-Adresse');
-    if (strlen($pw) < 4)                                 error('Passwort muss mindestens 4 Zeichen haben');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL))   error('Ungültige E-Mail-Adresse');
+    if (mb_strlen($email) > 254)                      error('E-Mail zu lang', 400);
+    if (strlen($pw) < 8)                              error('Passwort muss mindestens 8 Zeichen haben');
+    if (strlen($pw) > 200)                            error('Passwort zu lang', 400);
 
     $chk = db()->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $chk->execute([$email]);
@@ -80,19 +81,28 @@ if ($method === 'PATCH' && $id) {
     $b = body();
     $fields = []; $params = [];
 
-    // Passwort ändern (optional)
-    if (!empty($b['password']) && strlen($b['password']) >= 4) {
+    // Passwort ändern (optional, ≥ 8 Zeichen)
+    if (!empty($b['password'])) {
+        if (strlen($b['password']) < 8)   error('Passwort muss mindestens 8 Zeichen haben');
+        if (strlen($b['password']) > 200) error('Passwort zu lang', 400);
         $fields[] = 'password_hash = ?';
         $params[] = password_hash($b['password'], PASSWORD_BCRYPT, ['cost' => 12]);
     }
 
-    // Erlaubte Felder
-    $allowed = ['name', 'apprenticeship_year', 'profession'];
-    foreach ($allowed as $f) {
-        if (array_key_exists($f, $b)) {
-            $fields[] = "$f = ?";
-            $params[] = $b[$f];
+    // Erlaubte Felder mit Längenlimits
+    $limits = [
+        'name'                => ['type' => 'str', 'max' => 100],
+        'profession'          => ['type' => 'str', 'max' => 120],
+        'apprenticeship_year' => ['type' => 'int', 'min' => 1, 'max' => 5],
+    ];
+    foreach ($limits as $f => $cfg) {
+        if (!array_key_exists($f, $b)) continue;
+        if ($cfg['type'] === 'str') {
+            $params[] = clean_str($b[$f], $cfg['max'], false, $f);
+        } else {
+            $params[] = clean_int($b[$f], $cfg['min'], $cfg['max'], $f);
         }
+        $fields[] = "$f = ?";
     }
 
     // is_active (de/aktivieren)

@@ -35,7 +35,7 @@ export function UsersView({ users, onUpdateUsers, showToast }) {
 
   const save = async () => {
     if (!form.name.trim() || !form.email.trim()) return;
-    if (!editUser && form.password.length < 4) return;
+    if (!editUser && form.password.length < 8) return;
 
     setSaving(true);
     try {
@@ -46,12 +46,12 @@ export function UsersView({ users, onUpdateUsers, showToast }) {
           await dataService.updateUser(editUser.id, {
             name:                form.name.trim(),
             apprenticeship_year: Number(form.apprenticeship_year),
-            ...(form.password.length >= 4 ? { password: form.password } : {}),
+            ...(form.password.length >= 8 ? { password: form.password } : {}),
           });
         }
         // Blob aktualisieren (kein Passwort-Hash mehr nötig wenn API)
         let pw = editUser.password;
-        if (!USE_API && form.password.length >= 4) pw = await hashPassword(form.password);
+        if (!USE_API && form.password.length >= 8) pw = await hashPassword(form.password);
         const updated = users.map(u => u.id === editUser.id
           ? { ...u, name: form.name.trim(), email: form.email.trim(),
               ...(pw !== undefined ? { password: pw } : {}),
@@ -181,8 +181,8 @@ export function UsersView({ users, onUpdateUsers, showToast }) {
             <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               placeholder="azubi@betrieb.de" disabled={!!editUser} style={editUser ? { opacity: .6 } : {}} />
           </Field>
-          <Field label={editUser ? 'Neues Passwort (leer lassen = unverändert)' : `Passwort (min. 4 Zeichen${USE_API ? ', bcrypt' : ', SHA-256'})`}>
-            <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={editUser ? '••••••' : 'Min. 4 Zeichen'} />
+          <Field label={editUser ? 'Neues Passwort (leer lassen = unverändert)' : `Passwort (min. 8 Zeichen${USE_API ? ', bcrypt' : ', SHA-256'})`}>
+            <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={editUser ? '••••••' : 'Min. 8 Zeichen'} />
           </Field>
           <Field label="Lehrjahr">
             <select value={form.apprenticeship_year} onChange={e => setForm(f => ({ ...f, apprenticeship_year: e.target.value }))}>
@@ -192,7 +192,7 @@ export function UsersView({ users, onUpdateUsers, showToast }) {
             </select>
           </Field>
           <button className="abtn" onClick={save} style={{ width: '100%', marginTop: 10, padding: 11 }}
-            disabled={saving || !form.name.trim() || !form.email.trim() || (!editUser && form.password.length < 4)}>
+            disabled={saving || !form.name.trim() || !form.email.trim() || (!editUser && form.password.length < 8)}>
             {saving ? 'Speichern…' : editUser ? 'Änderungen speichern' : 'Azubi anlegen'}
           </button>
         </Modal>

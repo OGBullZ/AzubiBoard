@@ -8,11 +8,14 @@ $sub_action = $parts[1] ?? '';
 
 // ── POST /api/auth/login ─────────────────────────────────────
 if ($method === 'POST' && $sub_action === 'login') {
+    rate_limit('login', 8, 900);  // 8 Versuche pro 15 min pro IP
     $b     = body();
     $email = strtolower(trim($b['email'] ?? ''));
     $pw    = $b['password'] ?? '';
 
-    if (!$email || !$pw) error('E-Mail und Passwort erforderlich');
+    if (!$email || !$pw)              error('E-Mail und Passwort erforderlich');
+    if (mb_strlen($email) > 254)      error('E-Mail zu lang', 400);
+    if (mb_strlen($pw)    > 200)      error('Passwort zu lang', 400);
 
     $stmt = db()->prepare(
         'SELECT id, name, email, password_hash, role, theme,
@@ -52,14 +55,16 @@ if ($method === 'POST' && $sub_action === 'login') {
 
 // ── POST /api/auth/register ──────────────────────────────────
 if ($method === 'POST' && $sub_action === 'register') {
+    rate_limit('register', 5, 3600);  // 5 Registrierungen pro Stunde pro IP
     $b     = body();
-    $name  = trim($b['name'] ?? '');
+    $name  = clean_str($b['name'] ?? null,   100, true,  'Name');
     $email = strtolower(trim($b['email'] ?? ''));
     $pw    = $b['password'] ?? '';
 
-    if (!$name)                                         error('Name erforderlich');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL))     error('Ungültige E-Mail-Adresse');
-    if (strlen($pw) < 4)                                error('Passwort muss mindestens 4 Zeichen haben');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL))   error('Ungültige E-Mail-Adresse');
+    if (mb_strlen($email) > 254)                      error('E-Mail zu lang', 400);
+    if (strlen($pw) < 8)                              error('Passwort muss mindestens 8 Zeichen haben');
+    if (strlen($pw) > 200)                            error('Passwort zu lang', 400);
 
     $chk = db()->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $chk->execute([$email]);
@@ -67,17 +72,13 @@ if ($method === 'POST' && $sub_action === 'register') {
 
     $hash = password_hash($pw, PASSWORD_BCRYPT, ['cost' => 12]);
 
+    $profession = isset($b['profession']) ? clean_str($b['profession'], 120, false, 'Beruf') : null;
+    $year       = clean_int($b['apprenticeship_year'] ?? 1, 1, 5, 'Lehrjahr');
     $stmt = db()->prepare(
         'INSERT INTO users (name, email, password_hash, role, profession, apprenticeship_year)
          VALUES (?, ?, ?, "azubi", ?, ?)'
     );
-    $stmt->execute([
-        $name,
-        $email,
-        $hash,
-        $b['profession'] ?? null,
-        (int)($b['apprenticeship_year'] ?? 1),
-    ]);
+    $stmt->execute([$name, $email, $hash, $profession, $year]);
     $new_id = (int)db()->lastInsertId();
 
     $token = jwt_create([
@@ -125,10 +126,21 @@ if ($method === 'GET' && $sub_action === 'me') {
 if ($method === 'PATCH' && $sub_action === 'profile') {
     $auth = require_auth();
     $b    = body();
-    $allowed = ['name', 'phone', 'profession', 'apprenticeship_year'];
+    $limits = [
+        'name'                => ['type' => 'str', 'max' => 100],
+        'phone'               => ['type' => 'str', 'max' => 30],
+        'profession'          => ['type' => 'str', 'max' => 120],
+        'apprenticeship_year' => ['type' => 'int', 'min' => 1, 'max' => 5],
+    ];
     $fields = []; $params = [];
-    foreach ($allowed as $f) {
-        if (array_key_exists($f, $b)) { $fields[] = "$f = ?"; $params[] = $b[$f]; }
+    foreach ($limits as $f => $cfg) {
+        if (!array_key_exists($f, $b)) continue;
+        if ($cfg['type'] === 'str') {
+            $params[] = clean_str($b[$f], $cfg['max'], false, $f);
+        } else {
+            $params[] = clean_int($b[$f], $cfg['min'], $cfg['max'], $f);
+        }
+        $fields[] = "$f = ?";
     }
     if (empty($fields)) error('Nichts zu aktualisieren');
     $params[] = $auth['sub'];
@@ -149,11 +161,14 @@ if ($method === 'PATCH' && $sub_action === 'theme') {
 
 // ── PATCH /api/auth/password ─────────────────────────────────
 if ($method === 'PATCH' && $sub_action === 'password') {
+    rate_limit('password', 10, 3600); // 10 Wechsel pro Stunde pro IP
     $auth = require_auth();
     $b    = body();
     $old  = $b['old_password'] ?? '';
     $new  = $b['new_password'] ?? '';
-    if (strlen($new) < 4) error('Neues Passwort muss mindestens 4 Zeichen haben');
+    if (strlen($new) < 8)   error('Neues Passwort muss mindestens 8 Zeichen haben');
+    if (strlen($new) > 200) error('Neues Passwort zu lang', 400);
+    if (strlen($old) > 200) error('Aktuelles Passwort zu lang', 400);
 
     $stmt = db()->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
     $stmt->execute([$auth['sub']]);

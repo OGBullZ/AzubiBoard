@@ -43,7 +43,7 @@ export default function AuthPage({ onLogin, users, onRegister }) {
     e.preventDefault(); setErr('');
     if (!name.trim()) { setErr('Bitte Namen eingeben.'); return; }
     if (!email.trim()) { setErr('Bitte E-Mail eingeben.'); return; }
-    if (!pw.trim() || pw.length < 6) { setErr('Passwort muss mindestens 6 Zeichen haben.'); return; }
+    if (!pw.trim() || pw.length < 8) { setErr('Passwort muss mindestens 8 Zeichen haben.'); return; }
     setLoading(true);
     try {
       if (USE_API) {
@@ -108,7 +108,7 @@ export default function AuthPage({ onLogin, users, onRegister }) {
             <div style={{ marginBottom: 20 }}>
               <label htmlFor="auth-pw" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>Passwort</label>
               <input id="auth-pw" type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} style={{ width: '100%', padding: '12px 16px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.tx, fontFamily: 'inherit', transition: 'border .2s', boxSizing: 'border-box' }} onFocus={e => e.target.style.borderColor = C.ac} onBlur={e => e.target.style.borderColor = C.bd2} />
-              {mode === 'register' && <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>Mindestens 6 Zeichen</div>}
+              {mode === 'register' && <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>Mindestens 8 Zeichen</div>}
             </div>
 
             {err && (

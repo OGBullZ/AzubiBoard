@@ -1,0 +1,61 @@
+{
+  "common": {
+    "save":         "Save",
+    "cancel":       "Cancel",
+    "delete":       "Delete",
+    "edit":         "Edit",
+    "back":         "Back",
+    "loading":      "Loading …",
+    "all":          "All",
+    "none":         "None",
+    "yes":          "Yes",
+    "no":           "No",
+    "confirm":      "Confirm",
+    "close":        "Close",
+    "search":       "Search",
+    "filter":       "Filter",
+    "category":     "Category",
+    "status":       "Status",
+    "deadline":     "Deadline",
+    "today":        "Today",
+    "tomorrow":     "Tomorrow",
+    "yesterday":    "Yesterday",
+    "undo":         "Undo"
+  },
+  "nav": {
+    "dashboard":   "Dashboard",
+    "projects":    "Projects",
+    "calendar":    "Calendar",
+    "groups":      "Groups",
+    "training":    "Training plan",
+    "learn":       "Learning hub",
+    "reports":     "Reports",
+    "users":       "Users",
+    "profile":     "Profile",
+    "logout":      "Sign out"
+  },
+  "auth": {
+    "login":            "Sign in",
+    "register":         "Sign up",
+    "email":            "E-mail",
+    "password":         "Password",
+    "passwordHint":     "At least 8 characters",
+    "name":             "Name",
+    "wrongCredentials": "E-mail or password incorrect",
+    "alreadyRegistered":"This e-mail is already registered"
+  },
+  "sync": {
+    "syncing":  "Syncing …",
+    "saved":    "Saved",
+    "error":    "Connection error – retrying",
+    "fatal":    "Not signed in – changes are local only",
+    "offline":  "Offline – changes are queued"
+  },
+  "backup": {
+    "neverDone":   "You haven't created a backup yet.",
+    "lastBackup":  "Your last backup was {{when}}.",
+    "recommend":   "We recommend exporting your data every 7 days.",
+    "doBackup":    "Back up now",
+    "snooze":      "Hide for 24 hours"
+  }
+}
