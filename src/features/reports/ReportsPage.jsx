@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate } from '../../lib/utils.js';
+import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
 import { Avatar, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
@@ -472,7 +472,17 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
   const saveReport = (rep) => {
     const existing = reports.find(r => r.id === rep.id);
-    onUpdateData({ ...data, reports: existing ? reports.map(r => r.id === rep.id ? rep : r) : [...reports, rep] });
+    const next = { ...data, reports: existing ? reports.map(r => r.id === rep.id ? rep : r) : [...reports, rep] };
+    const iso  = getISOWeek(rep.week_start);
+    onUpdateData(addActivity(next, {
+      type:        'report_saved',
+      userId:      currentUser.id,
+      userName:    currentUser.name,
+      entityTitle: `KW ${iso.week ?? '?'}/${iso.year ?? '?'}`,
+      projectId:   null,
+      projectTitle:null,
+      action:      existing ? 'Berichtsheft aktualisiert' : 'Berichtsheft angelegt',
+    }));
   };
 
   const deleteReport = (id) => {
@@ -481,12 +491,34 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   };
 
   const submitReport = (id) => {
-    onUpdateData({ ...data, reports: reports.map(r => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) });
+    const rep = reports.find(r => r.id === id);
+    const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
+    const next = { ...data, reports: reports.map(r => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) };
+    onUpdateData(addActivity(next, {
+      type:        'report_submitted',
+      userId:      currentUser.id,
+      userName:    currentUser.name,
+      entityTitle: `KW ${iso.week}/${iso.year}`,
+      projectId:   null,
+      projectTitle:null,
+      action:      'Berichtsheft eingereicht',
+    }));
     showToast('✓ Berichtsheft eingereicht');
   };
 
   const signReport = (id) => {
-    onUpdateData({ ...data, reports: reports.map(r => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) });
+    const rep = reports.find(r => r.id === id);
+    const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
+    const next = { ...data, reports: reports.map(r => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) };
+    onUpdateData(addActivity(next, {
+      type:        'report_signed',
+      userId:      currentUser.id,
+      userName:    currentUser.name,
+      entityTitle: `KW ${iso.week}/${iso.year}` + (rep?.user_name ? ` · ${rep.user_name}` : ''),
+      projectId:   null,
+      projectTitle:null,
+      action:      'Berichtsheft signiert',
+    }));
     showToast('✓ Berichtsheft bestätigt');
   };
 

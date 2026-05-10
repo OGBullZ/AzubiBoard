@@ -28,6 +28,7 @@ import UsersView from './features/users/UsersView';
 import TrainingPlanPage from './features/training/TrainingPlanPage';
 import AzubiProfilePage from './features/users/AzubiProfilePage';
 import { Toast } from './components/UI.jsx';
+import SyncIndicator from './components/SyncIndicator.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import {
   IcoDashboard, IcoFolder, IcoCalendar, IcoUsers,
@@ -1202,6 +1203,7 @@ const App = () => {
         {toast && <Toast payload={toast} onDismiss={dismissToast} />}
         {showSearch    && <GlobalSearch   data={data} onClose={() => setShowSearch(false)} />}
         {showShortcuts && <ShortcutsHelp  onClose={() => setShowShortcuts(false)} />}
+        <SyncIndicator />
       </Router>
     </ErrorBoundary>
   );

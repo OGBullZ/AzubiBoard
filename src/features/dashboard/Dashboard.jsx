@@ -649,6 +649,16 @@ const ACTIVITY_CONFIG = {
   task_done:        { icon: '✅', color: C.gr  },
   task_created:     { icon: '➕', color: C.yw  },
   user_registered:  { icon: '👤', color: '#a371f7' },
+  // Reports
+  report_saved:     { icon: '📝', color: C.ac  },
+  report_submitted: { icon: '📤', color: C.yw  },
+  report_signed:    { icon: '✍️', color: C.gr  },
+  // Training-Plan
+  goal_added:       { icon: '🎯', color: C.ac  },
+  goal_learned:     { icon: '💡', color: C.yw  },
+  goal_confirmed:   { icon: '🏆', color: C.gr  },
+  goal_updated:     { icon: '✏️', color: C.mu  },
+  goal_deleted:     { icon: '🗑️', color: C.cr  },
 };
 
 function activityText(entry) {
@@ -661,6 +671,22 @@ function activityText(entry) {
       return <>{entry.userName} hat Aufgabe <strong style={{ color: C.br }}>{entry.entityTitle}</strong> hinzugefügt{entry.projectTitle ? <span style={{ color: C.mu }}> · {entry.projectTitle}</span> : null}</>;
     case 'user_registered':
       return <><strong style={{ color: C.br }}>{entry.userName}</strong> hat sich registriert</>;
+    case 'report_saved':
+      return <>{entry.userName} hat Berichtsheft <strong style={{ color: C.br }}>{entry.entityTitle}</strong> gespeichert</>;
+    case 'report_submitted':
+      return <>{entry.userName} hat Berichtsheft <strong style={{ color: C.br }}>{entry.entityTitle}</strong> eingereicht</>;
+    case 'report_signed':
+      return <>{entry.userName} hat Berichtsheft <strong style={{ color: C.br }}>{entry.entityTitle}</strong> signiert</>;
+    case 'goal_added':
+      return <>{entry.userName} hat Lernziel <strong style={{ color: C.br }}>{entry.entityTitle}</strong> angelegt</>;
+    case 'goal_learned':
+      return <>{entry.userName} hat <strong style={{ color: C.br }}>{entry.entityTitle}</strong> als gelernt markiert</>;
+    case 'goal_confirmed':
+      return <>{entry.userName} hat Kompetenz <strong style={{ color: C.br }}>{entry.entityTitle}</strong> bestätigt</>;
+    case 'goal_updated':
+      return <>{entry.userName} hat Lernziel <strong style={{ color: C.br }}>{entry.entityTitle}</strong> bearbeitet</>;
+    case 'goal_deleted':
+      return <>{entry.userName} hat Lernziel <strong style={{ color: C.br }}>{entry.entityTitle}</strong> gelöscht</>;
     default:
       return entry.action || '–';
   }

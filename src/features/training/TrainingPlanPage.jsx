@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { C, uid, fmtDate } from '../../lib/utils.js';
+import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
   IcoCheck, IcoPlus, IcoTrash, IcoEdit, IcoClock,
@@ -129,14 +129,14 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
   const markLearned = () => {
     const next = myStatus === 'open' ? 'learned' : 'open';
     const prog = { ...(goal.progress || {}), [currentUser.id]: { status: next, ts: new Date().toISOString() } };
-    onUpdate({ ...goal, progress: prog });
+    onUpdate({ ...goal, progress: prog }, next === 'learned' ? { learnedFor: currentUser.id } : null);
   };
 
   const confirmUser = (userId) => {
     const cur = goal.progress?.[userId]?.status;
     const next = cur === 'confirmed' ? 'learned' : 'confirmed';
     const prog = { ...(goal.progress || {}), [userId]: { ...(goal.progress?.[userId] || {}), status: next, confirmedBy: currentUser.id, confirmedTs: new Date().toISOString() } };
-    onUpdate({ ...goal, progress: prog });
+    onUpdate({ ...goal, progress: prog }, next === 'confirmed' ? { confirmedFor: userId } : null);
   };
 
   return (
@@ -256,25 +256,78 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
   const [filterY,   setFilterY]   = useState(isAusbilder ? 'all' : String(currentUser.apprenticeship_year || 1));
   const [filterCat, setFilterCat] = useState('all');
 
-  const savePlan = (patch) => {
-    onUpdateData({ ...data, trainingPlan: { ...plan, ...patch } });
+  const savePlan = (patch, audit) => {
+    let next = { ...data, trainingPlan: { ...plan, ...patch } };
+    if (audit) next = addActivity(next, audit);
+    onUpdateData(next);
   };
 
   const addGoal = (goal) => {
-    savePlan({ goals: [...goals, goal] });
+    savePlan({ goals: [...goals, goal] }, {
+      type:        'goal_added',
+      userId:      currentUser.id,
+      userName:    currentUser.name,
+      entityTitle: goal.title,
+      projectId:   null,
+      projectTitle:null,
+      action:      `Lernziel angelegt (${goal.year}. LJ Q${goal.quarter})`,
+    });
     setShowAdd(false);
     toast('✓ Lernziel hinzugefügt');
   };
 
-  const updateGoal = (updated) => {
-    savePlan({ goals: goals.map(g => g.id === updated.id ? updated : g) });
+  const updateGoal = (updated, opts) => {
+    const before = goals.find(g => g.id === updated.id);
+    let audit = null;
+    // Spezialfall: Ausbilder bestätigt Status (confirm) → eigener Audit-Eintrag
+    if (opts?.confirmedFor) {
+      const azubi = (data?.users || []).find(u => u.id === opts.confirmedFor);
+      audit = {
+        type:        'goal_confirmed',
+        userId:      currentUser.id,
+        userName:    currentUser.name,
+        entityTitle: updated.title + (azubi ? ` · ${azubi.name}` : ''),
+        projectId:   null,
+        projectTitle:null,
+        action:      'Kompetenz bestätigt',
+      };
+    } else if (opts?.learnedFor) {
+      audit = {
+        type:        'goal_learned',
+        userId:      currentUser.id,
+        userName:    currentUser.name,
+        entityTitle: updated.title,
+        projectId:   null,
+        projectTitle:null,
+        action:      'als gelernt markiert',
+      };
+    } else if (before && before.title !== updated.title) {
+      audit = {
+        type:        'goal_updated',
+        userId:      currentUser.id,
+        userName:    currentUser.name,
+        entityTitle: updated.title,
+        projectId:   null,
+        projectTitle:null,
+        action:      'Lernziel aktualisiert',
+      };
+    }
+    savePlan({ goals: goals.map(g => g.id === updated.id ? updated : g) }, audit);
     setEditGoal(null);
   };
 
   const deleteGoal = (id) => {
     const snapshot = data;
     const goal     = goals.find(g => g.id === id);
-    savePlan({ goals: goals.filter(g => g.id !== id) });
+    savePlan({ goals: goals.filter(g => g.id !== id) }, goal ? {
+      type:        'goal_deleted',
+      userId:      currentUser.id,
+      userName:    currentUser.name,
+      entityTitle: goal.title,
+      projectId:   null,
+      projectTitle:null,
+      action:      'Lernziel gelöscht',
+    } : null);
     toast(`🗑 Lernziel „${goal?.title || 'gelöscht'}"`, { undo: () => onUpdateData(snapshot) });
   };
 

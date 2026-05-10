@@ -31,6 +31,98 @@ async function apiFetch(path, options = {}) {
   return res;
 }
 
+// ─────────────────────────────────────────────────────────────
+//  Save-Queue: Retry mit Exp-Backoff bei Netz-Fehler.
+//  - localStorage ist sofortige Quelle der Wahrheit.
+//  - Server-Save wird nachträglich versucht; bei Fehlern queue +
+//    Backoff bis online. 401 → kein Retry (App leitet zum Login).
+//  - Gleicher Tab/Session: nur EIN Inflight-Save; spätere setData-
+//    Calls aktualisieren nur das `pending`-Snapshot.
+// ─────────────────────────────────────────────────────────────
+const saveQueue = (() => {
+  let pending     = null;     // letztes data-Snapshot, das raus soll
+  let inflight    = false;    // läuft gerade ein POST?
+  let retryTimer  = null;     // setTimeout-Handle
+  let backoff     = 1000;     // ms, exp-backoff
+  let lastError   = null;
+  let lastSyncTs  = null;
+
+  const MAX_BACKOFF = 30_000;
+
+  function emit(type, detail = {}) {
+    try { window.dispatchEvent(new CustomEvent('azubiboard:sync', { detail: { type, ...detail } })); } catch {}
+  }
+
+  async function flush() {
+    if (inflight || !pending) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      schedule(); return;
+    }
+    if (!isTokenValid()) { pending = null; return; } // nicht eingeloggt → nicht spammen
+
+    const snapshot = pending;
+    pending  = null;
+    inflight = true;
+    emit('start');
+    try {
+      const res = await apiFetch('/data', {
+        method: 'POST',
+        body:   JSON.stringify(snapshot),
+      });
+      if (res.status === 401) {
+        // Auth weg — Queue verwerfen, App räumt auf
+        pending = null; lastError = new Error('Unauthorized');
+        emit('error', { error: lastError, fatal: true });
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Erfolg → Backoff zurücksetzen, evtl. neue Pending erneut feuern
+      backoff   = 1000;
+      lastError = null;
+      lastSyncTs = Date.now();
+      emit('success', { ts: lastSyncTs });
+    } catch (err) {
+      // Wenn währenddessen neuere Daten kamen, behalten wir sie;
+      // andernfalls wieder das alte Snapshot in die Queue.
+      pending  = pending ?? snapshot;
+      lastError = err;
+      emit('error', { error: err });
+      schedule();
+    } finally {
+      inflight = false;
+      // Falls in der Zwischenzeit etwas Neues reinkam — sofort weiter
+      if (pending) flush();
+    }
+  }
+
+  function schedule() {
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => { backoff = Math.min(backoff * 2, MAX_BACKOFF); flush(); }, backoff);
+  }
+
+  function enqueue(data) {
+    pending = data;            // immer das neueste Snapshot
+    if (!inflight) flush();
+  }
+
+  // Online → sofort versuchen; verhindert lange Wartezeit nach Reconnect.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online',  () => { backoff = 1000; flush(); });
+    window.addEventListener('offline', () => emit('offline'));
+  }
+
+  return {
+    enqueue,
+    status: () => ({
+      pending:    !!pending,
+      inflight,
+      lastError:  lastError ? lastError.message : null,
+      lastSyncTs,
+      online:     typeof navigator === 'undefined' ? true : navigator.onLine,
+    }),
+  };
+})();
+
 export const dataService = {
   // ── App-Daten laden ───────────────────────────────────────
   async getData() {
@@ -48,19 +140,18 @@ export const dataService = {
   },
 
   // ── App-Daten speichern ───────────────────────────────────
-  async saveData(newData) {
-    if (!USE_API) { persistData(newData); return newData; }
-    // Nur speichern wenn eingeloggt
-    if (!isTokenValid()) { persistData(newData); return newData; }
-    try {
-      const res = await apiFetch('/data', {
-        method: 'POST',
-        body:   JSON.stringify(newData),
-      });
-      if (res.ok) { persistData(newData); return newData; }
-    } catch {}
-    persistData(newData);   // Fallback
-    return newData;
+  // Synchron: localStorage sofort. Async: Server via Retry-Queue.
+  saveData(newData) {
+    if (!USE_API) { persistData(newData); return Promise.resolve(newData); }
+    persistData(newData);                        // optimistic, sofort lokal
+    if (!isTokenValid()) return Promise.resolve(newData);
+    saveQueue.enqueue(newData);                  // Server: queued + retry
+    return Promise.resolve(newData);
+  },
+
+  // Status der Save-Queue für UI-Indikator (Online/Offline/Syncing)
+  getSaveStatus() {
+    return saveQueue.status();
   },
 
   // ── Aktuellen Nutzer von Server laden (JWT-Session-Restore) ─
