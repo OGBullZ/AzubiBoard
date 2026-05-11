@@ -13,6 +13,9 @@ export default function AuthPage({ onLogin, users, onRegister }) {
   const [name, setName] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  // K1: 2FA-Stufe nach Passwort-Eingabe
+  const [twofa, setTwofa] = useState(null);  // { partial_token } oder null
+  const [tfCode, setTfCode] = useState('');
 
   async function handleLogin(e) {
     e.preventDefault(); setErr('');
@@ -20,10 +23,15 @@ export default function AuthPage({ onLogin, users, onRegister }) {
     setLoading(true);
     try {
       if (USE_API) {
-        // ── API-Modus: bcrypt via PHP ────────────────────────
-        const { token, user } = await dataService.login(email.trim(), pw);
-        setToken(token);
-        onLogin(user);
+        const res = await dataService.login(email.trim(), pw);
+        if (res?.requires_2fa) {
+          // K1: zweite Stufe — Code-Input zeigen
+          setTwofa({ partial_token: res.partial_token });
+          setLoading(false);
+          return;
+        }
+        setToken(res.token);
+        onLogin(res.user);
       } else {
         // ── Lokaler Modus: SHA-256 (Entwicklung) ────────────
         const u = users.find(x => x.email.toLowerCase() === email.toLowerCase());
@@ -37,6 +45,29 @@ export default function AuthPage({ onLogin, users, onRegister }) {
       setErr(err.message || 'Anmeldung fehlgeschlagen. Bitte erneut versuchen.');
       setLoading(false);
     }
+  }
+
+  // K1: 2FA-Code prüfen
+  async function handle2FA(e) {
+    e.preventDefault(); setErr('');
+    const code = tfCode.replace(/\s/g, '');
+    if (!code) { setErr('Code eingeben.'); return; }
+    setLoading(true);
+    try {
+      const { token, user } = await dataService.twoFactorCheck(twofa.partial_token, code);
+      setToken(token);
+      onLogin(user);
+    } catch (err) {
+      setErr(err.message || 'Code falsch.');
+      setTfCode('');
+      setLoading(false);
+    }
+  }
+
+  function cancelTwoFA() {
+    setTwofa(null);
+    setTfCode('');
+    setErr('');
   }
 
   async function handleRegister(e) {
@@ -84,6 +115,44 @@ export default function AuthPage({ onLogin, users, onRegister }) {
         </header>
 
         <div style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 14, padding: 26, boxShadow: '0 8px 40px rgba(0,0,0,.4)' }}>
+          {twofa ? (
+            /* K1: 2FA-Stufe — Code-Input */
+            <form onSubmit={handle2FA} noValidate>
+              <div style={{ marginBottom: 16, textAlign: 'center' }}>
+                <div style={{ fontSize: 30, marginBottom: 8 }}>🔐</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.br, marginBottom: 4 }}>2-Faktor-Authentifizierung</div>
+                <div style={{ fontSize: 12, color: C.mu }}>Code aus deiner Authenticator-App eingeben.</div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label htmlFor="tf-code" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>
+                  6-stelliger Code oder Recovery-Code
+                </label>
+                <input id="tf-code" type="text" inputMode="numeric" autoComplete="one-time-code"
+                  value={tfCode}
+                  onChange={e => setTfCode(e.target.value)}
+                  placeholder="123 456"
+                  autoFocus
+                  maxLength={20}
+                  style={{ width: '100%', padding: '12px 16px', fontSize: 18, letterSpacing: 4, textAlign: 'center', fontFamily: C.mono, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.br, boxSizing: 'border-box' }} />
+              </div>
+              {err && (
+                <div role="alert" style={{ fontSize: 13, color: C.cr, background: C.crd, border: `1px solid ${C.cr}35`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span aria-hidden="true">⚠</span> {err}
+                </div>
+              )}
+              <button type="submit" className="abtn" disabled={loading}
+                style={{ width: '100%', padding: '13px', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 9 }}>
+                {loading
+                  ? <span style={{ width: 16, height: 16, border: '2px solid #fff4', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .6s linear infinite', display: 'inline-block' }} />
+                  : 'Bestätigen'}
+              </button>
+              <button type="button" onClick={cancelTwoFA}
+                style={{ width: '100%', padding: '9px', fontSize: 12, background: 'transparent', border: 'none', color: C.mu, cursor: 'pointer' }}>
+                ← Zurück zur Anmeldung
+              </button>
+            </form>
+          ) : (
+          <>
           <div role="tablist" style={{ display: 'flex', background: C.sf2, borderRadius: 8, padding: 3, marginBottom: 22, gap: 3 }}>
             {[['login', 'Anmelden'], ['register', 'Registrieren']].map(([m, l]) => (
               <button key={m} role="tab" aria-selected={mode === m}
@@ -142,6 +211,8 @@ export default function AuthPage({ onLogin, users, onRegister }) {
               ))}
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </main>

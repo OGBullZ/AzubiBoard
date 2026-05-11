@@ -6,6 +6,18 @@
 
 $sub_action = $parts[1] ?? '';
 
+// ── K1: Migration für 2FA-Spalten (idempotent, einmalig) ─────
+//   Wird bei jedem Auth-Call versucht; MySQL ignoriert ADD COLUMN
+//   wenn die Spalte schon existiert (mit "IF NOT EXISTS" in 8.0).
+//   Für ältere MySQL-Versionen: try/catch um SQL-Fehler.
+try {
+    db()->exec("ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS totp_secret         VARCHAR(64) DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS totp_enabled        TINYINT(1)  NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS totp_recovery_hash  TEXT        DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS totp_activated_at   TIMESTAMP   NULL DEFAULT NULL");
+} catch (Throwable $e) { /* Spalten existieren bereits oder MySQL < 8 — beim 1. Lauf manuell */ }
+
 // ── POST /api/auth/login ─────────────────────────────────────
 if ($method === 'POST' && $sub_action === 'login') {
     rate_limit('login', 8, 900);  // 8 Versuche pro 15 min pro IP
@@ -19,7 +31,8 @@ if ($method === 'POST' && $sub_action === 'login') {
 
     $stmt = db()->prepare(
         'SELECT id, name, email, password_hash, role, theme,
-                apprenticeship_year, profession, avatar_url, is_active
+                apprenticeship_year, profession, avatar_url, is_active,
+                totp_enabled
          FROM users WHERE email = ? LIMIT 1'
     );
     $stmt->execute([$email]);
@@ -27,6 +40,15 @@ if ($method === 'POST' && $sub_action === 'login') {
 
     if (!$user || !$user['is_active']) error('E-Mail oder Passwort falsch', 401);
     if (!password_verify($pw, $user['password_hash'])) error('E-Mail oder Passwort falsch', 401);
+
+    // K1: Wenn 2FA aktiv → partial-Token + 2FA-Check
+    if (!empty($user['totp_enabled'])) {
+        $partial = jwt_create([
+            'sub'         => (int)$user['id'],
+            'pending_2fa' => 1,
+        ]);
+        respond(['requires_2fa' => true, 'partial_token' => $partial]);
+    }
 
     db()->prepare('UPDATE users SET last_login = NOW() WHERE id = ?')
         ->execute([$user['id']]);
@@ -50,6 +72,147 @@ if ($method === 'POST' && $sub_action === 'login') {
             'apprenticeship_year'=> (int)($user['apprenticeship_year'] ?? 1),
             'profession'         => $user['profession'],
         ],
+    ]);
+}
+
+// ── K1: POST /api/auth/2fa/check ── 2FA-Code nach Login ──────
+if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'check') {
+    rate_limit('2fa_check', 8, 900);  // 8 Versuche / 15 min
+    $b = body();
+    $partial = trim($b['partial_token'] ?? '');
+    $code    = trim($b['code']          ?? '');
+    if (!$partial || !$code) error('Token und Code erforderlich', 400);
+
+    $payload = jwt_verify($partial);
+    if (!$payload || empty($payload['pending_2fa'])) error('Token ungültig oder abgelaufen', 401);
+
+    $stmt = db()->prepare(
+        'SELECT id, name, email, role, theme, apprenticeship_year, profession,
+                avatar_url, is_active, totp_secret, totp_enabled, totp_recovery_hash
+         FROM users WHERE id = ? LIMIT 1'
+    );
+    $stmt->execute([(int)$payload['sub']]);
+    $user = $stmt->fetch();
+    if (!$user || !$user['is_active'] || empty($user['totp_enabled']))
+        error('Account nicht verfügbar', 401);
+
+    $ok = totp_verify((string)$user['totp_secret'], $code);
+    // Recovery-Code als Fallback (Format mit Bindestrich beibehalten)
+    if (!$ok && strlen($code) === 11 && !empty($user['totp_recovery_hash'])) {
+        $stored = json_decode($user['totp_recovery_hash'], true) ?: [];
+        foreach ($stored as $idx => $hash) {
+            if (password_verify(strtoupper($code), $hash)) {
+                $ok = true;
+                // Recovery-Code wird verbraucht (one-time)
+                unset($stored[$idx]);
+                db()->prepare('UPDATE users SET totp_recovery_hash = ? WHERE id = ?')
+                    ->execute([json_encode(array_values($stored)), $user['id']]);
+                break;
+            }
+        }
+    }
+    if (!$ok) error('Code falsch oder abgelaufen', 401);
+
+    db()->prepare('UPDATE users SET last_login = NOW() WHERE id = ?')
+        ->execute([$user['id']]);
+
+    $token = jwt_create([
+        'sub'   => (int)$user['id'],
+        'name'  => $user['name'],
+        'email' => $user['email'],
+        'role'  => $user['role'],
+    ]);
+    respond([
+        'token' => $token,
+        'user'  => [
+            'id'                  => (int)$user['id'],
+            'name'                => $user['name'],
+            'email'               => $user['email'],
+            'role'                => $user['role'],
+            'theme'               => $user['theme'] ?? 'dark',
+            'avatar_url'          => $user['avatar_url'],
+            'apprenticeship_year' => (int)($user['apprenticeship_year'] ?? 1),
+            'profession'          => $user['profession'],
+        ],
+    ]);
+}
+
+// ── K1: POST /api/auth/2fa/setup ── Secret erzeugen (noch nicht aktiv) ─
+if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'setup') {
+    $auth = require_auth();
+    $secret = totp_generate_secret(20);
+    // In DB schreiben, aber totp_enabled bleibt 0 bis Verify
+    db()->prepare('UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?')
+        ->execute([$secret, $auth['sub']]);
+    $email = $auth['email'] ?? '';
+    respond([
+        'secret'      => $secret,
+        'otpauth_url' => totp_uri('AzubiBoard', $email ?: ('user-' . $auth['sub']), $secret),
+    ]);
+}
+
+// ── K1: POST /api/auth/2fa/verify ── Setup bestätigen ────────
+if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'verify') {
+    rate_limit('2fa_verify', 10, 900);
+    $auth = require_auth();
+    $code = trim(body()['code'] ?? '');
+    if (!preg_match('/^\d{6}$/', $code)) error('6-stelliger Code erforderlich', 400);
+
+    $stmt = db()->prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$auth['sub']]);
+    $row = $stmt->fetch();
+    if (!$row || empty($row['totp_secret'])) error('Bitte erst Setup ausführen', 400);
+
+    if (!totp_verify((string)$row['totp_secret'], $code)) error('Code falsch', 401);
+
+    // Recovery-Codes erzeugen + hashen, dann zurückgeben
+    $codes = totp_generate_recovery_codes(8);
+    $hashes = array_map(fn($c) => password_hash($c, PASSWORD_BCRYPT, ['cost' => 10]), $codes);
+
+    db()->prepare(
+        'UPDATE users SET totp_enabled = 1, totp_activated_at = NOW(), totp_recovery_hash = ? WHERE id = ?'
+    )->execute([json_encode($hashes), $auth['sub']]);
+
+    respond([
+        'ok'              => true,
+        'recovery_codes'  => $codes,  // Plaintext NUR jetzt — danach hash-only
+        'activated_at'    => date('c'),
+    ]);
+}
+
+// ── K1: POST /api/auth/2fa/disable ── 2FA abschalten ─────────
+if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'disable') {
+    rate_limit('2fa_disable', 5, 3600);
+    $auth = require_auth();
+    $pw   = body()['password'] ?? '';
+    if (mb_strlen($pw) > 200) error('Passwort zu lang', 400);
+
+    $stmt = db()->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$auth['sub']]);
+    $user = $stmt->fetch();
+    if (!$user || !password_verify($pw, $user['password_hash'])) error('Passwort falsch', 401);
+
+    db()->prepare(
+        'UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_recovery_hash = NULL WHERE id = ?'
+    )->execute([$auth['sub']]);
+
+    respond(['ok' => true]);
+}
+
+// ── K1: GET /api/auth/2fa/status ─────────────────────────────
+if ($method === 'GET' && $sub_action === '2fa' && ($parts[2] ?? '') === 'status') {
+    $auth = require_auth();
+    $stmt = db()->prepare(
+        'SELECT totp_enabled, totp_activated_at,
+                CHAR_LENGTH(IFNULL(totp_recovery_hash, "[]")) > 5 AS has_recovery
+         FROM users WHERE id = ? LIMIT 1'
+    );
+    $stmt->execute([$auth['sub']]);
+    $row = $stmt->fetch();
+    respond([
+        'enabled'       => !empty($row['totp_enabled']),
+        'activated_at'  => $row['totp_activated_at'] ?? null,
+        'has_recovery'  => !empty($row['has_recovery']),
     ]);
 }
 

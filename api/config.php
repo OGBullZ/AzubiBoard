@@ -65,14 +65,18 @@ function cors(): void {
     if ($origin === ALLOWED_ORIGIN) {
         header('Access-Control-Allow-Origin: ' . ALLOWED_ORIGIN);
         header('Access-Control-Allow-Credentials: true');
+        header('Vary: Origin');
     }
     header('Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type,Authorization');
+    header('Access-Control-Allow-Headers: Content-Type,Authorization,If-Match');
+    header('Access-Control-Expose-Headers: ETag,X-Data-Version,Retry-After');
+    header('Access-Control-Max-Age: 86400');
     header('Content-Type: application/json; charset=UTF-8');
-    // Security-Headers
+    // Security-Headers (K3) — auch auf API-Responses
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
     header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Cross-Origin-Resource-Policy: same-origin');
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204); exit;
     }
@@ -204,4 +208,83 @@ function clean_int(mixed $v, int $min, int $max, string $field = 'Wert'): int {
     $n = (int)$v;
     if ($n < $min || $n > $max) error("$field außerhalb des erlaubten Bereichs ($min–$max)", 400);
     return $n;
+}
+
+// ── K1: TOTP (RFC 6238) — Pure-PHP-Implementation ────────────
+//
+//  Kompatibel mit Google Authenticator, Authy, 1Password etc.
+//  6-stellige Codes, 30s-Window, ±1 step Drift-Toleranz.
+function totp_base32_encode(string $bytes): string {
+    static $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    $out = '';
+    $buffer = 0; $bits = 0;
+    for ($i = 0; $i < strlen($bytes); $i++) {
+        $buffer = ($buffer << 8) | ord($bytes[$i]);
+        $bits  += 8;
+        while ($bits >= 5) {
+            $bits -= 5;
+            $out  .= $alphabet[($buffer >> $bits) & 31];
+        }
+    }
+    if ($bits > 0) $out .= $alphabet[($buffer << (5 - $bits)) & 31];
+    return $out;
+}
+function totp_base32_decode(string $b32): ?string {
+    static $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    $b32 = strtoupper(preg_replace('/[^A-Z2-7]/', '', $b32));
+    if ($b32 === '') return null;
+    $out = '';
+    $buffer = 0; $bits = 0;
+    for ($i = 0; $i < strlen($b32); $i++) {
+        $v = strpos($alphabet, $b32[$i]);
+        if ($v === false) return null;
+        $buffer = ($buffer << 5) | $v;
+        $bits  += 5;
+        if ($bits >= 8) {
+            $bits -= 8;
+            $out  .= chr(($buffer >> $bits) & 0xff);
+        }
+    }
+    return $out;
+}
+function totp_generate_secret(int $bytes = 20): string {
+    return totp_base32_encode(random_bytes($bytes));
+}
+function totp_code(string $base32Secret, ?int $time = null, int $period = 30, int $digits = 6): string {
+    $time = $time ?? time();
+    $counter = (int)floor($time / $period);
+    // 8-Byte big-endian counter
+    $bin = pack('J', $counter);
+    $key = totp_base32_decode($base32Secret);
+    if ($key === null) return '';
+    $hash = hash_hmac('sha1', $bin, $key, true);
+    $offset = ord($hash[19]) & 0x0f;
+    $code = ((ord($hash[$offset])     & 0x7f) << 24)
+          | ((ord($hash[$offset + 1]) & 0xff) << 16)
+          | ((ord($hash[$offset + 2]) & 0xff) <<  8)
+          |  (ord($hash[$offset + 3]) & 0xff);
+    return str_pad((string)($code % (10 ** $digits)), $digits, '0', STR_PAD_LEFT);
+}
+function totp_verify(string $base32Secret, string $code, int $window = 1): bool {
+    $code = preg_replace('/\s+/', '', $code);
+    if (!preg_match('/^\d{6}$/', $code)) return false;
+    $now = time();
+    for ($d = -$window; $d <= $window; $d++) {
+        if (hash_equals(totp_code($base32Secret, $now + $d * 30), $code)) return true;
+    }
+    return false;
+}
+function totp_uri(string $issuer, string $accountName, string $base32Secret): string {
+    $label = rawurlencode("$issuer:$accountName");
+    $issuerEnc = rawurlencode($issuer);
+    return "otpauth://totp/$label?secret=$base32Secret&issuer=$issuerEnc&algorithm=SHA1&digits=6&period=30";
+}
+function totp_generate_recovery_codes(int $count = 8): array {
+    $codes = [];
+    for ($i = 0; $i < $count; $i++) {
+        // 10-stellig, 2x5 mit Bindestrich — leichter zu tippen
+        $raw = strtoupper(bin2hex(random_bytes(5)));
+        $codes[] = substr($raw, 0, 5) . '-' . substr($raw, 5, 5);
+    }
+    return $codes;
 }

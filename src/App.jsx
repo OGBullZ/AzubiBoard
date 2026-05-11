@@ -46,6 +46,7 @@ import {
 } from './components/Icons.jsx';
 const TrashPage = lazy(() => import('./features/trash/TrashPage.jsx'));
 const ShareView = lazy(() => import('./features/share/ShareView.jsx'));
+const TwoFactorSettings = lazy(() => import('./features/auth/TwoFactorSettings.jsx'));
 import { ensureTrash, autoCleanTrash, trashCount as countTrash, softDelete } from './lib/trash.js';
 import { migrateData } from './lib/migrations.js';
 
@@ -868,6 +869,7 @@ function ProfilePage({ showToast }) {
         <div role="tablist" style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, marginBottom: 18, gap: 3 }}>
           {tabBtn('info', 'Profil')}
           {tabBtn('password', 'Passwort')}
+          {USE_API && tabBtn('security', '🔒 Sicherheit')}
         </div>
 
         {tab === 'info' && (
@@ -928,6 +930,12 @@ function ProfilePage({ showToast }) {
               {saving ? 'Ändern…' : 'Passwort ändern'}
             </button>
           </div>
+        )}
+
+        {tab === 'security' && (
+          <Suspense fallback={<div style={{ fontSize: 12, color: 'var(--c-mu)' }}>Lädt …</div>}>
+            <TwoFactorSettings showToast={showToast} />
+          </Suspense>
         )}
       </div>
     </div>
@@ -1110,6 +1118,35 @@ const App = () => {
   useEffect(() => {
     import('./lib/sentry.js').then(m => m.setSentryUser(currentUser));
   }, [currentUser?.id, currentUser?.role]);
+
+  // K5: Neue activityLog-Einträge automatisch an Server-Audit weiterleiten.
+  //     Set merkt sich gesendete IDs pro Session — bei Reload starten wir
+  //     mit nur den neuesten 30 Einträgen als "schon gesehen", damit
+  //     der Audit-Server nicht mit kompletter Historie geflutet wird.
+  const auditSentRef = useRef(null);
+  useEffect(() => {
+    if (!data?.activityLog?.length || !currentUser) return;
+    if (!auditSentRef.current) {
+      // Initial-Pool: alles was schon da war ist "alt"
+      auditSentRef.current = new Set((data.activityLog || []).map(e => e.id));
+      return;
+    }
+    const seen   = auditSentRef.current;
+    const fresh  = (data.activityLog || []).filter(e => e.id && !seen.has(e.id));
+    if (!fresh.length) return;
+    // Senden in der zeitlich aufsteigenden Reihenfolge
+    fresh.slice().reverse().forEach(e => {
+      seen.add(e.id);
+      dataService.writeAudit({
+        type:          e.type,
+        entity_title:  e.entityTitle,
+        project_id:    e.projectId   || null,
+        project_title: e.projectTitle || null,
+        action:        e.action || null,
+        meta:          { client_id: e.id, client_ts: e.ts },
+      });
+    });
+  }, [data?.activityLog, currentUser]);
 
   // I12: Smart-Polling — wenn ein anderer Tab/User auf dem Server speichert,
   //      holen wir die neue Version. Pausiert in Background-Tab + bei Save-Queue.

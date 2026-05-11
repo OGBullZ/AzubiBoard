@@ -281,6 +281,105 @@ export const dataService = {
     return await res.json();
   },
 
+  // ── K5: Server-Side Audit-Log ─────────────────────────────
+  // Fire-and-forget: ein fehlgeschlagener Audit-Write blockiert
+  // den eigentlichen Vorgang NICHT, sondern wird nur an Sentry
+  // gebreadcrumbt. Im local-mode (USE_API=false) ist es No-Op.
+  writeAudit(entry) {
+    if (!USE_API || !isTokenValid() || !entry?.type) return;
+    apiFetch('/audit', {
+      method: 'POST',
+      body:   JSON.stringify(entry),
+    }).catch(() => {
+      try {
+        addBreadcrumb({ category: 'audit', level: 'warning', message: 'audit write failed',
+          data: { type: entry.type } });
+      } catch {}
+    });
+  },
+
+  async listAudit({ limit = 100, offset = 0, type, userId, since, until } = {}) {
+    if (!USE_API || !isTokenValid()) return { total: 0, items: [], limit, offset };
+    const p = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (type)    p.set('type', type);
+    if (userId)  p.set('user_id', String(userId));
+    if (since)   p.set('since', since);
+    if (until)   p.set('until', until);
+    try {
+      const res = await apiFetch(`/audit?${p.toString()}`);
+      return res.ok ? await res.json() : { total: 0, items: [], limit, offset };
+    } catch { return { total: 0, items: [], limit, offset }; }
+  },
+
+  async auditStats(days = 30) {
+    if (!USE_API || !isTokenValid()) return null;
+    try {
+      const res = await apiFetch(`/audit/stats?days=${days}`);
+      return res.ok ? await res.json() : null;
+    } catch { return null; }
+  },
+
+  // ── K1: 2FA (TOTP) ────────────────────────────────────────
+  async twoFactorStatus() {
+    if (!USE_API || !isTokenValid()) return { enabled: false };
+    try {
+      const res = await apiFetch('/auth/2fa/status');
+      return res.ok ? await res.json() : { enabled: false };
+    } catch { return { enabled: false }; }
+  },
+
+  async twoFactorSetup() {
+    if (!USE_API) throw new Error('2FA nur im API-Modus möglich');
+    const res = await apiFetch('/auth/2fa/setup', { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return await res.json();   // { secret, otpauth_url }
+  },
+
+  async twoFactorVerify(code) {
+    if (!USE_API) throw new Error('2FA nur im API-Modus möglich');
+    const res = await apiFetch('/auth/2fa/verify', {
+      method: 'POST',
+      body:   JSON.stringify({ code }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return await res.json();   // { ok, recovery_codes, activated_at }
+  },
+
+  async twoFactorDisable(password) {
+    if (!USE_API) throw new Error('2FA nur im API-Modus möglich');
+    const res = await apiFetch('/auth/2fa/disable', {
+      method: 'POST',
+      body:   JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  // Während des Logins, wenn requires_2fa=true gemeldet wurde.
+  // Liefert dasselbe Format wie login() — { token, user }.
+  async twoFactorCheck(partial_token, code) {
+    if (!USE_API) throw new Error('2FA nur im API-Modus möglich');
+    const res = await fetch(`${API_BASE}/auth/2fa/check`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ partial_token, code }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
   // ── Polling-Endpoint: Liefert nur Version der serverseitigen Daten ─
   //    Frontend ruft das alle 20-30s auf; bei neuer Version → getData().
   async getDataVersion() {
