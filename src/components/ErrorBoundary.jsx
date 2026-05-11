@@ -1,10 +1,16 @@
 import { Component } from 'react';
+import { captureException } from '../lib/sentry.js';
 
 export class ErrorBoundary extends Component {
   state = { error: null };
 
   static getDerivedStateFromError(error) {
     return { error };
+  }
+
+  componentDidCatch(error, info) {
+    // L3: Boundary-Crashes nach Sentry forwarden (no-op ohne DSN)
+    captureException(error, { componentStack: info?.componentStack });
   }
 
   render() {

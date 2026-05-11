@@ -4,6 +4,7 @@
 // ============================================================
 import { loadData, persistData } from './utils';
 import { authHeader, clearToken, isTokenValid } from './auth';
+import { addBreadcrumb, captureException } from './sentry.js';
 
 const USE_API  = import.meta.env.VITE_USE_API === 'true';
 // VITE_API_BASE_URL explizit setzen, oder aus Basispfad ableiten
@@ -109,6 +110,9 @@ const saveQueue = (() => {
       pending  = pending ?? snapshot;
       lastError = err;
       emit('error', { error: err });
+      // L3: Breadcrumb für Sentry — keine Daten leaken, nur Status
+      addBreadcrumb({ category: 'sync', level: 'warning', message: 'save failed',
+        data: { backoff_ms: backoff, version: knownVersion, error: err?.message } });
       schedule();
     } finally {
       inflight = false;
@@ -243,6 +247,38 @@ export const dataService = {
       throw new Error(err.error || `HTTP ${res.status}`);
     }
     return await res.json(); // { kind, title, data, created_at, expires_at }
+  },
+
+  // ── L4: Server-Backups (rollende Tagessnapshots, 30 Tage) ─
+  async listBackups() {
+    if (!USE_API || !isTokenValid()) return [];
+    try {
+      const res = await apiFetch('/data/backups');
+      return res.ok ? await res.json() : [];
+    } catch { return []; }
+  },
+
+  async fetchBackup(day) {
+    if (!USE_API) return null;
+    const res = await apiFetch(`/data/backups/${encodeURIComponent(day)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async restoreBackup(day) {
+    if (!USE_API) throw new Error('Restore nur im API-Modus möglich');
+    const res = await apiFetch('/data/restore', {
+      method: 'POST',
+      body:   JSON.stringify({ snapshot_day: day }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return await res.json();
   },
 
   // ── Polling-Endpoint: Liefert nur Version der serverseitigen Daten ─

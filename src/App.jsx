@@ -34,6 +34,7 @@ import { Toast } from './components/UI.jsx';
 import SyncIndicator from './components/SyncIndicator.jsx';
 import BackupReminder from './components/BackupReminder.jsx';
 import ConflictDialog from './components/ConflictDialog.jsx';
+import BackupsModal from './components/BackupsModal.jsx';
 import { recordBackup } from './lib/backup.js';
 import { useDataSync } from './lib/useDataSync.js';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
@@ -46,6 +47,7 @@ import {
 const TrashPage = lazy(() => import('./features/trash/TrashPage.jsx'));
 const ShareView = lazy(() => import('./features/share/ShareView.jsx'));
 import { ensureTrash, autoCleanTrash, trashCount as countTrash, softDelete } from './lib/trash.js';
+import { migrateData } from './lib/migrations.js';
 
 // ── App-Mode (einmalig auf Modulebene) ───────────────────────
 const USE_API = import.meta.env.VITE_USE_API === 'true';
@@ -509,7 +511,7 @@ function GlobalSearch({ data, onClose }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────
-function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer, trashCount = 0 }) {
+function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onShowBackups, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer, trashCount = 0 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const path     = location.pathname;
@@ -615,6 +617,13 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
                 <input type="file" accept=".json" onChange={onImport} style={{ display: 'none' }} />
               </label>
             </div>
+            {/* L4: Server-Backups (nur Ausbilder) */}
+            {isAusbilder && onShowBackups && (
+              <button className="btn" onClick={onShowBackups} title="Tägliche Server-Snapshots verwalten"
+                style={{ width: '100%', fontSize: 10, padding: '5px 0', justifyContent: 'center', marginBottom: 6 }}>
+                💾 Server-Backups
+              </button>
+            )}
 
             {/* User → klickbar → Profil-Seite */}
             <button onClick={() => handleNav('/profile')} title="Mein Profil"
@@ -1018,7 +1027,7 @@ function ProjectsPage({ onNewProject, showToast }) {
 }
 
 // ── AppLayout ─────────────────────────────────────────────────
-function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, onBackup, trashCount = 0, children }) {
+function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, onBackup, onShowBackups, trashCount = 0, children }) {
   const [collapsed,   setCollapsed]   = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
   const [drawerOpen,  setDrawerOpen]  = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -1057,6 +1066,7 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
       )}
 
       <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} onExport={onExport} onImport={onImport} onSearch={onSearch}
+        onShowBackups={onShowBackups}
         collapsed={isMobile ? false : collapsed} onToggleCollapse={handleToggleCollapse}
         theme={theme} onToggleTheme={toggleTheme}
         isMobile={isMobile} drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)}
@@ -1094,6 +1104,12 @@ const App = () => {
   const { toast, showToast, dismissToast } = useToast();
   const importRef = useRef(null);
   const [conflict, setConflict] = useState(null);  // J2: Konflikt-Payload
+  const [showBackups, setShowBackups] = useState(false); // L4
+
+  // L3: Sentry-User-Kontext bei Login/Logout aktuell halten (no-op ohne DSN)
+  useEffect(() => {
+    import('./lib/sentry.js').then(m => m.setSentryUser(currentUser));
+  }, [currentUser?.id, currentUser?.role]);
 
   // I12: Smart-Polling — wenn ein anderer Tab/User auf dem Server speichert,
   //      holen wir die neue Version. Pausiert in Background-Tab + bei Save-Queue.
@@ -1152,9 +1168,14 @@ const App = () => {
         })
       );
       let finalData = migrated ? { ...loaded, users: migratedUsers } : loaded;
-      // J3: trash-Feld migrieren + alte Einträge auto-purgen (>30 Tage)
+      // L2: Schema-Migrations VOR allen anderen Transforms anwenden.
+      //     Setzt data.schema_version + initialisiert fehlende Felder.
+      const beforeVersion = finalData.schema_version;
+      finalData = migrateData(finalData);
+      const schemaMigrated = finalData.schema_version !== beforeVersion;
+      // J3: trash-Feld + auto-clean (idempotent, läuft auch nach Migrations)
       finalData = autoCleanTrash(ensureTrash(finalData));
-      if (migrated) persistData(finalData);
+      if (migrated || schemaMigrated) persistData(finalData);
 
       if (USE_API) {
         // ── API-Modus: JWT prüfen und Nutzer vom Server laden ─
@@ -1327,7 +1348,7 @@ const App = () => {
   return (
     <ErrorBoundary>
       <Router>
-        <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport} trashCount={countTrash(data)}>
+        <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport} onShowBackups={USE_API && currentUser?.role === 'ausbilder' ? () => setShowBackups(true) : null} trashCount={countTrash(data)}>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/dashboard"   element={<DashboardPage onNewProject={handleNewProject} showToast={showToast} />} />
@@ -1363,6 +1384,17 @@ const App = () => {
         {toast && <Toast payload={toast} onDismiss={dismissToast} />}
         {showSearch    && <GlobalSearch   data={data} onClose={() => setShowSearch(false)} />}
         {showShortcuts && <ShortcutsHelp  onClose={() => setShowShortcuts(false)} />}
+        {showBackups   && (
+          <BackupsModal
+            onClose={() => setShowBackups(false)}
+            onRestore={async () => {
+              // Frisch vom Server holen, damit lokaler State matched
+              const fresh = await dataService.getData();
+              if (fresh) setData(fresh);
+            }}
+            showToast={showToast}
+          />
+        )}
         <SyncIndicator />
       </Router>
     </ErrorBoundary>

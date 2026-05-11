@@ -46,18 +46,36 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
           runtimeCaching: [
             {
-              // API-Calls: Network-First (frische Daten bevorzugt, Fallback auf Cache)
-              urlPattern: ({ url }) => url.pathname.includes('/api/'),
-              handler: 'NetworkFirst',
+              // L1: POST /api/data über Background-Sync queuen.
+              //     Wenn der Browser offline ist (oder die Anfrage fehlschlägt),
+              //     legt Workbox die Request in IndexedDB ab und wiederholt sie
+              //     automatisch, sobald der Browser wieder online ist — auch
+              //     wenn der Tab in der Zwischenzeit geschlossen wurde.
+              urlPattern: ({ url }) => url.pathname.endsWith('/api/data'),
+              method:     'POST',
+              handler:    'NetworkOnly',
               options: {
-                cacheName: 'api-cache',
+                backgroundSync: {
+                  name: 'azubiboard-save-queue',
+                  options: {
+                    maxRetentionTime: 24 * 60, // Minuten = 24 h
+                  },
+                },
+              },
+            },
+            {
+              // GET-Endpoints: Network-First (frische Daten, Cache-Fallback)
+              urlPattern: ({ url, request }) => url.pathname.includes('/api/') && request.method === 'GET',
+              handler:    'NetworkFirst',
+              options: {
+                cacheName:  'api-cache',
                 expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
                 networkTimeoutSeconds: 5,
               },
             },
           ],
           // Nicht den Service Worker bei Offline-Fehler abstürzen lassen
-          skipWaiting: true,
+          skipWaiting:  true,
           clientsClaim: true,
         },
         devOptions: {
