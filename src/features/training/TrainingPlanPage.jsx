@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
+import { softDelete } from '../../lib/trash.js';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
   IcoCheck, IcoPlus, IcoTrash, IcoEdit, IcoClock,
@@ -319,7 +320,10 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
   const deleteGoal = (id) => {
     const snapshot = data;
     const goal     = goals.find(g => g.id === id);
-    savePlan({ goals: goals.filter(g => g.id !== id) }, goal ? {
+    if (!goal) return;
+    // J3: in Papierkorb verschieben (statt hart löschen) + Audit-Log
+    let next = softDelete(data, 'goals', goal, currentUser);
+    next = addActivity(next, {
       type:        'goal_deleted',
       userId:      currentUser.id,
       userName:    currentUser.name,
@@ -327,8 +331,9 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       projectId:   null,
       projectTitle:null,
       action:      'Lernziel gelöscht',
-    } : null);
-    toast(`🗑 Lernziel „${goal?.title || 'gelöscht'}"`, { undo: () => onUpdateData(snapshot) });
+    });
+    onUpdateData(next);
+    toast(`🗑 Lernziel „${goal.title}" → Papierkorb`, { undo: () => onUpdateData(snapshot) });
   };
 
   // Filter & group

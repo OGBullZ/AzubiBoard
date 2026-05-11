@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
+import { softDelete } from '../../lib/trash.js';
 import { Avatar, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
@@ -605,11 +606,16 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
       {confirmDel && (
         <ConfirmDialog
-          message="Berichtsheft wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+          message="Berichtsheft in den Papierkorb verschieben? Wiederherstellung möglich für 30 Tage."
           onConfirm={() => {
             const snapshot = data;
-            onUpdateData({ ...data, reports: reports.filter(r => r.id !== confirmDel) });
-            showToast('🗑 Berichtsheft gelöscht', { undo: () => onUpdateData(snapshot) });
+            const report   = reports.find(r => r.id === confirmDel);
+            if (report) {
+              onUpdateData(softDelete(data, 'reports', report, currentUser));
+            } else {
+              onUpdateData({ ...data, reports: reports.filter(r => r.id !== confirmDel) });
+            }
+            showToast('🗑 Berichtsheft → Papierkorb (30 Tage)', { undo: () => onUpdateData(snapshot) });
             setConfirmDel(null);
           }}
           onCancel={() => setConfirmDel(null)}

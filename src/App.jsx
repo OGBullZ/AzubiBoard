@@ -30,6 +30,7 @@ import AzubiProfilePage from './features/users/AzubiProfilePage';
 import { Toast } from './components/UI.jsx';
 import SyncIndicator from './components/SyncIndicator.jsx';
 import BackupReminder from './components/BackupReminder.jsx';
+import ConflictDialog from './components/ConflictDialog.jsx';
 import { recordBackup } from './lib/backup.js';
 import { useDataSync } from './lib/useDataSync.js';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
@@ -37,7 +38,10 @@ import {
   IcoDashboard, IcoFolder, IcoCalendar, IcoUsers,
   IcoReport, IcoLearn, IcoPlus, IcoLogout, IcoUserEdit, IcoSearch,
   IcoBell, IcoAlert, IcoClock, IcoX, IcoSun, IcoMoon, IcoRequire,
+  IcoTrash,
 } from './components/Icons.jsx';
+import TrashPage from './features/trash/TrashPage.jsx';
+import { ensureTrash, autoCleanTrash, trashCount as countTrash, softDelete } from './lib/trash.js';
 
 // ── App-Mode (einmalig auf Modulebene) ───────────────────────
 const USE_API = import.meta.env.VITE_USE_API === 'true';
@@ -424,7 +428,7 @@ function GlobalSearch({ data, onClose }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────
-function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer }) {
+function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer, trashCount = 0 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const path     = location.pathname;
@@ -441,6 +445,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, coll
     { to: '/training',  label: 'Ausbildungsplan', Icon: IcoRequire   },
     { to: '/learn',     label: 'Lernbereich',    Icon: IcoLearn     },
     ...(isAusbilder ? [{ to: '/users', label: 'Nutzer', Icon: IcoUserEdit }] : []),
+    { to: '/trash',     label: 'Papierkorb',     Icon: IcoTrash, trashCount: true },
   ];
 
   const hue = (currentUser?.name?.charCodeAt(0) || 100) * 37 % 360;
@@ -911,9 +916,14 @@ function ProjectsPage({ onNewProject, showToast }) {
     <ProjectPool projects={data?.projects||[]} users={data?.users||[]} groups={data?.groups||[]} currentUser={currentUser}
       onOpen={id => navigate(`/project/${id}`)} onNew={onNewProject}
       onDelete={id => {
+        const project  = (data?.projects||[]).find(p => p.id === id);
         const snapshot = data;
-        setData({ ...data, projects: (data?.projects||[]).filter(p => p.id !== id) });
-        showToast('🗑 Projekt gelöscht', { undo: () => setData(snapshot) });
+        if (project) {
+          setData(softDelete(data, 'projects', project, currentUser));
+        } else {
+          setData({ ...data, projects: (data?.projects||[]).filter(p => p.id !== id) });
+        }
+        showToast('🗑 Projekt → Papierkorb (30 Tage)', { undo: () => setData(snapshot) });
       }}
       onArchive={id => {
         const snapshot = data;
@@ -927,7 +937,7 @@ function ProjectsPage({ onNewProject, showToast }) {
 }
 
 // ── AppLayout ─────────────────────────────────────────────────
-function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, onBackup, children }) {
+function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, onBackup, trashCount = 0, children }) {
   const [collapsed,   setCollapsed]   = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
   const [drawerOpen,  setDrawerOpen]  = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -968,7 +978,8 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
       <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} onExport={onExport} onImport={onImport} onSearch={onSearch}
         collapsed={isMobile ? false : collapsed} onToggleCollapse={handleToggleCollapse}
         theme={theme} onToggleTheme={toggleTheme}
-        isMobile={isMobile} drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)} />
+        isMobile={isMobile} drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)}
+        trashCount={trashCount} />
 
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Mobile Topbar */}
@@ -1001,10 +1012,40 @@ const App = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const { toast, showToast, dismissToast } = useToast();
   const importRef = useRef(null);
+  const [conflict, setConflict] = useState(null);  // J2: Konflikt-Payload
 
   // I12: Smart-Polling — wenn ein anderer Tab/User auf dem Server speichert,
   //      holen wir die neue Version. Pausiert in Background-Tab + bei Save-Queue.
   useDataSync(setData, currentUser, () => data);
+
+  // J2: Conflict-Event vom dataService abfangen → Dialog anzeigen
+  useEffect(() => {
+    const onSync = (e) => {
+      if (e.detail?.type === 'conflict') {
+        setConflict(e.detail);
+        showToast('⚠ Speicherkonflikt — bitte entscheiden');
+      }
+    };
+    window.addEventListener('azubiboard:sync', onSync);
+    return () => window.removeEventListener('azubiboard:sync', onSync);
+  }, [showToast]);
+
+  // J2: Konflikt-Handler — Server-Version übernehmen
+  const acceptServer = useCallback(() => {
+    if (!conflict?.serverData) { setConflict(null); return; }
+    setData(conflict.serverData);
+    dataService.setKnownVersion(conflict.serverVersion || 0);
+    setConflict(null);
+    showToast('✓ Server-Version übernommen');
+  }, [conflict, setData, showToast]);
+
+  // J2: Konflikt-Handler — eigene Version forcieren
+  const forceMine = useCallback(async () => {
+    if (!conflict?.clientSnapshot) { setConflict(null); return; }
+    await dataService.forceSave(conflict.clientSnapshot);
+    setConflict(null);
+    showToast('⚡ Deine Version wurde gespeichert');
+  }, [conflict, showToast]);
 
   // ── 401-Handler: Token abgelaufen → sauber ausloggen ─────
   useEffect(() => {
@@ -1030,6 +1071,8 @@ const App = () => {
         })
       );
       let finalData = migrated ? { ...loaded, users: migratedUsers } : loaded;
+      // J3: trash-Feld migrieren + alte Einträge auto-purgen (>30 Tage)
+      finalData = autoCleanTrash(ensureTrash(finalData));
       if (migrated) persistData(finalData);
 
       if (USE_API) {
@@ -1181,7 +1224,7 @@ const App = () => {
   return (
     <ErrorBoundary>
       <Router>
-        <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport}>
+        <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport} trashCount={countTrash(data)}>
           <Routes>
             <Route path="/dashboard"   element={<DashboardPage onNewProject={handleNewProject} showToast={showToast} />} />
             <Route path="/projects"    element={<ProjectsPage  onNewProject={handleNewProject} showToast={showToast} />} />
@@ -1194,6 +1237,7 @@ const App = () => {
             <Route path="/reports"     element={<ReportsPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
             <Route path="/users"       element={<UsersPage showToast={showToast} />} />
             <Route path="/azubi/:id"   element={<AzubiProfileWrapper />} />
+            <Route path="/trash"       element={<TrashPage data={data} currentUser={currentUser} onUpdateData={setData} showToast={showToast} />} />
             <Route path="/"  element={<Navigate to="/dashboard" replace />} />
             <Route path="*"  element={<Navigate to="/dashboard" replace />} />
           </Routes>

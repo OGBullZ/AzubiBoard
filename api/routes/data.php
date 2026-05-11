@@ -32,14 +32,19 @@ if ($method === 'GET' && (($parts[1] ?? null) === 'version')) {
 
 // ── GET /api/data ────────────────────────────────────────────
 if ($method === 'GET') {
-    $row = db()->query('SELECT content FROM app_data WHERE id = 1')->fetch();
+    $row = db()->query('SELECT content, updated_at FROM app_data WHERE id = 1')->fetch();
     if (!$row) {
+        // ETag = 0 für leeren State
+        header('ETag: "0"');
         respond(['projects'=>[],'users'=>[],'groups'=>[],'calendarEvents'=>[],'reports'=>[]]);
     }
     $data = json_decode($row['content'], true);
     if (json_last_error() !== JSON_ERROR_NONE) {
         error('Datenfehler: gespeichertes JSON ist ungültig', 500);
     }
+    $version = strtotime($row['updated_at']);
+    header('ETag: "' . $version . '"');
+    header('X-Data-Version: ' . $version);
     respond($data);
 }
 
@@ -61,13 +66,43 @@ if ($method === 'POST') {
     if (json_last_error() !== JSON_ERROR_NONE) error('Ungültiges JSON', 400);
     if (!is_array($parsed))                    error('JSON muss Objekt sein', 400);
 
+    // ── J2: Conflict-Detection via If-Match ──────────────────
+    //    Frontend sendet seine bekannte Version mit. Wenn der
+    //    Server inzwischen eine neuere Version hat, antworten
+    //    wir 409 + aktuellen State, damit das Frontend mergen
+    //    oder neu laden kann. Force-Override mit "*".
+    $ifMatch = $_SERVER['HTTP_IF_MATCH'] ?? null;
+    if ($ifMatch !== null && $ifMatch !== '*') {
+        $clientVersion = (int) trim($ifMatch, '"');
+        $cur = db()->query('SELECT updated_at FROM app_data WHERE id = 1')->fetch();
+        $serverVersion = $cur ? strtotime($cur['updated_at']) : 0;
+        if ($serverVersion > 0 && $serverVersion !== $clientVersion) {
+            http_response_code(409);
+            // Aktuelle Daten + Version mitschicken (kein Roundtrip nötig)
+            $row    = db()->query('SELECT content FROM app_data WHERE id = 1')->fetch();
+            $server = $row ? json_decode($row['content'], true) : [];
+            header('ETag: "' . $serverVersion . '"');
+            respond([
+                'error'           => 'Conflict',
+                'server_version'  => $serverVersion,
+                'client_version'  => $clientVersion,
+                'server_data'     => $server,
+            ], 409);
+        }
+    }
+
     $stmt = db()->prepare("
         INSERT INTO app_data (id, content) VALUES (1, ?)
         ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = NOW()
     ");
     $stmt->execute([$raw]);
 
-    respond(['ok' => true]);
+    // Neue Version zurückgeben
+    $row = db()->query('SELECT updated_at FROM app_data WHERE id = 1')->fetch();
+    $newVersion = $row ? strtotime($row['updated_at']) : time();
+    header('ETag: "' . $newVersion . '"');
+    header('X-Data-Version: ' . $newVersion);
+    respond(['ok' => true, 'version' => $newVersion]);
 }
 
 error('Methode nicht erlaubt', 405);

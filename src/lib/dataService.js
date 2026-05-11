@@ -46,6 +46,7 @@ const saveQueue = (() => {
   let backoff     = 1000;     // ms, exp-backoff
   let lastError   = null;
   let lastSyncTs  = null;
+  let knownVersion = 0;       // J2: zuletzt bekannte Server-Version (ETag)
 
   const MAX_BACKOFF = 30_000;
 
@@ -65,8 +66,10 @@ const saveQueue = (() => {
     inflight = true;
     emit('start');
     try {
+      const headers = knownVersion ? { 'If-Match': `"${knownVersion}"` } : {};
       const res = await apiFetch('/data', {
         method: 'POST',
+        headers,
         body:   JSON.stringify(snapshot),
       });
       if (res.status === 401) {
@@ -75,12 +78,31 @@ const saveQueue = (() => {
         emit('error', { error: lastError, fatal: true });
         return;
       }
+      if (res.status === 409) {
+        // J2: Konflikt — Server hat neuere Version. Body enthält Server-State.
+        const body = await res.json().catch(() => ({}));
+        knownVersion = body.server_version || knownVersion;
+        pending = null;
+        lastError = new Error('Conflict');
+        emit('conflict', {
+          serverData:     body.server_data,
+          serverVersion:  body.server_version,
+          clientVersion:  body.client_version,
+          clientSnapshot: snapshot,
+        });
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // Erfolg → Backoff zurücksetzen, evtl. neue Pending erneut feuern
+      // Neue Version mitnehmen (aus Header ODER Body)
+      const etag = res.headers.get('ETag');
+      if (etag) knownVersion = Number(etag.replace(/"/g, '')) || knownVersion;
+      else {
+        try { const j = await res.clone().json(); if (j?.version) knownVersion = j.version; } catch {}
+      }
       backoff   = 1000;
       lastError = null;
       lastSyncTs = Date.now();
-      emit('success', { ts: lastSyncTs });
+      emit('success', { ts: lastSyncTs, version: knownVersion });
     } catch (err) {
       // Wenn währenddessen neuere Daten kamen, behalten wir sie;
       // andernfalls wieder das alte Snapshot in die Queue.
@@ -94,6 +116,10 @@ const saveQueue = (() => {
       if (pending) flush();
     }
   }
+
+  // Externer Setter: nach GET /api/data kennen wir die Version
+  function setVersion(v) { if (typeof v === 'number' && v > 0) knownVersion = v; }
+  function getVersion()  { return knownVersion; }
 
   function schedule() {
     clearTimeout(retryTimer);
@@ -113,11 +139,14 @@ const saveQueue = (() => {
 
   return {
     enqueue,
+    setVersion,
+    getVersion,
     status: () => ({
       pending:    !!pending,
       inflight,
       lastError:  lastError ? lastError.message : null,
       lastSyncTs,
+      version:    knownVersion,
       online:     typeof navigator === 'undefined' ? true : navigator.onLine,
     }),
   };
@@ -133,6 +162,9 @@ export const dataService = {
     try {
       const res = await apiFetch('/data');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // J2: Version aus ETag mitnehmen für If-Match beim nächsten Save
+      const etag = res.headers.get('ETag');
+      if (etag) saveQueue.setVersion(Number(etag.replace(/"/g, '')) || 0);
       return await res.json();
     } catch {
       return loadData();    // Fallback auf localStorage
@@ -153,6 +185,28 @@ export const dataService = {
   getSaveStatus() {
     return saveQueue.status();
   },
+
+  // J2: Force-Save (überschreibt If-Match-Check serverseitig)
+  async forceSave(newData) {
+    if (!USE_API) { persistData(newData); return newData; }
+    persistData(newData);
+    if (!isTokenValid()) return newData;
+    try {
+      const res = await apiFetch('/data', {
+        method:  'POST',
+        headers: { 'If-Match': '*' },
+        body:    JSON.stringify(newData),
+      });
+      if (res.ok) {
+        const j = await res.json().catch(() => ({}));
+        if (j?.version) saveQueue.setVersion(j.version);
+      }
+    } catch {}
+    return newData;
+  },
+
+  setKnownVersion(v) { saveQueue.setVersion(v); },
+  getKnownVersion()  { return saveQueue.getVersion(); },
 
   // ── Polling-Endpoint: Liefert nur Version der serverseitigen Daten ─
   //    Frontend ruft das alle 20-30s auf; bei neuer Version → getData().

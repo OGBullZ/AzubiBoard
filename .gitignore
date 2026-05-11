@@ -34,3 +34,10 @@ src_backup_*
 
 # Build archives
 *.zip
+
+# Playwright
+test-results/
+playwright-report/
+
+# OneDrive Name-Clash-Files
+**/*Name clash*
