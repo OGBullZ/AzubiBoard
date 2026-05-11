@@ -208,6 +208,43 @@ export const dataService = {
   setKnownVersion(v) { saveQueue.setVersion(v); },
   getKnownVersion()  { return saveQueue.getVersion(); },
 
+  // ── J10: Share-Links ─────────────────────────────────────
+  async createShareLink({ kind, data, title, ttlDays = 30 }) {
+    if (!USE_API) throw new Error('Share-Links benötigen API-Modus');
+    const res = await apiFetch('/share', {
+      method: 'POST',
+      body:   JSON.stringify({ kind, data, title, ttl_days: ttlDays }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Share-Link konnte nicht erstellt werden');
+    }
+    return await res.json(); // { token, expires_at }
+  },
+
+  async listShareLinks() {
+    if (!USE_API || !isTokenValid()) return [];
+    try {
+      const res = await apiFetch('/share');
+      return res.ok ? await res.json() : [];
+    } catch { return []; }
+  },
+
+  async revokeShareLink(token) {
+    if (!USE_API) return;
+    await apiFetch(`/share/${encodeURIComponent(token)}`, { method: 'DELETE' });
+  },
+
+  // Public-Endpoint: kein Auth-Header (Token ist im Pfad)
+  async fetchShareLink(token) {
+    const res = await fetch(`${API_BASE}/share/${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return await res.json(); // { kind, title, data, created_at, expires_at }
+  },
+
   // ── Polling-Endpoint: Liefert nur Version der serverseitigen Daten ─
   //    Frontend ruft das alle 20-30s auf; bei neuer Version → getData().
   async getDataVersion() {

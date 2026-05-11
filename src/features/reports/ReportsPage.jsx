@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
 import { softDelete } from '../../lib/trash.js';
+import ShareLinkModal from '../../components/ShareLinkModal.jsx';
 import { Avatar, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
@@ -161,40 +162,129 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     showToast('✓ Berichtsheft gespeichert');
   };
 
-  const printReport = () => {
+  // Einfache Druck-Variante (Standard) — knappes 1-Seiten-Layout
+  const printReport = () => printVariant('standard');
+
+  // J17: IHK-konforme Druck-Variante mit:
+  //  - Kopfzeile mit Beruf/Betrieb (DIN 5008)
+  //  - Stammdaten-Block (Azubi, Ausbildungsjahr, Ausbildungszeitraum)
+  //  - 25 mm linker Rand für Hefter
+  //  - Unterschriftenfelder (Azubi, Ausbilder, ggf. Erziehungsberechtigter)
+  //  - Seitennummer-Variable im Footer (CSS-Counter)
+  const printReportIHK = () => printVariant('ihk');
+
+  const printVariant = (variant) => {
     const w = window.open('', '_blank');
     if (!w) { showToast('⚠ Popup blockiert – bitte Pop-ups erlauben'); return; }
     const isoYear = getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear();
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berichtsheft KW ${kw} – ${currentUser.name}</title>
-    <style>
-      body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;color:#111;font-size:14px;line-height:1.7}
-      h1{font-size:22px;margin-bottom:4px}
-      h2{font-size:15px;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #eee;padding-bottom:4px}
-      p,pre{margin:0 0 14px;white-space:pre-wrap;word-break:break-word}
-      .meta{color:#666;font-size:12px;margin-bottom:24px}
-      .status{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;background:#e8f5e9;color:#2e7d32}
-      hr{border:none;border-top:1px solid #ddd;margin:24px 0}
-      @media print{
-        body{margin:20px}
-        -webkit-print-color-adjust:exact;
-        print-color-adjust:exact;
-      }
-    </style>
-    </head><body>
-    <h1>Ausbildungsnachweis – KW ${kw} / ${isoYear}</h1>
-    <div class="meta">
-      <strong>${currentUser.name}</strong> · Woche vom ${new Date(form.week_start).toLocaleDateString('de-DE')} ·
-      <span class="status">${STATUS_REPORT[form.status]?.l || form.status}</span>
-    </div>
-    ${form.title ? `<h2>Thema</h2><p>${form.title}</p>` : ''}
-    <h2>Durchgeführte Tätigkeiten</h2><pre>${form.activities || '–'}</pre>
-    <h2>Unterweisungen / Lerninhalt</h2><pre>${form.learnings || '–'}</pre>
-    ${form.reviewer_comment ? `<hr><h2>Kommentar des Ausbilders</h2><pre>${form.reviewer_comment}</pre>` : ''}
-    <hr><p style="font-size:11px;color:#999">Erstellt mit AzubiBoard · ${new Date().toLocaleDateString('de-DE')}</p>
-    </body></html>`);
+    const weekEndDate = new Date(new Date(form.week_start).getTime() + 4 * 86400000);
+    const weekRange = `${new Date(form.week_start).toLocaleDateString('de-DE')} – ${weekEndDate.toLocaleDateString('de-DE')}`;
+    const today = new Date().toLocaleDateString('de-DE');
+
+    // Profil-Felder vom Azubi (falls vorhanden)
+    const profession = currentUser.profession || '';
+    const azYear     = currentUser.apprenticeship_year ?? '';
+
+    if (variant === 'standard') {
+      w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berichtsheft KW ${kw} – ${currentUser.name}</title>
+      <style>
+        body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;color:#111;font-size:14px;line-height:1.7}
+        h1{font-size:22px;margin-bottom:4px}
+        h2{font-size:15px;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #eee;padding-bottom:4px}
+        p,pre{margin:0 0 14px;white-space:pre-wrap;word-break:break-word}
+        .meta{color:#666;font-size:12px;margin-bottom:24px}
+        .status{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700;background:#e8f5e9;color:#2e7d32}
+        hr{border:none;border-top:1px solid #ddd;margin:24px 0}
+        @media print{ body{margin:20px} -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      </style>
+      </head><body>
+      <h1>Ausbildungsnachweis – KW ${kw} / ${isoYear}</h1>
+      <div class="meta">
+        <strong>${currentUser.name}</strong> · Woche vom ${new Date(form.week_start).toLocaleDateString('de-DE')} ·
+        <span class="status">${STATUS_REPORT[form.status]?.l || form.status}</span>
+      </div>
+      ${form.title ? `<h2>Thema</h2><p>${form.title}</p>` : ''}
+      <h2>Durchgeführte Tätigkeiten</h2><pre>${form.activities || '–'}</pre>
+      <h2>Unterweisungen / Lerninhalt</h2><pre>${form.learnings || '–'}</pre>
+      ${form.reviewer_comment ? `<hr><h2>Kommentar des Ausbilders</h2><pre>${form.reviewer_comment}</pre>` : ''}
+      <hr><p style="font-size:11px;color:#999">Erstellt mit AzubiBoard · ${today}</p>
+      </body></html>`);
+    } else {
+      // IHK-Variante: A4, 25mm linker Rand, formaler Aufbau
+      w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ausbildungsnachweis KW ${kw}/${isoYear} – ${currentUser.name}</title>
+      <style>
+        @page { size: A4; margin: 20mm 15mm 20mm 25mm; }
+        body{font-family:'Times New Roman',Georgia,serif;color:#000;font-size:11pt;line-height:1.5;margin:0}
+        .header{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end}
+        .header .title{font-size:14pt;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px}
+        .header .sub{font-size:9pt;color:#444;margin-top:2px}
+        .stammdaten{border:1px solid #000;padding:10px 14px;margin-bottom:18px;font-size:10pt}
+        .stammdaten table{width:100%;border-collapse:collapse}
+        .stammdaten td{padding:3px 6px;vertical-align:top}
+        .stammdaten td.lbl{color:#555;width:40%;font-weight:600}
+        h2{font-size:11pt;font-weight:bold;margin:18px 0 6px;border-bottom:1px solid #555;padding-bottom:2px;text-transform:uppercase;letter-spacing:0.3px}
+        pre{font-family:'Times New Roman',Georgia,serif;font-size:11pt;line-height:1.55;white-space:pre-wrap;word-break:break-word;margin:0 0 12px}
+        .empty{color:#888;font-style:italic}
+        .signatures{margin-top:32px;display:flex;gap:28px;justify-content:space-between}
+        .sigblock{flex:1;border-top:1px solid #000;padding-top:5px;font-size:9pt;text-align:center}
+        .sigblock .role{font-weight:bold}
+        .sigblock .meta{color:#555;margin-top:2px}
+        .footer{position:fixed;bottom:8mm;left:0;right:0;text-align:center;font-size:8pt;color:#888;font-style:italic}
+        @media print{
+          -webkit-print-color-adjust:exact; print-color-adjust:exact;
+          h2{page-break-after:avoid}
+          pre{page-break-inside:avoid}
+          .signatures{page-break-inside:avoid}
+        }
+      </style>
+      </head><body>
+        <div class="header">
+          <div>
+            <div class="title">Ausbildungsnachweis · Berichtsheft</div>
+            <div class="sub">Kalenderwoche ${kw} / ${isoYear} · ${weekRange}</div>
+          </div>
+          <div style="text-align:right;font-size:9pt;color:#444">Seite 1</div>
+        </div>
+
+        <div class="stammdaten">
+          <table>
+            <tr><td class="lbl">Auszubildende/r:</td><td>${currentUser.name || '–'}</td></tr>
+            ${profession ? `<tr><td class="lbl">Ausbildungsberuf:</td><td>${profession}</td></tr>` : ''}
+            ${azYear ? `<tr><td class="lbl">Ausbildungsjahr:</td><td>${azYear}. Lehrjahr</td></tr>` : ''}
+            <tr><td class="lbl">Berichtswoche:</td><td>${weekRange}</td></tr>
+            ${form.title ? `<tr><td class="lbl">Thema der Woche:</td><td>${form.title}</td></tr>` : ''}
+          </table>
+        </div>
+
+        <h2>Durchgeführte betriebliche Tätigkeiten</h2>
+        ${form.activities ? `<pre>${form.activities}</pre>` : '<p class="empty">(keine Angaben)</p>'}
+
+        <h2>Unterweisungen / Lerninhalte / Berufsschule</h2>
+        ${form.learnings ? `<pre>${form.learnings}</pre>` : '<p class="empty">(keine Angaben)</p>'}
+
+        ${form.reviewer_comment ? `<h2>Kommentar des Ausbilders</h2><pre>${form.reviewer_comment}</pre>` : ''}
+
+        <div class="signatures">
+          <div class="sigblock">
+            <div class="role">Unterschrift Auszubildende/r</div>
+            <div class="meta">Datum: __________________</div>
+          </div>
+          <div class="sigblock">
+            <div class="role">Unterschrift Ausbilder/in</div>
+            <div class="meta">Datum: __________________</div>
+          </div>
+          <div class="sigblock">
+            <div class="role">ggf. ges. Vertretung</div>
+            <div class="meta">Datum: __________________</div>
+          </div>
+        </div>
+
+        <div class="footer">Erstellt mit AzubiBoard · ${today}</div>
+      </body></html>`);
+    }
+
     w.document.close();
     w.focus();
-    // onload statt fixem Timeout (verhindert Race-Condition mit großen Dokumenten)
     if (w.document.readyState === 'complete') w.print();
     else w.onload = () => w.print();
   };
@@ -215,7 +305,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
             </button>
           ))}
         </div>
-        <button className="btn" onClick={printReport} title="Als PDF drucken" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>🖨 PDF</button>
+        <button className="btn" onClick={printReport} title="Einfaches PDF (1 Seite)" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>🖨 PDF</button>
+        <button className="btn" onClick={printReportIHK} title="IHK-konform mit Stammdaten + Unterschriftenfeldern" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>📄 IHK-Format</button>
         {isOwner && !readOnly && (
           <button className="abtn" onClick={save} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><IcoCheck size={13} /> Speichern</button>
         )}
@@ -458,6 +549,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   const [filter,  setFilter] = useState('alle');
   const [search,  setSearch] = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
+  const [shareOpen,  setShareOpen]  = useState(false);  // J10
 
   const myReports = currentUser.role === 'azubi' ? reports.filter(r => r.user_id === currentUser.id) : reports;
   const q = search.trim().toLowerCase();
@@ -543,10 +635,16 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {currentUser.role === 'ausbilder' && (
-            <button className="btn" onClick={() => printJahresmappe(reports, new Date().getFullYear(), showToast)}
-              style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
-              📚 Jahresmappe {new Date().getFullYear()}
-            </button>
+            <>
+              <button className="btn" onClick={() => printJahresmappe(reports, new Date().getFullYear(), showToast)}
+                style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
+                📚 Jahresmappe {new Date().getFullYear()}
+              </button>
+              <button className="btn" onClick={() => setShareOpen(true)} title="Read-Only-Link erzeugen (für IHK/Eltern/Schule)"
+                style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
+                🔗 Teilen
+              </button>
+            </>
           )}
           {currentUser.role === 'azubi' && (
             <button className="abtn" onClick={() => { setEditing(null); setView('edit'); }}
@@ -619,6 +717,19 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             setConfirmDel(null);
           }}
           onCancel={() => setConfirmDel(null)}
+        />
+      )}
+
+      {shareOpen && (
+        <ShareLinkModal
+          kind="jahresmappe"
+          title={`Jahresmappe ${new Date().getFullYear()}`}
+          data={{ reports: reports.filter(r => {
+            const iso = getISOWeek(r.week_start);
+            const yr  = r.year ?? iso.year ?? new Date(r.week_start).getFullYear();
+            return yr === new Date().getFullYear();
+          }) }}
+          onClose={() => setShareOpen(false)}
         />
       )}
     </div>

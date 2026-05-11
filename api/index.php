@@ -25,6 +25,7 @@ try {
         'auth'  => require __DIR__ . '/routes/auth.php',
         'data'  => require __DIR__ . '/routes/data.php',
         'users' => require __DIR__ . '/routes/users.php',
+        'share' => require __DIR__ . '/routes/share.php',
         default => error("Unbekannte Route '$resource'", 404),
     };
 } catch (PDOException $e) {

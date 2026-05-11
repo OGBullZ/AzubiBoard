@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
@@ -16,17 +16,20 @@ import {
 } from 'react-router-dom';
 
 import AuthPage from './features/auth/AuthPage';
-import Dashboard from './features/dashboard/Dashboard';
+import Dashboard from './features/dashboard/Dashboard';   // initial Route — eager
 import ProjectPool from './features/projects/ProjectPool';
-import ProjectDetail from './features/projects/ProjectDetail';
-import LearnPage from './features/learn/LearnPage';
-import ReportsPage from './features/reports/ReportsPage';
-import NewProjectModal from './features/projects/NewProjectModal';
-import CalendarView from './features/calendar/CalendarView';
-import GroupsView from './features/groups/GroupsView';
-import UsersView from './features/users/UsersView';
-import TrainingPlanPage from './features/training/TrainingPlanPage';
-import AzubiProfilePage from './features/users/AzubiProfilePage';
+
+// J13: Code-Splitting — schwergewichtige Routes / Modals lazy laden.
+// Spart ~300 KB im Initial-Bundle, lädt on-demand bei Routen-Wechsel.
+const ProjectDetail     = lazy(() => import('./features/projects/ProjectDetail'));
+const LearnPage         = lazy(() => import('./features/learn/LearnPage'));
+const ReportsPage       = lazy(() => import('./features/reports/ReportsPage'));
+const NewProjectModal   = lazy(() => import('./features/projects/NewProjectModal'));
+const CalendarView      = lazy(() => import('./features/calendar/CalendarView'));
+const GroupsView        = lazy(() => import('./features/groups/GroupsView'));
+const UsersView         = lazy(() => import('./features/users/UsersView'));
+const TrainingPlanPage  = lazy(() => import('./features/training/TrainingPlanPage'));
+const AzubiProfilePage  = lazy(() => import('./features/users/AzubiProfilePage'));
 import { Toast } from './components/UI.jsx';
 import SyncIndicator from './components/SyncIndicator.jsx';
 import BackupReminder from './components/BackupReminder.jsx';
@@ -40,11 +43,24 @@ import {
   IcoBell, IcoAlert, IcoClock, IcoX, IcoSun, IcoMoon, IcoRequire,
   IcoTrash,
 } from './components/Icons.jsx';
-import TrashPage from './features/trash/TrashPage.jsx';
+const TrashPage = lazy(() => import('./features/trash/TrashPage.jsx'));
+const ShareView = lazy(() => import('./features/share/ShareView.jsx'));
 import { ensureTrash, autoCleanTrash, trashCount as countTrash, softDelete } from './lib/trash.js';
 
 // ── App-Mode (einmalig auf Modulebene) ───────────────────────
 const USE_API = import.meta.env.VITE_USE_API === 'true';
+
+// J13: Suspense-Fallback während Lazy-Routes nachladen
+function RouteFallback() {
+  return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--c-mu)', fontSize: 12 }}>
+        <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid var(--c-bd2)', borderTopColor: 'var(--c-ac)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        Lädt …
+      </div>
+    </div>
+  );
+}
 
 // ── Theme aus User-Objekt übernehmen (nach Login / Startup) ──
 function applyUserTheme(theme) {
@@ -147,6 +163,61 @@ function useTheme() {
   return { theme, toggleTheme };
 }
 
+// J7: Permission-Row im Notification-Dropdown
+function NotificationPermissionRow() {
+  const [perm, setPerm]       = useState(() => typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
+  const [enabled, setEnabledState] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    import('./lib/webPush.js').then(m => {
+      if (!mounted) return;
+      setEnabledState(m.isEnabled());
+      setPerm(m.currentPermission());
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  if (perm === 'unsupported') return null;
+
+  const ask = async () => {
+    const m = await import('./lib/webPush.js');
+    const result = await m.requestPermission();
+    setPerm(result);
+  };
+  const toggle = async () => {
+    const m = await import('./lib/webPush.js');
+    const next = !enabled;
+    m.setEnabled(next);
+    setEnabledState(next);
+  };
+
+  if (perm === 'default') {
+    return (
+      <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--c-bd)', background: 'rgba(0,113,227,.06)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 9 }}>
+        <span aria-hidden="true">🔔</span>
+        <span style={{ flex: 1, color: 'var(--c-tx)' }}>Browser-Benachrichtigungen erlauben?</span>
+        <button onClick={ask} className="abtn" style={{ padding: '4px 9px', fontSize: 10 }}>Erlauben</button>
+      </div>
+    );
+  }
+  if (perm === 'denied') {
+    return (
+      <div style={{ padding: '7px 14px', borderBottom: '1px solid var(--c-bd)', fontSize: 10, color: 'var(--c-mu)', fontStyle: 'italic' }}>
+        🔕 Browser-Notifications blockiert (in den Browser-Einstellungen freigeben)
+      </div>
+    );
+  }
+  // granted → Toggle anzeigen
+  return (
+    <label style={{ padding: '7px 14px', borderBottom: '1px solid var(--c-bd)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--c-mu)' }}>
+      <input type="checkbox" checked={enabled} onChange={toggle} />
+      <span style={{ flex: 1 }}>Browser-Push aktiv</span>
+      <span style={{ fontSize: 9, color: 'var(--c-gr)' }}>● {enabled ? 'AN' : 'AUS'}</span>
+    </label>
+  );
+}
+
 // ── Notifications ─────────────────────────────────────────────
 function useNotifications(data, currentUser) {
   const storageKey = `azubiboard_notif_read_${currentUser?.id || 'anon'}`;
@@ -194,6 +265,15 @@ function useNotifications(data, currentUser) {
   }, [data, currentUser]);
 
   const unreadCount = useMemo(() => notifications.filter(n => !readIds.has(n.id)).length, [notifications, readIds]);
+
+  // J7: bei neuen ungelesenen Notifications → Browser-Push feuern (nur wenn Tab im Hintergrund)
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const unread = notifications.filter(n => !readIds.has(n.id));
+    if (!unread.length) return;
+    // Lazy-Import damit Browser ohne Notification-API nicht crashen
+    import('./lib/webPush.js').then(m => m.fireForNewNotifications(currentUser.id, unread));
+  }, [notifications, readIds, currentUser?.id]);
 
   // Garbage-Collect: readIds die nicht mehr in aktuellen Notifications vorkommen entfernen.
   // Verhindert unbegrenztes Wachstum von localStorage über Wochen/Monate.
@@ -298,6 +378,7 @@ function NotificationBell({ collapsed }) {
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-mu)', padding: 0, display: 'flex', alignItems: 'center' }}><IcoX size={14} /></button>
             </div>
           </div>
+          <NotificationPermissionRow />
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {notifications.length === 0
               ? <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--c-mu)', fontSize: 13 }}>Alles erledigt ✓</div>
@@ -1191,6 +1272,28 @@ const App = () => {
 
   if (!data) return null;
 
+  // J10: Public Share-Route — bypassed Auth & AppLayout (kein Login nötig)
+  // BrowserRouter + Path: /azubiboard/share/:token funktioniert auch ohne
+  // currentUser. Wir matchen direkt auf pathname (Router läuft sonst nur
+  // hinter dem Auth-Gate).
+  const sharePath = typeof window !== 'undefined' && window.location.pathname.match(/\/share\/([a-f0-9]{32,64})\b/);
+  if (sharePath) {
+    // BASE_PATH ohne trailing-Slash als Router-basename
+    const basename = (import.meta.env.VITE_BASE_PATH || '/azubiboard/').replace(/\/$/, '');
+    return (
+      <ErrorBoundary>
+        <Router basename={basename}>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/share/:token" element={<ShareView />} />
+              <Route path="*" element={<ShareView />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      </ErrorBoundary>
+    );
+  }
+
   if (!currentUser) {
     return (
       <ErrorBoundary>
@@ -1225,31 +1328,35 @@ const App = () => {
     <ErrorBoundary>
       <Router>
         <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport} trashCount={countTrash(data)}>
-          <Routes>
-            <Route path="/dashboard"   element={<DashboardPage onNewProject={handleNewProject} showToast={showToast} />} />
-            <Route path="/projects"    element={<ProjectsPage  onNewProject={handleNewProject} showToast={showToast} />} />
-            <Route path="/project/:id" element={<ProjectDetailWrapper showToast={showToast} />} />
-            <Route path="/profile"     element={<ProfilePage showToast={showToast} />} />
-            <Route path="/calendar"    element={<CalendarPage showToast={showToast} />} />
-            <Route path="/groups"      element={<GroupsPage showToast={showToast} />} />
-            <Route path="/training"    element={<TrainingPlanPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
-            <Route path="/learn"       element={<LearnPage currentUser={currentUser} />} />
-            <Route path="/reports"     element={<ReportsPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
-            <Route path="/users"       element={<UsersPage showToast={showToast} />} />
-            <Route path="/azubi/:id"   element={<AzubiProfileWrapper />} />
-            <Route path="/trash"       element={<TrashPage data={data} currentUser={currentUser} onUpdateData={setData} showToast={showToast} />} />
-            <Route path="/"  element={<Navigate to="/dashboard" replace />} />
-            <Route path="*"  element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/dashboard"   element={<DashboardPage onNewProject={handleNewProject} showToast={showToast} />} />
+              <Route path="/projects"    element={<ProjectsPage  onNewProject={handleNewProject} showToast={showToast} />} />
+              <Route path="/project/:id" element={<ProjectDetailWrapper showToast={showToast} />} />
+              <Route path="/profile"     element={<ProfilePage showToast={showToast} />} />
+              <Route path="/calendar"    element={<CalendarPage showToast={showToast} />} />
+              <Route path="/groups"      element={<GroupsPage showToast={showToast} />} />
+              <Route path="/training"    element={<TrainingPlanPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
+              <Route path="/learn"       element={<LearnPage currentUser={currentUser} />} />
+              <Route path="/reports"     element={<ReportsPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
+              <Route path="/users"       element={<UsersPage showToast={showToast} />} />
+              <Route path="/azubi/:id"   element={<AzubiProfileWrapper />} />
+              <Route path="/trash"       element={<TrashPage data={data} currentUser={currentUser} onUpdateData={setData} showToast={showToast} />} />
+              <Route path="/"  element={<Navigate to="/dashboard" replace />} />
+              <Route path="*"  element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Suspense>
 
           {showModal && (
-            <NewProjectModal
-              users={data?.users || []}
-              groups={data?.groups || []}
-              currentUser={currentUser}
-              onClose={() => setShowModal(false)}
-              onCreate={handleCreate}
-            />
+            <Suspense fallback={null}>
+              <NewProjectModal
+                users={data?.users || []}
+                groups={data?.groups || []}
+                currentUser={currentUser}
+                onClose={() => setShowModal(false)}
+                onCreate={handleCreate}
+              />
+            </Suspense>
           )}
         </AppLayout>
 

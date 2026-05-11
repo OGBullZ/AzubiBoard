@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
 import { softDelete } from '../../lib/trash.js';
+import ImportGoalsModal from './ImportGoalsModal.jsx';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
   IcoCheck, IcoPlus, IcoTrash, IcoEdit, IcoClock,
@@ -252,10 +253,11 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
   const isAusbilder = currentUser.role === 'ausbilder';
   const toast       = showToast || (() => {});
 
-  const [showAdd,   setShowAdd]   = useState(false);
-  const [editGoal,  setEditGoal]  = useState(null);
-  const [filterY,   setFilterY]   = useState(isAusbilder ? 'all' : String(currentUser.apprenticeship_year || 1));
-  const [filterCat, setFilterCat] = useState('all');
+  const [showAdd,    setShowAdd]    = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [editGoal,   setEditGoal]   = useState(null);
+  const [filterY,    setFilterY]    = useState(isAusbilder ? 'all' : String(currentUser.apprenticeship_year || 1));
+  const [filterCat,  setFilterCat]  = useState('all');
 
   const savePlan = (patch, audit) => {
     let next = { ...data, trainingPlan: { ...plan, ...patch } };
@@ -275,6 +277,24 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
     });
     setShowAdd(false);
     toast('✓ Lernziel hinzugefügt');
+  };
+
+  // J16: Bulk-Import — fügt alle Goals auf einmal hinzu mit Audit-Log
+  const importGoals = (newGoals) => {
+    if (!newGoals?.length) return;
+    let next = { ...data, trainingPlan: { ...plan, goals: [...goals, ...newGoals] } };
+    next = addActivity(next, {
+      type:        'goals_imported',
+      userId:      currentUser.id,
+      userName:    currentUser.name,
+      entityTitle: `${newGoals.length} Lernziele`,
+      projectId:   null,
+      projectTitle:null,
+      action:      `${newGoals.length} Lernziele importiert`,
+    });
+    onUpdateData(next);
+    setShowImport(false);
+    toast(`✓ ${newGoals.length} Lernziel${newGoals.length === 1 ? '' : 'e'} importiert`);
   };
 
   const updateGoal = (updated, opts) => {
@@ -387,9 +407,14 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
         )}
 
         {isAusbilder && (
-          <button className="abtn" onClick={() => setShowAdd(true)} style={{ fontSize: 12 }}>
-            <IcoPlus size={12} /> Lernziel hinzufügen
-          </button>
+          <div style={{ display: 'flex', gap: 7 }}>
+            <button className="btn" onClick={() => setShowImport(true)} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+              📥 Importieren
+            </button>
+            <button className="abtn" onClick={() => setShowAdd(true)} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <IcoPlus size={12} /> Lernziel hinzufügen
+            </button>
+          </div>
         )}
       </div>
 
@@ -453,6 +478,14 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
             </div>
           );
         })
+      )}
+
+      {showImport && (
+        <ImportGoalsModal
+          existingGoals={goals}
+          onImport={importGoals}
+          onClose={() => setShowImport(false)}
+        />
       )}
     </div>
   );

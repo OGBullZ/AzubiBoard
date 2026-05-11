@@ -659,6 +659,7 @@ const ACTIVITY_CONFIG = {
   goal_confirmed:   { icon: '🏆', color: C.gr  },
   goal_updated:     { icon: '✏️', color: C.mu  },
   goal_deleted:     { icon: '🗑️', color: C.cr  },
+  goals_imported:   { icon: '📥', color: C.ac  },
 };
 
 function activityText(entry) {
@@ -687,6 +688,8 @@ function activityText(entry) {
       return <>{entry.userName} hat Lernziel <strong style={{ color: C.br }}>{entry.entityTitle}</strong> bearbeitet</>;
     case 'goal_deleted':
       return <>{entry.userName} hat Lernziel <strong style={{ color: C.br }}>{entry.entityTitle}</strong> gelöscht</>;
+    case 'goals_imported':
+      return <>{entry.userName} hat <strong style={{ color: C.br }}>{entry.entityTitle}</strong> importiert</>;
     default:
       return entry.action || '–';
   }
