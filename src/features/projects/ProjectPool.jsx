@@ -47,7 +47,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
   const FILTERS = [
     ['all',    'Alle',       null,  C.ac, active.length],
     ['mine',   'Meine',      null,  C.mu, active.filter(p => (p.assignees||[]).includes(currentUser.id)).length],
-    ['green',  'In Ordnung', C.gr,  C.gr, active.filter(p => p.status === 'green').length],
+    ['green',  'Abgeschlossen', C.gr,  C.gr, active.filter(p => p.status === 'green').length],
     ['yellow', 'Laufend',    C.yw,  C.yw, active.filter(p => p.status === 'yellow').length],
     ['red',    'Problem',    C.cr,  C.cr, active.filter(p => p.status === 'red').length],
   ];

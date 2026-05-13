@@ -727,36 +727,77 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
 }
 
 export function MaterialsTab({ project, onUpdate }) {
-  const [form, setForm] = useState({ name: '', qty: 1, cost: 0 });
-  const add    = () => { if (!form.name.trim()) return; onUpdate(project.id, { materials: [...(project.materials||[]), { id: uid(), name: form.name.trim(), qty: Number(form.qty)||1, cost: Number(form.cost)||0 }] }); setForm({ name:'',qty:1,cost:0 }); };
+  const tasks   = project.tasks || [];
+  const [form, setForm] = useState({ name: '', qty: 1, cost: 0, taskId: '' });
+
+  const add = () => {
+    if (!form.name.trim()) return;
+    onUpdate(project.id, {
+      materials: [...(project.materials||[]), {
+        id: uid(),
+        name: form.name.trim(),
+        qty: Number(form.qty)||1,
+        cost: Number(form.cost)||0,
+        taskId: form.taskId || null,
+      }],
+    });
+    setForm({ name: '', qty: 1, cost: 0, taskId: '' });
+  };
+
   const remove = id => onUpdate(project.id, { materials: (project.materials||[]).filter(m => m.id !== id) });
   const total  = (project.materials||[]).reduce((s,m) => s + (m.cost||0)*(m.qty||1), 0);
+
+  // Sortierung: zuerst nach Aufgabe (alphabetisch nach Aufgaben-Text), dann ohne Aufgabe
+  const taskOrder = tasks.reduce((acc, t, i) => { acc[t.id] = i; return acc; }, {});
+  const sorted = [...(project.materials||[])].sort((a, b) => {
+    const ia = a.taskId != null ? (taskOrder[a.taskId] ?? 9999) : 9999;
+    const ib = b.taskId != null ? (taskOrder[b.taskId] ?? 9999) : 9999;
+    return ia - ib;
+  });
+
+  const taskName = id => tasks.find(t => t.id === id)?.text || '—';
+
+  const COLS = '2fr 1fr 70px 90px 90px 36px';
 
   return (
     <div className="anim">
       <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 90px auto', gap: 8, alignItems: 'flex-end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 8 }}>
           <div><label>Bezeichnung</label><input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="z.B. HDMI-Kabel" /></div>
+          <div>
+            <label>Aufgabe</label>
+            <select value={form.taskId} onChange={e => setForm(f=>({...f,taskId:e.target.value}))} style={{ appearance:'auto' }}>
+              <option value="">— keine Aufgabe —</option>
+              {tasks.map(t => <option key={t.id} value={t.id}>{t.text || 'Unbenannte Aufgabe'}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '70px 90px auto', gap: 8, alignItems: 'flex-end' }}>
           <div><label>Menge</label><input type="number" min="1" value={form.qty} onChange={e=>setForm(f=>({...f,qty:e.target.value}))} /></div>
           <div><label>Kosten €</label><input type="number" min="0" step="0.01" value={form.cost} onChange={e=>setForm(f=>({...f,cost:e.target.value}))} /></div>
-          <button className="abtn" onClick={add} style={{ alignSelf:'flex-end',padding:'7px 12px' }}>+</button>
+          <button className="abtn" onClick={add} style={{ alignSelf:'flex-end',padding:'7px 12px' }}>+ Hinzufügen</button>
         </div>
       </div>
       <div style={{ background:C.sf2, border:`1px solid ${C.bd}`, borderRadius:9, overflow:'hidden' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 70px 90px 90px 36px', padding:'7px 14px', borderBottom:`1px solid ${C.bd}`, fontSize:10, color:C.mu, textTransform:'uppercase', letterSpacing:.8, fontWeight:700 }}>
-          <div>Bezeichnung</div><div>Menge</div><div>Einzelpreis</div><div>Gesamt</div><div />
+        <div style={{ display:'grid', gridTemplateColumns:COLS, padding:'7px 14px', borderBottom:`1px solid ${C.bd}`, fontSize:10, color:C.mu, textTransform:'uppercase', letterSpacing:.8, fontWeight:700 }}>
+          <div>Bezeichnung</div><div>Aufgabe</div><div>Menge</div><div>Einzelpreis</div><div>Gesamt</div><div />
         </div>
-        {(project.materials||[]).length===0 ? <div style={{padding:'20px',textAlign:'center',color:C.mu,fontSize:12}}>Noch kein Material</div>
-         : (project.materials||[]).map(m => (
-          <div key={m.id} style={{ display:'grid', gridTemplateColumns:'1fr 70px 90px 90px 36px', padding:'9px 14px', borderBottom:`1px solid ${C.bd}22`, alignItems:'center' }}>
-            <div style={{fontSize:13,color:C.br,fontWeight:600}}>{m.name}</div>
-            <div style={{fontSize:12,fontFamily:C.mono}}>{m.qty}×</div>
-            <div style={{fontSize:12,fontFamily:C.mono}}>{Number(m.cost).toFixed(2)} €</div>
-            <div style={{fontSize:12,fontFamily:C.mono,color:C.ac,fontWeight:700}}>{(m.qty*m.cost).toFixed(2)} €</div>
-            <IconBtn Icon={IcoTrash} onClick={()=>remove(m.id)} label={`${m.name} löschen`} danger size={12} />
-          </div>
-        ))}
-        {(project.materials||[]).length > 0 && (
+        {sorted.length === 0
+          ? <div style={{padding:'20px',textAlign:'center',color:C.mu,fontSize:12}}>Noch kein Material</div>
+          : sorted.map(m => (
+            <div key={m.id} style={{ display:'grid', gridTemplateColumns:COLS, padding:'9px 14px', borderBottom:`1px solid ${C.bd}22`, alignItems:'center' }}>
+              <div style={{fontSize:13,color:C.br,fontWeight:600}}>{m.name}</div>
+              <div style={{fontSize:11,color:m.taskId?C.ac:C.mu,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={m.taskId?taskName(m.taskId):''}>
+                {m.taskId ? taskName(m.taskId) : <span style={{color:C.bd2}}>—</span>}
+              </div>
+              <div style={{fontSize:12,fontFamily:C.mono}}>{m.qty}×</div>
+              <div style={{fontSize:12,fontFamily:C.mono}}>{Number(m.cost).toFixed(2)} €</div>
+              <div style={{fontSize:12,fontFamily:C.mono,color:C.ac,fontWeight:700}}>{(m.qty*m.cost).toFixed(2)} €</div>
+              <IconBtn Icon={IcoTrash} onClick={()=>remove(m.id)} label={`${m.name} löschen`} danger size={12} />
+            </div>
+          ))
+        }
+        {sorted.length > 0 && (
           <div style={{padding:'8px 14px',borderTop:`1px solid ${C.bd}`,display:'flex',justifyContent:'flex-end',gap:8,alignItems:'center'}}>
             <span style={{fontSize:12,color:C.mu}}>Gesamt:</span>
             <span style={{fontSize:16,fontWeight:800,color:C.ac,fontFamily:C.mono}}>{total.toFixed(2)} €</span>

@@ -318,7 +318,7 @@ function ProjectCard({ project, users, onClick, onUpdate }) {
           onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <span style={{ fontSize: 10, color: C.textSecondary, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7 }}>Status:</span>
-            {[['green','In Ordnung', C.gr], ['yellow','In Bearbeitung', C.yw], ['red','Problem', C.cr]].map(([s, l, c]) => (
+            {[['green','Abgeschlossen', C.gr], ['yellow','In Bearbeitung', C.yw], ['red','Problem', C.cr]].map(([s, l, c]) => (
               <button key={s} onClick={e => toggleStatus(e, s)}
                 title={l}
                 style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${project.status === s ? c : C.bd2}`, background: project.status === s ? c : 'transparent', cursor: 'pointer', transition: 'all .15s', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -326,7 +326,7 @@ function ProjectCard({ project, users, onClick, onUpdate }) {
               </button>
             ))}
             <span style={{ fontSize: 11, color: sc, fontWeight: 600, marginLeft: 2 }}>
-              {project.status === 'green' ? 'In Ordnung' : project.status === 'red' ? 'Problem' : 'In Bearbeitung'}
+              {project.status === 'green' ? 'Abgeschlossen' : project.status === 'red' ? 'Problem' : 'In Bearbeitung'}
             </span>
           </div>
           {openTasks.length > 0 && (

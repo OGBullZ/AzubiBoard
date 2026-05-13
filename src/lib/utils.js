@@ -43,7 +43,7 @@ export const C = {
 
 // ── Status-Konfiguration ─────────────────────────────────────
 export const ST = {
-  green:  { label: 'In Ordnung',     bg: '#07130a',               c: C.gr },
+  green:  { label: 'Abgeschlossen',   bg: '#07130a',               c: C.gr },
   yellow: { label: 'In Bearbeitung', bg: 'rgba(255,149,0,0.1)',   c: C.yw },
   red:    { label: 'Problem',        bg: 'rgba(255,59,48,0.1)',   c: C.cr },
 };

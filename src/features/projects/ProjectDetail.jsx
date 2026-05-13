@@ -471,7 +471,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 8 }}>
             <div><label>Status</label>
               <select value={form.status} onChange={e => uf('status', e.target.value)}>
-                <option value="green">In Ordnung</option><option value="yellow">In Bearbeitung</option><option value="red">Problem</option>
+                <option value="green">Abgeschlossen</option><option value="yellow">In Bearbeitung</option><option value="red">Problem</option>
               </select>
             </div>
             <div><label>Startdatum</label><input type="date" value={form.startDate || ''} onChange={e => uf('startDate', e.target.value)} /></div>
