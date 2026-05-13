@@ -59,6 +59,18 @@ npm run dev                # http://localhost:5173/azubiboard/
 - **i18n-Scaffold:** DE/EN (Vollmigration WIP)
 - **Browser-Notifications, Theme-Auto-Switch, Global-Search (Ctrl+K), Keyboard-Shortcuts**
 
+## ☁️ Cloud-Deploy
+
+**3 Optionen** — siehe [DEPLOY.md](./DEPLOY.md):
+
+| | Backend | Kosten | Setup |
+|---|---|---|---|
+| **A** Netlify (Frontend-only) | ❌ localStorage | 0 € | 5 min |
+| **B** Cloudflare Pages | ❌ localStorage | 0 € | 5 min |
+| **C** Klassisches PHP-Webhosting | ✅ vollständig | ~3-5 €/Mon | 30-60 min |
+
+Beide Workflows (`deploy-netlify.yml`, `deploy-sftp.yml`) haben **`workflow_dispatch`** — manueller Trigger via GitHub-Actions-UI.
+
 ## 🗺️ Roadmap
 
 Siehe [HANDOVER.md → Roadmap V](./HANDOVER.md#-roadmap-v--offene-items). Nächste Schritte:

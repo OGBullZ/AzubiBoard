@@ -18,6 +18,7 @@ Repository: https://github.com/OGBullZ/AzubiBoard
 **Vor Sprint 8 abgeschlossen:** L3 Sentry, L4 Server-Backups, L2 Migrations, L1 Background-Sync (Sprint 7); Bulk-Import, IHK-PDF, Share-Links, Code-Splitting, GitHub-CI, Push-Notifications (Sprint 6); Conflict-Detection, Papierkorb, E2E-Smoke (Sprint 5); Polling-Sync (Sprint 4); Backend-Hardening, Backup-Reminder, i18n-Scaffold (Sprint 3); Save-Queue, Audit-Frontend, Vitest (Sprint 2); Kritische Bugfixes + Mobile-DnD (Sprint 1).
 
 **Vollständige Sprint-Historie + Roadmap → `HANDOVER.md`**
+**Cloud-Deploy-Anleitung → `DEPLOY.md`** (3 Optionen: Netlify, Cloudflare, klassisches Webhosting via SFTP-Workflow)
 
 ## Arbeitsweise
 

@@ -252,6 +252,28 @@ Schema steht als Sprint 9 (Item **L5**) in der Roadmap.
 
 ---
 
+## ☁️ Cloud-Deploy
+
+**Komplette Anleitung in [DEPLOY.md](./DEPLOY.md).** Drei Optionen:
+
+| | Stack | Kosten | Trigger |
+|---|---|---|---|
+| **Netlify** | Frontend-only (localStorage) | 0 € | Auto-Deploy bei Push to `main` + Manual via `workflow_dispatch` |
+| **Cloudflare Pages** | Frontend-only (localStorage) | 0 € | Auto-Deploy bei Push |
+| **Klassisches Hosting** | PHP + MySQL via SFTP | ~3-5 €/Mon | Nur manueller `workflow_dispatch` (Schutz vor Versehen) |
+
+**Vorhandene Workflows:**
+- `.github/workflows/deploy-netlify.yml` — Build mit konfigurierbarem `VITE_USE_API` + `VITE_API_BASE_URL`, Deploy via [nwtgck/actions-netlify](https://github.com/nwtgck/actions-netlify). Secrets: `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`.
+- `.github/workflows/deploy-sftp.yml` — SFTP-Upload für klassisches PHP-Hosting. Schreibt `.env` zur Build-Zeit aus GitHub-Secrets. Bestätigung mit Tippen von `DEPLOY` erforderlich. Secrets: `SFTP_HOST/PORT/USERNAME/PASSWORD/REMOTE_DIR`, `DB_*`, `JWT_SECRET`, `ALLOWED_ORIGIN`.
+
+**Setup-Reihenfolge für eine Live-Production-Site:**
+1. Klassisches Hosting buchen (Hostinger ~3€/Mon empfohlen)
+2. MariaDB-Datenbank im Hoster-Panel anlegen, `database/azubiboard.sql` via phpMyAdmin importieren
+3. GitHub-Secrets gemäß [DEPLOY.md → Option C](./DEPLOY.md#-option-c--klassisches-webhosting-php--mysql) eintragen
+4. Actions → "Deploy → Klassisches Webhosting (SFTP)" → "Run workflow" → `DEPLOY` tippen → Run
+5. Erstes Account registrieren, dann via SQL zu `ausbilder` machen
+6. 2FA aktivieren
+
 ## 🧪 Tests
 
 | Suite | Anzahl | Dauer | Ort |

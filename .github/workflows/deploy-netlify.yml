@@ -1,0 +1,67 @@
+name: Deploy → Netlify
+
+# Triggers:
+#  - workflow_dispatch:  manueller Click in GitHub-Actions-UI
+#  - push to main:       optionaler Auto-Deploy (auskommentieren für nur-manuell)
+on:
+  workflow_dispatch:
+    inputs:
+      use_api:
+        description: 'VITE_USE_API (true = mit Backend, false = localStorage-only)'
+        type:        choice
+        default:     'false'
+        options:     ['false', 'true']
+      api_base_url:
+        description: 'VITE_API_BASE_URL (nur wenn use_api=true) — z.B. https://api.example.com'
+        type:        string
+        default:     ''
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy to Netlify
+    runs-on: ubuntu-latest
+
+    # Secrets in GitHub Repo Settings → Secrets and Variables → Actions setzen:
+    #   NETLIFY_AUTH_TOKEN  — Personal Access Token (Netlify → User Settings → Apps)
+    #   NETLIFY_SITE_ID     — aus Netlify → Site Settings → Site information
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run tests before deploy
+        run: npm test
+
+      - name: Build Production Bundle
+        run: npm run build
+        env:
+          VITE_BASE_PATH:    '/'
+          VITE_USE_API:      ${{ github.event.inputs.use_api || 'false' }}
+          VITE_API_BASE_URL: ${{ github.event.inputs.api_base_url || '' }}
+          VITE_APP_VERSION:  ${{ github.sha }}
+          # VITE_SENTRY_DSN bei Bedarf als Secret hinterlegen:
+          VITE_SENTRY_DSN:   ${{ secrets.VITE_SENTRY_DSN }}
+
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir:        './dist'
+          production-branch:  main
+          production-deploy:  ${{ github.event_name == 'push' || github.event.inputs.use_api == 'false' }}
+          github-token:       ${{ secrets.GITHUB_TOKEN }}
+          deploy-message:     "Deploy ${{ github.sha }} (use_api=${{ github.event.inputs.use_api || 'false' }})"
+          enable-pull-request-comment: false
+          enable-commit-comment:        false
+          netlify-config-path: ./netlify.toml
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID:    ${{ secrets.NETLIFY_SITE_ID }}
+        timeout-minutes: 5

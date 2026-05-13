@@ -1,0 +1,104 @@
+name: Deploy → Klassisches Webhosting (SFTP)
+
+# Für PHP-Hosting (Hostinger, IONOS, Strato, all-inkl, Plesk-VPS).
+# Lädt dist/ + api/ + .htaccess via SFTP zum Webhoster.
+#
+# AKTIVIERUNG:
+# 1. Hosting buchen (PHP 8.2+ und MariaDB/MySQL)
+# 2. Database/azubiboard.sql in phpMyAdmin importieren
+# 3. SFTP-Credentials als GitHub-Secrets eintragen
+#    (Repo → Settings → Secrets and Variables → Actions):
+#      SFTP_HOST       — z.B. ftp.example.com
+#      SFTP_PORT       — meist 22 (SFTP) oder 21 (FTP)
+#      SFTP_USERNAME   — vom Hoster
+#      SFTP_PASSWORD   — vom Hoster
+#      SFTP_REMOTE_DIR — z.B. /public_html/  (oder /htdocs/)
+#      JWT_SECRET      — min. 32 random Zeichen (openssl rand -hex 32)
+#      DB_HOST/NAME/USER/PASS — aus Hoster-Panel
+#      ALLOWED_ORIGIN  — exakte Domain z.B. https://azubiboard.example.com
+# 4. In GitHub: Actions → "Deploy → Klassisches Webhosting (SFTP)" → "Run workflow"
+#
+# SICHERHEIT:
+# - .env wird ZUR BUILD-ZEIT erzeugt mit Secrets aus GitHub.
+# - .env wird NICHT ins Repo committed.
+# - SFTP-Passwort bleibt nur in GitHub-Secrets, nie im Code.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Tippe "DEPLOY" zur Bestätigung'
+        type:        string
+        required:    true
+
+jobs:
+  deploy:
+    name: Deploy to Webhoster
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'DEPLOY' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run tests before deploy
+        run: npm test
+
+      - name: Build Production Bundle
+        run: npm run build
+        env:
+          # Anpassen wenn unter Subdir gehostet — z.B. '/azubiboard/'
+          VITE_BASE_PATH:    ${{ secrets.VITE_BASE_PATH || '/' }}
+          VITE_USE_API:      'true'
+          VITE_APP_VERSION:  ${{ github.sha }}
+          VITE_SENTRY_DSN:   ${{ secrets.VITE_SENTRY_DSN }}
+
+      - name: Build .env for server
+        run: |
+          cat > .env.deploy <<EOF
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT || 3306 }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASS=${{ secrets.DB_PASS }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRY=604800
+          ALLOWED_ORIGIN=${{ secrets.ALLOWED_ORIGIN }}
+          APP_ENV=production
+          MAX_FILE_MB=10
+          EOF
+
+      - name: Prepare deploy bundle
+        run: |
+          mkdir -p deploy_root
+          cp -r dist/* deploy_root/
+          cp -r api    deploy_root/
+          cp -r database deploy_root/
+          cp    .htaccess deploy_root/
+          cp    .env.deploy deploy_root/.env
+          mkdir -p deploy_root/uploads
+          # Schreibrechte für uploads/ (rwxr-x---)
+          chmod 750 deploy_root/uploads
+          # Sensitive Files NIEMALS deployen (Sicherheitsnetz)
+          rm -f deploy_root/api/.env deploy_root/api/.env.example
+          echo "::group::Files to deploy"
+          find deploy_root -type f | head -30
+          echo "::endgroup::"
+
+      - name: Upload via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server:           ${{ secrets.SFTP_HOST }}
+          port:             ${{ secrets.SFTP_PORT || 22 }}
+          username:         ${{ secrets.SFTP_USERNAME }}
+          password:         ${{ secrets.SFTP_PASSWORD }}
+          local_path:       './deploy_root/*'
+          remote_path:      ${{ secrets.SFTP_REMOTE_DIR }}
+          sftp_only:        true
+          delete_remote_files: false
