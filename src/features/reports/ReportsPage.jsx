@@ -38,7 +38,8 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete })
   const isoYear  = iso.year ?? new Date(report.week_start).getFullYear();
   const canSubmit = report.status === 'draft' && report.user_id === currentUser.id;
   const canSign   = ['submitted','reviewed'].includes(report.status) && currentUser.role === 'ausbilder';
-  const canDelete = report.user_id === currentUser.id || currentUser.role === 'ausbilder';
+  const canDelete = currentUser.role === 'ausbilder' ||
+    (report.user_id === currentUser.id && report.status === 'draft');
   const weekEnd   = new Date(new Date(report.week_start).getTime() + 4 * 86400000).toISOString().split('T')[0];
 
   return (
@@ -119,7 +120,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
 
   const isOwner  = !report || report.user_id === currentUser.id;
   const isReview = currentUser.role === 'ausbilder';
-  const readOnly = report?.status === 'submitted' && !isReview;
+  const readOnly = report?.status !== 'draft' && !isReview;
   const kw       = getKW(form.week_start);
 
   const applyTemplate = (tmpl) => { setForm(f => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
@@ -307,6 +308,11 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
         </div>
         <button className="btn" onClick={printReport} title="Einfaches PDF (1 Seite)" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>🖨 PDF</button>
         <button className="btn" onClick={printReportIHK} title="IHK-konform mit Stammdaten + Unterschriftenfeldern" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>📄 IHK-Format</button>
+        {readOnly && !isReview && (
+          <div style={{ padding: '5px 12px', background: C.ywd, border: `1px solid ${C.yw}50`, borderRadius: 7, fontSize: 11, color: C.yw, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+            🔒 Gesperrt – Bericht wurde eingereicht
+          </div>
+        )}
         {isOwner && !readOnly && (
           <button className="abtn" onClick={save} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><IcoCheck size={13} /> Speichern</button>
         )}
