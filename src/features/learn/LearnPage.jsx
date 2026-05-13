@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { C, uid } from '../../lib/utils.js';
-import { ProgressBar, EmptyState, Modal, Field } from '../../components/UI.jsx';
+import { ProgressBar, Modal, Field } from '../../components/UI.jsx';
+import { useAppStore } from '../../lib/store.js';
 import JAVA_QUIZ from '../../data/quiz.json';
-
-const CUSTOM_QUIZ_KEY = 'azubiboard_custom_quiz';
 
 const CODING_CHALLENGES = [
   { id: 'c1', title: 'Hello World', difficulty: 'easy', category: 'Grundlagen', description: 'Schreibe ein Java-Programm, das "Hello, World!" auf der Konsole ausgibt.\n\nDie Klasse heißt bereits "HelloWorld". Füge nur die fehlende Ausgabe-Anweisung ein.', starterCode: `public class HelloWorld {\n    public static void main(String[] args) {\n        // Schreibe hier deine Ausgabe\n        \n    }\n}`, solution: `public class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}`, checks: ['System.out.println', '"Hello, World!"'], hint: 'Nutze System.out.println() für die Ausgabe.' },
@@ -216,6 +215,7 @@ function CodingChallenge({ challenge, onBack }) {
 }
 
 export default function LearnPage({ currentUser }) {
+  const { data, setData }           = useAppStore();
   const [view, setView]             = useState('home');
   const [quizQuestions, setQ]       = useState([]);
   const [quizScore, setScore]       = useState(null);
@@ -223,12 +223,11 @@ export default function LearnPage({ currentUser }) {
   const [selChallenge, setChall]    = useState(null);
   const [catFilter, setCat]         = useState('Alle');
   const [diffFilter, setDiff]       = useState('Alle');
-  const [customQuestions, setCustom]= useState(() => {
-    try { return JSON.parse(localStorage.getItem(CUSTOM_QUIZ_KEY) || '[]'); } catch { return []; }
-  });
   const [showAddQ, setShowAddQ]     = useState(false);
   const [qForm, setQForm]           = useState(EMPTY_FORM);
+  const [editingQ, setEditingQ]     = useState(null);
 
+  const customQuestions = data?.quizzes || [];
   const isAusbilder = currentUser?.role === 'ausbilder';
   const allQuestions = [...JAVA_QUIZ, ...customQuestions];
   const CATS = [...new Set(allQuestions.map(q => q.category))];
@@ -238,26 +237,39 @@ export default function LearnPage({ currentUser }) {
     (diffFilter === 'Alle' || q.difficulty === diffFilter)
   );
 
-  const saveCustom = (next) => {
-    setCustom(next);
-    try { localStorage.setItem(CUSTOM_QUIZ_KEY, JSON.stringify(next)); } catch {}
+  const saveCustom = (next) => setData(prev => ({ ...prev, quizzes: next }));
+
+  const openAdd = () => { setQForm(EMPTY_FORM); setEditingQ(null); setShowAddQ(true); };
+  const openEdit = (q) => {
+    setQForm({
+      question:    q.question,
+      category:    q.category,
+      difficulty:  q.difficulty,
+      type:        q.type,
+      explanation: q.explanation || '',
+      answers: ['a', 'b', 'c', 'd'].map(id => {
+        const found = q.answers.find(a => a.id === id);
+        return found ?? { id, text: '', correct: false };
+      }),
+    });
+    setEditingQ(q);
+    setShowAddQ(true);
   };
+  const closeModal = () => { setShowAddQ(false); setQForm(EMPTY_FORM); setEditingQ(null); };
 
   const addQuestion = () => {
     const filled = qForm.answers.filter(a => a.text.trim());
     if (!qForm.question.trim() || !qForm.category.trim() || filled.length < 2) return;
-    if (!filled.some(a => a.correct)) return;
-    const newQ = {
-      ...qForm,
-      id: uid(),
-      question: qForm.question.trim(),
-      category: qForm.category.trim(),
-      answers: qForm.answers.map(a => ({ ...a, text: a.text.trim() })).filter(a => a.text),
-      custom: true,
-    };
-    saveCustom([...customQuestions, newQ]);
-    setQForm(EMPTY_FORM);
-    setShowAddQ(false);
+    if (!filled.some(a => a.correct && a.text.trim())) return;
+    const answers = qForm.answers.map(a => ({ ...a, text: a.text.trim() })).filter(a => a.text);
+    if (editingQ) {
+      saveCustom(customQuestions.map(q => q.id === editingQ.id
+        ? { ...q, question: qForm.question.trim(), category: qForm.category.trim(), difficulty: qForm.difficulty, type: qForm.type, explanation: qForm.explanation, answers }
+        : q));
+    } else {
+      saveCustom([...customQuestions, { ...qForm, id: uid(), question: qForm.question.trim(), category: qForm.category.trim(), answers, custom: true }]);
+    }
+    closeModal();
   };
 
   const deleteCustomQ = (id) => saveCustom(customQuestions.filter(q => q.id !== id));
@@ -293,7 +305,7 @@ export default function LearnPage({ currentUser }) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div style={{ fontSize: 11, color: C.mu }}>{allQuestions.length} Fragen{customQuestions.length > 0 && ` (${customQuestions.length} eigene)`}</div>
             {isAusbilder && (
-              <button className="abtn" onClick={() => setShowAddQ(true)} style={{ fontSize: 11, padding: '4px 10px' }}>+ Frage hinzufügen</button>
+              <button className="abtn" onClick={openAdd} style={{ fontSize: 11, padding: '4px 10px' }}>+ Frage hinzufügen</button>
             )}
           </div>
         </div>
@@ -371,6 +383,7 @@ export default function LearnPage({ currentUser }) {
                     <span className="tag" style={{ background: C.sf2, color: C.mu, border: `1px solid ${C.bd}` }}>{q.answers.filter(a => a.correct).length > 1 ? 'Mehrfach' : 'Einfach'}</span>
                   </div>
                 </div>
+                <button className="btn" onClick={() => openEdit(q)} style={{ padding: '3px 9px', fontSize: 12 }} title="Bearbeiten">✎</button>
                 <button className="del" onClick={() => deleteCustomQ(q.id)} aria-label="Frage löschen">×</button>
               </div>
             ))}
@@ -379,7 +392,7 @@ export default function LearnPage({ currentUser }) {
       )}
 
       {showAddQ && (
-        <Modal title="Neue Quiz-Frage erstellen" onClose={() => { setShowAddQ(false); setQForm(EMPTY_FORM); }}>
+        <Modal title={editingQ ? 'Frage bearbeiten' : 'Neue Quiz-Frage erstellen'} onClose={closeModal}>
           <Field label="Frage">
             <textarea value={qForm.question} onChange={e => setQForm(f => ({ ...f, question: e.target.value }))}
               placeholder="Fragetext eingeben..." rows={3} style={{ resize: 'vertical' }} autoFocus />
@@ -430,7 +443,7 @@ export default function LearnPage({ currentUser }) {
           </Field>
           <button className="abtn" onClick={addQuestion} style={{ width: '100%', marginTop: 8, padding: 11 }}
             disabled={!qForm.question.trim() || !qForm.category.trim() || qForm.answers.filter(a => a.text.trim()).length < 2 || !qForm.answers.some(a => a.correct && a.text.trim())}>
-            Frage speichern
+            {editingQ ? 'Änderungen speichern' : 'Frage speichern'}
           </button>
         </Modal>
       )}

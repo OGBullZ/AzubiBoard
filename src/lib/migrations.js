@@ -15,7 +15,7 @@
 // ============================================================
 
 // Aktuelle Schema-Version. Bei jeder neuen Migration um 1 hochzählen.
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 // Einzelne Migrations als Map: zielversion → migrate(prev)
 const MIGRATIONS = {
@@ -44,6 +44,19 @@ const MIGRATIONS = {
       trainingPlan: data.trainingPlan || { goals: [], examDate: null },
       activityLog:  data.activityLog || [],
     };
+  },
+
+  4: (data) => {
+    // Migration v3 → v4:
+    //   - Custom Quiz-Fragen aus localStorage in data.quizzes migrieren
+    let quizzes = data.quizzes || [];
+    if (quizzes.length === 0) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('azubiboard_custom_quiz') || '[]');
+        if (stored.length > 0) quizzes = stored;
+      } catch {}
+    }
+    return { ...data, quizzes };
   },
 
   3: (data) => {
