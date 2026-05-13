@@ -14,6 +14,122 @@ const CODING_CHALLENGES = [
 
 const DIFF = { easy: { l: 'Einfach', c: C.gr }, medium: { l: 'Mittel', c: C.yw }, hard: { l: 'Schwer', c: C.cr } };
 
+// ── SM-2 Spaced-Repetition Algorithmus ───────────────────────
+function sm2Update(prev, grade) {
+  let { interval = 0, easiness = 2.5, repetitions = 0 } = prev;
+  if (grade >= 3) {
+    interval = repetitions === 0 ? 1 : repetitions === 1 ? 6 : Math.round(interval * easiness);
+    repetitions += 1;
+  } else {
+    repetitions = 0;
+    interval = 1;
+  }
+  easiness = Math.max(1.3, easiness + 0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02));
+  const next = new Date();
+  next.setDate(next.getDate() + interval);
+  return { interval, easiness: Math.round(easiness * 100) / 100, repetitions, nextReview: next.toISOString().split('T')[0], lastGrade: grade };
+}
+
+function FlashcardReview({ cards, onGrade, onFinish }) {
+  const [idx,     setIdx]     = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [results, setResults] = useState([]);
+
+  const card = cards[idx];
+  if (!card) return null;
+  const correctAnswers = card.answers.filter(a => a.correct);
+  const pct = Math.round((idx / cards.length) * 100);
+
+  const rate = (grade) => {
+    const r = [...results, { qId: card.id, grade }];
+    onGrade(card.id, grade);
+    if (idx + 1 >= cards.length) { onFinish(r); return; }
+    setResults(r); setIdx(i => i + 1); setFlipped(false);
+  };
+
+  const RATINGS = [
+    { label: 'Nochmal', grade: 0, color: C.cr, bg: '#130a0b' },
+    { label: 'Gut',     grade: 4, color: C.ac, bg: C.acd    },
+    { label: 'Perfekt', grade: 5, color: C.gr, bg: '#07130a' },
+  ];
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
+      <div style={{ maxWidth: 600, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: C.mu }}>Karte <span style={{ fontWeight: 800, color: C.br }}>{idx + 1}</span> / {cards.length}</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <span className="tag" style={{ background: DIFF[card.difficulty]?.c + '20', color: DIFF[card.difficulty]?.c, border: `1px solid ${DIFF[card.difficulty]?.c}40` }}>{DIFF[card.difficulty]?.l}</span>
+            <span className="tag" style={{ background: C.sf2, color: C.mu, border: `1px solid ${C.bd}` }}>{card.category}</span>
+          </div>
+        </div>
+        <ProgressBar value={pct} color={C.ac} height={4} label={`${pct}%`} />
+        <div style={{ marginBottom: 20 }} />
+
+        <div className="card" style={{ minHeight: 180, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: flipped ? C.gr : C.mu, textTransform: 'uppercase', letterSpacing: .8, transition: 'color .15s' }}>
+            {flipped ? '✓ Antwort' : 'Frage'}
+          </div>
+          {!flipped ? (
+            <pre style={{ fontFamily: C.sans, fontSize: 14, fontWeight: 600, color: C.br, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0, flex: 1 }}>{card.question}</pre>
+          ) : (
+            <div style={{ animation: 'fadeUp .15s ease' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: correctAnswers.length > 0 ? 12 : 0 }}>
+                {correctAnswers.map(a => (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: '#07130a', border: `1px solid ${C.gr}`, borderRadius: 8 }}>
+                    <span style={{ color: C.gr, fontWeight: 800, flexShrink: 0 }}>✓</span>
+                    <span style={{ fontSize: 13, color: C.br, fontFamily: a.text.includes('(') ? C.mono : C.sans }}>{a.text}</span>
+                  </div>
+                ))}
+              </div>
+              {card.explanation && (
+                <div style={{ background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8, padding: '10px 13px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.ac, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>Erklärung</div>
+                  <div style={{ fontSize: 12, color: C.tx, lineHeight: 1.65 }}>{card.explanation}</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {!flipped ? (
+          <button className="abtn" onClick={() => setFlipped(true)} style={{ width: '100%', padding: 12, fontSize: 14 }}>
+            Antwort anzeigen →
+          </button>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            {RATINGS.map(r => (
+              <button key={r.label} onClick={() => rate(r.grade)}
+                style={{ padding: '12px 8px', borderRadius: 9, border: `2px solid ${r.color}`, background: r.bg, color: r.color, fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'transform .12s' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>
+                {r.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FlashcardDone({ total, grades, onBack }) {
+  const good = grades.filter(g => g.grade >= 3).length;
+  const pct  = Math.round(good / total * 100);
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: '0 24px' }}>
+      <div style={{ textAlign: 'center', maxWidth: 400, margin: '0 auto' }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>{pct >= 75 ? '🎉' : '💪'}</div>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: C.br, marginBottom: 8 }}>Session abgeschlossen!</h2>
+        <div style={{ fontSize: 36, fontWeight: 800, color: pct >= 75 ? C.gr : C.yw, fontFamily: C.mono, marginBottom: 4 }}>{good}/{total}</div>
+        <div style={{ fontSize: 13, color: C.mu, marginBottom: 24 }}>Karten gewusst</div>
+        <div style={{ marginBottom: 28 }}><ProgressBar value={pct} color={pct >= 75 ? C.gr : C.yw} height={8} label={`${pct}%`} /></div>
+        <button className="abtn" onClick={onBack} style={{ padding: '10px 28px' }}>← Zum Lernbereich</button>
+      </div>
+    </div>
+  );
+}
+
 const EMPTY_FORM = {
   question: '', category: '', difficulty: 'easy', type: 'single', explanation: '',
   answers: [
@@ -227,10 +343,22 @@ export default function LearnPage({ currentUser }) {
   const [qForm, setQForm]           = useState(EMPTY_FORM);
   const [editingQ, setEditingQ]     = useState(null);
 
+  const [flashGrades, setFlashGrades] = useState([]);
+
   const customQuestions = data?.quizzes || [];
   const isAusbilder = currentUser?.role === 'ausbilder';
   const allQuestions = [...JAVA_QUIZ, ...customQuestions];
   const CATS = [...new Set(allQuestions.map(q => q.category))];
+
+  const today = new Date().toISOString().split('T')[0];
+  const userId = currentUser?.id || 'anon';
+  const flashProgress = data?.flashcards?.[userId] || {};
+  const dueCards = allQuestions.filter(q => {
+    const p = flashProgress[String(q.id)];
+    return !p || p.nextReview <= today;
+  });
+  const learnedCount = allQuestions.filter(q => (flashProgress[String(q.id)]?.repetitions || 0) > 0).length;
+  const reviewCards  = dueCards.slice(0, 20);
 
   const filteredQ = allQuestions.filter(q =>
     (catFilter === 'Alle' || q.category === catFilter) &&
@@ -274,6 +402,17 @@ export default function LearnPage({ currentUser }) {
 
   const deleteCustomQ = (id) => saveCustom(customQuestions.filter(q => q.id !== id));
 
+  const updateFlashcard = (qId, grade) => {
+    const prev = flashProgress[String(qId)] || {};
+    setData(d => ({
+      ...d,
+      flashcards: {
+        ...(d.flashcards || {}),
+        [userId]: { ...(d.flashcards?.[userId] || {}), [String(qId)]: sm2Update(prev, grade) },
+      },
+    }));
+  };
+
   const startQuiz = (questions) => {
     const shuffled = [...questions].sort(() => Math.random() - .5).slice(0, Math.min(10, questions.length));
     setQ(shuffled);
@@ -290,9 +429,11 @@ export default function LearnPage({ currentUser }) {
     } catch {}
   };
 
-  if (view === 'quiz')   return <QuizMode questions={quizQuestions} onFinish={onFinish} />;
-  if (view === 'result') return <QuizResult score={quizScore} total={quizTotal} onRestart={() => startQuiz(quizQuestions)} onBack={() => setView('home')} />;
-  if (view === 'coding') return <CodingChallenge challenge={selChallenge} onBack={() => setView('home')} />;
+  if (view === 'quiz')      return <QuizMode questions={quizQuestions} onFinish={onFinish} />;
+  if (view === 'result')    return <QuizResult score={quizScore} total={quizTotal} onRestart={() => startQuiz(quizQuestions)} onBack={() => setView('home')} />;
+  if (view === 'coding')    return <CodingChallenge challenge={selChallenge} onBack={() => setView('home')} />;
+  if (view === 'flashcard') return <FlashcardReview cards={reviewCards} onGrade={updateFlashcard} onFinish={(grades) => { setFlashGrades(grades); setView('flashdone'); }} />;
+  if (view === 'flashdone') return <FlashcardDone total={flashGrades.length} grades={flashGrades} onBack={() => { setFlashGrades([]); setView('home'); }} />;
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }} className="anim">
@@ -347,6 +488,34 @@ export default function LearnPage({ currentUser }) {
           <button className="abtn" onClick={() => startQuiz(filteredQ)} style={{ padding: '10px 22px' }}>
             Gefiltertes Quiz starten ({Math.min(10, filteredQ.length)} Fragen)
           </button>
+        )}
+      </section>
+
+      <section style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.br }}>Karteikarten 🗂️</div>
+          <div style={{ fontSize: 11, color: C.mu }}>{learnedCount} / {allQuestions.length} gelernt</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+          {[
+            { label: 'Fällig heute',    value: dueCards.length,                        color: dueCards.length > 0 ? C.yw : C.gr },
+            { label: 'Bereits gelernt', value: learnedCount,                            color: C.ac },
+            { label: 'Gesamt',          value: allQuestions.length,                     color: C.mu },
+          ].map(s => (
+            <div key={s.label} className="card" style={{ padding: '12px 14px', textAlign: 'center' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: s.color, fontFamily: C.mono, lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: C.mu, fontWeight: 600, textTransform: 'uppercase', letterSpacing: .6, marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        {dueCards.length > 0 ? (
+          <button className="abtn" onClick={() => setView('flashcard')} style={{ padding: '10px 22px' }}>
+            {reviewCards.length} Karte{reviewCards.length !== 1 ? 'n' : ''} lernen →
+          </button>
+        ) : (
+          <div style={{ padding: '12px 16px', background: '#07130a', border: `1px solid ${C.gr}40`, borderRadius: 9, fontSize: 13, color: C.gr, fontWeight: 600 }}>
+            ✓ Alle Karten für heute gelernt – komm morgen wieder!
+          </div>
         )}
       </section>
 
