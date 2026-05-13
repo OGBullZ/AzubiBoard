@@ -11,6 +11,24 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
+      {
+        name: 'redirect-to-base',
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            const url = req.url ?? '/';
+            // Vite-interne Pfade (HMR, module graph) nicht anfassen
+            if (url.startsWith('/@') || url.startsWith('/node_modules')) return next();
+            // Alles ohne Base-Prefix → redirect zu /azubiboard/<rest>
+            if (!url.startsWith(base)) {
+              const rest = url.replace(/^\//, '');
+              res.writeHead(302, { Location: base + rest });
+              res.end();
+              return;
+            }
+            next();
+          });
+        },
+      },
       react(),
       VitePWA({
         registerType: 'autoUpdate',
@@ -89,6 +107,10 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       host: true,
+      historyApiFallback: {
+        index: `${base}index.html`,
+        rewrites: [{ from: /^\/azubiboard\/.*$/, to: `${base}index.html` }],
+      },
       proxy: {
         // Dev: /azubiboard/api → XAMPP PHP
         [`${base}api`]: {

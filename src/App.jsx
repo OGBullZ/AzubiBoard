@@ -1113,6 +1113,7 @@ const App = () => {
   const importRef = useRef(null);
   const [conflict, setConflict] = useState(null);  // J2: Konflikt-Payload
   const [showBackups, setShowBackups] = useState(false); // L4
+  const justLoggedInRef = useRef(false); // Verhindert Logout durch Unauthorized-Event direkt nach Login
 
   // L3: Sentry-User-Kontext bei Login/Logout aktuell halten (no-op ohne DSN)
   useEffect(() => {
@@ -1182,8 +1183,14 @@ const App = () => {
   }, [conflict, showToast]);
 
   // ── 401-Handler: Token abgelaufen → sauber ausloggen ─────
+  // justLoggedInRef schützt vor sofortigem Logout wenn kurz nach Login
+  // ein API-Call (z.B. getUsers) 401 liefert (Apache-Header-Konfiguration).
   useEffect(() => {
-    const fn = () => { clearToken(); setCurrentUser(null); };
+    const fn = () => {
+      if (justLoggedInRef.current) return;
+      clearToken();
+      setCurrentUser(null);
+    };
     window.addEventListener('azubiboard:unauthorized', fn);
     return () => window.removeEventListener('azubiboard:unauthorized', fn);
   }, [setCurrentUser]);
@@ -1243,12 +1250,14 @@ const App = () => {
 
   // Nach Login: MySQL-User laden und in Blob mergen (API-Modus)
   const handleLogin = useCallback(async (user) => {
+    justLoggedInRef.current = true;
     setCurrentUser(user);
     applyUserTheme(user.theme);  // Theme aus DB nach Login anwenden
     if (USE_API) {
       const apiUsers = await dataService.getUsers();
       if (apiUsers) setData(prev => prev ? { ...prev, users: apiUsers } : prev);
     }
+    justLoggedInRef.current = false;
   }, [setCurrentUser, setData]);
 
   const handleLogout = useCallback(() => {

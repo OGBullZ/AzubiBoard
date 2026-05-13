@@ -3,6 +3,13 @@ DirectoryIndex index.php
 
 # Alle Anfragen durch index.php routen
 RewriteEngine On
+
+# Authorization-Header explizit an PHP weitergeben.
+# Notwendig wenn Apache als CGI/FastCGI läuft (z. B. XAMPP auf Windows)
+# oder wenn mod_rewrite den Header in REDIRECT_HTTP_AUTHORIZATION verschiebt.
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.php [QSA,L]
 

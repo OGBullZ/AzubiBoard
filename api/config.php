@@ -126,8 +126,26 @@ function jwt_verify(string $token): ?array {
 }
 
 // ── Auth ─────────────────────────────────────────────────────
+
+/**
+ * Authorization-Header auslesen — deckt alle Apache-Konfigurationen ab:
+ *   mod_php   → HTTP_AUTHORIZATION
+ *   CGI/FPM   → REDIRECT_HTTP_AUTHORIZATION (nach mod_rewrite)
+ *   alle      → getallheaders() als letzter Fallback (case-insensitiv)
+ */
+function get_auth_header(): string {
+    if (!empty($_SERVER['HTTP_AUTHORIZATION']))          return $_SERVER['HTTP_AUTHORIZATION'];
+    if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    if (function_exists('getallheaders')) {
+        foreach (getallheaders() as $k => $v) {
+            if (strtolower($k) === 'authorization' && !empty($v)) return $v;
+        }
+    }
+    return '';
+}
+
 function require_auth(): array {
-    $h = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $h = get_auth_header();
     if (!str_starts_with($h, 'Bearer ')) error('Nicht authentifiziert', 401);
     $p = jwt_verify(substr($h, 7));
     if (!$p) error('Token ungültig oder abgelaufen', 401);
