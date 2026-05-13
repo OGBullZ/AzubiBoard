@@ -1,5 +1,55 @@
-# netlify.toml – SPA Routing Fix
+# netlify.toml — Cloud-Deploy bei Netlify (Frontend-only)
+#
+# Mode: localStorage-only — KEIN PHP-Backend nötig.
+# Für Production-Setup mit PHP-Backend siehe DEPLOY.md.
+
+[build]
+  command = "npm ci && npm run build"
+  publish = "dist"
+  base    = "."
+
+[build.environment]
+  NODE_VERSION    = "20"
+  # Frontend läuft auf Domain-Root, NICHT unter /azubiboard/
+  VITE_BASE_PATH  = "/"
+  # localStorage-Modus — komplett ohne Backend
+  VITE_USE_API    = "false"
+  # Sentry optional — DSN in Netlify-UI als geheime Variable setzen,
+  # NICHT in dieser Datei. Diese Zeile bleibt leer und wird im UI gefüllt.
+  # VITE_SENTRY_DSN = ""
+
+# ── Headers: gleiche CSP wie in .htaccess, aber Netlify-Syntax ──
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options       = "nosniff"
+    X-Frame-Options              = "DENY"
+    Referrer-Policy              = "strict-origin-when-cross-origin"
+    Permissions-Policy           = "geolocation=(), microphone=(), camera=(), payment=(), usb=(), fullscreen=(self), accelerometer=(), gyroscope=(), magnetometer=()"
+    Cross-Origin-Opener-Policy   = "same-origin"
+    Cross-Origin-Resource-Policy = "same-origin"
+    Strict-Transport-Security    = "max-age=31536000; includeSubDomains"
+    Content-Security-Policy      = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.ingest.sentry.io https://*.sentry.io; manifest-src 'self'; worker-src 'self'; child-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
+
+# Hashed Assets dürfen ewig gecacht werden
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Service Worker NIE long-term cachen
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/workbox-*.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# SPA-Routing: alles → index.html (außer echte Dateien)
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from   = "/*"
+  to     = "/index.html"
   status = 200
