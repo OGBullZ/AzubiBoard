@@ -210,7 +210,12 @@ error('Methode nicht erlaubt', 405);
 //   - Eigenen submitted/reviewed/signed Report editieren oder löschen
 //   - Status auf reviewed/signed setzen (nur Ausbilder)
 //   Bei Mentor ist user_id immer != $uid → jede Mutation wird geblockt.
-if (!function_exists('validate_reports_diff')) {
+//
+//   WICHTIG: Funktion top-level deklarieren, NICHT in einem if-Block.
+//   PHP registriert in-conditional-Funktionen erst zur Runtime — die
+//   wird aber durch respond()/error() oben beendet, bevor sie hier
+//   ankommt. Ein early-return false durch function_exists wäre zwar
+//   defensiv, hat aber genau das Problem: würde nie ausgewertet.
 function validate_reports_diff(array $newReports, array $oldReports, int $uid): void {
     $oldById = [];
     foreach ($oldReports as $r) {
@@ -265,5 +270,4 @@ function validate_reports_diff(array $newReports, array $oldReports, int $uid): 
         if (!$isOwner) error('Nicht berechtigt: Report eines anderen Nutzers gelöscht', 403);
         if ($status !== 'draft') error('Eingereichter Report kann nicht gelöscht werden', 403);
     }
-}
 }
