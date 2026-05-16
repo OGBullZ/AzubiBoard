@@ -18,6 +18,34 @@ try {
         ADD COLUMN IF NOT EXISTS totp_activated_at   TIMESTAMP   NULL DEFAULT NULL");
 } catch (Throwable $e) { /* Spalten existieren bereits oder MySQL < 8 — beim 1. Lauf manuell */ }
 
+// ── Sprint 9.5: Migration für Auth-Tabellen (B1 + B5+) ───────
+//   - partial_tokens: DB-backed Single-Use-Token für 2FA-Schritt (5 min)
+//   - jwt_blocklist:  Logout-Invalidierung für laufende JWTs (jti-basiert)
+try {
+    db()->exec("CREATE TABLE IF NOT EXISTS partial_tokens (
+        id          CHAR(64)    PRIMARY KEY,
+        user_id     INT         NOT NULL,
+        used_at     TIMESTAMP   NULL DEFAULT NULL,
+        expires_at  TIMESTAMP   NOT NULL,
+        created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_partial_expires (expires_at)
+    ) ENGINE=InnoDB CHARSET=utf8mb4");
+    db()->exec("CREATE TABLE IF NOT EXISTS jwt_blocklist (
+        jti         CHAR(32)    PRIMARY KEY,
+        expires_at  TIMESTAMP   NOT NULL,
+        created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_blocklist_expires (expires_at)
+    ) ENGINE=InnoDB CHARSET=utf8mb4");
+} catch (Throwable $e) { /* Tabelle existiert bereits */ }
+
+// Gelegentliches GC für abgelaufene Einträge (~ jeder 200. Auth-Call).
+if (mt_rand(1, 200) === 1) {
+    try {
+        db()->exec("DELETE FROM partial_tokens WHERE expires_at < NOW()");
+        db()->exec("DELETE FROM jwt_blocklist  WHERE expires_at < NOW()");
+    } catch (Throwable $e) { /* Tabelle existiert noch nicht — ignoriert */ }
+}
+
 // ── POST /api/auth/login ─────────────────────────────────────
 if ($method === 'POST' && $sub_action === 'login') {
     rate_limit('login', 8, 900);  // 8 Versuche pro 15 min pro IP
@@ -41,12 +69,14 @@ if ($method === 'POST' && $sub_action === 'login') {
     if (!$user || !$user['is_active']) error('E-Mail oder Passwort falsch', 401);
     if (!password_verify($pw, $user['password_hash'])) error('E-Mail oder Passwort falsch', 401);
 
-    // K1: Wenn 2FA aktiv → partial-Token + 2FA-Check
+    // K1 + B1: Wenn 2FA aktiv → DB-backed Single-Use-Partial-Token (5 min)
     if (!empty($user['totp_enabled'])) {
-        $partial = jwt_create([
-            'sub'         => (int)$user['id'],
-            'pending_2fa' => 1,
-        ]);
+        $partial = bin2hex(random_bytes(32));  // 64 Hex-Zeichen
+        $stmt = db()->prepare(
+            'INSERT INTO partial_tokens (id, user_id, expires_at)
+             VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE))'
+        );
+        $stmt->execute([$partial, (int)$user['id']]);
         respond(['requires_2fa' => true, 'partial_token' => $partial]);
     }
 
@@ -83,15 +113,32 @@ if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'check'
     $code    = trim($b['code']          ?? '');
     if (!$partial || !$code) error('Token und Code erforderlich', 400);
 
-    $payload = jwt_verify($partial);
-    if (!$payload || empty($payload['pending_2fa'])) error('Token ungültig oder abgelaufen', 401);
+    // B1: Token gegen DB validieren + atomar als used markieren
+    if (!preg_match('/^[a-f0-9]{64}$/', $partial)) error('Token ungültig oder abgelaufen', 401);
+    db()->beginTransaction();
+    try {
+        $stmt = db()->prepare(
+            'SELECT user_id FROM partial_tokens
+             WHERE id = ? AND used_at IS NULL AND expires_at > NOW()
+             FOR UPDATE'
+        );
+        $stmt->execute([$partial]);
+        $row = $stmt->fetch();
+        if (!$row) { db()->rollBack(); error('Token ungültig oder abgelaufen', 401); }
+        db()->prepare('UPDATE partial_tokens SET used_at = NOW() WHERE id = ?')->execute([$partial]);
+        db()->commit();
+    } catch (Throwable $e) {
+        if (db()->inTransaction()) db()->rollBack();
+        throw $e;
+    }
+    $userId = (int)$row['user_id'];
 
     $stmt = db()->prepare(
         'SELECT id, name, email, role, theme, apprenticeship_year, profession,
                 avatar_url, is_active, totp_secret, totp_enabled, totp_recovery_hash
          FROM users WHERE id = ? LIMIT 1'
     );
-    $stmt->execute([(int)$payload['sub']]);
+    $stmt->execute([$userId]);
     $user = $stmt->fetch();
     if (!$user || !$user['is_active'] || empty($user['totp_enabled']))
         error('Account nicht verfügbar', 401);
@@ -180,17 +227,37 @@ if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'verify
     ]);
 }
 
-// ── K1: POST /api/auth/2fa/disable ── 2FA abschalten ─────────
+// ── K1 + B2: POST /api/auth/2fa/disable ── 2FA abschalten ────
+//   Verlangt Passwort UND aktuellen TOTP-Code (oder Recovery-Code).
+//   Verhindert dass ein gestohlener Session-Cookie / aktiver JWT
+//   2FA abschalten kann, ohne den 2. Faktor zu kennen.
 if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'disable') {
     rate_limit('2fa_disable', 5, 3600);
     $auth = require_auth();
-    $pw   = body()['password'] ?? '';
+    $b    = body();
+    $pw   = $b['password'] ?? '';
+    $code = trim((string)($b['code'] ?? ''));
     if (mb_strlen($pw) > 200) error('Passwort zu lang', 400);
+    if ($code === '')         error('TOTP-Code oder Recovery-Code erforderlich', 400);
 
-    $stmt = db()->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+    $stmt = db()->prepare(
+        'SELECT password_hash, totp_secret, totp_enabled, totp_recovery_hash
+         FROM users WHERE id = ? LIMIT 1'
+    );
     $stmt->execute([$auth['sub']]);
     $user = $stmt->fetch();
     if (!$user || !password_verify($pw, $user['password_hash'])) error('Passwort falsch', 401);
+    if (empty($user['totp_enabled'])) error('2FA ist nicht aktiv', 400);
+
+    // TOTP-Code oder Recovery-Code prüfen (gleicher Pfad wie /2fa/check)
+    $ok = totp_verify((string)$user['totp_secret'], $code);
+    if (!$ok && strlen($code) === 11 && !empty($user['totp_recovery_hash'])) {
+        $stored = json_decode($user['totp_recovery_hash'], true) ?: [];
+        foreach ($stored as $hash) {
+            if (password_verify(strtoupper($code), $hash)) { $ok = true; break; }
+        }
+    }
+    if (!$ok) error('TOTP-Code falsch', 401);
 
     db()->prepare(
         'UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_recovery_hash = NULL WHERE id = ?'
@@ -346,7 +413,18 @@ if ($method === 'PATCH' && $sub_action === 'password') {
 }
 
 // ── POST /api/auth/logout ────────────────────────────────────
+//   B5+: Token-jti in Blocklist eintragen, damit der JWT nicht mehr
+//   bis zu seinem natürlichen exp verwendet werden kann.
 if ($method === 'POST' && $sub_action === 'logout') {
+    // jti aus Bearer-Header lesen — kein require_auth (auch abgelaufenes Token soll
+    // ohne Fehler "loggen" können, aber wir brauchen Signatur-Gültigkeit für jti).
+    $h = get_auth_header();
+    if (str_starts_with($h, 'Bearer ')) {
+        $p = jwt_verify(substr($h, 7), false);  // Blocklist-Check überspringen
+        if (!empty($p['jti']) && !empty($p['exp'])) {
+            jwt_blocklist((string)$p['jti'], (int)$p['exp']);
+        }
+    }
     respond(['message' => 'Logout erfolgreich']);
 }
 

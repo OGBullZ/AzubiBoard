@@ -351,11 +351,11 @@ export const dataService = {
     return await res.json();   // { ok, recovery_codes, activated_at }
   },
 
-  async twoFactorDisable(password) {
+  async twoFactorDisable(password, code) {
     if (!USE_API) throw new Error('2FA nur im API-Modus möglich');
     const res = await apiFetch('/auth/2fa/disable', {
       method: 'POST',
-      body:   JSON.stringify({ password }),
+      body:   JSON.stringify({ password, code }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

@@ -8,7 +8,8 @@
 
 | Sprint | Commit | Inhalt |
 |---|---|---|
-| **9-Quality** | `af5f26f` | ErrorBoundary pro Route (H2), Dashboard-Refactor 1236→373 Zeilen + 11 Widget-Files (H3), silent-catch fix (H4), BoundingRect-Cache NetzplanGantt (H5), migrations-Test auf v4 |
+| **9.5-Security** | _(folgt)_ | B1 Partial-Token DB-backed Single-Use (5 min), B2 2FA-Disable verlangt TOTP/Recovery, B5+ JWT-jti + Logout-Blocklist mit DB-GC |
+| **9-Quality** | `2187b9c` | ErrorBoundary pro Route (H2), Dashboard-Refactor 1236→373 Zeilen + 11 Widget-Files (H3), silent-catch fix (H4), BoundingRect-Cache NetzplanGantt (H5), migrations-Test auf v4 |
 | **Hotfix** | `6267b47` | Status „Abgeschlossen" statt „In Ordnung", Material-Aufgaben-Zuordnung + Sortierung |
 | **8** | `8b07bbd` | 2FA (TOTP + Recovery-Codes), Server-Audit-Log, CSP-Härtung |
 | **7** | `115035c` | Sentry Error-Tracking, Server-Backups (30 Tage), Schema-Migrations, Background-Sync (PWA) |
@@ -35,18 +36,15 @@
 
 ---
 
-## 🔜 Sprint 9.5 — Security-Hot-Issues (M, ~1 Tag)
+## ✅ Sprint 9.5 — Security-Hot-Issues (erledigt 2026-05-16)
 
-> **Ziel:** Drei in der Sprint-9-Audit gefundene Auth-/Session-Schwächen beheben, bevor produktiv deployed wird.
+| | Item | Lösung |
+|---|---|---|
+| **B1** | Partial-Token Expiry 7d | Random 64-Hex-ID in DB-Tabelle `partial_tokens` (id, user_id, used_at, expires_at), 5 min TTL, atomar als used markiert (FOR UPDATE) |
+| **B2** | 2FA-Disable ohne TOTP | `POST /api/auth/2fa/disable` verlangt Passwort **und** TOTP-Code (oder 11-stelligen Recovery-Code); Frontend-Dialog erweitert |
+| **B5+** | Kein Logout-Blocklist | `jwt_create` setzt `jti` (16 Bytes random), `jwt_verify` prüft DB-Tabelle `jwt_blocklist`, Logout-Endpoint trägt `jti`+`exp` ein, GC ~jeder 200. Auth-Call |
 
-| | Item | Risiko | Fix |
-|---|---|---|---|
-| **B1** | Partial-Token bei 2FA hat 7d Expiry | Gestohlener Partial-Token = 7d Login-Fenster ohne TOTP | Expiry auf 5 min, Single-Use-Nonce in DB-Tabelle `partial_tokens` (id, user_id, used_at, expires_at) |
-| **B2** | 2FA-Disable ohne TOTP-Bestätigung | Angreifer mit Session-Cookie kann 2FA abschalten | Endpoint `POST /api/2fa/disable` verlangt aktuelles TOTP **oder** Recovery-Code |
-| **B5** | Kein Logout-Blocklist (JWT) | Logout invalidiert nur localStorage, JWT bleibt bis Expiry gültig | DB-Tabelle `jwt_blocklist` (jti, expires_at), Auth-Middleware prüft jti; Cleanup-Cron täglich |
-| **B5+** | JWT um `jti`-Claim erweitern | Voraussetzung für B5 | `auth.php` setzt `jti = bin2hex(random_bytes(16))` bei Token-Issue |
-
-**Tests:** Vitest-Unit für Token-Lifecycle, Playwright-E2E „Logout invalidiert Backend-Calls".
+**Tests:** Frontend 44/44 grün, PHP-Lint OK auf `config.php` + `auth.php`. PHP-Unit-Tests sind noch nicht aufgesetzt (separates Item, siehe Sprint 13+).
 
 ---
 

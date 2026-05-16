@@ -55,11 +55,13 @@ export default function TwoFactorSettings({ showToast }) {
   };
 
   const disable2FA = async () => {
-    if (!pw) { setErr('Passwort eingeben'); return; }
+    if (!pw)   { setErr('Passwort eingeben'); return; }
+    const c = code.replace(/\s/g, '');
+    if (!c)    { setErr('TOTP- oder Recovery-Code eingeben'); return; }
     setErr(null); setBusy(true);
     try {
-      await dataService.twoFactorDisable(pw);
-      setStage('idle'); setPw('');
+      await dataService.twoFactorDisable(pw, c);
+      setStage('idle'); setPw(''); setCode('');
       showToast?.('✓ 2FA deaktiviert');
       await reload();
     } catch (e) {
@@ -148,13 +150,16 @@ export default function TwoFactorSettings({ showToast }) {
       <div style={{ padding: 14, background: C.sf2, border: `1px solid ${C.cr}45`, borderRadius: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: C.br, marginBottom: 8 }}>2FA deaktivieren</div>
         <div style={{ fontSize: 11, color: C.mu, marginBottom: 10 }}>
-          Passwort zur Bestätigung erforderlich.
+          Passwort <strong>und</strong> aktueller TOTP-Code (oder Recovery-Code) zur Bestätigung erforderlich.
         </div>
         <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Passwort" autoComplete="current-password"
-          style={{ width: '100%', padding: '10px 14px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 7, background: C.sf, color: C.br, marginBottom: 10, boxSizing: 'border-box' }} />
+          style={{ width: '100%', padding: '10px 14px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 7, background: C.sf, color: C.br, marginBottom: 8, boxSizing: 'border-box' }} />
+        <input value={code} onChange={e => setCode(e.target.value)} placeholder="123456 oder Recovery-Code" maxLength={11}
+          inputMode="numeric" autoComplete="one-time-code"
+          style={{ width: '100%', padding: '10px 14px', fontSize: 15, letterSpacing: 2, textAlign: 'center', fontFamily: C.mono, border: `1px solid ${C.bd2}`, borderRadius: 7, background: C.sf, color: C.br, marginBottom: 10, boxSizing: 'border-box' }} />
         {err && <div style={{ fontSize: 11, color: C.cr, marginBottom: 8 }}>⚠ {err}</div>}
         <div style={{ display: 'flex', gap: 7, justifyContent: 'flex-end' }}>
-          <button onClick={() => { setStage('idle'); setPw(''); setErr(null); }} className="btn" style={{ fontSize: 11 }} disabled={busy}>Abbrechen</button>
+          <button onClick={() => { setStage('idle'); setPw(''); setCode(''); setErr(null); }} className="btn" style={{ fontSize: 11 }} disabled={busy}>Abbrechen</button>
           <button onClick={disable2FA} disabled={busy}
             style={{ fontSize: 11, padding: '6px 12px', border: `1px solid ${C.cr}`, background: C.cr, color: '#fff', borderRadius: 7, cursor: 'pointer', fontWeight: 700 }}>
             {busy ? '⏳ …' : '🔓 Deaktivieren'}

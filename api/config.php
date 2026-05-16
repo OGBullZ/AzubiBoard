@@ -107,22 +107,44 @@ function body(): array {
 function b64u(string $d): string {
     return rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
 }
-function jwt_create(array $payload): string {
+function jwt_create(array $payload, ?int $ttl = null): string {
     $h = b64u(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
-    $payload['exp'] = time() + JWT_EXPIRY;
+    $payload['exp'] = time() + ($ttl ?? JWT_EXPIRY);
     $payload['iat'] = time();
+    // B5+: jti für Logout-Blocklist (16 Bytes = 32 Hex-Zeichen)
+    if (empty($payload['jti'])) $payload['jti'] = bin2hex(random_bytes(16));
     $c = b64u(json_encode($payload));
     $s = b64u(hash_hmac('sha256', "$h.$c", JWT_SECRET, true));
     return "$h.$c.$s";
 }
-function jwt_verify(string $token): ?array {
+function jwt_verify(string $token, bool $checkBlocklist = true): ?array {
     $parts = explode('.', $token);
     if (count($parts) !== 3) return null;
     [$h, $c, $s] = $parts;
     if (!hash_equals(b64u(hash_hmac('sha256', "$h.$c", JWT_SECRET, true)), $s)) return null;
     $p = json_decode(base64_decode(strtr($c, '-_', '+/')), true);
     if (!$p || ($p['exp'] ?? 0) < time()) return null;
+    // B5+: Blocklist-Check für Logout-invalidierte Tokens
+    if ($checkBlocklist && !empty($p['jti']) && jwt_is_blocklisted($p['jti'])) return null;
     return $p;
+}
+/** B5+: prüft ob ein jti in der Logout-Blocklist steht. */
+function jwt_is_blocklisted(string $jti): bool {
+    try {
+        $stmt = db()->prepare('SELECT 1 FROM jwt_blocklist WHERE jti = ? AND expires_at > NOW() LIMIT 1');
+        $stmt->execute([$jti]);
+        return (bool)$stmt->fetchColumn();
+    } catch (Throwable $e) {
+        // Tabelle existiert noch nicht (Pre-Migration-Call) → durchlassen
+        return false;
+    }
+}
+/** B5+: Token-jti + exp in Blocklist eintragen. Idempotent via INSERT IGNORE. */
+function jwt_blocklist(string $jti, int $exp): void {
+    try {
+        $stmt = db()->prepare('INSERT IGNORE INTO jwt_blocklist (jti, expires_at) VALUES (?, FROM_UNIXTIME(?))');
+        $stmt->execute([$jti, $exp]);
+    } catch (Throwable $e) { /* failsafe */ }
 }
 
 // ── Auth ─────────────────────────────────────────────────────
