@@ -253,7 +253,7 @@ function useNotifications(data, currentUser) {
       }
     });
 
-    if (currentUser.role === 'ausbilder') {
+    if (currentUser.role === 'ausbilder' || currentUser.role === 'mentor') {
       (data.reports || []).filter(r => r.status === 'submitted').forEach(r => {
         items.push({ id: `report-${r.id}-submitted`, type: 'report', severity: 'info', title: 'Bericht zur Prüfung', message: `${r.user_name || 'Azubi'} · KW ${r.week_number}/${r.year}` });
       });

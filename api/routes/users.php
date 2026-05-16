@@ -111,6 +111,22 @@ if ($method === 'PATCH' && $id) {
         $params[] = $b['is_active'] ? 1 : 0;
     }
 
+    // M2: role-Wechsel (nur durch Ausbilder, also ist require_role oben schon erfüllt)
+    if (array_key_exists('role', $b)) {
+        if (!in_array($b['role'], ['azubi', 'mentor', 'ausbilder'], true)) {
+            error('Ungültige Rolle', 400);
+        }
+        // Anti-Lockout: Ausbilder darf sich selbst nicht degradieren wenn er der letzte ist
+        $auth = require_auth();
+        if ((int)$auth['sub'] === (int)$id && $b['role'] !== 'ausbilder') {
+            $stmt = db()->prepare("SELECT COUNT(*) FROM users WHERE role = 'ausbilder' AND is_active = 1 AND id != ?");
+            $stmt->execute([$id]);
+            if ((int)$stmt->fetchColumn() === 0) error('Letzter aktiver Ausbilder kann nicht degradiert werden', 400);
+        }
+        $fields[] = 'role = ?';
+        $params[] = $b['role'];
+    }
+
     if (empty($fields)) error('Nichts zu aktualisieren');
     $params[] = $id;
     db()->prepare(

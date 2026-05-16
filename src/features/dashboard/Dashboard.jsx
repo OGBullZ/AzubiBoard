@@ -385,7 +385,9 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
 //  EXPORT
 // ─────────────────────────────────────────────────────────────
 export function Dashboard(props) {
-  if (props.user?.role === 'ausbilder') {
+  // M2: Mentor sieht dasselbe Dashboard wie Ausbilder (read-only durch ausgeblendete Aktionen).
+  const role = props.user?.role;
+  if (role === 'ausbilder' || role === 'mentor') {
     return <AusbilderDashboard {...props} activityLog={props.activityLog || []} />;
   }
   return <AzubiDashboard {...props} activityLog={props.activityLog || []} />;

@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
+import { isStaff, isAusbilder } from '../../lib/roles.js';
 import { softDelete } from '../../lib/trash.js';
 import ShareLinkModal from '../../components/ShareLinkModal.jsx';
 import { Avatar, Field, EmptyState } from '../../components/UI.jsx';
@@ -37,8 +38,8 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete })
   const kw       = iso.week;
   const isoYear  = iso.year ?? new Date(report.week_start).getFullYear();
   const canSubmit = report.status === 'draft' && report.user_id === currentUser.id;
-  const canSign   = ['submitted','reviewed'].includes(report.status) && currentUser.role === 'ausbilder';
-  const canDelete = currentUser.role === 'ausbilder' ||
+  const canSign   = ['submitted','reviewed'].includes(report.status) && isAusbilder(currentUser);
+  const canDelete = isAusbilder(currentUser) ||
     (report.user_id === currentUser.id && report.status === 'draft');
   const weekEnd   = new Date(new Date(report.week_start).getTime() + 4 * 86400000).toISOString().split('T')[0];
 
@@ -53,7 +54,7 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete })
         <div>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>KW {kw} · {isoYear}</div>
           <div style={{ fontSize: 11, color: C.mu, marginTop: 2 }}>{fmtDate(report.week_start)} – {fmtDate(weekEnd)}</div>
-          {currentUser.role === 'ausbilder' && report.user_name && (
+          {isStaff(currentUser) && report.user_name && (
             <div style={{ fontSize: 11, color: C.ac, marginTop: 3, fontWeight: 600 }}>{report.user_name}</div>
           )}
         </div>
@@ -119,8 +120,9 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const fileRef = useRef();
 
   const isOwner  = !report || report.user_id === currentUser.id;
-  const isReview = currentUser.role === 'ausbilder';
-  const readOnly = report?.status !== 'draft' && !isReview;
+  const isReview = isAusbilder(currentUser);
+  // Mentor sieht alles wie Review-Modus, aber kann nichts speichern → readOnly forciert
+  const readOnly = (report?.status !== 'draft' && !isReview) || (!isOwner && isStaff(currentUser) && !isReview);
   const kw       = getKW(form.week_start);
 
   const applyTemplate = (tmpl) => { setForm(f => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
@@ -645,11 +647,11 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         <div>
           <h1 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>Berichtshefte</h1>
           <p style={{ fontSize: 12, color: C.mu, marginTop: 3 }}>
-            {currentUser.role === 'ausbilder' ? 'Alle eingereichten Berichte' : 'Deine wöchentlichen Ausbildungsberichte'}
+            {isStaff(currentUser) ? 'Alle eingereichten Berichte' : 'Deine wöchentlichen Ausbildungsberichte'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {currentUser.role === 'ausbilder' && (
+          {isAusbilder(currentUser) && (
             <>
               <button className="btn" onClick={() => printJahresmappe(reports, new Date().getFullYear(), showToast)}
                 style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>

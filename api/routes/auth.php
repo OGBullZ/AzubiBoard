@@ -18,6 +18,12 @@ try {
         ADD COLUMN IF NOT EXISTS totp_activated_at   TIMESTAMP   NULL DEFAULT NULL");
 } catch (Throwable $e) { /* Spalten existieren bereits oder MySQL < 8 — beim 1. Lauf manuell */ }
 
+// ── Sprint 10: Migration für Mentor-Rolle (M2) ───────────────
+//   ENUM um 'mentor' erweitern; existierende Werte bleiben.
+try {
+    db()->exec("ALTER TABLE users MODIFY COLUMN role ENUM('azubi','mentor','ausbilder') NOT NULL DEFAULT 'azubi'");
+} catch (Throwable $e) { /* MySQL älter als 5.7 oder bereits angepasst */ }
+
 // ── Sprint 9.5: Migration für Auth-Tabellen (B1 + B5+) ───────
 //   - partial_tokens: DB-backed Single-Use-Token für 2FA-Schritt (5 min)
 //   - jwt_blocklist:  Logout-Invalidierung für laufende JWTs (jti-basiert)
@@ -443,6 +449,26 @@ if ($method === 'POST' && $sub_action === 'avatar') {
     $mime  = $finfo->file($file['tmp_name']);
     if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif']))
         error('Nur Bilder erlaubt (JPEG, PNG, WebP, GIF)');
+
+    // K4 (Sprint 10): optionaler ClamAV-Scan via clamdscan.
+    //   Aktiv wenn CLAMAV_ENABLED=true UND clamdscan im PATH ist.
+    //   Wenn nicht verfügbar → skip mit Notice (kein Hard-Fail, damit
+    //   Hosting ohne ClamAV nicht broken ist). Ein Virus-Fund führt
+    //   zur Ablehnung der Datei.
+    if (filter_var(env('CLAMAV_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN)) {
+        $cmd = 'clamdscan --fdpass --stdout --no-summary ' . escapeshellarg($file['tmp_name']);
+        $output = []; $exitCode = 0;
+        @exec($cmd . ' 2>&1', $output, $exitCode);
+        if ($exitCode === 1) {
+            // 1 = Virus gefunden
+            @unlink($file['tmp_name']);
+            error('Datei wurde vom Virenscanner abgelehnt', 422);
+        }
+        // 0 = clean, 2 = scan error (Daemon nicht erreichbar) → durchlassen mit Log
+        if ($exitCode === 2) {
+            error_log('K4: clamdscan exit 2 (Daemon nicht erreichbar) — Upload durchgelassen');
+        }
+    }
 
     // Altes Avatar löschen
     $stmt = db()->prepare('SELECT avatar_url FROM users WHERE id = ? LIMIT 1');

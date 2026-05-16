@@ -8,7 +8,8 @@
 
 | Sprint | Commit | Inhalt |
 |---|---|---|
-| **9.5-Security** | _(folgt)_ | B1 Partial-Token DB-backed Single-Use (5 min), B2 2FA-Disable verlangt TOTP/Recovery, B5+ JWT-jti + Logout-Blocklist mit DB-GC |
+| **10-Adoption** | _(folgt)_ | M2 Mentor-Rolle (DB-ENUM + Frontend-Helper `roles.js`), K2-Backend Field-Level Permissions für Reports im POST `/api/data`, K4 ClamAV-Hook in Avatar-Upload, M3 wöchentliches Cron-Mail-Skript |
+| **9.5-Security** | `b15e94f` | B1 Partial-Token DB-backed Single-Use (5 min), B2 2FA-Disable verlangt TOTP/Recovery, B5+ JWT-jti + Logout-Blocklist mit DB-GC |
 | **9-Quality** | `2187b9c` | ErrorBoundary pro Route (H2), Dashboard-Refactor 1236→373 Zeilen + 11 Widget-Files (H3), silent-catch fix (H4), BoundingRect-Cache NetzplanGantt (H5), migrations-Test auf v4 |
 | **Hotfix** | `6267b47` | Status „Abgeschlossen" statt „In Ordnung", Material-Aufgaben-Zuordnung + Sortierung |
 | **8** | `8b07bbd` | 2FA (TOTP + Recovery-Codes), Server-Audit-Log, CSP-Härtung |
@@ -99,16 +100,15 @@ echo "[$(date)] deployed $REMOTE"
 
 ---
 
-## 🔜 Sprint 10 — Adoption & Kommunikation (M, 2–3 Tage)
+## ✅ Sprint 10 — Adoption & Kommunikation (erledigt 2026-05-16)
 
-> **Ziel:** App nützlicher für den Betriebsalltag machen.
-
-| | Item | Details |
+| | Item | Lösung |
 |---|---|---|
-| **M3** | Wöchentliche Ausbilder-Mail | PHP-Cron Mo 07:00 + PHPMailer/SMTP: „X Berichte zu prüfen, Y Aufgaben überfällig, Z Azubis ohne Aktivität ≥ 7 Tage". Opt-out pro User in Settings |
-| **M2** | Mentor-Rolle | 3. Rolle `mentor` (lesen + kommentieren, **keine** Approval, keine Edits). DB: `users.role ENUM('azubi','mentor','ausbilder')`. UI: Approval-Buttons ausblenden für `mentor` |
-| **K2** | Field-Level Permissions | Azubi darf eigene Berichte nicht löschen nach `submitted_at IS NOT NULL`; Ausbilder-only Felder (`approval_note`, `grade`) in Frontend ausblenden + Backend rejecten |
-| **K4** | Upload-Härtung | MIME-Validierung per Magic-Bytes (`finfo_buffer`) statt nur `$_FILES['type']`, ClamAV-Hook (`clamdscan --stream` falls Daemon läuft, sonst skip mit Warn-Log), Größenlimit `upload_max_filesize=10M` |
+| **M2** | Mentor-Rolle | `users.role` ENUM erweitert auf `('azubi','mentor','ausbilder')`. Frontend-Helper `src/lib/roles.js` (`isStaff`, `isAusbilder`, `isMentor`). ProjectPool, ReportsPage, Dashboard-Routing, App.jsx-Notifications nutzen die Helper. User-PATCH erlaubt Role-Wechsel mit Anti-Lockout-Schutz (letzter aktiver Ausbilder darf sich nicht degradieren). _Nicht-Standard-Views (TrainingPlan, Learn) bleiben Stage 2._ |
+| **K2-Backend** | Field-Level Permissions server-side | `POST /api/data` ruft Helper `validate_reports_diff()` für nicht-Ausbilder. Reject 403 bei: Edit/Delete fremder Reports, Edit/Delete eigener submitted/reviewed/signed Reports, Status-Push auf reviewed/signed (Ausbilder-only) |
+| **K4** | ClamAV-Hook | Avatar-Upload ruft `clamdscan --fdpass --stdout --no-summary` wenn `CLAMAV_ENABLED=true` in .env. Exit-Code 1 → 422 reject + unlink. Exit-Code 2 (Daemon down) → durchlassen mit `error_log` |
+| **M3** | Wöchentliche Ausbilder-Mail | `cron/weekly_digest.php` (CLI-only, FORCE_RUN-Env zum Override) liest `app_data`-Blob, baut Übersicht aus submitted Reports + overdue Tasks + inaktiven Azubis (≥7d), schickt an Ausbilder+Mentoren mit `notifications_enabled=1`. Native `mail()` — für externes SMTP PHPMailer austauschen. **Nicht live getestet** (braucht echten MTA) |
+| **K2-Frontend** | _bereits erledigt mit `4704429`_ | Editor-ReadOnly für submitted/reviewed/signed, Delete-Button nur für Entwurf, Schloss-Banner für gesperrte Reports |
 
 ---
 

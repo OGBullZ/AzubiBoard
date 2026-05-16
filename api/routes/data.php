@@ -102,6 +102,17 @@ if ($method === 'POST') {
         }
     }
 
+    // ── K2 (Sprint 10): Field-Level Permissions server-side ──
+    //    Frontend blockt Edit/Delete schon, aber API muss auch rejecten,
+    //    falls jemand direkt POSTet. Limitierung: Reports leben aktuell
+    //    als JSON-Blob (L5 Schema-Refactor kommt in Sprint 12), daher
+    //    Diff-Validation auf Blob-Ebene.
+    if (($auth['role'] ?? 'azubi') !== 'ausbilder') {
+        $oldRow = db()->query('SELECT content FROM app_data WHERE id = 1')->fetch();
+        $oldData = $oldRow ? (json_decode($oldRow['content'], true) ?: []) : [];
+        validate_reports_diff($parsed['reports'] ?? [], $oldData['reports'] ?? [], (int)$auth['sub']);
+    }
+
     $stmt = db()->prepare("
         INSERT INTO app_data (id, content) VALUES (1, ?)
         ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = NOW()
@@ -191,3 +202,64 @@ if ($method === 'POST' && (($parts[1] ?? null) === 'restore')) {
 }
 
 error('Methode nicht erlaubt', 405);
+
+// ── K2 Helper (Sprint 10) ────────────────────────────────────
+//   Vergleicht eingehenden Reports-Array mit dem alten Stand und
+//   wirft 403, sobald ein Azubi/Mentor etwas tut, was er nicht darf:
+//   - Report eines anderen Nutzers verändern/löschen
+//   - Eigenen submitted/reviewed/signed Report editieren oder löschen
+//   - Status auf reviewed/signed setzen (nur Ausbilder)
+//   Bei Mentor ist user_id immer != $uid → jede Mutation wird geblockt.
+if (!function_exists('validate_reports_diff')) {
+function validate_reports_diff(array $newReports, array $oldReports, int $uid): void {
+    $oldById = [];
+    foreach ($oldReports as $r) {
+        if (isset($r['id'])) $oldById[(string)$r['id']] = $r;
+    }
+    $seenIds = [];
+    foreach ($newReports as $nr) {
+        $id  = isset($nr['id']) ? (string)$nr['id'] : '';
+        $seenIds[$id] = true;
+        $owner = (int)($nr['user_id'] ?? 0);
+        $status = $nr['status'] ?? 'draft';
+
+        if (isset($oldById[$id])) {
+            $or = $oldById[$id];
+            // Bit-genauer Vergleich der für K2 relevanten Felder
+            $relevant = ['title','activities','learnings','status','user_id','week_start','week_number','year','file','sectionComments','review_comment'];
+            $changed = false;
+            foreach ($relevant as $f) {
+                $a = $or[$f] ?? null; $b = $nr[$f] ?? null;
+                if ($a !== $b && json_encode($a) !== json_encode($b)) { $changed = true; break; }
+            }
+            if (!$changed) continue;
+
+            $isOwner   = (int)($or['user_id'] ?? 0) === $uid;
+            $oldStatus = $or['status'] ?? 'draft';
+
+            if (!$isOwner) error('Nicht berechtigt: Report eines anderen Nutzers geändert', 403);
+            if ($oldStatus !== 'draft' && $oldStatus === $status) {
+                error('Eingereichter Report kann nicht mehr geändert werden', 403);
+            }
+            if (!in_array($status, ['draft','submitted'], true)) {
+                error('Nur Ausbilder dürfen Status auf "geprüft" oder "unterschrieben" setzen', 403);
+            }
+        } else {
+            // Neuer Report
+            if ($owner !== $uid) error('Nicht berechtigt: Neuer Report mit fremder user_id', 403);
+            if (!in_array($status, ['draft','submitted'], true)) {
+                error('Neuer Report darf nur Entwurf oder Eingereicht sein', 403);
+            }
+        }
+    }
+    // Gelöschte Reports
+    foreach ($oldReports as $or) {
+        $id = isset($or['id']) ? (string)$or['id'] : '';
+        if (isset($seenIds[$id])) continue;
+        $isOwner = (int)($or['user_id'] ?? 0) === $uid;
+        $status  = $or['status'] ?? 'draft';
+        if (!$isOwner) error('Nicht berechtigt: Report eines anderen Nutzers gelöscht', 403);
+        if ($status !== 'draft') error('Eingereichter Report kann nicht gelöscht werden', 403);
+    }
+}
+}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { C, fmtDate } from '../../lib/utils.js';
+import { isStaff, isAusbilder } from '../../lib/roles.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoCheck, IcoClock, IcoSearch, IcoTrash,
@@ -20,7 +21,8 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
 
   const visible = active
     .filter(p => {
-      if (filter === 'mine' && !(p.assignees||[]).includes(currentUser.id) && currentUser.role !== 'ausbilder') return false;
+      // Mentor + Ausbilder sehen alle Projekte; Azubi nur eigene wenn "mine" gewählt
+      if (filter === 'mine' && !(p.assignees||[]).includes(currentUser.id) && !isStaff(currentUser)) return false;
       if (['green','yellow','red'].includes(filter) && p.status !== filter) return false;
       if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !(p.description || '').toLowerCase().includes(search.toLowerCase())) return false;
       return true;
@@ -109,7 +111,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                 {['Projekt','Status','Fortschritt','Azubis','Deadline','Aufgaben'].map(h => (
                   <th key={h} style={{ padding: '7px 12px', fontSize: 13, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .8, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
-                {currentUser.role === 'ausbilder' && <th style={{ width: 60 }} />}
+                {isAusbilder(currentUser) && <th style={{ width: 60 }} />}
               </tr>
             </thead>
             <tbody>
@@ -155,7 +157,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                       {(p.tasks||[]).filter(t => t.status === 'in_progress').length > 0 &&
                         <span style={{ color: C.ac, marginLeft: 6 }}>▶{(p.tasks||[]).filter(t => t.status === 'in_progress').length}</span>}
                     </td>
-                    {currentUser.role === 'ausbilder' && (
+                    {isAusbilder(currentUser) && (
                       <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <IconBtn Icon={IcoDoc}     onClick={() => onDuplicate?.(p.id)} label="Duplizieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
@@ -185,7 +187,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                   onClick={() => onOpen(p.id)} tabIndex={0} onKeyDown={e => e.key === 'Enter' && onOpen(p.id)}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow)'; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderLeftColor = sc; }}>
-                  {currentUser.role === 'ausbilder' && (
+                  {isAusbilder(currentUser) && (
                     <div className="hover-action" style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4 }}>
                       <IconBtn Icon={IcoDoc}     onClick={e => { e.stopPropagation(); onDuplicate?.(p.id); }} label="Duplizieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
                       <IconBtn Icon={IcoArchive} onClick={e => { e.stopPropagation(); onArchive?.(p.id); }} label="Archivieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
