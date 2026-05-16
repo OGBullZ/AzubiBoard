@@ -19,9 +19,11 @@ try {
 } catch (Throwable $e) { /* Spalten existieren bereits oder MySQL < 8 — beim 1. Lauf manuell */ }
 
 // ── Sprint 10: Migration für Mentor-Rolle (M2) ───────────────
-//   ENUM um 'mentor' erweitern; existierende Werte bleiben.
+//   ENUM um 'mentor' erweitern. 'admin' bleibt drin als Legacy-Wert
+//   (database/azubiboard.sql definiert ihn historisch) — sonst würden
+//   existierende admin-Rows beim ALTER zu Leerstring werden.
 try {
-    db()->exec("ALTER TABLE users MODIFY COLUMN role ENUM('azubi','mentor','ausbilder') NOT NULL DEFAULT 'azubi'");
+    db()->exec("ALTER TABLE users MODIFY COLUMN role ENUM('azubi','mentor','ausbilder','admin') NOT NULL DEFAULT 'azubi'");
 } catch (Throwable $e) { /* MySQL älter als 5.7 oder bereits angepasst */ }
 
 // ── Sprint 9.5: Migration für Auth-Tabellen (B1 + B5+) ───────

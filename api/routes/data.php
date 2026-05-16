@@ -238,9 +238,13 @@ function validate_reports_diff(array $newReports, array $oldReports, int $uid): 
             $oldStatus = $or['status'] ?? 'draft';
 
             if (!$isOwner) error('Nicht berechtigt: Report eines anderen Nutzers geändert', 403);
-            if ($oldStatus !== 'draft' && $oldStatus === $status) {
+            // user_id darf nicht verändert werden — sonst könnte Azubi seinen Report an andere übertragen
+            if ($owner !== $uid) error('Nicht berechtigt: user_id eines bestehenden Reports verändert', 403);
+            // Wenn nicht mehr im Draft, ist *keine* Änderung erlaubt (auch kein Status-Zurücksetzen).
+            if ($oldStatus !== 'draft') {
                 error('Eingereichter Report kann nicht mehr geändert werden', 403);
             }
+            // Aus Draft darf nur in Draft bleiben oder eingereicht werden — alles andere ist Ausbilder-Sache.
             if (!in_array($status, ['draft','submitted'], true)) {
                 error('Nur Ausbilder dürfen Status auf "geprüft" oder "unterschrieben" setzen', 403);
             }
