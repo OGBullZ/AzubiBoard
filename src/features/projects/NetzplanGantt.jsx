@@ -8,7 +8,7 @@ export function NetzplanTab({ project, onUpdate }) {
   const [lpos, setLpos] = useState({});
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const panR = useRef(null), dragR = useRef(null), contR = useRef(null);
+  const panR = useRef(null), dragR = useRef(null), contR = useRef(null), rectR = useRef(null);
   const [isDrag, setIsDrag] = useState(false);
   const [cycErr, setCycErr] = useState('');
   const [nName, setNName] = useState(''), [nD, setND] = useState(1);
@@ -29,7 +29,9 @@ export function NetzplanTab({ project, onUpdate }) {
   const getPos = n => lpos[n.id] || { x: NP + n.col * (NW + CG), y: NP + n.row * (NH + RG) };
 
   function svgCoords(e) {
-    const r = contR.current?.getBoundingClientRect();
+    // Sprint-9 H5: BoundingRect ist im aktiven Drag/Pan via rectR.current gecached
+    // (Setup im onMouseDown), sonst Fallback auf live-Lookup.
+    const r = rectR.current || contR.current?.getBoundingClientRect();
     if (!r) return { x: 0, y: 0 };
     return { x: (e.clientX - r.left - pan.x) / zoom, y: (e.clientY - r.top - pan.y) / zoom };
   }
@@ -156,7 +158,7 @@ export function NetzplanTab({ project, onUpdate }) {
         style={{ flex: 1, background: C.bg, border: `1px solid ${C.bd}`, borderRadius: 10, overflow: 'hidden', position: 'relative', cursor: isDrag ? 'grabbing' : panR.current ? 'grab' : 'default' }}
         role="img" aria-label="Netzplan Diagramm"
         onWheel={e => { e.preventDefault(); setZoom(z => Math.min(Math.max(z * (e.deltaY > 0 ? .9 : 1.1), .1), 4)); }}
-        onMouseDown={e => { if (e.altKey || e.button === 1) { e.preventDefault(); panR.current = { sx: e.clientX - pan.x, sy: e.clientY - pan.y }; } }}
+        onMouseDown={e => { if (e.altKey || e.button === 1) { e.preventDefault(); rectR.current = contR.current?.getBoundingClientRect(); panR.current = { sx: e.clientX - pan.x, sy: e.clientY - pan.y }; } }}
         onMouseMove={e => {
           if (panR.current) setPan({ x: e.clientX - panR.current.sx, y: e.clientY - panR.current.sy });
           if (dragR.current) { const sc = svgCoords(e); setLpos(p => ({ ...p, [dragR.current.id]: { x: Math.max(0, sc.x - dragR.current.ox), y: Math.max(0, sc.y - dragR.current.oy) } })); }
@@ -164,8 +166,9 @@ export function NetzplanTab({ project, onUpdate }) {
         onMouseUp={() => {
           if (dragR.current) { save({ nodePositions: { ...np.nodePositions, ...lpos } }); dragR.current = null; setIsDrag(false); }
           panR.current = null;
+          rectR.current = null;
         }}
-        onMouseLeave={() => { panR.current = null; }}>
+        onMouseLeave={() => { panR.current = null; rectR.current = null; }}>
 
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} aria-hidden="true">
           <defs>
@@ -234,6 +237,7 @@ export function NetzplanTab({ project, onUpdate }) {
                   onMouseDown={e => {
                     if (panR.current) return;
                     e.stopPropagation();
+                    rectR.current = contR.current?.getBoundingClientRect();
                     const sc = svgCoords(e), cp = getPos(n);
                     dragR.current = { id: n.id, ox: sc.x - cp.x, oy: sc.y - cp.y };
                     setIsDrag(true);

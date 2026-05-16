@@ -1397,18 +1397,18 @@ const App = () => {
         <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport} onShowBackups={USE_API && currentUser?.role === 'ausbilder' ? () => setShowBackups(true) : null} trashCount={countTrash(data)}>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
-              <Route path="/dashboard"   element={<DashboardPage onNewProject={handleNewProject} showToast={showToast} />} />
-              <Route path="/projects"    element={<ProjectsPage  onNewProject={handleNewProject} showToast={showToast} />} />
-              <Route path="/project/:id" element={<ProjectDetailWrapper showToast={showToast} />} />
-              <Route path="/profile"     element={<ProfilePage showToast={showToast} />} />
-              <Route path="/calendar"    element={<CalendarPage showToast={showToast} />} />
-              <Route path="/groups"      element={<GroupsPage showToast={showToast} />} />
-              <Route path="/training"    element={<TrainingPlanPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
-              <Route path="/learn"       element={<LearnPage currentUser={currentUser} />} />
-              <Route path="/reports"     element={<ReportsPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} />} />
-              <Route path="/users"       element={<UsersPage showToast={showToast} />} />
-              <Route path="/azubi/:id"   element={<AzubiProfileWrapper />} />
-              <Route path="/trash"       element={<TrashPage data={data} currentUser={currentUser} onUpdateData={setData} showToast={showToast} />} />
+              <Route path="/dashboard"   element={<ErrorBoundary inline><DashboardPage onNewProject={handleNewProject} showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/projects"    element={<ErrorBoundary inline><ProjectsPage  onNewProject={handleNewProject} showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/project/:id" element={<ErrorBoundary inline><ProjectDetailWrapper showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/profile"     element={<ErrorBoundary inline><ProfilePage showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/calendar"    element={<ErrorBoundary inline><CalendarPage showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/groups"      element={<ErrorBoundary inline><GroupsPage showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/training"    element={<ErrorBoundary inline><TrainingPlanPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/learn"       element={<ErrorBoundary inline><LearnPage currentUser={currentUser} /></ErrorBoundary>} />
+              <Route path="/reports"     element={<ErrorBoundary inline><ReportsPage currentUser={currentUser} data={data} onUpdateData={setData} showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/users"       element={<ErrorBoundary inline><UsersPage showToast={showToast} /></ErrorBoundary>} />
+              <Route path="/azubi/:id"   element={<ErrorBoundary inline><AzubiProfileWrapper /></ErrorBoundary>} />
+              <Route path="/trash"       element={<ErrorBoundary inline><TrashPage data={data} currentUser={currentUser} onUpdateData={setData} showToast={showToast} /></ErrorBoundary>} />
               <Route path="/"  element={<Navigate to="/dashboard" replace />} />
               <Route path="*"  element={<Navigate to="/dashboard" replace />} />
             </Routes>

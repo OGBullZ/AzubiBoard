@@ -142,7 +142,15 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   };
 
   const copyToClipboard = async (text, key) => {
-    try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 2000); } catch {}
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied(''), 2000);
+    } catch {
+      // Clipboard-API verweigert haeufig in non-secure Contexts (HTTP) oder
+      // wenn das Dokument nicht fokussiert ist. User braucht Feedback.
+      showToast('⚠ Kopieren fehlgeschlagen — bitte manuell markieren');
+    }
   };
 
   const handleFile = (e) => {
@@ -152,6 +160,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     if (file.size > 10 * 1024 * 1024) { showToast('⚠ Max. 10 MB'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => { setForm(f => ({ ...f, file: { name: file.name, size: file.size, type: file.type, data: ev.target.result } })); showToast('✓ PDF geladen'); };
+    reader.onerror = () => { showToast('⚠ PDF konnte nicht gelesen werden'); };
     reader.readAsDataURL(file);
   };
 
