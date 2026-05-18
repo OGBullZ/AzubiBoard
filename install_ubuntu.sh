@@ -55,10 +55,17 @@ done
 # JWT-Secret zufällig generieren
 JWT_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
 
+# HTTPS-Setup optional (nur mit Domain + Let's Encrypt)
+echo ""
+read -p "  Domain für HTTPS (leer lassen für IP-only, z.B. azubiboard.example.de): " DOMAIN
+if [ -n "$DOMAIN" ]; then
+    read -p "  E-Mail für Let's Encrypt (für Zertifikat-Ablauf-Benachrichtigungen): " CERT_EMAIL
+fi
+
 echo ""
 
 # ── 1. Node.js + PHP-MySQL-Erweiterung prüfen ─────────────────
-hdr "1/8 Node.js + PHP-Erweiterungen prüfen"
+hdr "1/9 Node.js + PHP-Erweiterungen prüfen"
 
 # PHP pdo_mysql prüfen (für Datenbankverbindung zwingend erforderlich)
 if php -r "new PDO('mysql:host=127.0.0.1', 'x', 'x');" 2>&1 | grep -q "could not find driver"; then
@@ -81,7 +88,7 @@ else
 fi
 
 # ── 2. Frontend bauen ─────────────────────────────────────────
-hdr "2/8 Frontend bauen"
+hdr "2/9 Frontend bauen"
 info "npm install..."
 cd "$REPO_DIR"
 npm ci --silent
@@ -91,7 +98,7 @@ VITE_BASE_PATH=/azubiboard/ VITE_USE_API=true npm run build > /dev/null 2>&1
 ok "Build erfolgreich (dist/ erstellt)"
 
 # ── 3. Dateien deployen ───────────────────────────────────────
-hdr "3/8 Dateien deployen"
+hdr "3/9 Dateien deployen"
 
 # App-Ordner anlegen
 mkdir -p "$APP_DIR/uploads"
@@ -111,7 +118,7 @@ chmod -R 775 "$APP_DIR/uploads"
 ok "Dateien deployed nach $APP_DIR"
 
 # ── 4. .env erstellen ─────────────────────────────────────────
-hdr "4/8 Konfiguration (.env)"
+hdr "4/9 Konfiguration (.env)"
 cat > "$APP_DIR/.env" << EOF
 VITE_BASE_PATH=/azubiboard/
 VITE_USE_API=true
@@ -125,7 +132,7 @@ DB_PASS=${DB_PASS}
 JWT_SECRET=${JWT_SECRET}
 JWT_EXPIRY=604800
 
-ALLOWED_ORIGIN=http://${SERVER_IP}
+ALLOWED_ORIGIN=${DOMAIN:+https://${DOMAIN}}${DOMAIN:-http://${SERVER_IP}}
 
 APP_ENV=production
 EOF
@@ -134,7 +141,7 @@ chown www-data:www-data "$APP_DIR/.env"
 ok ".env erstellt (ALLOWED_ORIGIN=http://$SERVER_IP)"
 
 # ── 5. Datenbank einrichten ────────────────────────────────────
-hdr "5/8 Datenbank einrichten"
+hdr "5/9 Datenbank einrichten"
 
 # Ubuntu nutzt standardmäßig Socket-Auth → als root einfach "mysql" reicht
 # Nur wenn ein Passwort gesetzt wurde, explizit übergeben
@@ -172,7 +179,7 @@ $MYSQL_CMD "$DB_NAME" < "$REPO_DIR/database/setup.sql" 2>/dev/null || true
 ok "Datenbank-Schema importiert"
 
 # ── 6. Apache konfigurieren ────────────────────────────────────
-hdr "6/8 Apache konfigurieren"
+hdr "6/9 Apache konfigurieren"
 
 # mod_rewrite + mod_headers + mod_expires aktivieren
 a2enmod rewrite  > /dev/null 2>&1
@@ -204,7 +211,7 @@ systemctl restart apache2
 ok "Apache neu gestartet"
 
 # ── 7. Automatische DB-Sicherung (Cron) ──────────────────────
-hdr "7/8 Automatische DB-Sicherung einrichten"
+hdr "7/9 Automatische DB-Sicherung einrichten"
 
 BACKUP_DIR="/var/backups/azubiboard"
 mkdir -p "$BACKUP_DIR"
@@ -241,20 +248,121 @@ CRON
 chmod 644 /etc/cron.d/azubiboard-backup
 ok "Cron-Job eingerichtet (täglich 03:00 → $BACKUP_DIR)"
 
-# ── 8. Fertig ─────────────────────────────────────────────────
-hdr "8/8 Fertig"
+# ── 8. HTTPS + Auto-Deploy ────────────────────────────────────
+hdr "8/9 HTTPS + Auto-Deploy einrichten"
+
+# ── 8a. HTTPS via Let's Encrypt (nur wenn Domain angegeben) ──
+if [ -n "$DOMAIN" ]; then
+    info "Certbot installieren..."
+    apt-get install -y certbot python3-certbot-apache > /dev/null 2>&1
+    ok "Certbot installiert"
+
+    # VirtualHost für die Domain anlegen (Certbot braucht ServerName)
+    cat > /etc/apache2/sites-available/azubiboard-ssl.conf << EOF
+<VirtualHost *:80>
+    ServerName ${DOMAIN}
+    DocumentRoot /var/www/html
+    RewriteEngine On
+    RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
+</VirtualHost>
+EOF
+    a2ensite azubiboard-ssl > /dev/null 2>&1
+    systemctl reload apache2
+
+    info "Let's Encrypt Zertifikat für $DOMAIN holen..."
+    certbot --apache -d "$DOMAIN" --non-interactive --agree-tos \
+        --email "$CERT_EMAIL" --redirect > /dev/null 2>&1 \
+        && ok "HTTPS eingerichtet (https://$DOMAIN)" \
+        || info "⚠ Certbot fehlgeschlagen — DNS für $DOMAIN korrekt gesetzt? Manuell nachholen: certbot --apache -d $DOMAIN"
+
+    # .env ALLOWED_ORIGIN auf HTTPS aktualisieren
+    sed -i "s|ALLOWED_ORIGIN=.*|ALLOWED_ORIGIN=https://${DOMAIN}|" "$APP_DIR/.env"
+    ok ".env: ALLOWED_ORIGIN=https://$DOMAIN"
+else
+    ok "HTTPS übersprungen (keine Domain angegeben)"
+fi
+
+# ── 8b. Auto-Deploy-Script (OPS10) ───────────────────────────
+# Erstellt /usr/local/bin/azubiboard-deploy.sh:
+# Zieht 'git pull origin main', baut neu und deployed wenn neue Commits vorhanden.
+
+cat > /usr/local/bin/azubiboard-deploy.sh << SCRIPT
+#!/bin/bash
+set -euo pipefail
+REPO_DIR="${REPO_DIR}"
+APP_DIR="${APP_DIR}"
+LOG="/var/log/azubiboard-deploy.log"
+
+log() { echo "[\$(date '+%Y-%m-%d %H:%M:%S')] \$1" | tee -a "\$LOG"; }
+
+cd "\$REPO_DIR"
+
+git fetch origin main --quiet 2>/dev/null || { log "git fetch fehlgeschlagen"; exit 1; }
+LOCAL=\$(git rev-parse HEAD)
+REMOTE=\$(git rev-parse origin/main)
+
+if [ "\$LOCAL" = "\$REMOTE" ]; then
+    exit 0   # kein Update nötig
+fi
+
+log "Update: \${LOCAL:0:7} → \${REMOTE:0:7}"
+git pull origin main --quiet 2>/dev/null || { log "git pull fehlgeschlagen"; exit 1; }
+
+npm ci --silent 2>/dev/null        || { log "npm ci fehlgeschlagen"; exit 1; }
+VITE_BASE_PATH=/azubiboard/ VITE_USE_API=true npm run build > /dev/null 2>&1 \
+                                   || { log "Build fehlgeschlagen"; exit 1; }
+
+cp -r "\$REPO_DIR/dist/." "\$APP_DIR/"
+cp -r "\$REPO_DIR/api"    "\$APP_DIR/api"
+chown -R www-data:www-data "\$APP_DIR"
+chmod -R 755 "\$APP_DIR"
+
+systemctl reload apache2 2>/dev/null || true
+log "Deploy abgeschlossen (\${REMOTE:0:7})"
+SCRIPT
+chmod 750 /usr/local/bin/azubiboard-deploy.sh
+ok "Deploy-Skript erstellt (/usr/local/bin/azubiboard-deploy.sh)"
+
+# Cron: alle 10 Minuten auf neue Commits prüfen
+cat > /etc/cron.d/azubiboard-deploy << 'CRON'
+# AzubiBoard – automatischer Deploy bei neuem Commit auf main
+*/10 * * * * root /usr/local/bin/azubiboard-deploy.sh
+CRON
+chmod 644 /etc/cron.d/azubiboard-deploy
+ok "Cron-Job eingerichtet (alle 10 min, Log: /var/log/azubiboard-deploy.log)"
+
+# Logrotate für Deploy-Log
+cat > /etc/logrotate.d/azubiboard-deploy << 'LR'
+/var/log/azubiboard-deploy.log {
+    weekly
+    rotate 4
+    compress
+    missingok
+    notifempty
+}
+LR
+ok "Logrotate für Deploy-Log eingerichtet"
+
+# ── 9. Fertig ─────────────────────────────────────────────────
+hdr "9/9 Fertig"
 
 echo ""
 echo -e "${GREEN}================================================${NC}"
 echo -e "${GREEN}  Installation abgeschlossen!${NC}"
 echo -e "${GREEN}================================================${NC}"
 echo ""
-echo -e "  App-URL:    ${CYAN}http://${SERVER_IP}/azubiboard/${NC}"
+if [ -n "$DOMAIN" ]; then
+    echo -e "  App-URL:    ${CYAN}https://${DOMAIN}/azubiboard/${NC}"
+else
+    echo -e "  App-URL:    ${CYAN}http://${SERVER_IP}/azubiboard/${NC}"
+fi
 echo -e "  phpMyAdmin: ${CYAN}http://localhost/phpmyadmin${NC}  (nur lokal)"
 echo -e "  DB-Backups: ${CYAN}/var/backups/azubiboard/${NC}  (tägl. 03:00, 30 Tage)"
+echo -e "  Auto-Deploy: alle 10 min, Log: ${CYAN}/var/log/azubiboard-deploy.log${NC}"
 echo ""
 echo -e "${YELLOW}  Nächste Schritte:${NC}"
-echo "  1. http://${SERVER_IP}/azubiboard/ im Browser öffnen"
+APP_URL="${DOMAIN:+https://${DOMAIN}}${DOMAIN:-http://${SERVER_IP}}"
+echo "  1. ${APP_URL}/azubiboard/ im Browser öffnen"
 echo "  2. Account registrieren"
 echo "  3. Ausbilder-Rolle setzen:"
 echo ""
