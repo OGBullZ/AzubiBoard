@@ -1,193 +1,180 @@
-# AzubiBoard – Roadmap
+# AzubiBoard — Roadmap
 
-> Stand: 2026-05-18 · Letzter Sprint: **11-PowerFeatures** · Roadmap v5
+> Stand: 18. Mai 2026 · Letzter Commit: `07adee0` · Schema v5
+> Vollständige Sprint-Historie → `HANDOVER.md`
 
 ---
 
-## ✅ Abgeschlossen
+## ✅ Abgeschlossen (alle Sprints bis Session 18.05)
 
-| Sprint | Commit | Inhalt |
+| Sprint | Commit | Highlights |
 |---|---|---|
-| **11-PowerFeatures** | `(aktuell)` | C2 Lernpfade (DAG mit Voraussetzungs-Graph, Schema v5), C3 SM-2 Spaced-Repetition, C1 Quiz-Editor mit Bearbeiten, F-Quality useDebounce-Hook, F-a11y Skip-Link + Modal Focus-Trap |
-| **10-Adoption** | `56b69d7` | M2 Mentor-Rolle (DB-ENUM + Frontend-Helper `roles.js`), K2-Backend Field-Level Permissions für Reports im POST `/api/data`, K4 ClamAV-Hook in Avatar-Upload, M3 wöchentliches Cron-Mail-Skript |
-| **9.5-Security** | `b15e94f` | B1 Partial-Token DB-backed Single-Use (5 min), B2 2FA-Disable verlangt TOTP/Recovery, B5+ JWT-jti + Logout-Blocklist mit DB-GC |
-| **9-Quality** | `2187b9c` | ErrorBoundary pro Route (H2), Dashboard-Refactor 1236→373 Zeilen + 11 Widget-Files (H3), silent-catch fix (H4), BoundingRect-Cache NetzplanGantt (H5), migrations-Test auf v4 |
-| **Hotfix** | `6267b47` | Status „Abgeschlossen" statt „In Ordnung", Material-Aufgaben-Zuordnung + Sortierung |
-| **8** | `8b07bbd` | 2FA (TOTP + Recovery-Codes), Server-Audit-Log, CSP-Härtung |
-| **7** | `115035c` | Sentry Error-Tracking, Server-Backups (30 Tage), Schema-Migrations, Background-Sync (PWA) |
-| **6** | `d51fd3f` | Bulk-Import Lernziele, IHK-PDF, Public-Share-Links, Code-Splitting, GitHub-CI, Browser-Push |
-| **5** | `f152826` | Conflict-Detection (ETag/If-Match), Papierkorb (Soft-Delete), Playwright E2E |
-| **4** | `9d9e850` | Smart-Polling-Sync (ersetzt SSE, FastCGI-kompatibel) |
-| **3** | `c4d7ea3` | PHP-Backend-Hardening, Rate-Limiting, Backup-Reminder, i18n-Scaffold |
-| **2** | `e26a0e4` | Save-Queue mit Exponential-Backoff, Audit-Log Frontend, Vitest-Setup |
-| **1** | `fd16443` | Kritische Datenverlust-Bugs, ISO-Kalenderwochen, Mobile-DnD, Toast-Undo |
+| Session 18.05 | `07adee0` | Backup-Cron (mysqldump, tägl. 03:00), Download-aktuell-Button, Projekt-Liste-Default, CLAUDE.md 12 Arbeitsregeln |
+| 11.5 M1 | `ded875a` | PDF-OCR (Tesseract.js + pdfjs-dist, lazy) |
+| 11 | `8945b72` | Lernpfade (DAG, Schema v5), SM-2 Karteikarten, Quiz-Editor, a11y Pass 2 |
+| 10 | `56b69d7` | Mentor-Rolle, Field-Level Permissions server-side, ClamAV-Hook, Weekly-Digest-Cron |
+| 9.5 | `b15e94f` | Partial-Token Single-Use DB, 2FA-Disable mit TOTP, JWT-jti Logout-Blocklist |
+| 9-Q | `2187b9c` | ErrorBoundary pro Route, Dashboard-Refactor (11 Widgets), Perf-Fixes |
+| 8 | `8b07bbd` | 2FA TOTP + Recovery, Audit-Log Server, CSP-Härtung |
+| 1–7 | div. | Backend-Hardening, Rate-Limit, Backups, Migrations, Conflict-Detection, Papierkorb, CI |
 
 ---
 
-## 🔜 Sprint 9-Merge — Quality nach main bringen (S, ~1 h)
+## 🔥 Sofort-Maßnahmen (XS · kein Sprint-Planning nötig)
 
-> **Ziel:** `sprint-9-quality` (5 Commits, gepusht) sauber in `main` integrieren, bevor neuer Code dazukommt.
+Diese Items können einzeln, unabhängig voneinander erledigt werden.
 
-| | Item | Details |
-|---|---|---|
-| **M-1** | Lokale Verifikation | `git checkout sprint-9-quality && npm ci && npm test && npm run build` — 44/44 grün, Build OK |
-| **M-2** | PR aufmachen | `gh pr create` von `sprint-9-quality` → `main`, Beschreibung aus Commit-Messages H2/H3/H4/H5 |
-| **M-3** | CI grün abwarten | GitHub Actions `ci.yml` muss durchlaufen (Vitest + Playwright + Build) |
-| **M-4** | Squash-Merge | Ein Commit auf `main`: „Sprint 9-Quality: ErrorBoundary, Dashboard-Refactor, perf, catch-fix" |
-| **M-5** | Branch löschen | `git push origin --delete sprint-9-quality` + lokal `git branch -d` |
+| ID | Item | Aufwand | Warum jetzt |
+|---|---|---|---|
+| **OPS1** | Pre-commit Hook: OneDrive-Clash-Files | XS · 30 min | Verhindert `*Name clash*`-Bugs vor jedem Push automatisch |
+| **DEV1** | Slash Commands anlegen | S · 1h | `/review`, `/rot`, `/tests`, `/doc-update` in `.claude/commands/` — Claude-Produktivität |
+| **OPS9** | HTTPS + Let's Encrypt auf Server | S · 1h | Produktionsbetrieb ohne HTTPS ist kein Produktionsbetrieb |
+| **OPS10** | Auto-Deploy-Script (git pull + build) | M · 2–3h | Server manuell aktualisieren nervt; Cron zieht `main` automatisch |
+
+### OPS1 — Pre-commit Hook Detail
+
+```bash
+# .git/hooks/pre-commit (oder husky)
+files=$(find . -name "*Name clash*" \
+  -not -path "./node_modules/*" \
+  -not -path "./dist/*" 2>/dev/null)
+if [ -n "$files" ]; then
+  echo "⚠ OneDrive-Clash-Files gefunden:"
+  echo "$files"
+  echo "Bitte prüfen und löschen, dann erneut committen."
+  exit 1
+fi
+```
+
+### DEV1 — Slash Commands
+
+```
+.claude/commands/
+  review.md     → Code-Review des letzten Commits
+  rot.md        → Technische Schulden im aktuellen Diff identifizieren
+  tests.md      → Tests für geänderte Dateien generieren
+  doc-update.md → HANDOVER.md + CLAUDE.md nach Änderungen updaten
+```
 
 ---
 
-## ✅ Sprint 9.5 — Security-Hot-Issues (erledigt 2026-05-16)
+## 🏗️ Sprint 12 — MySQL-Schema-Refactor (L5) · XL · 3–5 Tage
 
-| | Item | Lösung |
-|---|---|---|
-| **B1** | Partial-Token Expiry 7d | Random 64-Hex-ID in DB-Tabelle `partial_tokens` (id, user_id, used_at, expires_at), 5 min TTL, atomar als used markiert (FOR UPDATE) |
-| **B2** | 2FA-Disable ohne TOTP | `POST /api/auth/2fa/disable` verlangt Passwort **und** TOTP-Code (oder 11-stelligen Recovery-Code); Frontend-Dialog erweitert |
-| **B5+** | Kein Logout-Blocklist | `jwt_create` setzt `jti` (16 Bytes random), `jwt_verify` prüft DB-Tabelle `jwt_blocklist`, Logout-Endpoint trägt `jti`+`exp` ein, GC ~jeder 200. Auth-Call |
+> **Kernproblem:** Alles lebt in `app_data.content` als ein JSON-Blob.
+> Das blockiert: Row-Level-Security, Volltextsuche, Audit pro Entität, Multi-Tenant.
+> **Abhängigkeit:** Alle künftigen Backend-Features hängen daran. Zuerst erledigen.
 
-**Tests:** Frontend 44/44 grün, PHP-Lint OK auf `config.php` + `auth.php`. PHP-Unit-Tests sind noch nicht aufgesetzt (separates Item, siehe Sprint 13+).
+### Strategie: Feature-Flag + Dual-Write
 
----
-
-## 🔜 Sprint 9-DevOps — Auto-Deploy auf Linux-LAMP (L, 1–2 Tage)
-
-> **Ziel:** Produktionsbetrieb auf eigenem Linux-Server (SSH + Cron + git pull), getrennt vom existierenden Netlify/SFTP-Workflow.
-
-### Voraussetzungen (vor Sprint-Start abhaken)
-- [ ] Server-Host steht (eigene Hardware / VPS / Hetzner / Strato-VServer)
-- [ ] Domain auf Server-IP gezeigt (A-Record)
-- [ ] Apache + PHP 8.2 + MySQL 8 + Node 20 installiert
-- [ ] Non-root deploy-User `azubiboard` mit sudo nur für `systemctl reload apache2`
+```
+Phase 1: Neue Tabellen + Backend-Routes (kein Frontend-Eingriff)
+Phase 2: Dual-Write — Frontend schreibt in Blob UND neue Tabellen
+Phase 3: Frontend liest aus neuen Tabellen (Feature-Flag VITE_USE_SCHEMA=true)
+Phase 4: Blob-Endpoints deprecaten + entfernen
+```
 
 ### Tasks
 
-| | Item | Details |
+| ID | Item | Details |
 |---|---|---|
-| **OPS3** | Deploy-Key auf Server | `ssh-keygen -t ed25519 -C "deploy@azubiboard" -f ~/.ssh/azubiboard_deploy` als `azubiboard`-User; Public-Key als **Read-only** Deploy-Key in GitHub-Repo-Settings hinterlegen |
-| **OPS4** | Prod-`.env` | `/var/www/azubiboard/.env.production` mit `JWT_SECRET` (32 random bytes), `DB_HOST/USER/PASS`, `ALLOWED_ORIGIN=https://<domain>`, `VITE_SENTRY_DSN`, Permissions `chmod 600`, Owner `azubiboard:www-data` |
-| **OPS2** | Auto-Deploy via Cron | `/usr/local/bin/azubiboard-deploy.sh` (siehe unten), Cron `*/5 * * * * azubiboard /usr/local/bin/azubiboard-deploy.sh >> /var/log/azubiboard-deploy.log 2>&1` |
-| **OPS5** | Fail2ban + UFW | UFW: nur 22/80/443 offen (22 idealerweise auf nicht-default-Port + SSH-Key-only); Fail2ban-Jail für `sshd` (5 fails / 10 min → 1h ban) und Custom-Jail für `/api/auth/login` (regex auf `auth.log` der App) |
-| **OPS6** | Deploy-Log + Mail | `logrotate.d/azubiboard-deploy` (täglich, 14 Tage), bei Exit-Code ≠ 0 → `mail -s "AzubiBoard Deploy FAIL" admin@…` |
-| **OPS7** *(neu)* | Apache-VHost + HTTPS | VHost mit `DocumentRoot /var/www/azubiboard/current/dist`, Alias `/api → /var/www/azubiboard/current/api`, `certbot --apache -d <domain>` |
-| **OPS8** *(neu)* | DB-Backup-Cron | Tägliches `mysqldump --single-transaction azubiboard | gzip > /var/backups/azubiboard/db-$(date +%F).sql.gz`, 30 Tage Retention. **Hinweis:** Sprint 7 hat bereits App-Level-Snapshots — DB-Dump ist die Belt-und-Hosenträger-Variante. |
+| **L5-1** | Migration-Script | Bestehenden Blob → neue Tabellen überführen. Backup davor Pflicht. Idempotent (re-run-sicher) |
+| **L5-2** | `api/routes/projects.php` | CRUD für `projects` + `tasks` + `project_assignments` |
+| **L5-3** | `api/routes/reports.php` | CRUD für `reports` + `report_entries` + `report_files` |
+| **L5-4** | `api/routes/goals.php` | CRUD für `requirements` + `materials` |
+| **L5-5** | `dataService.js` erweitern | Neue Methoden parallel zu Blob-Methoden (kein Breaking-Change) |
+| **L5-6** | Row-Level Security | `WHERE group_id = $auth_group` in allen Ausbilder-Queries |
+| **L5-7** | Volltextsuche | `FULLTEXT INDEX` auf `reports.content`, `tasks.title` — `/api/search?q=` Endpoint |
+| **L5-8** | Tests anpassen | Vitest + Playwright auf neue API-Endpunkte |
 
-### `azubiboard-deploy.sh` (Skelett)
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-REPO=/var/www/azubiboard/repo
-RELEASE=/var/www/azubiboard/releases/$(date +%Y%m%d-%H%M%S)
-CURRENT=/var/www/azubiboard/current
+### Akzeptanzkriterien
 
-cd "$REPO"
-git fetch --quiet origin main
-LOCAL=$(git rev-parse HEAD)
-REMOTE=$(git rev-parse origin/main)
-[ "$LOCAL" = "$REMOTE" ] && exit 0   # nichts zu tun
+- [ ] Alle 44 Unit-Tests grün
+- [ ] Alle 6 E2E-Tests grün
+- [ ] Ausbilder sieht nur Azubis seiner eigenen Gruppe
+- [ ] Suche liefert Ergebnisse über Projekte + Berichte + Aufgaben
+- [ ] Kein Datenverlust bei Migration (verified: Snapshot vorher, Count-Check nachher)
 
-mkdir -p "$RELEASE"
-git --work-tree="$RELEASE" checkout -f origin/main
-cp /var/www/azubiboard/.env.production "$RELEASE/.env"
-cd "$RELEASE"
-npm ci --omit=dev --silent
-npm run build --silent
-ln -sfn "$RELEASE" "$CURRENT"
-sudo systemctl reload apache2
-# Retention: nur letzte 5 Releases behalten
-ls -1dt /var/www/azubiboard/releases/* | tail -n +6 | xargs -r rm -rf
-echo "[$(date)] deployed $REMOTE"
+---
+
+## 📦 Sprint 13 — Qualität + DevOps · M–L · ~1 Woche
+
+> Nach L5 erledigen — manche Items setzen relationale Tabellen voraus.
+
+| ID | Item | Aufwand | Abhängigkeit |
+|---|---|---|---|
+| **I1** | i18n Vollmigration (DE/EN) | M · 1 Tag | — · ~300 verbleibende Strings |
+| **T1** | TypeScript: schrittweise `.jsx → .tsx` | XL · 3+ Tage | — · Zod-Schemas für API-Boundaries zuerst |
+| **OPS3** | Deploy-Key + Auto-Deploy auf Server | M · halber Tag | — · `git fetch` + Cron statt manuellem Upload |
+| **Q1** | PHP-Unit-Tests (PHPUnit) | M · 1 Tag | — · `api/config.php` + `data.php` haben null Coverage |
+| **Q2** | Lighthouse-Schwellen verschärfen | S · 2h | — · aktuell warn-only |
+| **SEC1** | Fail2ban + UFW auf Server | S · 1h | OPS9 |
+| **N1** | E-Mail-Benachrichtigungen via SMTP | M · 1 Tag | — · `weekly_digest.php` nutzt native `mail()`, braucht PHPMailer |
+
+---
+
+## 🔮 Sprint 14+ — Vision & Skalierung
+
+> Große Features, die L5 + Sprint 13 voraussetzen.
+
+| ID | Item | Aufwand | Voraussetzung |
+|---|---|---|---|
+| **M4** | Multi-Tenant | XL | L5 + Row-Level-Security |
+| **M5** | IHK-Direktanbindung | XL | Öffentliche API muss existieren |
+| **AI1** | Auto-Fill Berichte aus Aufgaben (KI) | L | L5 — braucht Volltextindex |
+| **AI2** | Lernziel-Vorschläge via Claude API | M | L5 |
+| **MOB1** | Progressive-Web-App verbessern (Offline-Modus) | M | — |
+| **UX1** | Onboarding-Flow (erster Login → Setup-Wizard) | M | — |
+| **SEC2** | RBAC-Granularität (Permissions per Feature) | L | L5 |
+
+---
+
+## 📊 Abhängigkeits-Übersicht
+
+```
+Sofort-Maßnahmen (OPS1, DEV1, OPS9, OPS10)  ← jetzt, unabhängig
+        │
+        ▼
+Sprint 12: L5 MySQL-Refactor  ← BLOCKER für alles darunter
+        │
+        ├──► Row-Level-Security (L5-6)
+        ├──► Volltextsuche (L5-7)
+        │
+        ▼
+Sprint 13: Quality + DevOps
+        │
+        ├──► i18n (I1)
+        ├──► TypeScript (T1)
+        ├──► PHP-Tests (Q1)
+        │
+        ▼
+Sprint 14+: Vision
+        │
+        ├──► Multi-Tenant (M4)
+        ├──► IHK-API (M5)
+        └──► KI-Features (AI1, AI2)
 ```
 
 ---
 
-## ✅ Sprint 10 — Adoption & Kommunikation (erledigt 2026-05-16)
-
-| | Item | Lösung |
-|---|---|---|
-| **M2** | Mentor-Rolle | `users.role` ENUM erweitert auf `('azubi','mentor','ausbilder')`. Frontend-Helper `src/lib/roles.js` (`isStaff`, `isAusbilder`, `isMentor`). ProjectPool, ReportsPage, Dashboard-Routing, App.jsx-Notifications nutzen die Helper. User-PATCH erlaubt Role-Wechsel mit Anti-Lockout-Schutz (letzter aktiver Ausbilder darf sich nicht degradieren). _Nicht-Standard-Views (TrainingPlan, Learn) bleiben Stage 2._ |
-| **K2-Backend** | Field-Level Permissions server-side | `POST /api/data` ruft Helper `validate_reports_diff()` für nicht-Ausbilder. Reject 403 bei: Edit/Delete fremder Reports, Edit/Delete eigener submitted/reviewed/signed Reports, Status-Push auf reviewed/signed (Ausbilder-only) |
-| **K4** | ClamAV-Hook | Avatar-Upload ruft `clamdscan --fdpass --stdout --no-summary` wenn `CLAMAV_ENABLED=true` in .env. Exit-Code 1 → 422 reject + unlink. Exit-Code 2 (Daemon down) → durchlassen mit `error_log` |
-| **M3** | Wöchentliche Ausbilder-Mail | `cron/weekly_digest.php` (CLI-only, FORCE_RUN-Env zum Override) liest `app_data`-Blob, baut Übersicht aus submitted Reports + overdue Tasks + inaktiven Azubis (≥7d), schickt an Ausbilder+Mentoren mit `notifications_enabled=1`. Native `mail()` — für externes SMTP PHPMailer austauschen. **Nicht live getestet** (braucht echten MTA) |
-| **K2-Frontend** | _bereits erledigt mit `4704429`_ | Editor-ReadOnly für submitted/reviewed/signed, Delete-Button nur für Entwurf, Schloss-Banner für gesperrte Reports |
-
----
-
-## ✅ Sprint 11 — Power-Features (erledigt 2026-05-18)
-
-| | Item | Lösung |
-|---|---|---|
-| **C1** | Quiz-Editor Bearbeiten | Eigene Fragen in-place bearbeiten, Store-Migration v3→v4 aus localStorage |
-| **C3** | Spaced-Repetition | SM-2 Algorithmus (`FlashcardReview`, `FlashcardDone`), Fortschritt in `data.flashcards[userId]` |
-| **F-Quality** | Debouncing | `src/lib/hooks.js` mit `useDebounce(value, delay)`, Search-Inputs + GlobalSearch auf 200–300 ms |
-| **F-a11y** | a11y Pass 2 | Skip-Link (`.skip-link` CSS), Modal Focus-Trap (Tab/Shift+Tab), Escape-Close, Live-Region für Toasts |
-| **C2** | Lernpfade | DAG-basierter Voraussetzungs-Graph, Schema-Migration v5, `LernpfadeView.jsx` mit Pfad-/Node-CRUD für Ausbilder, gesperrte Nodes bis Prereqs abgeschlossen |
-
----
-
-## ✅ Sprint 11.5 — M1 PDF-OCR (erledigt 2026-05-18)
-
-| | Item | Lösung |
-|---|---|---|
-| **M1** | PDF-OCR Import | `PdfOcrImport.jsx`: pdfjs-dist (lazy chunk ~124 kB gzip) rendert PDF-Seiten auf Canvas, Tesseract.js v7 mit Deutsch-Sprachpaket (Worker ~10 MB, CDN-gecacht) erkennt Text. Keyword-Matching teilt in Tätigkeiten/Lerninhalt. Vorschau editierbar vor Übernahme. Button „📷 OCR-Import" im Berichtseditor. |
-
----
-
-## 🔜 Sprint 12 — MySQL-Schema-Refactor (XL, 3–5 Tage)
-
-> **Ziel:** Basis für Multi-Tenant und Volltextsuche. Erst **nach** Sprint 9.5 + 10 — sonst kollidiert es mit B1/B2/M2-Schema-Änderungen.
-
-| | Item | Details |
-|---|---|---|
-| **L5** | JSON-Blob → relationale Tabellen | `projects`, `tasks`, `reports`, `goals` als eigene MySQL-Tabellen (Schema in `database/azubiboard.sql`) |
-| | Migrations-Script | Bestehenden Blob-Inhalt in neue Tabellen überführen, Backup vorher Pflicht |
-| | Feature-Flag | `VITE_USE_SCHEMA=true` für schrittweise Migration ohne Downtime, Dual-Write während Übergang |
-| | Row-Level Security | Ausbilder sieht nur Azubis seiner Gruppe (`groups.id`-Join in jedem Query) |
-| | Volltextsuche | `FULLTEXT INDEX` auf `reports.content`, `tasks.title+description` |
-
----
-
-## 🔮 Sprint 13+ — Skalierung & Vision
-
-| | Item | Aufwand |
-|---|---|---|
-| **T1** | TypeScript Migration | Schrittweise `.jsx` → `.tsx`, Zod-Schemas für API-Boundaries zuerst | XL |
-| **I1** | i18n Vollmigration | ~300 verbleibende Strings auf DE/EN-Keys umstellen | M |
-| **M4** | Multi-Tenant | Eigene Firmen/Schulen mit isolierten Daten — nur nach L5 sinnvoll | L |
-| **M5** | IHK-Direktanbindung | Sofern öffentliche API verfügbar | XL |
-| **P2** | Öffentlicher Zugriff | SSH-Härtung (Port-Änderung, Fail2ban), optional WireGuard-VPN für Remote-Arbeit | M |
-
----
-
-## 🐞 Offene Bugs / Kleinigkeiten
-
-| Priorität | Item |
-|---|---|
-| Medium | i18n-Scaffold unvollständig (~50 von ~350 Strings übersetzt) — siehe I1 |
-| Low | Lighthouse-Schwellen (non-blocking in CI) |
-| Low | `HANDOVER.md` referenziert noch alte Sprint-9-Definition — nach 9-Merge anpassen |
-
----
-
-## Reihenfolge-Empfehlung
+## ⚡ Empfohlene Reihenfolge
 
 ```
-Sprint 9-Merge   (1 h)   ← jetzt sofort, blockt nichts
-Sprint 9.5       (1 Tag) ← vor Live-Deploy zwingend
-Sprint 9-DevOps  (1-2 T) ← sobald Server-Host steht
-Sprint 10        (2-3 T)
-Sprint 11        (4-5 T)
-Sprint 12        (3-5 T) ← großer Refactor, nicht parallel zu 10/11
-Sprint 13+       offen
+Diese Woche:  OPS1 + DEV1 (Hooks + Slash Commands)   ~1.5h
+              OPS9 (HTTPS auf Server)                  ~1h
+Nächste Woche: Sprint 12 (L5 Refactor)                ~3–5 Tage
+              OPS10 (Auto-Deploy)                      ~2–3h
+Danach:       Sprint 13 (Quality-Sprint)               ~1 Woche
+Offen:        Sprint 14+ nach Bedarf
 ```
 
 ---
 
-## Aufwands-Legende
+## 📏 Aufwands-Legende
 
 | Symbol | Bedeutung |
 |---|---|
-| S | < 2 Stunden |
-| M | halber Tag bis 1 Tag |
+| XS | < 1 Stunde |
+| S | 1–3 Stunden |
+| M | halber bis 1 ganzer Tag |
 | L | 1–2 Tage |
 | XL | 3–5 Tage |
