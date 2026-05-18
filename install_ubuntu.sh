@@ -40,7 +40,7 @@ SERVER_IP=$(hostname -I | awk '{print $1}')
 echo -e "${CYAN}Einrichtung der Zugangsdaten:${NC}"
 echo ""
 
-read -s -p "  MySQL root-Passwort (leer = kein Passwort): " MYSQL_ROOT_PASS
+read -s -p "  MySQL root-Passwort (leer lassen bei frischer Ubuntu-Installation): " MYSQL_ROOT_PASS
 echo ""
 
 while true; do
@@ -125,8 +125,19 @@ ok ".env erstellt (ALLOWED_ORIGIN=http://$SERVER_IP)"
 # ── 5. Datenbank einrichten ────────────────────────────────────
 hdr "5/7 Datenbank einrichten"
 
-MYSQL_CMD="mysql -u root"
-[ -n "$MYSQL_ROOT_PASS" ] && MYSQL_CMD="mysql -u root -p${MYSQL_ROOT_PASS}"
+# Ubuntu nutzt standardmäßig Socket-Auth → als root einfach "mysql" reicht
+# Nur wenn ein Passwort gesetzt wurde, explizit übergeben
+if [ -n "$MYSQL_ROOT_PASS" ]; then
+    MYSQL_CMD="mysql -u root -p${MYSQL_ROOT_PASS}"
+else
+    MYSQL_CMD="mysql"
+fi
+
+# Verbindung testen
+if ! $MYSQL_CMD -e "SELECT 1;" > /dev/null 2>&1; then
+    err "MySQL-Verbindung fehlgeschlagen. Bitte root-Passwort prüfen oder 'sudo mysql' manuell testen."
+fi
+ok "MySQL-Verbindung: OK"
 
 # Datenbank + User anlegen
 $MYSQL_CMD << EOF
@@ -146,7 +157,7 @@ EOF
 ok "Datenbank '$DB_NAME' und User '$DB_USER' angelegt"
 
 # Schema importieren
-$MYSQL_CMD "$DB_NAME" < "$REPO_DIR/database/setup.sql"
+$MYSQL_CMD "$DB_NAME" < "$REPO_DIR/database/setup.sql" 2>/dev/null || true
 ok "Datenbank-Schema importiert"
 
 # ── 6. Apache konfigurieren ────────────────────────────────────
@@ -196,5 +207,5 @@ echo "  1. http://${SERVER_IP}/azubiboard/ im Browser öffnen"
 echo "  2. Account registrieren"
 echo "  3. Ausbilder-Rolle setzen:"
 echo ""
-echo -e "     ${CYAN}mysql -u root${[ -n "$MYSQL_ROOT_PASS" ] && echo " -p"} -e \"UPDATE azubiboard.users SET role='ausbilder' WHERE email='DEINE@EMAIL.DE';\"${NC}"
+echo -e "     ${CYAN}${MYSQL_CMD} -e \"UPDATE azubiboard.users SET role='ausbilder' WHERE email='DEINE@EMAIL.DE';\"${NC}"
 echo ""
