@@ -6,6 +6,7 @@ import { softDelete } from '../../lib/trash.js';
 import ShareLinkModal from '../../components/ShareLinkModal.jsx';
 import { Avatar, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
+import { PdfOcrImport } from './PdfOcrImport.jsx';
 import {
   IcoReport, IcoCheck, IcoEdit, IcoPlus, IcoBack,
   IcoDoc, IcoNote, IcoAlert, IcoUsers, IcoClock,
@@ -116,8 +117,9 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     sectionComments:  report?.sectionComments  || { activities: [], learnings: [] },
   });
   const [newComment, setNewComment] = useState({ activities: '', learnings: '' });
-  const [tab,    setTab]    = useState('text');
-  const [copied, setCopied] = useState('');
+  const [tab,     setTab]     = useState('text');
+  const [copied,  setCopied]  = useState('');
+  const [showOcr, setShowOcr] = useState(false);
   const fileRef = useRef();
 
   const isOwner  = !report || report.user_id === currentUser.id;
@@ -303,6 +305,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   };
 
   return (
+    <>
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }} className="anim">
       <div style={{ background: 'var(--c-sf)', borderBottom: `1px solid var(--c-bd)`, padding: '10px 20px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button className="btn" onClick={onClose} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}><IcoBack size={12} /> Zurück</button>
@@ -320,6 +323,12 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
         </div>
         <button className="btn" onClick={printReport} title="Einfaches PDF (1 Seite)" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>🖨 PDF</button>
         <button className="btn" onClick={printReportIHK} title="IHK-konform mit Stammdaten + Unterschriftenfeldern" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>📄 IHK-Format</button>
+        {isOwner && !readOnly && (
+          <button className="btn" onClick={() => setShowOcr(true)} title="Handschriftliches Berichtsheft per OCR einscannen"
+            style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: C.yw + '80', color: C.yw }}>
+            📷 OCR-Import
+          </button>
+        )}
         {readOnly && !isReview && (
           <div style={{ padding: '5px 12px', background: C.ywd, border: `1px solid ${C.yw}50`, borderRadius: 7, fontSize: 11, color: C.yw, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
             🔒 Gesperrt – Bericht wurde eingereicht
@@ -490,6 +499,22 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
         </div>
       </div>
     </div>
+
+    {showOcr && (
+      <PdfOcrImport
+        existingFile={form.file}
+        onImport={({ activities, learnings }) => {
+          setForm(f => ({
+            ...f,
+            activities: activities || f.activities,
+            learnings:  learnings  || f.learnings,
+          }));
+          showToast('✓ OCR-Vorschlag übernommen – bitte prüfen');
+        }}
+        onClose={() => setShowOcr(false)}
+      />
+    )}
+    </>
   );
 }
 

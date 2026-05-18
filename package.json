@@ -20,11 +20,13 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@sentry/react": "^10.52.0",
     "i18next": "^26.0.10",
+    "pdfjs-dist": "^5.7.284",
     "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^17.0.7",
     "react-router-dom": "^7.15.0",
+    "tesseract.js": "^7.0.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
