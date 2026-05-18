@@ -9,6 +9,7 @@
 
 | Sprint | Commit | Highlights |
 |---|---|---|
+| Session 18.05b | `33a1a05` | OPS9 HTTPS/Let's Encrypt + OPS10 Auto-Deploy-Cron in install_ubuntu.sh; OPS1 Pre-commit Hook (.githooks/); DEV1 Slash Commands (/review /rot /tests /doc-update) |
 | Session 18.05 | `07adee0` | Backup-Cron (mysqldump, tägl. 03:00), Download-aktuell-Button, Projekt-Liste-Default, CLAUDE.md 12 Arbeitsregeln |
 | 11.5 M1 | `ded875a` | PDF-OCR (Tesseract.js + pdfjs-dist, lazy) |
 | 11 | `8945b72` | Lernpfade (DAG, Schema v5), SM-2 Karteikarten, Quiz-Editor, a11y Pass 2 |
@@ -20,41 +21,14 @@
 
 ---
 
-## 🔥 Sofort-Maßnahmen (XS · kein Sprint-Planning nötig)
+## ✅ Sofort-Maßnahmen — alle erledigt
 
-Diese Items können einzeln, unabhängig voneinander erledigt werden.
-
-| ID | Item | Aufwand | Warum jetzt |
-|---|---|---|---|
-| **OPS1** | Pre-commit Hook: OneDrive-Clash-Files | XS · 30 min | Verhindert `*Name clash*`-Bugs vor jedem Push automatisch |
-| **DEV1** | Slash Commands anlegen | S · 1h | `/review`, `/rot`, `/tests`, `/doc-update` in `.claude/commands/` — Claude-Produktivität |
-| **OPS9** | HTTPS + Let's Encrypt auf Server | S · 1h | Produktionsbetrieb ohne HTTPS ist kein Produktionsbetrieb |
-| **OPS10** | Auto-Deploy-Script (git pull + build) | M · 2–3h | Server manuell aktualisieren nervt; Cron zieht `main` automatisch |
-
-### OPS1 — Pre-commit Hook Detail
-
-```bash
-# .git/hooks/pre-commit (oder husky)
-files=$(find . -name "*Name clash*" \
-  -not -path "./node_modules/*" \
-  -not -path "./dist/*" 2>/dev/null)
-if [ -n "$files" ]; then
-  echo "⚠ OneDrive-Clash-Files gefunden:"
-  echo "$files"
-  echo "Bitte prüfen und löschen, dann erneut committen."
-  exit 1
-fi
-```
-
-### DEV1 — Slash Commands
-
-```
-.claude/commands/
-  review.md     → Code-Review des letzten Commits
-  rot.md        → Technische Schulden im aktuellen Diff identifizieren
-  tests.md      → Tests für geänderte Dateien generieren
-  doc-update.md → HANDOVER.md + CLAUDE.md nach Änderungen updaten
-```
+| ID | Item | Status |
+|---|---|---|
+| **OPS1** | Pre-commit Hook: OneDrive-Clash-Files | ✅ `.githooks/pre-commit` + `package.json prepare` |
+| **DEV1** | Slash Commands | ✅ `.claude/commands/` — `/review` `/rot` `/tests` `/doc-update` |
+| **OPS9** | HTTPS + Let's Encrypt auf Server | ✅ `install_ubuntu.sh` Schritt 8/9 (optional, mit Domain) |
+| **OPS10** | Auto-Deploy-Script | ✅ `install_ubuntu.sh` Schritt 8/9 — Cron alle 10 min, Log |
 
 ---
 

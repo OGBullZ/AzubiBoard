@@ -1,0 +1,17 @@
+#!/bin/sh
+# OPS1: OneDrive clash-file guard — verhindert versehentliche Commits von Clash-Files
+files=$(find . -name "*Name clash*" \
+  -not -path "./node_modules/*" \
+  -not -path "./dist/*" \
+  -not -path "./.git/*" 2>/dev/null)
+
+if [ -n "$files" ]; then
+  echo ""
+  echo "⚠  OneDrive-Clash-Files gefunden — Commit abgebrochen:"
+  echo "$files"
+  echo ""
+  echo "  Prüfen: byte-identisch zu HEAD? Dann löschen und erneut committen."
+  echo "  Tipp:   git diff HEAD -- '<datei>' oder diff '<datei>' '<original>'"
+  echo ""
+  exit 1
+fi

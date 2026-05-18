@@ -13,8 +13,8 @@ Deployment-Server: Ubuntu LAMP, IP `10.14.99.10`, App unter `/azubiboard/`
 
 ## Aktueller Stand
 
-**Letzter Commit:** `74e017e` (18. Mai 2026) — Backup-Cron + UI-Improvements + Arbeitsregeln  
-**Abgeschlossen:** Sprint 11 + Bugfixes + Session 18.05 (Backup-Cron, Download-Button, Listenansicht default)  
+**Letzter Commit:** `33a1a05` (18. Mai 2026) — HTTPS/Auto-Deploy + Pre-commit Hook + Slash Commands  
+**Abgeschlossen:** Sprint 11 + Bugfixes + Session 18.05 (OPS1/9/10, DEV1, Backup-Cron, Arbeitsregeln)  
 **Schema-Version:** v5 (`data.learningPaths`, `data.pathProgress`)
 
 Vollständige Sprint-Historie → `HANDOVER.md`  
