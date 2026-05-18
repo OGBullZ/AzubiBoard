@@ -26,4 +26,16 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    files: ['*.config.{js,mjs}', 'vite.config.js', 'playwright.config.js', 'lighthouserc.cjs'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
+  {
+    files: ['tests/**/*.{js,jsx}', 'e2e/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.vitest },
+    },
+  },
 ])
