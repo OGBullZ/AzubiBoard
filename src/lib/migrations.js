@@ -15,7 +15,7 @@
 // ============================================================
 
 // Aktuelle Schema-Version. Bei jeder neuen Migration um 1 hochzählen.
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 // Einzelne Migrations als Map: zielversion → migrate(prev)
 const MIGRATIONS = {
@@ -43,6 +43,16 @@ const MIGRATIONS = {
       trash:        data.trash || { projects: [], reports: [], goals: [] },
       trainingPlan: data.trainingPlan || { goals: [], examDate: null },
       activityLog:  data.activityLog || [],
+    };
+  },
+
+  5: (data) => {
+    // Migration v4 → v5:
+    //   - Lernpfade (strukturierte Lernziele mit Voraussetzungs-Graph)
+    return {
+      ...data,
+      learningPaths: data.learningPaths || [],
+      pathProgress:  data.pathProgress  || {},
     };
   },
 

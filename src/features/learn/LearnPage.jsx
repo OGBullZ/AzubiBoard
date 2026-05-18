@@ -3,6 +3,7 @@ import { C, uid } from '../../lib/utils.js';
 import { ProgressBar, Modal, Field } from '../../components/UI.jsx';
 import { useAppStore } from '../../lib/store.js';
 import JAVA_QUIZ from '../../data/quiz.json';
+import LernpfadeView from './LernpfadeView.jsx';
 
 const CODING_CHALLENGES = [
   { id: 'c1', title: 'Hello World', difficulty: 'easy', category: 'Grundlagen', description: 'Schreibe ein Java-Programm, das "Hello, World!" auf der Konsole ausgibt.\n\nDie Klasse heißt bereits "HelloWorld". Füge nur die fehlende Ausgabe-Anweisung ein.', starterCode: `public class HelloWorld {\n    public static void main(String[] args) {\n        // Schreibe hier deine Ausgabe\n        \n    }\n}`, solution: `public class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}`, checks: ['System.out.println', '"Hello, World!"'], hint: 'Nutze System.out.println() für die Ausgabe.' },
@@ -434,11 +435,63 @@ export default function LearnPage({ currentUser }) {
   if (view === 'coding')    return <CodingChallenge challenge={selChallenge} onBack={() => setView('home')} />;
   if (view === 'flashcard') return <FlashcardReview cards={reviewCards} onGrade={updateFlashcard} onFinish={(grades) => { setFlashGrades(grades); setView('flashdone'); }} />;
   if (view === 'flashdone') return <FlashcardDone total={flashGrades.length} grades={flashGrades} onBack={() => { setFlashGrades([]); setView('home'); }} />;
+  if (view === 'paths')     return <LernpfadeView currentUser={currentUser} data={data} setData={setData} onBack={() => setView('home')} />;
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }} className="anim">
       <h1 style={{ fontSize: 20, fontWeight: 800, color: C.br, marginBottom: 4 }}>Lernbereich 🎓</h1>
       <p style={{ fontSize: 13, color: C.mu, marginBottom: 24 }}>Java-Grundlagen, Quiz und Programmieraufgaben</p>
+
+      {/* ── Lernpfade ─────────────────────────────────────── */}
+      <section style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.br, marginBottom: 14 }}>Lernpfade 🗺️</div>
+        {(() => {
+          const paths = data?.learningPaths || [];
+          const userId2 = currentUser?.id || 'anon';
+          const prog = data?.pathProgress?.[userId2] || {};
+          if (paths.length === 0) {
+            return (
+              <div className="card" style={{ cursor: 'pointer', borderStyle: 'dashed', display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px' }}
+                onClick={() => setView('paths')}>
+                <span style={{ fontSize: 28 }}>🗺️</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.br }}>Strukturierte Lernpfade</div>
+                  <div style={{ fontSize: 12, color: C.mu }}>
+                    {isAusbilder ? 'Lernziele anlegen und mit Voraussetzungen verknüpfen.' : 'Folge einem Lernpfad deines Ausbilders.'}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          const total  = paths.length;
+          const done   = paths.filter(p => p.nodes.length > 0 && p.nodes.every(n => prog[n.id]?.completed)).length;
+          return (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap' }}>
+              {paths.slice(0, 3).map(p => {
+                const nodeDone  = p.nodes.filter(n => prog[n.id]?.completed).length;
+                const nodePct   = p.nodes.length ? Math.round(nodeDone / p.nodes.length * 100) : 0;
+                const color     = { 1: C.gr, 2: C.ac, 3: C.yw }[p.lehrjahr] || C.ac;
+                return (
+                  <div key={p.id} className="card" style={{ flex: '1 1 180px', minWidth: 160, maxWidth: 240, cursor: 'pointer', borderLeft: `3px solid ${color}`, transition: 'all .15s' }}
+                    onClick={() => setView('paths')}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.br, marginBottom: 6, lineHeight: 1.3 }}>{p.title}</div>
+                    <ProgressBar value={nodePct} color={color} height={4} label={`${nodePct}%`} />
+                    <div style={{ fontSize: 10, color: C.mu, marginTop: 4 }}>{nodeDone}/{p.nodes.length} Lernziele</div>
+                  </div>
+                );
+              })}
+              <div className="card" style={{ flex: '0 0 auto', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 18px', transition: 'all .15s' }}
+                onClick={() => setView('paths')}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.ac; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.bd; }}>
+                <span style={{ fontSize: 12, color: C.ac, fontWeight: 700 }}>Alle {total} →</span>
+              </div>
+            </div>
+          );
+        })()}
+      </section>
 
       <section style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>

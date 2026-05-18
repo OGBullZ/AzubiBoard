@@ -1,6 +1,6 @@
 # AzubiBoard – Roadmap
 
-> Stand: 2026-05-16 · Letzter Sprint: **9-Quality** (Branch `sprint-9-quality`, gepusht, ungemerged) · Roadmap v4
+> Stand: 2026-05-18 · Letzter Sprint: **11-PowerFeatures** · Roadmap v5
 
 ---
 
@@ -8,7 +8,8 @@
 
 | Sprint | Commit | Inhalt |
 |---|---|---|
-| **10-Adoption** | _(folgt)_ | M2 Mentor-Rolle (DB-ENUM + Frontend-Helper `roles.js`), K2-Backend Field-Level Permissions für Reports im POST `/api/data`, K4 ClamAV-Hook in Avatar-Upload, M3 wöchentliches Cron-Mail-Skript |
+| **11-PowerFeatures** | `(aktuell)` | C2 Lernpfade (DAG mit Voraussetzungs-Graph, Schema v5), C3 SM-2 Spaced-Repetition, C1 Quiz-Editor mit Bearbeiten, F-Quality useDebounce-Hook, F-a11y Skip-Link + Modal Focus-Trap |
+| **10-Adoption** | `56b69d7` | M2 Mentor-Rolle (DB-ENUM + Frontend-Helper `roles.js`), K2-Backend Field-Level Permissions für Reports im POST `/api/data`, K4 ClamAV-Hook in Avatar-Upload, M3 wöchentliches Cron-Mail-Skript |
 | **9.5-Security** | `b15e94f` | B1 Partial-Token DB-backed Single-Use (5 min), B2 2FA-Disable verlangt TOTP/Recovery, B5+ JWT-jti + Logout-Blocklist mit DB-GC |
 | **9-Quality** | `2187b9c` | ErrorBoundary pro Route (H2), Dashboard-Refactor 1236→373 Zeilen + 11 Widget-Files (H3), silent-catch fix (H4), BoundingRect-Cache NetzplanGantt (H5), migrations-Test auf v4 |
 | **Hotfix** | `6267b47` | Status „Abgeschlossen" statt „In Ordnung", Material-Aufgaben-Zuordnung + Sortierung |
@@ -112,16 +113,25 @@ echo "[$(date)] deployed $REMOTE"
 
 ---
 
-## 🔜 Sprint 11 — Power-Features (L, 4–5 Tage)
+## ✅ Sprint 11 — Power-Features (erledigt 2026-05-18)
 
-> **Ziel:** Differenzierung, Lernbereich ausbauen.
+| | Item | Lösung |
+|---|---|---|
+| **C1** | Quiz-Editor Bearbeiten | Eigene Fragen in-place bearbeiten, Store-Migration v3→v4 aus localStorage |
+| **C3** | Spaced-Repetition | SM-2 Algorithmus (`FlashcardReview`, `FlashcardDone`), Fortschritt in `data.flashcards[userId]` |
+| **F-Quality** | Debouncing | `src/lib/hooks.js` mit `useDebounce(value, delay)`, Search-Inputs + GlobalSearch auf 200–300 ms |
+| **F-a11y** | a11y Pass 2 | Skip-Link (`.skip-link` CSS), Modal Focus-Trap (Tab/Shift+Tab), Escape-Close, Live-Region für Toasts |
+| **C2** | Lernpfade | DAG-basierter Voraussetzungs-Graph, Schema-Migration v5, `LernpfadeView.jsx` mit Pfad-/Node-CRUD für Ausbilder, gesperrte Nodes bis Prereqs abgeschlossen |
+
+---
+
+## 🔜 Sprint 11.5 — M1 PDF-OCR (XL, 1–2 Tage)
+
+> **Ziel:** Handschriftliche Berichte per OCR ins Formular importieren.
 
 | | Item | Details |
 |---|---|---|
 | **M1** | PDF-OCR Import | Tesseract.js clientseitig (lazy-loaded, ~10 MB Worker), handschriftliche Berichte → vorausgefülltes Formular. Genauigkeit ~70 % bei Druckschrift, Handschrift schwach — als „Vorschlag" labeln |
-| **C2** | Lernpfade | Strukturierte Reihenfolge von Lernzielen pro Lehrjahr/Quartal, Voraussetzungs-Graph (DAG), gesperrte Inhalte bis Vorgänger abgeschlossen |
-| **F-Quality** | Debouncing breit ausrollen (M1 aus Quality-Audit) | Search-Inputs, Editor-Saves auf 300 ms debouncen — derzeit teils per keystroke |
-| **F-a11y** | a11y Pass 2 | Fokus-Reihenfolge, Skip-Links, Live-Regions für Toasts, Kontrast-Check |
 
 ---
 
