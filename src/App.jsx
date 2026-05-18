@@ -1069,6 +1069,7 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
 
   return (
     <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
+      <a href="#main-content" className="skip-link">Zum Hauptinhalt springen</a>
       {/* Overlay bei offenem Drawer */}
       {isMobile && drawerOpen && (
         <div onClick={() => setDrawerOpen(false)}
@@ -1082,7 +1083,7 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
         isMobile={isMobile} drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)}
         trashCount={trashCount} />
 
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div id="main-content" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Mobile Topbar */}
         {isMobile && (
           <div style={{ height: 48, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '1px solid var(--c-bd)', background: 'var(--c-sf)', gap: 12 }}>

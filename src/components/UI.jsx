@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { C, ST } from '../lib/utils.js';
 import { IcoMoon, IcoSun } from './Icons.jsx';
 
@@ -77,16 +77,43 @@ export function Avatar({ name, url, size = 28 }) {
 }
 
 // ── Modal ─────────────────────────────────────────────────────
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
 export function Modal({ title, onClose, children, width = 480 }) {
+  const panelRef = useRef(null);
+
+  // Escape → schließen; Focus auf erstes Element setzen
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const first = panel.querySelectorAll(FOCUSABLE)[0];
+    first?.focus();
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const els = [...panel.querySelectorAll(FOCUSABLE)];
+      if (!els.length) return;
+      const first = els[0], last = els[els.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="modal-title"
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn .12s', padding: 16 }}
       onClick={onClose}>
-      <div style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 12, padding: 22, width, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', animation: 'fadeUp .18s ease', boxShadow: 'var(--shadow-lg)' }}
+      <div ref={panelRef} style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 12, padding: 22, width, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', animation: 'fadeUp .18s ease', boxShadow: 'var(--shadow-lg)' }}
         onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <h2 id="modal-title" style={{ fontSize: 15, fontWeight: 800, color: C.br, margin: 0 }}>{title}</h2>
-          <button className="del" onClick={onClose} style={{ fontSize: 20 }}>×</button>
+          <button className="del" onClick={onClose} style={{ fontSize: 20 }} aria-label="Dialog schließen">×</button>
         </div>
         {children}
       </div>

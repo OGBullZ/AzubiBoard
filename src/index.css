@@ -1,5 +1,22 @@
 /* AzubiBoard – index.css */
 
+/* ── a11y: Skip-Link ── */
+.skip-link {
+  position: absolute;
+  top: -48px;
+  left: 8px;
+  z-index: 10000;
+  padding: 8px 14px;
+  background: var(--c-ac);
+  color: #fff;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: top .12s;
+}
+.skip-link:focus { top: 8px; }
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
