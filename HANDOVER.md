@@ -1,6 +1,6 @@
 # 📋 AzubiBoard — Projekt-Handover
 
-> **Stand:** 18. Mai 2026 · **Letzter Commit:** `7005654` (Fehleranalyse + Bugfixes)
+> **Stand:** 18. Mai 2026 · **Letzter Commit:** `74e017e` (Backup-Cron + UI-Improvements + CLAUDE.md Arbeitsregeln)
 > Dieses Dokument fasst den kompletten Projektstand zusammen, damit eine neue Claude-Code-Session
 > (auf einem anderen Laptop) ohne Reibung weiterarbeiten kann.
 
@@ -148,6 +148,7 @@ Schema steht als **Sprint 12 (Item L5)** in der Roadmap.
 
 | Sprint | Commit | Themen | Status |
 |---|---|---|---|
+| **Session 18.05** | `74e017e` | BackupsModal: „Aktuellen Stand herunterladen"-Button (Live-JSON); install_ubuntu.sh Schritt 7/8: mysqldump-Cron tägl. 03:00 → /var/backups/azubiboard/, 30 Tage Retention; Projekt-Tab default Listenansicht; CLAUDE.md Arbeitsregeln (12 Regeln, Karpathy Rules 1–4 verbatim) | ✅ |
 | **Bugfix** | `7005654` | Projekt-Karten Hover-Actions immer sichtbar (inline display:flex Override) + position:relative fix; GET /api/data/backups/{day} unerreichbar (Routing-Reihenfolge); install_ubuntu.sh: php-mysql-Check + mod_expires | ✅ |
 | **11/M1** | `ded875a` | PDF-OCR Import (Tesseract.js + pdfjs-dist, lazy), Berichtseditor-Button | ✅ |
 | **11** | `8945b72` | C2 Lernpfade (DAG, Schema v5), C3 SM-2 Karteikarten, C1 Quiz-Editor, F-Quality useDebounce, F-a11y Skip-Link+Focus-Trap | ✅ |
@@ -466,4 +467,4 @@ Reihenfolge: M3 (Wochenmail) → K2 (Permissions) → M2 (Mentor-Rolle) → K4 (
 
 **Repo:** https://github.com/OGBullZ/AzubiBoard.git
 **Branch:** `main`
-**Letzter grüner Build:** `7005654` · ~470 KB / 140 KB gz (index) + 415 KB (pdf lazy) · Build ✅
+**Letzter grüner Build:** `74e017e` · ~470 KB / 140 KB gz (index) + 415 KB (pdf lazy) · Build ✅

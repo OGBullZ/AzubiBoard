@@ -13,8 +13,8 @@ Deployment-Server: Ubuntu LAMP, IP `10.14.99.10`, App unter `/azubiboard/`
 
 ## Aktueller Stand
 
-**Letzter Commit:** `b815659` (18. Mai 2026) — HANDOVER.md update  
-**Abgeschlossen:** Sprint 11 + Fehleranalyse/Bugfixes (Hover-Actions-Fix, API-Routing-Fix, install_ubuntu.sh)  
+**Letzter Commit:** `74e017e` (18. Mai 2026) — Backup-Cron + UI-Improvements + Arbeitsregeln  
+**Abgeschlossen:** Sprint 11 + Bugfixes + Session 18.05 (Backup-Cron, Download-Button, Listenansicht default)  
 **Schema-Version:** v5 (`data.learningPaths`, `data.pathProgress`)
 
 Vollständige Sprint-Historie → `HANDOVER.md`  
