@@ -12,7 +12,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
   const [filter,      setFilter]      = useState('all');
   const [search,      setSearch]      = useState('');
   const [showArchive, setShowArchive] = useState(false);
-  const [viewMode,    setViewMode]    = useState('grid');
+  const [viewMode,    setViewMode]    = useState('table');
   const [sort,        setSort]        = useState('title_asc');
   const dSearch = useDebounce(search);
 
