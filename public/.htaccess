@@ -1,0 +1,47 @@
+Options -Indexes
+
+# ── Security-Headers ─────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options    "nosniff"
+    Header always set X-Frame-Options           "DENY"
+    Header always unset X-XSS-Protection
+    Header always set Referrer-Policy           "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy        "geolocation=(), microphone=(), camera=(), payment=(), usb=(), fullscreen=(self)"
+    Header always set Cross-Origin-Opener-Policy   "same-origin"
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; manifest-src 'self'; worker-src 'self' blob:; child-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
+
+    # Statische Assets lang cachen
+    <FilesMatch "\.(js|css|woff2|svg|png|webp)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    # Service Worker nie long-cachen
+    <FilesMatch "(sw|workbox.*)\.js$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+# ── .env und config nie ausliefern ───────────────────────────
+<FilesMatch "^\.env|composer\.(json|lock)|package(-lock)?\.json$">
+    Require all denied
+</FilesMatch>
+
+# ── SPA-Routing: alles → index.html (außer api/ und echte Dateien) ──
+RewriteEngine On
+RewriteBase /azubiboard/
+RewriteCond %{REQUEST_URI} !^/azubiboard/api/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
+
+# ── Cache-Header für statische Assets ────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/html                 "access plus 0 seconds"
+    ExpiresByType application/javascript    "access plus 1 year"
+    ExpiresByType text/css                  "access plus 1 year"
+    ExpiresByType image/svg+xml             "access plus 1 year"
+    ExpiresByType image/png                 "access plus 1 year"
+    ExpiresByType image/webp                "access plus 1 year"
+    ExpiresByType font/woff2                "access plus 1 year"
+</IfModule>

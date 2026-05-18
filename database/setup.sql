@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     name                  VARCHAR(100)     NOT NULL,
     email                 VARCHAR(255)     NOT NULL,
     password_hash         VARCHAR(255)     NOT NULL,   -- bcrypt
-    role                  ENUM('azubi','ausbilder') NOT NULL DEFAULT 'azubi',
+    role                  ENUM('azubi','ausbilder','mentor') NOT NULL DEFAULT 'azubi',
     theme                 ENUM('dark','light')      NOT NULL DEFAULT 'dark',
     avatar_url            VARCHAR(500)     DEFAULT NULL,
     phone                 VARCHAR(50)      DEFAULT NULL,
