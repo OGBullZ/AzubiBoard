@@ -185,12 +185,12 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
               const lc    = (p.links || []).length;
               return (
                 <article key={p.id} role="listitem" className="card proj-card"
-                  style={{ cursor: 'pointer', borderLeft: `3px solid ${sc}`, transition: 'transform .12s, box-shadow .12s' }}
+                  style={{ cursor: 'pointer', borderLeft: `3px solid ${sc}`, transition: 'transform .12s, box-shadow .12s', position: 'relative' }}
                   onClick={() => onOpen(p.id)} tabIndex={0} onKeyDown={e => e.key === 'Enter' && onOpen(p.id)}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow)'; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderLeftColor = sc; }}>
                   {isAusbilder(currentUser) && (
-                    <div className="hover-action" style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4 }}>
+                    <div className="hover-action" style={{ position: 'absolute', top: 8, right: 8, gap: 4 }}>
                       <IconBtn Icon={IcoDoc}     onClick={e => { e.stopPropagation(); onDuplicate?.(p.id); }} label="Duplizieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
                       <IconBtn Icon={IcoArchive} onClick={e => { e.stopPropagation(); onArchive?.(p.id); }} label="Archivieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
                       <IconBtn Icon={IcoTrash}   onClick={e => { e.stopPropagation(); onDelete(p.id, p.title); }} label="Löschen" danger />

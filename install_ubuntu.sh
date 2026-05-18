@@ -57,8 +57,19 @@ JWT_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
 
 echo ""
 
-# ── 1. Node.js installieren (falls nicht vorhanden) ───────────
-hdr "1/7 Node.js prüfen"
+# ── 1. Node.js + PHP-MySQL-Erweiterung prüfen ─────────────────
+hdr "1/7 Node.js + PHP-Erweiterungen prüfen"
+
+# PHP pdo_mysql prüfen (für Datenbankverbindung zwingend erforderlich)
+if php -r "new PDO('mysql:host=127.0.0.1', 'x', 'x');" 2>&1 | grep -q "could not find driver"; then
+    info "PHP pdo_mysql nicht gefunden – wird installiert..."
+    PHP_VER=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+    apt-get install -y "php${PHP_VER}-mysql" > /dev/null 2>&1
+    ok "php${PHP_VER}-mysql installiert"
+else
+    ok "PHP pdo_mysql: vorhanden"
+fi
+
 if command -v node &> /dev/null; then
     NODE_VER=$(node -v)
     ok "Node.js bereits installiert: $NODE_VER"
@@ -163,10 +174,11 @@ ok "Datenbank-Schema importiert"
 # ── 6. Apache konfigurieren ────────────────────────────────────
 hdr "6/7 Apache konfigurieren"
 
-# mod_rewrite + mod_headers aktivieren
-a2enmod rewrite > /dev/null 2>&1
-a2enmod headers > /dev/null 2>&1
-ok "mod_rewrite und mod_headers aktiviert"
+# mod_rewrite + mod_headers + mod_expires aktivieren
+a2enmod rewrite  > /dev/null 2>&1
+a2enmod headers  > /dev/null 2>&1
+a2enmod expires  > /dev/null 2>&1
+ok "mod_rewrite, mod_headers und mod_expires aktiviert"
 
 # Apache-Config für azubiboard
 cat > /etc/apache2/conf-available/azubiboard.conf << EOF

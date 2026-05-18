@@ -142,18 +142,6 @@ if ($method === 'POST') {
     respond(['ok' => true, 'version' => $newVersion]);
 }
 
-// ── GET /api/data/backups ────────────────────────────────────
-// L4: Liste aller verfügbaren Snapshots (nur Ausbilder)
-if ($method === 'GET' && (($parts[1] ?? null) === 'backups')) {
-    require_role('ausbilder');
-    $rows = db()->query(
-        'SELECT snapshot_day, created_at, size_bytes
-         FROM app_data_history
-         ORDER BY snapshot_day DESC'
-    )->fetchAll();
-    respond($rows);
-}
-
 // ── GET /api/data/backups/{day} ──────────────────────────────
 // L4: Snapshot eines bestimmten Tages laden (nur Ausbilder)
 if ($method === 'GET' && (($parts[1] ?? null) === 'backups') && !empty($parts[2])) {
@@ -168,6 +156,18 @@ if ($method === 'GET' && (($parts[1] ?? null) === 'backups') && !empty($parts[2]
 
     $data = json_decode($row['content'], true);
     respond($data);
+}
+
+// ── GET /api/data/backups ────────────────────────────────────
+// L4: Liste aller verfügbaren Snapshots (nur Ausbilder)
+if ($method === 'GET' && (($parts[1] ?? null) === 'backups')) {
+    require_role('ausbilder');
+    $rows = db()->query(
+        'SELECT snapshot_day, created_at, size_bytes
+         FROM app_data_history
+         ORDER BY snapshot_day DESC'
+    )->fetchAll();
+    respond($rows);
 }
 
 // ── POST /api/data/restore ───────────────────────────────────
