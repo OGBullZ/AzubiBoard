@@ -99,61 +99,109 @@ Wenn vorhanden: prüfen ob byte-identisch zu HEAD, dann löschen.
 
 ## Arbeitsregeln
 
-These rules apply to every task unless explicitly overridden.
+Behavioral guidelines to reduce common LLM coding mistakes.
 Bias: caution over speed on non-trivial work. Use judgment on trivial tasks.
 
-**Rule 1 — Think Before Coding**  
-State assumptions explicitly. If uncertain, ask rather than guess.  
-Present multiple interpretations when ambiguity exists.  
-Push back when a simpler approach exists. Stop when confused. Name what's unclear.
+### Rule 1 — Think Before Coding
 
-**Rule 2 — Simplicity First**  
-Minimum code that solves the problem. Nothing speculative.  
-No features beyond what was asked. No abstractions for single-use code.  
-Test: would a senior engineer say this is overcomplicated? If yes, simplify.
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
-**Rule 3 — Surgical Changes**  
-Touch only what you must. Clean up only your own mess.  
-Don't "improve" adjacent code, comments, or formatting.  
-Don't refactor what isn't broken. Match existing style.
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
 
-**Rule 4 — Goal-Driven Execution**  
-Define success criteria. Loop until verified.  
-Don't follow steps. Define success and iterate.  
-Strong success criteria let you loop independently.
+### Rule 2 — Simplicity First
 
-**Rule 5 — Use the Model Only for Judgment Calls**  
-Use for: classification, drafting, summarization, extraction.  
-Do NOT use for: routing, retries, deterministic transforms.  
-If code can answer, code answers.
+**Minimum code that solves the problem. Nothing speculative.**
 
-**Rule 6 — Token Budgets Are Not Advisory**  
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### Rule 3 — Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+### Rule 4 — Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+### Rule 5 — Use the Model Only for Judgment Calls
+
+Use for: classification, drafting, summarization, extraction from unstructured text.  
+Do NOT use for: routing, retries, status-code handling, deterministic transforms.  
+If a status code already answers the question, plain code answers the question.
+
+### Rule 6 — Token Budgets Are Not Advisory
+
 Per-task: 4,000 tokens. Per-session: 30,000 tokens.  
 If approaching budget, summarize and start fresh.  
 Surface the breach. Do not silently overrun.
 
-**Rule 7 — Surface Conflicts, Don't Average Them**  
-If two patterns contradict, pick one (more recent / more tested).  
-Explain why. Flag the other for cleanup. Don't blend conflicting patterns.
+### Rule 7 — Surface Conflicts, Don't Average Them
 
-**Rule 8 — Read Before You Write**  
-Before adding code, read exports, immediate callers, shared utilities.  
-"Looks orthogonal" is dangerous. If unsure why code is structured a way, ask.
+If two existing patterns in the codebase contradict, don't blend them.  
+Pick one (the more recent / more tested), explain why, flag the other for cleanup.  
+"Average" code that satisfies both rules is the worst code.
 
-**Rule 9 — Tests Verify Intent, Not Just Behavior**  
-Tests must encode WHY behavior matters, not just WHAT it does.  
-A test that can't fail when business logic changes is wrong.
+### Rule 8 — Read Before You Write
 
-**Rule 10 — Checkpoint After Every Significant Step**  
-Summarize what was done, what's verified, what's left.  
+Before adding code in a file, read the file's exports, the immediate caller, and any obvious shared utilities.  
+"Looks orthogonal to me" is the most dangerous phrase in this codebase.  
+If you don't understand why existing code is structured a way, ask before adding to it.
+
+### Rule 9 — Tests Verify Intent, Not Just Behavior
+
+Every test must encode WHY the behavior matters, not just WHAT it does.  
+If you can't write a test that would fail when business logic changes, the function is wrong.
+
+### Rule 10 — Checkpoint After Every Significant Step
+
+After each step in a multi-step task: summarize what was done, what's verified, what's left.  
 Don't continue from a state you can't describe back.  
 If you lose track, stop and restate.
 
-**Rule 11 — Match the Codebase's Conventions, Even If You Disagree**  
-Conformance > taste inside the codebase.  
-If a convention is genuinely harmful, surface it. Don't fork silently.
+### Rule 11 — Match the Codebase's Conventions, Even If You Disagree
 
-**Rule 12 — Fail Loud**  
+Conformance > taste inside the codebase.  
+If you genuinely think a convention is harmful, surface it. Don't fork silently.
+
+### Rule 12 — Fail Loud
+
 "Completed" is wrong if anything was skipped silently.  
 "Tests pass" is wrong if any were skipped.  
 Default to surfacing uncertainty, not hiding it.
