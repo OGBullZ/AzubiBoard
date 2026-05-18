@@ -4,7 +4,7 @@
 // ============================================================
 import { loadData, persistData } from './utils';
 import { authHeader, clearToken, isTokenValid } from './auth';
-import { addBreadcrumb, captureException } from './sentry.js';
+import { addBreadcrumb } from './sentry.js';
 
 const USE_API  = import.meta.env.VITE_USE_API === 'true';
 // VITE_API_BASE_URL explizit setzen, oder aus Basispfad ableiten

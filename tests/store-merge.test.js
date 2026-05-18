@@ -4,7 +4,7 @@
 // Die Annahme: Konsumenten von onUpdateData/setData MÜSSEN data spreaden,
 // weil setData wholesale-replaced. Wir testen das Verhalten von setData
 // direkt über das Modul (nicht über React-Hook).
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('Datenverlust-Regression (I1)', () => {
   it('addActivity-Pattern bewahrt alle Top-Level-Keys', async () => {
