@@ -1,6 +1,6 @@
 # 📋 AzubiBoard — Projekt-Handover
 
-> **Stand:** 18. Mai 2026 · **Letzter Commit:** `ded875a` (Sprint 11/M1 — PDF-OCR)
+> **Stand:** 18. Mai 2026 · **Letzter Commit:** `7005654` (Fehleranalyse + Bugfixes)
 > Dieses Dokument fasst den kompletten Projektstand zusammen, damit eine neue Claude-Code-Session
 > (auf einem anderen Laptop) ohne Reibung weiterarbeiten kann.
 
@@ -148,6 +148,7 @@ Schema steht als **Sprint 12 (Item L5)** in der Roadmap.
 
 | Sprint | Commit | Themen | Status |
 |---|---|---|---|
+| **Bugfix** | `7005654` | Projekt-Karten Hover-Actions immer sichtbar (inline display:flex Override) + position:relative fix; GET /api/data/backups/{day} unerreichbar (Routing-Reihenfolge); install_ubuntu.sh: php-mysql-Check + mod_expires | ✅ |
 | **11/M1** | `ded875a` | PDF-OCR Import (Tesseract.js + pdfjs-dist, lazy), Berichtseditor-Button | ✅ |
 | **11** | `8945b72` | C2 Lernpfade (DAG, Schema v5), C3 SM-2 Karteikarten, C1 Quiz-Editor, F-Quality useDebounce, F-a11y Skip-Link+Focus-Trap | ✅ |
 | **10** | `56b69d7` | M2 Mentor-Rolle (roles.js), K2-Backend Field-Level Permissions, K4 ClamAV, M3 weekly_digest.php | ✅ |
@@ -465,4 +466,4 @@ Reihenfolge: M3 (Wochenmail) → K2 (Permissions) → M2 (Mentor-Rolle) → K4 (
 
 **Repo:** https://github.com/OGBullZ/AzubiBoard.git
 **Branch:** `main`
-**Letzter grüner Build:** `8b07bbd` · 765 KB / 139 KB gz · 44/44 unit · 6/6 E2E
+**Letzter grüner Build:** `7005654` · ~470 KB / 140 KB gz (index) + 415 KB (pdf lazy) · Build ✅
