@@ -97,6 +97,47 @@ Wenn vorhanden: prüfen ob byte-identisch zu HEAD, dann löschen.
 | **12** | Row-Level Security, Volltextsuche | mit L5 |
 | **später** | **M4** Multi-Tenant, **M5** IHK-API | groß |
 
+## Arbeitsregeln
+
+**Rule 1 — Think Before Coding**  
+Keine stillen Annahmen. Annahmen benennen, Tradeoffs zeigen, vor dem Raten fragen. Zurückdrängen wenn ein einfacherer Ansatz existiert.
+
+**Rule 2 — Simplicity First**  
+Minimaler Code der das Problem löst. Keine spekulativen Features. Keine Abstraktionen für Einmal-Code. Wenn ein Senior Engineer es überkompliziert nennen würde — vereinfachen.
+
+**Rule 3 — Surgical Changes**  
+Nur das anfassen was nötig ist. Keinen angrenzenden Code, Kommentare oder Formatierung "verbessern". Nichts refactoren was nicht kaputt ist. Bestehenden Stil beibehalten.
+
+**Rule 4 — Goal-Driven Execution**  
+Erfolgskriterien definieren. Loop bis verifiziert. Nicht sagen welche Schritte zu folgen sind — sagen wie Erfolg aussieht und iterieren lassen.
+
+**Rule 5 — Use the Model Only for Judgment Calls**  
+Claude für: Klassifikation, Drafts, Zusammenfassung, Extraktion aus unstrukturiertem Text.  
+Nicht für: Routing, Retries, Status-Code-Handling, deterministische Transforms.  
+Wenn ein Status-Code die Frage schon beantwortet, beantwortet Plain-Code die Frage.
+
+**Rule 6 — Token Budgets Are Not Advisory**  
+Pro-Task-Budget: 4.000 Tokens. Pro-Session-Budget: 30.000 Tokens.  
+Bei Annäherung: zusammenfassen und neu starten. Nicht still überschreiten.  
+Überschreitung melden > still überziehen.
+
+**Rule 7 — Surface Conflicts, Don't Average Them**  
+Wenn zwei Muster im Code sich widersprechen: nicht mischen.  
+Eines wählen (das neuere / besser getestete), erklären warum, das andere zur Bereinigung markieren.  
+"Durchschnitts-Code" der beide Regeln erfüllt ist der schlechteste Code.
+
+**Rule 8 — Read Before You Write**  
+Vor Code-Hinzufügen in einer Datei: Exports der Datei lesen, unmittelbaren Aufrufer lesen, offensichtliche Shared Utilities prüfen.  
+Wenn unklar warum bestehender Code so strukturiert ist: fragen bevor man hinzufügt.
+
+**Rule 9 — Tests Verify Intent, Not Just Behavior**  
+Jeder Test muss kodieren WARUM das Verhalten wichtig ist, nicht nur WAS es tut.  
+Ein Test der beim Ändern der Business-Logik nicht fehlschlägt — die Funktion ist falsch.
+
+**Rule 10 — Checkpoint After Every Significant Step**  
+Nach jedem Schritt in einer Mehr-Schritt-Aufgabe: zusammenfassen was erledigt ist, was verifiziert ist, was noch fehlt.  
+Nicht aus einem Zustand weitermachen den man nicht zurückbeschreiben kann.
+
 ## Autonomie-Hinweis
 
 User hat volle Autonomie für AzubiBoard gewährt: Commits, Pushes, Datei-Edits ohne Bestätigungs-Prompts. Nur bei genuinen destruktiven Aktionen (Daten löschen, Force-Push auf main) kurz kommunizieren.
