@@ -125,13 +125,11 @@ echo "[$(date)] deployed $REMOTE"
 
 ---
 
-## 🔜 Sprint 11.5 — M1 PDF-OCR (XL, 1–2 Tage)
+## ✅ Sprint 11.5 — M1 PDF-OCR (erledigt 2026-05-18)
 
-> **Ziel:** Handschriftliche Berichte per OCR ins Formular importieren.
-
-| | Item | Details |
+| | Item | Lösung |
 |---|---|---|
-| **M1** | PDF-OCR Import | Tesseract.js clientseitig (lazy-loaded, ~10 MB Worker), handschriftliche Berichte → vorausgefülltes Formular. Genauigkeit ~70 % bei Druckschrift, Handschrift schwach — als „Vorschlag" labeln |
+| **M1** | PDF-OCR Import | `PdfOcrImport.jsx`: pdfjs-dist (lazy chunk ~124 kB gzip) rendert PDF-Seiten auf Canvas, Tesseract.js v7 mit Deutsch-Sprachpaket (Worker ~10 MB, CDN-gecacht) erkennt Text. Keyword-Matching teilt in Tätigkeiten/Lerninhalt. Vorschau editierbar vor Übernahme. Button „📷 OCR-Import" im Berichtseditor. |
 
 ---
 

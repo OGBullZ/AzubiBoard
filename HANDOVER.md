@@ -1,6 +1,6 @@
 # 📋 AzubiBoard — Projekt-Handover
 
-> **Stand:** 12. Mai 2026 · **Letzter Commit:** `8b07bbd` (Sprint 8 — Sicherheits-Härtung)
+> **Stand:** 18. Mai 2026 · **Letzter Commit:** `ded875a` (Sprint 11/M1 — PDF-OCR)
 > Dieses Dokument fasst den kompletten Projektstand zusammen, damit eine neue Claude-Code-Session
 > (auf einem anderen Laptop) ohne Reibung weiterarbeiten kann.
 
@@ -49,7 +49,7 @@ npm run build      # produktions-Bundle
 | **Frontend** | React 19, Vite 7, react-router-dom 7, zustand 5 (light state), react-i18next |
 | **Build/Test** | Vitest 4, Playwright 1, vite-plugin-pwa (Workbox), eslint 9 |
 | **Drag&Drop** | `@dnd-kit/core` + sortable + utilities |
-| **Misc** | qrcode (lazy), @sentry/react (opt-in via DSN) |
+| **Misc** | qrcode (lazy), @sentry/react (opt-in via DSN), tesseract.js + pdfjs-dist (lazy, OCR) |
 | **Backend** | PHP 8.2, MariaDB 10.4 (XAMPP local), PDO, eigenes JWT (HS256), bcrypt |
 | **PWA** | Service Worker mit Workbox BackgroundSync für POST /api/data |
 | **CI** | GitHub Actions: Unit + E2E + Lighthouse |
@@ -69,7 +69,7 @@ npm run build      # produktions-Bundle
 │    projects/        — Pool, Detail, Tabs, Netzplan       │
 │    reports/         — Berichtshefte + PDF-Export         │
 │    training/        — Ausbildungsplan + Import           │
-│    learn/           — Quiz/Lernportal                    │
+│    learn/           — Quiz/Lernportal + Karteikarten + Lernpfade │
 │    calendar/        — Kalender + iCal-Export             │
 │    groups/          — Teams/Lerngruppen                  │
 │    users/           — User-Mgmt + Azubi-Profil           │
@@ -82,7 +82,9 @@ npm run build      # produktions-Bundle
 │                       Conflict-Detection (If-Match)      │
 │    utils.js         — ISO-KW, Datums-Helfer, addActivity │
 │    trash.js         — Soft-Delete + Restore              │
-│    migrations.js    — Schema-Migrations (data.schema_version)│
+│    migrations.js    — Schema-Migrations v1–v5 (data.schema_version)│
+    roles.js         — isStaff/isAusbilder/isMentor Helper   │
+    hooks.js         — useDebounce React-Hook                │
 │    backup.js        — Backup-Reminder                    │
 │    i18n.js          — react-i18next-Init (de/en)         │
 │    sentry.js        — Error-Tracking (opt-in)            │
@@ -138,7 +140,7 @@ oder mit PHP-Backend. Im API-Modus wird der **komplette App-State als ein JSON-O
 
 Die `database/azubiboard.sql` enthält ein **vollständigeres normalisiertes Schema** (mit FKs,
 Indizes, etc.), das aktuell **noch nicht aktiv ist**. Der Refactor von JSON-Blob auf normalisiertes
-Schema steht als Sprint 9 (Item **L5**) in der Roadmap.
+Schema steht als **Sprint 12 (Item L5)** in der Roadmap.
 
 ---
 
@@ -146,61 +148,42 @@ Schema steht als Sprint 9 (Item **L5**) in der Roadmap.
 
 | Sprint | Commit | Themen | Status |
 |---|---|---|---|
+| **11/M1** | `ded875a` | PDF-OCR Import (Tesseract.js + pdfjs-dist, lazy), Berichtseditor-Button | ✅ |
+| **11** | `8945b72` | C2 Lernpfade (DAG, Schema v5), C3 SM-2 Karteikarten, C1 Quiz-Editor, F-Quality useDebounce, F-a11y Skip-Link+Focus-Trap | ✅ |
+| **10** | `56b69d7` | M2 Mentor-Rolle (roles.js), K2-Backend Field-Level Permissions, K4 ClamAV, M3 weekly_digest.php | ✅ |
+| **9.5** | `b15e94f` | B1 Partial-Token Single-Use DB (5min TTL), B2 2FA-Disable mit TOTP, B5 JWT-jti Logout-Blocklist | ✅ |
+| **9-Quality** | `2187b9c` | ErrorBoundary pro Route, Dashboard-Refactor 11 Widget-Files, BoundingRect-Cache, silent-catch | ✅ |
 | **8** | `8b07bbd` | Audit-Log Server-Tabelle, 2FA TOTP, CSP-Härtung | ✅ |
-| **7** | `115035c` | Sentry, Server-Backups (täglich, 30d), Migrations, SW-Background-Sync | ✅ |
+| **7** | `115035c` | Sentry, Server-Backups (täglich, 30d), Migrations v1–3, SW-Background-Sync | ✅ |
 | **6** | `d51fd3f` | Bulk-Import Lernziele, IHK-PDF, Public-Share-Links, Code-Splitting, GitHub-Actions CI, Push-Notifications | ✅ |
 | **5** | `f152826` | Conflict-Detection (If-Match), Soft-Delete + Papierkorb, Playwright E2E | ✅ |
 | **4** | `9d9e850` | Smart-Polling-Sync statt SSE (FastCGI-tauglich) | ✅ |
-| **3** | `c4d7ea3` | PHP-Backend-Hardening (Rate-Limit, Validation), Backup-Reminder, i18n-Scaffold | ✅ |
-| **2** | `e26a0e4` | Retry-Queue dataService, Audit-Log Frontend, Vitest-Setup | ✅ |
-| **1** | `fd16443` | Datenverlust-Fix Reports, ISO-Wochen-Helper, Mobile-DnD, Toast-Undo | ✅ |
-| **v3** | `02c8534` | Drag&Drop Kanban, Shortcuts, Ausbildungsplan, Azubi-Profilseite, Burndown, Monatsreport, Jahresmappe | ✅ |
-| **D-Phase** | `0d6df99` | Bulk-Aktionen, OS-Theme, GlobalSearch, PWA-Manifest | ✅ |
-| **früher** | div. | Cockpit 2.0, Autofill, Zeiterfassung, Avatar, Labels, iCal, Activity-Feed | ✅ |
+| **1–3** | div. | Backend-Hardening, Rate-Limit, Retry-Queue, Vitest, ISO-Wochen, Mobile-DnD, Toast-Undo | ✅ |
+| **früher** | div. | Kanban, Ausbildungsplan, Zeiterfassung, Jahresmappe, Cockpit, Avatar, Labels, iCal | ✅ |
 
 **Was bei einer neuen Session zu wissen ist:**
 
-- **Sprint 1** entstand aus einem Audit, der zwei kritische Bugs fand:
-  einen Datenverlust in `ReportsPage.jsx` (jeder Save hat fehlende `...data` Spread =
-  alles andere überschrieben), und einen Sync-Conflict, der den `Jahresmappe`-Button
-  zerstört hatte. Beide gefixt + Toast-Undo eingebaut.
-- **Sprint 4** sollte ursprünglich SSE liefern (Server-Sent-Events), wurde aber
-  pragmatisch auf Polling umgestellt (PHP-FastCGI verträgt keine persistenten Verbindungen).
-- **Sprint 7+8** sind die "Production-Härtung" — alles was man braucht, BEVOR man die
-  App ernsthaft einsetzt: Tracking, Backups, Migrations, Audit, 2FA, CSP.
+- **Sprint 4** sollte ursprünglich SSE liefern, wurde auf Polling umgestellt (PHP-FastCGI verträgt keine persistenten Verbindungen).
+- **Sprint 7+8** sind die "Production-Härtung" — Tracking, Backups, Migrations, Audit, 2FA, CSP.
+- **Sprint 10** hat die Mentor-Rolle als ENUM in die DB gebracht (`roles.js` mit `isStaff/isAusbilder/isMentor`).
+- **Schema-Versionen:** `data.schema_version` aktuell **v5** — migrations v1–v5 in `src/lib/migrations.js`.
+  - v4: Custom-Quiz aus localStorage → `data.quizzes`
+  - v5: `data.learningPaths`, `data.pathProgress` für Lernpfade
+- **OCR-Import**: Tesseract.js + pdfjs-dist werden **dynamisch** importiert (erst wenn Button geklickt). Erster Aufruf lädt ~10 MB Sprachpaket von CDN, danach browser-gecacht.
+- **Dashboard** ist in 11 Widget-Dateien aufgeteilt: `src/features/dashboard/widgets/`.
 
 ---
 
-## 🎯 Roadmap V — Offene Items
+## 🎯 Nächster Sprint — Sprint 12: MySQL-Schema-Refactor (XL, 3–5 Tage)
 
-### ⚠️ Sprint 9 — Großer Refactor (3-5 Tage)
+| | Item | Details |
+|---|---|---|
+| **L5** | JSON-Blob → relationale Tabellen | `projects`, `tasks`, `reports`, `goals` als eigene MySQL-Tabellen |
+| | Feature-Flag | `VITE_USE_SCHEMA=true` für schrittweise Migration ohne Downtime |
+| | Row-Level Security | Ausbilder sieht nur Azubis seiner Gruppe |
+| | Volltextsuche | `FULLTEXT INDEX` auf reports.content, tasks.title |
 
-| | Item | Wert | Aufwand |
-|---|---|---|---|
-| **L5** | **MySQL-Schema explizit aktivieren** — die `database/azubiboard.sql` zeigt das Ziel: eigene Tabellen für projects/tasks/reports/goals statt JSON-Blob. Voraussetzung für Multi-Tenant, granulare Backups, Volltextsuche | Very High | L |
-
-### 💎 Sprint 10 — Differenzierung (2-3 Tage)
-
-| | Item | Wert | Aufwand |
-|---|---|---|---|
-| **M3** | Wochenmail an Ausbilder (PHP-Cron + SMTP) — "5 Berichte zu prüfen, 3 überfällig" | High | M |
-| **M2** | Mentor:in als 3. Rolle (read+kommentar, keine Approval-Rechte) | High | M |
-| **K2** | Field-Level Permissions (Ausbilder darf Azubi-Kommentar nicht überschreiben) | High | M |
-| **K4** | Echte MIME-Validierung + ClamAV-Hook für Uploads | Medium | M |
-
-### 🤖 Sprint 11 — Power-Features (4-5 Tage)
-
-| | Item | Wert | Aufwand |
-|---|---|---|---|
-| **M1** | PDF-Import von Berichten mit Tesseract.js OCR (clientside!) → vorausgefüllter Bericht | High | L |
-| **C1+C3** | Quiz-Fortschritt + Karteikarten mit SM-2 Spaced-Repetition | Medium | M |
-
-### 🛠️ Sprint 12+ — Skalierung (Vision)
-
-| | Item |
-|---|---|
-| **M4** | Multi-Tenant (eigene Firmen/Schulen mit isolierten Daten) — nur nach L5 sinnvoll |
-| **M5** | IHK-Direktanbindung (sofern API existiert) |
+**Voraussetzung für Sprint 12:** L5 blockiert Multi-Tenant (M4) und granulare Backups. Nicht parallel zu anderen Features starten.
 
 ### 🐞 Querschnitts-Item
 
