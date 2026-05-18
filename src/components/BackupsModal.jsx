@@ -47,6 +47,22 @@ export default function BackupsModal({ onClose, onRestore, showToast }) {
     }
   };
 
+  const downloadCurrent = async () => {
+    try {
+      const data = await dataService.getData();
+      const day  = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a    = document.createElement('a');
+      a.href     = URL.createObjectURL(blob);
+      a.download = `azubiboard_live_${day}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast?.('✓ Aktueller Stand heruntergeladen');
+    } catch (e) {
+      showToast?.(`⚠ ${e.message}`);
+    }
+  };
+
   const doRestore = async () => {
     if (!confirm) return;
     setActing(true);
@@ -77,11 +93,16 @@ export default function BackupsModal({ onClose, onRestore, showToast }) {
         </div>
 
         <div style={{ padding: '12px 18px', flex: 1, overflowY: 'auto' }}>
-          <div style={{ fontSize: 11, color: C.mu, marginBottom: 12, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 11, color: C.mu, marginBottom: 10, lineHeight: 1.55 }}>
             Der Server speichert täglich automatisch einen Snapshot. Aufbewahrung 30 Tage.
             Jeder Restore wird durch den Save-Mechanismus selbst zum neuen Tagessatz —
             ein versehentlicher Restore kann also vom nächsten Tag rückgängig gemacht werden.
           </div>
+
+          <button onClick={downloadCurrent} disabled={acting}
+            style={{ width: '100%', marginBottom: 14, padding: '8px 12px', fontSize: 11, fontWeight: 700, border: '1px solid var(--c-ac)', background: 'transparent', color: 'var(--c-ac)', borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            ⬇ Aktuellen Stand herunterladen (.json)
+          </button>
 
           {backups === null && (
             <div style={{ padding: 22, textAlign: 'center', color: C.mu, fontSize: 12 }}>Lädt …</div>

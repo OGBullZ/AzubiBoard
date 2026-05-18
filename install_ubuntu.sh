@@ -58,7 +58,7 @@ JWT_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
 echo ""
 
 # ── 1. Node.js + PHP-MySQL-Erweiterung prüfen ─────────────────
-hdr "1/7 Node.js + PHP-Erweiterungen prüfen"
+hdr "1/8 Node.js + PHP-Erweiterungen prüfen"
 
 # PHP pdo_mysql prüfen (für Datenbankverbindung zwingend erforderlich)
 if php -r "new PDO('mysql:host=127.0.0.1', 'x', 'x');" 2>&1 | grep -q "could not find driver"; then
@@ -81,7 +81,7 @@ else
 fi
 
 # ── 2. Frontend bauen ─────────────────────────────────────────
-hdr "2/7 Frontend bauen"
+hdr "2/8 Frontend bauen"
 info "npm install..."
 cd "$REPO_DIR"
 npm ci --silent
@@ -91,7 +91,7 @@ VITE_BASE_PATH=/azubiboard/ VITE_USE_API=true npm run build > /dev/null 2>&1
 ok "Build erfolgreich (dist/ erstellt)"
 
 # ── 3. Dateien deployen ───────────────────────────────────────
-hdr "3/7 Dateien deployen"
+hdr "3/8 Dateien deployen"
 
 # App-Ordner anlegen
 mkdir -p "$APP_DIR/uploads"
@@ -111,7 +111,7 @@ chmod -R 775 "$APP_DIR/uploads"
 ok "Dateien deployed nach $APP_DIR"
 
 # ── 4. .env erstellen ─────────────────────────────────────────
-hdr "4/7 Konfiguration (.env)"
+hdr "4/8 Konfiguration (.env)"
 cat > "$APP_DIR/.env" << EOF
 VITE_BASE_PATH=/azubiboard/
 VITE_USE_API=true
@@ -134,7 +134,7 @@ chown www-data:www-data "$APP_DIR/.env"
 ok ".env erstellt (ALLOWED_ORIGIN=http://$SERVER_IP)"
 
 # ── 5. Datenbank einrichten ────────────────────────────────────
-hdr "5/7 Datenbank einrichten"
+hdr "5/8 Datenbank einrichten"
 
 # Ubuntu nutzt standardmäßig Socket-Auth → als root einfach "mysql" reicht
 # Nur wenn ein Passwort gesetzt wurde, explizit übergeben
@@ -172,7 +172,7 @@ $MYSQL_CMD "$DB_NAME" < "$REPO_DIR/database/setup.sql" 2>/dev/null || true
 ok "Datenbank-Schema importiert"
 
 # ── 6. Apache konfigurieren ────────────────────────────────────
-hdr "6/7 Apache konfigurieren"
+hdr "6/8 Apache konfigurieren"
 
 # mod_rewrite + mod_headers + mod_expires aktivieren
 a2enmod rewrite  > /dev/null 2>&1
@@ -203,8 +203,46 @@ fi
 systemctl restart apache2
 ok "Apache neu gestartet"
 
-# ── 7. Fertig ─────────────────────────────────────────────────
-hdr "7/7 Fertig"
+# ── 7. Automatische DB-Sicherung (Cron) ──────────────────────
+hdr "7/8 Automatische DB-Sicherung einrichten"
+
+BACKUP_DIR="/var/backups/azubiboard"
+mkdir -p "$BACKUP_DIR"
+chmod 750 "$BACKUP_DIR"
+
+# MySQL-Credentials für mysqldump in separater Datei (root-only lesbar)
+cat > /etc/mysql/azubiboard-backup.cnf << EOF
+[mysqldump]
+user=${DB_USER}
+password=${DB_PASS}
+host=localhost
+EOF
+chmod 600 /etc/mysql/azubiboard-backup.cnf
+ok "MySQL-Credentials für Backup gespeichert (/etc/mysql/azubiboard-backup.cnf)"
+
+# Backup-Skript erstellen
+cat > /usr/local/bin/azubiboard-backup.sh << 'SCRIPT'
+#!/bin/bash
+BACKUP_DIR="/var/backups/azubiboard"
+DAY=$(date +%Y-%m-%d)
+mysqldump --defaults-extra-file=/etc/mysql/azubiboard-backup.cnf azubiboard 2>/dev/null \
+  | gzip > "${BACKUP_DIR}/azubiboard_${DAY}.sql.gz"
+# Backups älter als 30 Tage löschen
+find "${BACKUP_DIR}" -name "*.sql.gz" -mtime +30 -delete
+SCRIPT
+chmod 750 /usr/local/bin/azubiboard-backup.sh
+ok "Backup-Skript erstellt (/usr/local/bin/azubiboard-backup.sh)"
+
+# Cron-Job: täglich um 03:00 Uhr
+cat > /etc/cron.d/azubiboard-backup << 'CRON'
+# AzubiBoard – tägliche Datenbank-Sicherung nach /var/backups/azubiboard/
+0 3 * * * root /usr/local/bin/azubiboard-backup.sh
+CRON
+chmod 644 /etc/cron.d/azubiboard-backup
+ok "Cron-Job eingerichtet (täglich 03:00 → $BACKUP_DIR)"
+
+# ── 8. Fertig ─────────────────────────────────────────────────
+hdr "8/8 Fertig"
 
 echo ""
 echo -e "${GREEN}================================================${NC}"
@@ -213,6 +251,7 @@ echo -e "${GREEN}================================================${NC}"
 echo ""
 echo -e "  App-URL:    ${CYAN}http://${SERVER_IP}/azubiboard/${NC}"
 echo -e "  phpMyAdmin: ${CYAN}http://localhost/phpmyadmin${NC}  (nur lokal)"
+echo -e "  DB-Backups: ${CYAN}/var/backups/azubiboard/${NC}  (tägl. 03:00, 30 Tage)"
 echo ""
 echo -e "${YELLOW}  Nächste Schritte:${NC}"
 echo "  1. http://${SERVER_IP}/azubiboard/ im Browser öffnen"
