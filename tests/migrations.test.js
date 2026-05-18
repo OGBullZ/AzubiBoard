@@ -6,7 +6,7 @@ describe('migrateData', () => {
   it('Brand-new data (v0) wird bis aktuelle Version migriert', () => {
     const next = migrateData({ users: [], projects: [], reports: [] });
     expect(next.schema_version).toBe(CURRENT_SCHEMA_VERSION);
-    expect(next._migrationsApplied).toEqual([1, 2, 3, 4]);
+    expect(next._migrationsApplied).toEqual([1, 2, 3, 4, 5]);
     // Migration 2 muss trash + trainingPlan + activityLog initialisiert haben
     expect(next.trash).toEqual({ projects: [], reports: [], goals: [] });
     expect(next.trainingPlan).toEqual({ goals: [], examDate: null });
@@ -15,7 +15,7 @@ describe('migrateData', () => {
     expect(Array.isArray(next.quizzes)).toBe(true);
   });
 
-  it('v2 → v4: v3 und v4 laufen', () => {
+  it('v2 → v5: v3, v4 und v5 laufen', () => {
     const v2 = {
       schema_version: 2,
       trash: { projects: [], reports: [], goals: [] },
@@ -24,7 +24,7 @@ describe('migrateData', () => {
     };
     const next = migrateData(v2);
     expect(next.schema_version).toBe(CURRENT_SCHEMA_VERSION);
-    expect(next._migrationsApplied).toEqual([3, 4]);
+    expect(next._migrationsApplied).toEqual([3, 4, 5]);
     expect(next.projects[0].tasks[0].id).toMatch(/^task_legacy_/);
     expect(next.projects[0].tasks[1].id).toBe('has-id');
     expect(next.reports[0].updated_at).toBeTruthy();
@@ -58,11 +58,11 @@ describe('migrateData', () => {
 
 describe('pendingMigrations', () => {
   it('listet alle ausstehenden Versionen', () => {
-    expect(pendingMigrations({ schema_version: 0 })).toEqual([1, 2, 3, 4]);
-    expect(pendingMigrations({ schema_version: 2 })).toEqual([3, 4]);
+    expect(pendingMigrations({ schema_version: 0 })).toEqual([1, 2, 3, 4, 5]);
+    expect(pendingMigrations({ schema_version: 2 })).toEqual([3, 4, 5]);
     expect(pendingMigrations({ schema_version: CURRENT_SCHEMA_VERSION })).toEqual([]);
   });
   it('ohne schema_version → ab v1', () => {
-    expect(pendingMigrations({})).toEqual([1, 2, 3, 4]);
+    expect(pendingMigrations({})).toEqual([1, 2, 3, 4, 5]);
   });
 });
