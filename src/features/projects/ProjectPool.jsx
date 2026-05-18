@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { C, fmtDate } from '../../lib/utils.js';
+import { useDebounce } from '../../lib/hooks.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import {
@@ -13,6 +14,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
   const [showArchive, setShowArchive] = useState(false);
   const [viewMode,    setViewMode]    = useState('grid');
   const [sort,        setSort]        = useState('title_asc');
+  const dSearch = useDebounce(search);
 
   const active   = projects.filter(p => !p.archived);
   const archived = projects.filter(p => p.archived);
@@ -24,7 +26,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
       // Mentor + Ausbilder sehen alle Projekte; Azubi nur eigene wenn "mine" gewählt
       if (filter === 'mine' && !(p.assignees||[]).includes(currentUser.id) && !isStaff(currentUser)) return false;
       if (['green','yellow','red'].includes(filter) && p.status !== filter) return false;
-      if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !(p.description || '').toLowerCase().includes(search.toLowerCase())) return false;
+      if (dSearch && !p.title.toLowerCase().includes(dSearch.toLowerCase()) && !(p.description || '').toLowerCase().includes(dSearch.toLowerCase())) return false;
       return true;
     })
     .sort((a, b) => {
@@ -102,8 +104,8 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
       <div style={{ flex: 1, overflow: 'auto' }}>
         {visible.length === 0 ? (
           <EmptyState Icon={IcoSearch} title="Keine Projekte"
-            subtitle={search ? `Nichts für "${search}"` : 'Noch keine Projekte in dieser Kategorie'}
-            action={!search ? '+ Neues Projekt' : undefined} onAction={!search ? onNew : undefined} />
+            subtitle={dSearch ? `Nichts für "${dSearch}"` : 'Noch keine Projekte in dieser Kategorie'}
+            action={!dSearch ? '+ Neues Projekt' : undefined} onAction={!dSearch ? onNew : undefined} />
         ) : viewMode === 'table' ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>

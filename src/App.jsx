@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData, addActivity } from './lib/utils';
+import { useDebounce } from './lib/hooks';
 import { setToken, clearToken, getToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
@@ -444,6 +445,7 @@ function ShortcutsHelp({ onClose }) {
 function GlobalSearch({ data, onClose }) {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
+  const dQ  = useDebounce(q, 200);
   const ref = useRef(null);
 
   useEffect(() => { ref.current?.focus(); }, []);
@@ -453,7 +455,7 @@ function GlobalSearch({ data, onClose }) {
     return () => document.removeEventListener('keydown', fn);
   }, [onClose]);
 
-  const lower = q.trim().toLowerCase();
+  const lower = dQ.trim().toLowerCase();
   const results = lower ? [
     ...(data?.projects||[]).filter(p => !p.archived && (p.title.toLowerCase().includes(lower) || (p.description||'').toLowerCase().includes(lower)))
       .slice(0,5).map(p => ({ type: 'Projekt', label: p.title, sub: p.description, to: `/project/${p.id}`, icon: '📁' })),

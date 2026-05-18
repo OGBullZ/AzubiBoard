@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
+import { useDebounce } from '../../lib/hooks.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
 import { softDelete } from '../../lib/trash.js';
 import ShareLinkModal from '../../components/ShareLinkModal.jsx';
@@ -565,11 +566,12 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   const [editing, setEditing]= useState(null);
   const [filter,  setFilter] = useState('alle');
   const [search,  setSearch] = useState('');
+  const dSearch = useDebounce(search);
   const [confirmDel, setConfirmDel] = useState(null);
   const [shareOpen,  setShareOpen]  = useState(false);  // J10
 
   const myReports = currentUser.role === 'azubi' ? reports.filter(r => r.user_id === currentUser.id) : reports;
-  const q = search.trim().toLowerCase();
+  const q = dSearch.trim().toLowerCase();
   const filtered = myReports
     .filter(r => filter === 'alle' || r.status === filter)
     .filter(r => !q || (
