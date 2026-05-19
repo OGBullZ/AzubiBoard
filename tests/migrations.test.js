@@ -13,6 +13,9 @@ describe('migrateData', () => {
     expect(next.activityLog).toEqual([]);
     // Migration 4: quizzes initialisiert
     expect(Array.isArray(next.quizzes)).toBe(true);
+    // Migration 5: learningPaths + pathProgress initialisiert
+    expect(Array.isArray(next.learningPaths)).toBe(true);
+    expect(typeof next.pathProgress).toBe('object');
   });
 
   it('v2 → v5: v3, v4 und v5 laufen', () => {
@@ -28,6 +31,7 @@ describe('migrateData', () => {
     expect(next.projects[0].tasks[0].id).toMatch(/^task_legacy_/);
     expect(next.projects[0].tasks[1].id).toBe('has-id');
     expect(next.reports[0].updated_at).toBeTruthy();
+    expect(Array.isArray(next.learningPaths)).toBe(true);
   });
 
   it('Bereits aktuelle Version → no-op', () => {
