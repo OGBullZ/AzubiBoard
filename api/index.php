@@ -22,12 +22,15 @@ $sub      = $parts[2] ?? null;
 
 try {
     match($resource) {
-        'auth'  => require __DIR__ . '/routes/auth.php',
-        'data'  => require __DIR__ . '/routes/data.php',
-        'users' => require __DIR__ . '/routes/users.php',
-        'share' => require __DIR__ . '/routes/share.php',
-        'audit' => require __DIR__ . '/routes/audit.php',
-        default => error("Unbekannte Route '$resource'", 404),
+        'auth'     => require __DIR__ . '/routes/auth.php',
+        'data'     => require __DIR__ . '/routes/data.php',
+        'users'    => require __DIR__ . '/routes/users.php',
+        'share'    => require __DIR__ . '/routes/share.php',
+        'audit'    => require __DIR__ . '/routes/audit.php',
+        'projects' => require __DIR__ . '/routes/projects.php',
+        'reports'  => require __DIR__ . '/routes/reports.php',
+        'goals'    => require __DIR__ . '/routes/goals.php',
+        default    => error("Unbekannte Route '$resource'", 404),
     };
 } catch (PDOException $e) {
     // Keine DB-Details nach außen geben
