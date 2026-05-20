@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/php/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         failOnWarning="true">
+    <testsuites>
+        <testsuite name="smoke">
+            <file>tests/php/SmokeTest.php</file>
+        </testsuite>
+        <testsuite name="migration">
+            <file>tests/php/MigrationTest.php</file>
+        </testsuite>
+        <testsuite name="routes">
+            <directory>tests/php/routes</directory>
+        </testsuite>
+        <testsuite name="all">
+            <directory>tests/php</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>api</directory>
+            <directory>database</directory>
+        </include>
+        <exclude>
+            <directory>vendor</directory>
+            <directory>node_modules</directory>
+        </exclude>
+    </source>
+    <php>
+        <env name="APP_ENV" value="test" force="true"/>
+        <env name="DB_NAME" value="azubiboard_test" force="true"/>
+        <env name="JWT_SECRET" value="test-jwt-secret-do-not-use-in-prod-32chars" force="true"/>
+    </php>
+</phpunit>

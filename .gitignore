@@ -41,3 +41,8 @@ playwright-report/
 
 # OneDrive Name-Clash-Files
 **/*Name clash*
+
+# PHP / Composer (Sprint 12 Phase 0)
+vendor/
+.phpunit.cache/
+.phpunit.result.cache

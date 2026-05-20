@@ -1,0 +1,25 @@
+{
+    "name": "ogbullz/azubiboard",
+    "description": "AzubiBoard — PHP-Backend (PHPUnit-Setup für Sprint 12 L5 MySQL-Refactor)",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AzubiBoard\\Tests\\": "tests/php/"
+        }
+    },
+    "scripts": {
+        "test:php": "phpunit --colors=always",
+        "test:php:smoke": "phpunit --colors=always --testsuite=smoke"
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    }
+}
