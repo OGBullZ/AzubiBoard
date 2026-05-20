@@ -1,0 +1,266 @@
+{
+  "schema_version": 5,
+  "_lastMigratedAt": "2026-05-19T11:35:25Z",
+  "_migrationsApplied": [1, 2, 3, 4, 5],
+
+  "projects": [
+    {
+      "id": "proj_abc123",
+      "title": "Azubi-Onboarding 2026",
+      "description": "Strukturierter Onboarding-Pfad für neue Azubis",
+      "user_id": 1,
+      "status": "green",
+      "priority": "high",
+      "start_date": "2026-01-15",
+      "deadline": "2026-06-30",
+      "netzplan_unit": "W",
+      "color": "#4d9de0",
+      "archived": false,
+      "tasks": [
+        {
+          "id": "task_001",
+          "text": "Willkommensgespräch vorbereiten",
+          "status": "done",
+          "priority": "medium",
+          "assigned_to": 1,
+          "due_date": "2026-01-20",
+          "estimated_minutes": 60,
+          "completed_at": "2026-01-19T14:30:00Z",
+          "timeLog": [{"start": "2026-01-19T13:30:00Z", "end": "2026-01-19T14:30:00Z"}]
+        },
+        {
+          "id": "task_002",
+          "title": "Hardware-Checkliste erstellen",
+          "status": "in_progress",
+          "priority": "high",
+          "due_date": "2026-02-01",
+          "note": "Mit IT abstimmen — neue Notebook-Generation"
+        },
+        {
+          "id": "task_003",
+          "text": "Schulungsunterlagen prüfen",
+          "status": "open",
+          "priority": "low"
+        },
+        {
+          "text": "Task ohne ID (Migration v3 erzeugt Fallback)",
+          "done": true,
+          "priority": "medium"
+        }
+      ],
+      "requirements": [
+        {"id": "req_001", "title": "DSGVO-konforme Datenerfassung", "description": "Alle Onboarding-Daten verschlüsselt", "done": true, "priority": "must", "completed_at": "2026-02-01T10:00:00Z"},
+        {"id": "req_002", "title": "Mentor-Zuweisung dokumentiert", "done": false, "priority": "must"},
+        {"id": "req_003", "title": "Feedback-Session nach 4 Wochen", "done": false, "priority": "should"}
+      ],
+      "materials": [
+        {"id": "mat_001", "name": "Notebook Lenovo T14", "quantity": 5, "unit": "Stück", "unit_cost": 1200.0, "supplier": "Bechtle", "ordered": true},
+        {"id": "mat_002", "name": "Headset", "quantity": -2, "unit": "Stück", "unit_cost": 89.0, "ordered": false}
+      ]
+    },
+    {
+      "id": "proj_def456",
+      "title": "IHK-Abschlussprüfung Q2/2026",
+      "user_id": 2,
+      "status": "yellow",
+      "priority": "critical",
+      "deadline": "2026-06-15",
+      "netzplan_unit": "M",
+      "archived": false,
+      "tasks": [
+        {"id": "task_010", "text": "Prüfungsanmeldung absenden", "status": "done", "completed_at": "2026-02-15T09:00:00Z"},
+        {"id": "task_011", "text": "Projektarbeit dokumentieren", "status": "in_progress", "priority": "high"},
+        {"id": "task_012", "text": "Theorie-Vorbereitung", "status": "open"},
+        {"id": "task_013", "text": "Mündliche Prüfung üben", "status": "blocked", "note": "Termin steht erst Mitte Mai fest"}
+      ],
+      "requirements": [
+        {"id": "req_010", "title": "Projektantrag genehmigt", "done": true, "priority": "must"},
+        {"id": "req_011", "title": "Mindestnote 3.0", "done": false, "priority": "must"}
+      ],
+      "materials": []
+    },
+    {
+      "id": "proj_ghi789",
+      "title": "Web-Frontend Refactor",
+      "user_id": 1,
+      "status": "yellow",
+      "priority": "medium",
+      "start_date": "invalid-date-2026",
+      "deadline": null,
+      "tasks": [
+        {"id": "task_020", "text": "React-Komponenten aufräumen", "status": "in_progress"},
+        {"id": "task_021", "text": "Tests schreiben", "status": "open"},
+        {"id": "task_022", "text": "Performance-Profiling", "status": "waiting"}
+      ],
+      "requirements": [
+        {"id": "req_020", "title": "Lighthouse Score > 90", "done": false, "priority": "should"}
+      ],
+      "materials": [
+        {"id": "mat_020", "name": "Software-Lizenz", "quantity": 1, "unit": "Lizenz", "unit_cost": 0}
+      ]
+    },
+    {
+      "id": "proj_jkl012",
+      "title": "Archiviertes Altprojekt",
+      "user_id": 1,
+      "status": "red",
+      "priority": "low",
+      "archived": true,
+      "tasks": [
+        {"id": "task_030", "text": "Wurde nie fertig", "status": "open"}
+      ],
+      "requirements": [],
+      "materials": []
+    },
+    {
+      "id": "proj_mno345",
+      "title": "Minimal-Projekt (nur Pflichtfelder)",
+      "tasks": [],
+      "requirements": [],
+      "materials": []
+    }
+  ],
+
+  "reports": [
+    {
+      "id": "rep_001",
+      "user_id": 1,
+      "reviewer_id": 2,
+      "week_start": "2026-01-12",
+      "week_number": 3,
+      "year": 2026,
+      "title": "KW 3",
+      "activities": "Onboarding-Doku erstellt, erste Tickets bearbeitet",
+      "learnings": "JWT-Auth-Flow verstanden",
+      "status": "signed",
+      "submitted_at": "2026-01-19T10:00:00Z",
+      "reviewed_at": "2026-01-19T15:00:00Z",
+      "signed_at": "2026-01-20T09:00:00Z",
+      "file": {"url": "/uploads/reports/rep_001.pdf", "path": "/uploads/reports/rep_001.pdf"}
+    },
+    {
+      "id": "rep_002",
+      "user_id": 1,
+      "week_start": "2026-01-19",
+      "status": "reviewed",
+      "activities": "Quiz-Modul fertig",
+      "file": "/uploads/reports/rep_002.pdf"
+    },
+    {
+      "id": "rep_003",
+      "user_id": 2,
+      "week_start": "2026-01-19",
+      "status": "submitted",
+      "submitted_at": "2026-01-26T08:00:00Z"
+    },
+    {"id": "rep_004", "user_id": 2, "week_start": "2026-01-26", "status": "draft"},
+    {"id": "rep_005", "user_id": 1, "week_start": "2026-02-02", "status": "draft", "activities": "Sprint 11"},
+    {"id": "rep_006", "user_id": 1, "week_start": "2026-02-09", "status": "submitted", "activities": "Sprint 12 Planung"},
+    {"id": "rep_007", "user_id": 999, "week_start": "2026-02-16", "status": "draft", "activities": "User existiert nicht — Migration muss skippen"},
+    {"id": "rep_008", "user_id": 1, "week_start": null, "status": "draft", "activities": "week_start fehlt — Migration muss skippen"},
+    {"id": "rep_009", "user_id": null, "week_start": "2026-03-02", "status": "draft", "activities": "user_id null — Migration muss skippen"},
+    {"id": "rep_010", "user_id": 2, "week_start": "2026-03-09", "status": "draft"}
+  ],
+
+  "calendarEvents": [
+    {"id": "ev_001", "user_id": 1, "title": "Sprint-Review", "event_date": "2026-02-15", "type": "event"},
+    {"id": "ev_002", "user_id": 1, "title": "IHK-Anmeldung Deadline", "event_date": "2026-03-01", "type": "deadline"},
+    {"id": "ev_003", "user_id": 2, "title": "Ferientag", "event_date": "2026-04-01", "type": "holiday", "all_day": true}
+  ],
+
+  "trash": {
+    "projects": [
+      {"id": "proj_deleted_001", "title": "Gelöschtes Projekt", "deleted_at": "2026-04-15T12:00:00Z"}
+    ],
+    "reports": [
+      {"id": "rep_deleted_001", "user_id": 1, "week_start": "2025-12-01", "deleted_at": "2026-04-15T12:30:00Z"}
+    ],
+    "goals": []
+  },
+
+  "trainingPlan": {
+    "goals": [
+      {"id": "goal_001", "title": "PHP-Grundlagen", "done": true},
+      {"id": "goal_002", "title": "React-Hooks beherrschen", "done": true},
+      {"id": "goal_003", "title": "SQL-Joins flüssig", "done": false},
+      {"id": "goal_004", "title": "REST-API-Design", "done": false},
+      {"id": "goal_005", "title": "Testing-Pyramide verinnerlicht", "done": false}
+    ],
+    "examDate": "2026-06-15"
+  },
+
+  "activityLog": [
+    {"ts": "2026-05-18T08:00:00Z", "user_id": 1, "action": "report.submit", "entity_id": "rep_006"},
+    {"ts": "2026-05-18T09:15:00Z", "user_id": 2, "action": "report.review", "entity_id": "rep_006"},
+    {"ts": "2026-05-19T11:35:00Z", "user_id": 1, "action": "project.create", "entity_id": "proj_mno345"}
+  ],
+
+  "quizzes": [
+    {
+      "id": "quiz_001",
+      "title": "PHP-Grundlagen-Quiz",
+      "description": "Basis-Wissen für die Zwischenprüfung",
+      "difficulty": "easy",
+      "created_by": 2,
+      "questions": [
+        {"id": "q_001", "text": "Welche Funktion startet eine Session?", "type": "single", "answers": [
+          {"text": "session_begin()", "correct": false},
+          {"text": "session_start()", "correct": true},
+          {"text": "start_session()", "correct": false}
+        ]},
+        {"id": "q_002", "text": "Was bedeutet PDO?", "type": "single", "answers": [
+          {"text": "PHP Database Object", "correct": false},
+          {"text": "PHP Data Objects", "correct": true},
+          {"text": "Persistent Data Object", "correct": false}
+        ]},
+        {"id": "q_003", "text": "Welche dieser sind String-Funktionen?", "type": "multiple", "answers": [
+          {"text": "strlen", "correct": true},
+          {"text": "str_replace", "correct": true},
+          {"text": "array_map", "correct": false}
+        ]},
+        {"id": "q_004", "text": "Was macht json_decode mit true als 2. Parameter?", "type": "single", "answers": [
+          {"text": "Validiert nur", "correct": false},
+          {"text": "Gibt assoziatives Array zurück statt Objekt", "correct": true},
+          {"text": "Pretty-Print", "correct": false}
+        ]},
+        {"id": "q_005", "text": "Wann sollte man Prepared Statements nutzen?", "type": "text"}
+      ]
+    }
+  ],
+
+  "learningPaths": [
+    {
+      "id": "path_001",
+      "title": "Backend-Grundlagen",
+      "description": "PHP + MySQL + REST",
+      "nodes": [
+        {"id": "node_001", "title": "PHP-Syntax", "prerequisites": []},
+        {"id": "node_002", "title": "MySQL-Basics", "prerequisites": ["node_001"]},
+        {"id": "node_003", "title": "PDO + Prepared Statements", "prerequisites": ["node_001", "node_002"]},
+        {"id": "node_004", "title": "REST-API mit PHP", "prerequisites": ["node_003"]}
+      ]
+    },
+    {
+      "id": "path_002",
+      "title": "Frontend-Pfad",
+      "nodes": [
+        {"id": "node_010", "title": "HTML/CSS", "prerequisites": []},
+        {"id": "node_011", "title": "JavaScript ES6+", "prerequisites": ["node_010"]},
+        {"id": "node_012", "title": "React-Komponenten", "prerequisites": ["node_011"]}
+      ]
+    }
+  ],
+
+  "pathProgress": {
+    "path_001": {
+      "node_001": "done",
+      "node_002": "done",
+      "node_003": "in_progress",
+      "node_004": "locked"
+    },
+    "path_002": {
+      "node_010": "done",
+      "node_011": "in_progress"
+    }
+  }
+}

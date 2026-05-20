@@ -11,7 +11,8 @@
             <file>tests/php/SmokeTest.php</file>
         </testsuite>
         <testsuite name="migration">
-            <file>tests/php/MigrationTest.php</file>
+            <file>tests/php/MigrationHelpersTest.php</file>
+            <file>tests/php/FixtureTest.php</file>
         </testsuite>
         <testsuite name="routes">
             <directory>tests/php/routes</directory>

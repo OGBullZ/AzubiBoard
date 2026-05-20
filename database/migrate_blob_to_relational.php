@@ -48,6 +48,20 @@ try {
 echo ($dryRun ? "[DRY-RUN] " : "") . "AzubiBoard Blob→Relational Migration\n";
 echo str_repeat("─", 50) . "\n";
 
+// ── Helpers laden (P0-4 Refactor) ─────────────────────────────
+require_once __DIR__ . '/migration_helpers.php';
+
+// ── Pre-Flight: alle Ziel-Tabellen müssen existieren (P0-6) ──
+try {
+    migration_check_required_tables($pdo, [
+        'users', 'groups', 'group_members',
+        'projects', 'project_assignments',
+        'tasks', 'requirements', 'materials', 'reports',
+    ]);
+} catch (RuntimeException $e) {
+    die("FEHLER: " . $e->getMessage() . "\n");
+}
+
 // ── Mapping-Tabelle (Idempotenz) ──────────────────────────────
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS migration_blob_id_map (
@@ -70,36 +84,9 @@ if (json_last_error() !== JSON_ERROR_NONE) die("FEHLER: Blob ist kein gültiges 
 
 $stats = ['projects' => 0, 'tasks' => 0, 'requirements' => 0, 'materials' => 0, 'reports' => 0, 'skipped' => 0];
 
-// ── Hilfsfunktionen ───────────────────────────────────────────
-function mapped_id(PDO $pdo, string $type, string $blobId): ?int {
-    $s = $pdo->prepare('SELECT rel_id FROM migration_blob_id_map WHERE entity_type=? AND blob_id=?');
-    $s->execute([$type, $blobId]);
-    $r = $s->fetchColumn();
-    return $r !== false ? (int)$r : null;
-}
-function register_map(PDO $pdo, string $type, string $blobId, int $relId): void {
-    $pdo->prepare('INSERT IGNORE INTO migration_blob_id_map (entity_type, blob_id, rel_id) VALUES (?,?,?)')
-        ->execute([$type, $blobId, $relId]);
-}
-function resolve_user(PDO $pdo, mixed $blobUserId): ?int {
-    if (!$blobUserId) return null;
-    $id = (int)$blobUserId;
-    if ($id <= 0) return null;
-    $s = $pdo->prepare('SELECT id FROM users WHERE id=? LIMIT 1');
-    $s->execute([$id]);
-    $r = $s->fetchColumn();
-    return $r !== false ? (int)$r : null;
-}
-function safe_date(?string $d): ?string {
-    if (!$d) return null;
-    $t = strtotime($d);
-    return $t ? date('Y-m-d', $t) : null;
-}
-function safe_ts(?string $d): ?string {
-    if (!$d) return null;
-    $t = strtotime($d);
-    return $t ? date('Y-m-d H:i:s', $t) : null;
-}
+// Hilfsfunktionen sind jetzt in database/migration_helpers.php (P0-4 Refactor):
+//   mapped_id, register_map, resolve_user, safe_date, safe_ts,
+//   migration_check_required_tables, resolve_group_for_user, migration_status_or_default
 
 // ── Projekte ──────────────────────────────────────────────────
 echo "\nProjekte...\n";
@@ -116,38 +103,51 @@ foreach ($projects as $p) {
 
     $createdBy = resolve_user($pdo, $p['user_id'] ?? $p['created_by'] ?? null);
     $title     = trim((string)($p['title'] ?? $p['name'] ?? 'Unbenanntes Projekt'));
-    $status    = in_array($p['status'] ?? '', ['green','yellow','red']) ? $p['status'] : 'yellow';
-    $priority  = in_array($p['priority'] ?? '', ['low','medium','high','critical']) ? $p['priority'] : 'medium';
-    $unit      = in_array($p['netzplan_unit'] ?? '', ['W','T','M']) ? $p['netzplan_unit'] : 'W';
+    $status    = migration_status_or_default($p['status'] ?? null, ['green','yellow','red'], 'yellow');
+    $priority  = migration_status_or_default($p['priority'] ?? null, ['low','medium','high','critical'], 'medium');
+    $unit      = migration_status_or_default($p['netzplan_unit'] ?? null, ['W','T','M'], 'W');
     $archived  = !empty($p['archived']) ? 1 : 0;
+    // P0-6 Fix: group_id aus Gruppen-Mitgliedschaft des Erstellers ableiten
+    // (vorher immer NULL → RLS-Bruch für Gruppen-Mitglieder ausser dem Ersteller).
+    $groupId   = resolve_group_for_user($pdo, $createdBy);
 
     if (!$dryRun) {
-        $stmt = $pdo->prepare("
-            INSERT INTO projects
-                (group_id, created_by, title, description, status, priority,
-                 start_date, deadline, netzplan_unit, color, archived)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([
-            null,
-            $createdBy,
-            $title,
-            $p['description'] ?? null,
-            $status,
-            $priority,
-            safe_date($p['start_date'] ?? null),
-            safe_date($p['deadline'] ?? null),
-            $unit,
-            $p['color'] ?? null,
-            $archived,
-        ]);
-        $relProjId = (int)$pdo->lastInsertId();
-        register_map($pdo, 'project', $blobProjId, $relProjId);
+        // P0-6 Fix: Transaktion pro Projekt — alles oder nichts (verhindert
+        // Halbzustand bei Crash mitten in Tasks/Requirements/Materials).
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO projects
+                    (group_id, created_by, title, description, status, priority,
+                     start_date, deadline, netzplan_unit, color, archived)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $groupId,
+                $createdBy,
+                $title,
+                $p['description'] ?? null,
+                $status,
+                $priority,
+                safe_date($p['start_date'] ?? null, "project:{$blobProjId}.start_date"),
+                safe_date($p['deadline']   ?? null, "project:{$blobProjId}.deadline"),
+                $unit,
+                $p['color'] ?? null,
+                $archived,
+            ]);
+            $relProjId = (int)$pdo->lastInsertId();
+            register_map($pdo, 'project', $blobProjId, $relProjId);
 
-        // Projekt-Assignment für den Ersteller
-        if ($createdBy) {
-            $pdo->prepare("INSERT IGNORE INTO project_assignments (project_id, user_id, assigned_by) VALUES (?,?,?)")
-                ->execute([$relProjId, $createdBy, $createdBy]);
+            // Projekt-Assignment für den Ersteller
+            if ($createdBy) {
+                $pdo->prepare("INSERT IGNORE INTO project_assignments (project_id, user_id, assigned_by) VALUES (?,?,?)")
+                    ->execute([$relProjId, $createdBy, $createdBy]);
+            }
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            echo "  ! FEHLER bei project:{$blobProjId} — Rollback: " . $e->getMessage() . "\n";
+            $stats['skipped']++;
+            continue;
         }
     } else {
         $relProjId = 0;
@@ -167,8 +167,8 @@ foreach ($projects as $p) {
 
         $done = !empty($t['done']);
         $rawStatus = $t['status'] ?? ($done ? 'done' : 'open');
-        $taskStatus = in_array($rawStatus, ['open','in_progress','done','blocked','waiting']) ? $rawStatus : ($done ? 'done' : 'open');
-        $taskPrio   = in_array($t['priority'] ?? '', ['low','medium','high']) ? $t['priority'] : 'medium';
+        $taskStatus = migration_status_or_default($rawStatus, ['open','in_progress','done','blocked','waiting'], $done ? 'done' : 'open');
+        $taskPrio   = migration_status_or_default($t['priority'] ?? null, ['low','medium','high'], 'medium');
         $assignedTo = resolve_user($pdo, $t['assigned_to'] ?? null);
 
         if (!$dryRun && $relProjId) {
@@ -179,7 +179,7 @@ foreach ($projects as $p) {
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
             ");
             $completedAt = ($taskStatus === 'done' && !empty($t['completed_at']))
-                ? safe_ts($t['completed_at']) : null;
+                ? safe_ts($t['completed_at'], "task:{$blobTaskId}.completed_at") : null;
             $stmt->execute([
                 $relProjId,
                 $assignedTo,
@@ -191,7 +191,7 @@ foreach ($projects as $p) {
                 $t['protocol'] ?? null,
                 $taskStatus,
                 $taskPrio,
-                safe_date($t['due_date'] ?? null),
+                safe_date($t['due_date'] ?? null, "task:{$blobTaskId}.due_date"),
                 !empty($t['estimated_minutes']) ? (int)$t['estimated_minutes'] : null,
                 $completedAt,
             ]);
@@ -207,7 +207,7 @@ foreach ($projects as $p) {
 
         $reqTitle = trim((string)($r['title'] ?? $r['text'] ?? ''));
         if (!$reqTitle) continue;
-        $prio = in_array($r['priority'] ?? '', ['must','should','could']) ? $r['priority'] : 'must';
+        $prio = migration_status_or_default($r['priority'] ?? null, ['must','should','could'], 'must');
 
         if (!$dryRun && $relProjId) {
             $stmt = $pdo->prepare("
@@ -221,7 +221,7 @@ foreach ($projects as $p) {
                 !empty($r['done']) ? 1 : 0,
                 $prio,
                 $i,
-                !empty($r['done']) ? safe_ts($r['completed_at'] ?? date('Y-m-d H:i:s')) : null,
+                !empty($r['done']) ? safe_ts($r['completed_at'] ?? date('Y-m-d H:i:s'), "req:{$blobReqId}.completed_at") : null,
             ]);
             register_map($pdo, 'requirement', $blobReqId, (int)$pdo->lastInsertId());
         }
@@ -257,6 +257,11 @@ foreach ($projects as $p) {
         }
         $stats['materials']++;
     }
+
+    // P0-6: Commit der Projekt-Transaktion (alles ging gut wenn wir hier ankommen)
+    if (!$dryRun && $pdo->inTransaction()) {
+        $pdo->commit();
+    }
 }
 
 // ── Berichte ──────────────────────────────────────────────────
@@ -278,8 +283,8 @@ foreach ($blob['reports'] ?? [] as $r) {
     }
 
     $rawStatus = $r['status'] ?? 'draft';
-    $repStatus = in_array($rawStatus, ['draft','submitted','reviewed','signed']) ? $rawStatus : 'draft';
-    $weekStart = safe_date($r['week_start'] ?? null);
+    $repStatus = migration_status_or_default($rawStatus, ['draft','submitted','reviewed','signed'], 'draft');
+    $weekStart = safe_date($r['week_start'] ?? null, "report:{$blobRepId}.week_start");
     if (!$weekStart) {
         echo "  SKIP report:{$blobRepId} (kein week_start)\n";
         $stats['skipped']++;
@@ -313,9 +318,9 @@ foreach ($blob['reports'] ?? [] as $r) {
             $r['activities'] ?? null,
             $r['learnings'] ?? null,
             $repStatus,
-            safe_ts($r['submitted_at'] ?? null),
-            safe_ts($r['reviewed_at'] ?? null),
-            safe_ts($r['signed_at'] ?? null),
+            safe_ts($r['submitted_at'] ?? null, "report:{$blobRepId}.submitted_at"),
+            safe_ts($r['reviewed_at']  ?? null, "report:{$blobRepId}.reviewed_at"),
+            safe_ts($r['signed_at']    ?? null, "report:{$blobRepId}.signed_at"),
             $r['review_comment'] ?? $r['reviewer_comment'] ?? null,
             $fileUrl,
             null,
