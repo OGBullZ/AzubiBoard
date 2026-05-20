@@ -36,15 +36,18 @@ Im XAMPP Control Panel:
 
 ### 1.3 PHP-Konfiguration anpassen
 
-Für Datei-Uploads (PDF) muss die Upload-Grenze erhöht werden:
+Für Datei-Uploads (PDF) muss die Upload-Grenze erhöht werden, **und** die `zip`-Extension wird für Composer/PHPUnit benötigt:
 
 1. XAMPP Control Panel → neben **Apache** auf **Config** → **php.ini** öffnen
-2. Diese zwei Zeilen suchen (Strg+F) und anpassen:
+2. Diese drei Zeilen suchen (Strg+F) und anpassen:
    ```
    upload_max_filesize = 15M
    post_max_size = 16M
+   extension=zip            ; Semikolon davor entfernen — war auskommentiert
    ```
 3. Datei speichern → Apache im Control Panel **Stop** dann **Start**
+
+> **Hinweis:** Der Schritt 1.3 entfällt, wenn du `install_server.ps1` ausführst — das Skript erledigt zip-Extension, Composer-Installation und `composer install` automatisch.
 
 ---
 

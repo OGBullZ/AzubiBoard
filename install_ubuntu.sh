@@ -64,8 +64,8 @@ fi
 
 echo ""
 
-# ── 1. Node.js + PHP-MySQL-Erweiterung prüfen ─────────────────
-hdr "1/9 Node.js + PHP-Erweiterungen prüfen"
+# ── 1. Node.js + PHP-Erweiterungen + Composer prüfen ──────────
+hdr "1/9 Node.js + PHP-Erweiterungen + Composer prüfen"
 
 # PHP pdo_mysql prüfen (für Datenbankverbindung zwingend erforderlich)
 if php -r "new PDO('mysql:host=127.0.0.1', 'x', 'x');" 2>&1 | grep -q "could not find driver"; then
@@ -75,6 +75,33 @@ if php -r "new PDO('mysql:host=127.0.0.1', 'x', 'x');" 2>&1 | grep -q "could not
     ok "php${PHP_VER}-mysql installiert"
 else
     ok "PHP pdo_mysql: vorhanden"
+fi
+
+# PHP zip + mbstring + xml prüfen (Composer + PHPUnit brauchen das)
+PHP_VER=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+for ext in zip mbstring xml; do
+    if ! php -m | grep -qi "^${ext}$"; then
+        info "PHP ${ext}-Extension nicht gefunden – wird installiert..."
+        apt-get install -y "php${PHP_VER}-${ext}" > /dev/null 2>&1
+        ok "php${PHP_VER}-${ext} installiert"
+    else
+        ok "PHP ${ext}: vorhanden"
+    fi
+done
+
+# Composer prüfen (für PHP-Dependencies wie PHPUnit)
+if command -v composer &> /dev/null; then
+    ok "Composer bereits installiert: $(composer --version | head -1)"
+else
+    info "Composer wird installiert..."
+    apt-get install -y composer > /dev/null 2>&1
+    if command -v composer &> /dev/null; then
+        ok "Composer installiert"
+    else
+        info "⚠ Composer apt-Install fehlgeschlagen, fallback auf getcomposer.org..."
+        curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer > /dev/null 2>&1
+        ok "Composer installiert (/usr/local/bin/composer)"
+    fi
 fi
 
 if command -v node &> /dev/null; then
@@ -87,8 +114,8 @@ else
     ok "Node.js $(node -v) installiert"
 fi
 
-# ── 2. Frontend bauen ─────────────────────────────────────────
-hdr "2/9 Frontend bauen"
+# ── 2. Frontend + PHP-Dependencies bauen ──────────────────────
+hdr "2/9 Frontend + PHP-Dependencies bauen"
 info "npm install..."
 cd "$REPO_DIR"
 npm ci --silent
@@ -96,6 +123,25 @@ npm ci --silent
 info "npm run build..."
 VITE_BASE_PATH=/azubiboard/ VITE_USE_API=true npm run build > /dev/null 2>&1
 ok "Build erfolgreich (dist/ erstellt)"
+
+# composer install — für PHPUnit + zukünftige PHP-Pakete (vendor/ ist gitignored)
+if [ -f "$REPO_DIR/composer.json" ]; then
+    info "composer install..."
+    composer install --no-interaction --prefer-dist --no-progress > /dev/null 2>&1 \
+        && ok "PHP-Dependencies installiert (vendor/)" \
+        || info "⚠ composer install fehlgeschlagen — manuell nachholen: cd $REPO_DIR && composer install"
+
+    # Smoke-Test: phpunit findet die Konfig und läuft
+    if [ -x "$REPO_DIR/vendor/bin/phpunit" ]; then
+        if "$REPO_DIR/vendor/bin/phpunit" --testsuite=smoke > /dev/null 2>&1; then
+            ok "PHPUnit Smoke-Test grün"
+        else
+            info "⚠ PHPUnit Smoke-Test fehlgeschlagen — manuell prüfen: vendor/bin/phpunit --testsuite=smoke"
+        fi
+    fi
+else
+    ok "Keine composer.json gefunden — PHP-Dependencies übersprungen"
+fi
 
 # ── 3. Dateien deployen ───────────────────────────────────────
 hdr "3/9 Dateien deployen"

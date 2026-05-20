@@ -22,7 +22,7 @@ Write-Host "======================================" -ForegroundColor Cyan
 Write-Host ""
 
 # ── 1. XAMPP prüfen ──────────────────────────────────────────
-Write-Host "[1/6] XAMPP prüfen..." -ForegroundColor Yellow
+Write-Host "[1/7] XAMPP prüfen..." -ForegroundColor Yellow
 if (-not (Test-Path $xamppPath)) {
     Write-Host "FEHLER: XAMPP nicht gefunden unter $xamppPath" -ForegroundColor Red
     Write-Host "Bitte XAMPP installieren von https://www.apachefriends.org" -ForegroundColor Red
@@ -35,7 +35,7 @@ if (-not (Test-Path $mysqlExe)) {
 Write-Host "  XAMPP gefunden: OK" -ForegroundColor Green
 
 # ── 2. App-Dateien prüfen ────────────────────────────────────
-Write-Host "[2/6] App-Dateien prüfen..." -ForegroundColor Yellow
+Write-Host "[2/7] App-Dateien prüfen..." -ForegroundColor Yellow
 if (-not (Test-Path "$appPath\index.html")) {
     Write-Host "FEHLER: App-Dateien nicht gefunden unter $appPath" -ForegroundColor Red
     Write-Host "Bitte zuerst alle Dateien nach C:\xampp\htdocs\azubiboard\ kopieren." -ForegroundColor Red
@@ -48,8 +48,78 @@ if (-not (Test-Path "$appPath\.env")) {
 }
 Write-Host "  App-Dateien: OK" -ForegroundColor Green
 
-# ── 3. uploads/-Ordner anlegen & Rechte setzen ───────────────
-Write-Host "[3/6] Uploads-Ordner einrichten..." -ForegroundColor Yellow
+# ── 3. PHP-Setup: zip-Extension + Composer + Dependencies ────
+Write-Host "[3/7] PHP-Setup (zip-Extension + Composer)..." -ForegroundColor Yellow
+$phpIni    = "$xamppPath\php\php.ini"
+$phpExe    = "$xamppPath\php\php.exe"
+$composer  = "$xamppPath\php\composer"
+$composerB = "$xamppPath\php\composer.bat"
+
+# 3a) zip-Extension aktivieren (Composer braucht das für --prefer-dist)
+if (Test-Path $phpIni) {
+    $ini = Get-Content $phpIni -Raw
+    if ($ini -match '(?m)^;extension=zip\s*$') {
+        $ini = $ini -replace '(?m)^;extension=zip\s*$', 'extension=zip'
+        Set-Content -Path $phpIni -Value $ini -Encoding UTF8
+        Write-Host "  php.ini: extension=zip aktiviert" -ForegroundColor Green
+    } elseif ($ini -match '(?m)^extension=zip\s*$') {
+        Write-Host "  php.ini: extension=zip bereits aktiv" -ForegroundColor Green
+    } else {
+        Add-Content -Path $phpIni -Value "`nextension=zip"
+        Write-Host "  php.ini: extension=zip ergänzt" -ForegroundColor Green
+    }
+} else {
+    Write-Host "  WARNUNG: $phpIni nicht gefunden — PHP-Setup übersprungen" -ForegroundColor Yellow
+}
+
+# 3b) Composer installieren wenn nicht vorhanden
+if (-not (Test-Path $composer)) {
+    Write-Host "  Composer wird installiert..." -ForegroundColor Yellow
+    $setup = "$env:TEMP\composer-setup.php"
+    try {
+        Invoke-WebRequest -Uri "https://getcomposer.org/installer" -OutFile $setup -UseBasicParsing -ErrorAction Stop
+        & $phpExe $setup --install-dir="$xamppPath\php" --filename=composer 2>&1 | Out-Null
+        Remove-Item $setup -ErrorAction SilentlyContinue
+        # .bat-Wrapper für komfortablen Aufruf
+        Set-Content -Path $composerB -Value "@echo off`r`n`"$phpExe`" `"%~dp0composer`" %*" -Encoding ASCII
+        Write-Host "  Composer installiert: $composer" -ForegroundColor Green
+    } catch {
+        Write-Host "  WARNUNG: Composer-Install fehlgeschlagen: $_" -ForegroundColor Yellow
+        Write-Host "  PHP-Dependencies (PHPUnit für Tests) werden übersprungen." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  Composer bereits installiert" -ForegroundColor Green
+}
+
+# 3c) composer install ausführen wenn composer.json existiert
+if ((Test-Path $composer) -and (Test-Path "$appPath\composer.json")) {
+    Write-Host "  composer install läuft..." -ForegroundColor Yellow
+    Push-Location $appPath
+    try {
+        & $phpExe $composer install --no-interaction --prefer-dist 2>&1 | Out-Null
+        if (Test-Path "$appPath\vendor\bin\phpunit") {
+            Write-Host "  PHP-Dependencies installiert (PHPUnit verfügbar)" -ForegroundColor Green
+            # Smoke-Test: phpunit findet Konfig und läuft
+            $smoke = & $phpExe "$appPath\vendor\phpunit\phpunit\phpunit" --testsuite=smoke 2>&1 | Out-String
+            if ($smoke -match 'OK \(\d+ tests') {
+                Write-Host "  PHPUnit Smoke-Test: OK" -ForegroundColor Green
+            } else {
+                Write-Host "  Hinweis: PHPUnit Smoke-Test nicht eindeutig — manuell prüfen: cd $appPath; vendor\bin\phpunit --testsuite=smoke" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "  WARNUNG: composer install lief, aber vendor\bin\phpunit fehlt" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  WARNUNG: composer install fehlgeschlagen: $_" -ForegroundColor Yellow
+    } finally {
+        Pop-Location
+    }
+} elseif (Test-Path "$appPath\composer.json") {
+    Write-Host "  composer.json gefunden, aber Composer nicht verfügbar — übersprungen" -ForegroundColor Yellow
+}
+
+# ── 4. uploads/-Ordner anlegen & Rechte setzen ───────────────
+Write-Host "[4/7] Uploads-Ordner einrichten..." -ForegroundColor Yellow
 $uploadsPath = "$appPath\uploads"
 if (-not (Test-Path $uploadsPath)) {
     New-Item -ItemType Directory -Path $uploadsPath | Out-Null
@@ -67,7 +137,7 @@ try {
 Write-Host "  uploads/ Ordner: OK" -ForegroundColor Green
 
 # ── 4. Datenbank einrichten ───────────────────────────────────
-Write-Host "[4/6] Datenbank einrichten..." -ForegroundColor Yellow
+Write-Host "[5/7] Datenbank einrichten..." -ForegroundColor Yellow
 
 # DB-Passwort aus .env lesen
 $envContent = Get-Content "$appPath\.env" | Where-Object { $_ -match "^DB_PASS=" }
@@ -110,7 +180,7 @@ if (-not (Test-Path $setupSql)) {
 }
 
 # ── 5. Apache konfigurieren ────────────────────────────────────
-Write-Host "[5/6] Apache konfigurieren..." -ForegroundColor Yellow
+Write-Host "[6/7] Apache konfigurieren..." -ForegroundColor Yellow
 if (-not (Test-Path $apacheConf)) {
     Write-Host "  WARNUNG: httpd.conf nicht gefunden — Apache manuell konfigurieren." -ForegroundColor Yellow
 } else {
@@ -152,7 +222,7 @@ if (-not (Test-Path $apacheConf)) {
 }
 
 # ── 6. Apache neu starten ─────────────────────────────────────
-Write-Host "[6/6] Apache neu starten..." -ForegroundColor Yellow
+Write-Host "[7/7] Apache neu starten..." -ForegroundColor Yellow
 try {
     $apache = Get-Service -Name "Apache*" -ErrorAction SilentlyContinue
     if ($apache) {
