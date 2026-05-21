@@ -13,6 +13,7 @@
         <testsuite name="migration">
             <file>tests/php/MigrationHelpersTest.php</file>
             <file>tests/php/FixtureTest.php</file>
+            <file>tests/php/SchemaPhase2Test.php</file>
         </testsuite>
         <testsuite name="routes">
             <directory>tests/php/routes</directory>

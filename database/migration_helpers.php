@@ -106,6 +106,165 @@ if (!function_exists('migration_check_required_tables')) {
     }
 }
 
+if (!function_exists('apply_phase2_schema')) {
+    /**
+     * Sprint 12 Phase 2 — Schema-Erweiterung idempotent anwenden.
+     *
+     * Driver-aware: MariaDB nutzt die kanonische sprint12_phase2.sql,
+     * SQLite (Tests) bekommt eine portierte Variante ohne FK-Constraints
+     * gegen MySQL-Spezifika.
+     *
+     * Source-of-truth für Produktion: database/migrations/sprint12_phase2.sql
+     * Diese Funktion existiert primär, damit PHPUnit-Tests gegen In-Memory-SQLite
+     * fahren können — Produktion sollte mysql < sprint12_phase2.sql nutzen.
+     *
+     * @return string[] Liste der ausgeführten DDL-Schritte (für Logging)
+     */
+    function apply_phase2_schema(PDO $pdo): array {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $log = [];
+
+        $exec = function(string $sql, string $label) use ($pdo, &$log): void {
+            try {
+                $pdo->exec($sql);
+                $log[] = "OK: $label";
+            } catch (PDOException $e) {
+                // Idempotenz: "already exists" / "duplicate column" tolerieren.
+                $msg = $e->getMessage();
+                $ignorable = preg_match('/already exists|duplicate column|duplicate key name/i', $msg);
+                if ($ignorable) {
+                    $log[] = "SKIP: $label (already applied)";
+                } else {
+                    throw $e;
+                }
+            }
+        };
+
+        // ---- learning_paths ----
+        if ($driver === 'sqlite') {
+            $exec("CREATE TABLE IF NOT EXISTS learning_paths (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_by INTEGER,
+                title TEXT NOT NULL,
+                description TEXT,
+                lehrjahr INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )", 'learning_paths');
+            $exec("CREATE TABLE IF NOT EXISTS learning_path_nodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path_id INTEGER NOT NULL REFERENCES learning_paths(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                description TEXT,
+                type TEXT NOT NULL DEFAULT 'article' CHECK (type IN ('article','link','quiz','task')),
+                content TEXT,
+                sort_order INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )", 'learning_path_nodes');
+            $exec("CREATE TABLE IF NOT EXISTS learning_path_edges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path_id INTEGER NOT NULL REFERENCES learning_paths(id) ON DELETE CASCADE,
+                from_node INTEGER NOT NULL REFERENCES learning_path_nodes(id) ON DELETE CASCADE,
+                to_node INTEGER NOT NULL REFERENCES learning_path_nodes(id) ON DELETE CASCADE,
+                UNIQUE(path_id, from_node, to_node)
+            )", 'learning_path_edges');
+            $exec("CREATE TABLE IF NOT EXISTS learning_path_progress (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                node_id INTEGER NOT NULL REFERENCES learning_path_nodes(id) ON DELETE CASCADE,
+                completed INTEGER NOT NULL DEFAULT 0,
+                completed_at TEXT,
+                UNIQUE(user_id, node_id)
+            )", 'learning_path_progress');
+        } else {
+            // MariaDB/MySQL — exakt die Statements aus sprint12_phase2.sql.
+            $exec("CREATE TABLE IF NOT EXISTS `learning_paths` (
+                `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `created_by` int(10) UNSIGNED DEFAULT NULL,
+                `title` varchar(255) NOT NULL,
+                `description` text DEFAULT NULL,
+                `lehrjahr` tinyint(3) UNSIGNED DEFAULT NULL,
+                `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+                `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+                PRIMARY KEY (`id`),
+                KEY `idx_lp_lehrjahr` (`lehrjahr`),
+                KEY `idx_lp_created_by` (`created_by`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'learning_paths');
+            $exec("CREATE TABLE IF NOT EXISTS `learning_path_nodes` (
+                `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `path_id` int(10) UNSIGNED NOT NULL,
+                `title` varchar(255) NOT NULL,
+                `description` text DEFAULT NULL,
+                `type` enum('article','link','quiz','task') NOT NULL DEFAULT 'article',
+                `content` text DEFAULT NULL,
+                `sort_order` smallint(5) UNSIGNED DEFAULT 0,
+                `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+                `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+                PRIMARY KEY (`id`),
+                KEY `idx_lpn_path` (`path_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'learning_path_nodes');
+            $exec("CREATE TABLE IF NOT EXISTS `learning_path_edges` (
+                `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `path_id` int(10) UNSIGNED NOT NULL,
+                `from_node` int(10) UNSIGNED NOT NULL,
+                `to_node` int(10) UNSIGNED NOT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uq_lp_edge` (`path_id`,`from_node`,`to_node`),
+                KEY `idx_lpe_from` (`from_node`),
+                KEY `idx_lpe_to` (`to_node`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'learning_path_edges');
+            $exec("CREATE TABLE IF NOT EXISTS `learning_path_progress` (
+                `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `user_id` int(10) UNSIGNED NOT NULL,
+                `node_id` int(10) UNSIGNED NOT NULL,
+                `completed` tinyint(1) NOT NULL DEFAULT 0,
+                `completed_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uq_lpp_user_node` (`user_id`,`node_id`),
+                KEY `idx_lpp_node` (`node_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'learning_path_progress');
+        }
+
+        // ---- Soft-Delete ----
+        foreach (['projects', 'reports', 'requirements'] as $tbl) {
+            if ($driver === 'sqlite') {
+                if (!_phase2_sqlite_column_exists($pdo, $tbl, 'deleted_at')) {
+                    $exec("ALTER TABLE $tbl ADD COLUMN deleted_at TEXT", "$tbl.deleted_at");
+                } else {
+                    $log[] = "SKIP: $tbl.deleted_at (already applied)";
+                }
+            } else {
+                $exec("ALTER TABLE `$tbl` ADD COLUMN `deleted_at` timestamp NULL DEFAULT NULL", "$tbl.deleted_at");
+                $exec("ALTER TABLE `$tbl` ADD INDEX `idx_{$tbl}_deleted` (`deleted_at`)", "$tbl idx_deleted");
+            }
+        }
+
+        // ---- users.training_plan ----
+        if ($driver === 'sqlite') {
+            if (!_phase2_sqlite_column_exists($pdo, 'users', 'training_plan')) {
+                $exec("ALTER TABLE users ADD COLUMN training_plan TEXT", 'users.training_plan');
+            } else {
+                $log[] = 'SKIP: users.training_plan (already applied)';
+            }
+        } else {
+            $exec("ALTER TABLE `users` ADD COLUMN `training_plan` JSON DEFAULT NULL", 'users.training_plan');
+        }
+
+        return $log;
+    }
+}
+
+if (!function_exists('_phase2_sqlite_column_exists')) {
+    function _phase2_sqlite_column_exists(PDO $pdo, string $table, string $column): bool {
+        $s = $pdo->query("PRAGMA table_info($table)");
+        foreach ($s->fetchAll(PDO::FETCH_ASSOC) as $col) {
+            if ($col['name'] === $column) return true;
+        }
+        return false;
+    }
+}
+
 if (!function_exists('resolve_group_for_user')) {
     /**
      * P0-6 Fix: holt die erste Gruppe (Lerngruppe bevorzugt) eines Users für group_id-Mapping.
