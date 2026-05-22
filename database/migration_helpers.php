@@ -20,7 +20,11 @@ if (!function_exists('mapped_id')) {
 
 if (!function_exists('register_map')) {
     function register_map(PDO $pdo, string $type, string $blobId, int $relId): void {
-        $pdo->prepare('INSERT IGNORE INTO migration_blob_id_map (entity_type, blob_id, rel_id) VALUES (?,?,?)')
+        // Driver-aware INSERT-IGNORE: MySQL hat "INSERT IGNORE", SQLite "INSERT OR IGNORE".
+        $verb = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+            ? 'INSERT OR IGNORE'
+            : 'INSERT IGNORE';
+        $pdo->prepare("$verb INTO migration_blob_id_map (entity_type, blob_id, rel_id) VALUES (?,?,?)")
             ->execute([$type, $blobId, $relId]);
     }
 }
@@ -282,5 +286,420 @@ if (!function_exists('resolve_group_for_user')) {
         $s->execute([$userId]);
         $r = $s->fetchColumn();
         return $r !== false ? (int)$r : null;
+    }
+}
+
+if (!function_exists('migration_insert_ignore_verb')) {
+    /**
+     * Driver-aware INSERT-IGNORE-Prefix.
+     * MySQL/MariaDB: "INSERT IGNORE"   →  ignoriert UNIQUE-Violations
+     * SQLite:        "INSERT OR IGNORE" →  selbe Semantik
+     */
+    function migration_insert_ignore_verb(PDO $pdo): string {
+        return $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+            ? 'INSERT OR IGNORE'
+            : 'INSERT IGNORE';
+    }
+}
+
+// ============================================================
+//  P2-2: migrate_* Funktionen pro Entität.
+//
+//  Jede Funktion ist idempotent über migration_blob_id_map ODER
+//  über natürliche UNIQUE-Constraints (Edges/Progress).
+//  Alle Funktionen sind PDO-driver-agnostisch (MySQL+SQLite) damit
+//  PHPUnit-Tests in-memory laufen können.
+// ============================================================
+
+if (!function_exists('migrate_quizzes')) {
+    /**
+     * `data.quizzes[]` → `quizzes` + `quiz_questions` + `quiz_answers`.
+     * Idempotent via migration_blob_id_map (entity_type: quiz/quiz_question/quiz_answer).
+     * Answer-Keys: "{question_blob_id}:answer:{i}" (Fixture liefert keine Answer-IDs).
+     */
+    function migrate_quizzes(PDO $pdo, array $quizzes, bool $dryRun = false): array {
+        $stats = ['quizzes' => 0, 'quiz_questions' => 0, 'quiz_answers' => 0, 'skipped' => 0];
+        foreach ($quizzes as $q) {
+            $blobId = (string)($q['id'] ?? '');
+            if (!$blobId) { $stats['skipped']++; continue; }
+            if (mapped_id($pdo, 'quiz', $blobId)) { $stats['skipped']++; continue; }
+
+            $createdBy = resolve_user($pdo, $q['created_by'] ?? $q['user_id'] ?? null);
+            if (!$createdBy) { $stats['skipped']++; continue; }
+
+            $title = trim((string)($q['title'] ?? ''));
+            if (!$title) { $stats['skipped']++; continue; }
+
+            $difficulty = migration_status_or_default($q['difficulty'] ?? null, ['easy','medium','hard'], 'medium');
+
+            $relQuizId = 0;
+            if (!$dryRun) {
+                $pdo->beginTransaction();
+                try {
+                    $stmt = $pdo->prepare(
+                        "INSERT INTO quizzes (created_by, title, description, difficulty, time_limit_sec, is_public)
+                         VALUES (?,?,?,?,?,?)"
+                    );
+                    $stmt->execute([
+                        $createdBy,
+                        $title,
+                        $q['description'] ?? null,
+                        $difficulty,
+                        !empty($q['time_limit_sec']) ? (int)$q['time_limit_sec'] : null,
+                        !empty($q['is_public']) || !isset($q['is_public']) ? 1 : 0,
+                    ]);
+                    $relQuizId = (int)$pdo->lastInsertId();
+                    register_map($pdo, 'quiz', $blobId, $relQuizId);
+
+                    foreach ($q['questions'] ?? [] as $qi => $question) {
+                        $qBlobId = (string)($question['id'] ?? "{$blobId}:q:{$qi}");
+                        if (mapped_id($pdo, 'quiz_question', $qBlobId)) { $stats['skipped']++; continue; }
+                        $qText = trim((string)($question['text'] ?? $question['question_text'] ?? ''));
+                        if (!$qText) { $stats['skipped']++; continue; }
+                        $qType = migration_status_or_default($question['type'] ?? null, ['single','multiple','text'], 'single');
+
+                        $stmt = $pdo->prepare(
+                            "INSERT INTO quiz_questions (quiz_id, question_text, question_type, explanation, points, sort_order)
+                             VALUES (?,?,?,?,?,?)"
+                        );
+                        $stmt->execute([
+                            $relQuizId,
+                            $qText,
+                            $qType,
+                            $question['explanation'] ?? null,
+                            isset($question['points']) ? max(1, (int)$question['points']) : 1,
+                            $qi,
+                        ]);
+                        $relQuestionId = (int)$pdo->lastInsertId();
+                        register_map($pdo, 'quiz_question', $qBlobId, $relQuestionId);
+                        $stats['quiz_questions']++;
+
+                        foreach ($question['answers'] ?? [] as $ai => $answer) {
+                            $aBlobId = "{$qBlobId}:answer:{$ai}";
+                            if (mapped_id($pdo, 'quiz_answer', $aBlobId)) { $stats['skipped']++; continue; }
+                            $aText = trim((string)($answer['text'] ?? $answer['answer_text'] ?? ''));
+                            if ($aText === '') { $stats['skipped']++; continue; }
+                            $stmt = $pdo->prepare(
+                                "INSERT INTO quiz_answers (question_id, answer_text, is_correct, sort_order)
+                                 VALUES (?,?,?,?)"
+                            );
+                            $stmt->execute([
+                                $relQuestionId,
+                                $aText,
+                                !empty($answer['correct']) || !empty($answer['is_correct']) ? 1 : 0,
+                                $ai,
+                            ]);
+                            register_map($pdo, 'quiz_answer', $aBlobId, (int)$pdo->lastInsertId());
+                            $stats['quiz_answers']++;
+                        }
+                    }
+                    $pdo->commit();
+                } catch (\Throwable $e) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    error_log("[migration] migrate_quizzes rollback for quiz:{$blobId}: " . $e->getMessage());
+                    $stats['skipped']++;
+                    continue;
+                }
+            }
+            $stats['quizzes']++;
+        }
+        return $stats;
+    }
+}
+
+if (!function_exists('migrate_learning_paths')) {
+    /**
+     * `data.learningPaths[]` + `data.pathProgress` → 4 P2-1-Tabellen.
+     * Edges aus node.prerequisites[] (jeder Prereq → Edge from→to).
+     * Progress: nur "done" wird übernommen (completed=1, completed_at=now).
+     *           "in_progress"/"locked" werden NICHT als Progress-Row angelegt
+     *           (Progress repräsentiert Abschluss, nicht Status).
+     */
+    function migrate_learning_paths(PDO $pdo, array $paths, array $progress, bool $dryRun = false): array {
+        $stats = [
+            'learning_paths' => 0, 'learning_path_nodes' => 0,
+            'learning_path_edges' => 0, 'learning_path_progress' => 0,
+            'skipped' => 0,
+        ];
+        $ignoreVerb = migration_insert_ignore_verb($pdo);
+
+        foreach ($paths as $p) {
+            $blobId = (string)($p['id'] ?? '');
+            if (!$blobId) { $stats['skipped']++; continue; }
+            if (mapped_id($pdo, 'learning_path', $blobId)) { $stats['skipped']++; continue; }
+
+            $title = trim((string)($p['title'] ?? ''));
+            if (!$title) { $stats['skipped']++; continue; }
+
+            $createdBy = resolve_user($pdo, $p['created_by'] ?? $p['user_id'] ?? null);
+
+            if (!$dryRun) {
+                $pdo->beginTransaction();
+                try {
+                    $stmt = $pdo->prepare(
+                        "INSERT INTO learning_paths (created_by, title, description, lehrjahr)
+                         VALUES (?,?,?,?)"
+                    );
+                    $stmt->execute([
+                        $createdBy,
+                        $title,
+                        $p['description'] ?? null,
+                        !empty($p['lehrjahr']) ? (int)$p['lehrjahr'] : null,
+                    ]);
+                    $relPathId = (int)$pdo->lastInsertId();
+                    register_map($pdo, 'learning_path', $blobId, $relPathId);
+
+                    // Pass 1: Nodes anlegen, blobId→relId merken (für Edges)
+                    foreach ($p['nodes'] ?? [] as $ni => $node) {
+                        $nBlobId = (string)($node['id'] ?? "{$blobId}:node:{$ni}");
+                        if (mapped_id($pdo, 'learning_path_node', $nBlobId)) { $stats['skipped']++; continue; }
+                        $nTitle = trim((string)($node['title'] ?? ''));
+                        if (!$nTitle) { $stats['skipped']++; continue; }
+                        $nType = migration_status_or_default($node['type'] ?? null, ['article','link','quiz','task'], 'article');
+
+                        $stmt = $pdo->prepare(
+                            "INSERT INTO learning_path_nodes (path_id, title, description, type, content, sort_order)
+                             VALUES (?,?,?,?,?,?)"
+                        );
+                        $stmt->execute([
+                            $relPathId,
+                            $nTitle,
+                            $node['description'] ?? null,
+                            $nType,
+                            $node['content'] ?? null,
+                            $ni,
+                        ]);
+                        register_map($pdo, 'learning_path_node', $nBlobId, (int)$pdo->lastInsertId());
+                        $stats['learning_path_nodes']++;
+                    }
+
+                    // Pass 2: Edges aus prerequisites
+                    foreach ($p['nodes'] ?? [] as $node) {
+                        $toBlobId = (string)($node['id'] ?? '');
+                        if (!$toBlobId) continue;
+                        $toRelId = mapped_id($pdo, 'learning_path_node', $toBlobId);
+                        if (!$toRelId) continue;
+                        foreach ($node['prerequisites'] ?? [] as $preBlobId) {
+                            $fromRelId = mapped_id($pdo, 'learning_path_node', (string)$preBlobId);
+                            if (!$fromRelId) continue;
+                            $stmt = $pdo->prepare(
+                                "$ignoreVerb INTO learning_path_edges (path_id, from_node, to_node)
+                                 VALUES (?,?,?)"
+                            );
+                            $stmt->execute([$relPathId, $fromRelId, $toRelId]);
+                            if ($stmt->rowCount() > 0) $stats['learning_path_edges']++;
+                        }
+                    }
+
+                    $pdo->commit();
+                } catch (\Throwable $e) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    error_log("[migration] migrate_learning_paths rollback for path:{$blobId}: " . $e->getMessage());
+                    $stats['skipped']++;
+                    continue;
+                }
+            }
+            $stats['learning_paths']++;
+        }
+
+        // Progress (separat, da pathProgress global ist) — nur "done" wird übernommen.
+        if (!$dryRun) {
+            foreach ($progress as $pathBlobId => $nodes) {
+                if (!is_array($nodes)) continue;
+                foreach ($nodes as $nodeBlobId => $state) {
+                    if ($state !== 'done') continue;
+                    $nodeRelId = mapped_id($pdo, 'learning_path_node', (string)$nodeBlobId);
+                    if (!$nodeRelId) continue;
+                    // Progress ist user-spezifisch — Blob hat keinen User, deshalb
+                    // alle Azubi-Rollen mit done markieren. In Praxis ist das
+                    // typischerweise 1 User (Single-Azubi-Setup).
+                    $users = $pdo->query("SELECT id FROM users WHERE role IN ('azubi','mentor','ausbilder')")
+                        ->fetchAll(PDO::FETCH_COLUMN);
+                    if (!$users) $users = $pdo->query("SELECT id FROM users")->fetchAll(PDO::FETCH_COLUMN);
+                    foreach ($users as $uid) {
+                        $stmt = $pdo->prepare(
+                            "$ignoreVerb INTO learning_path_progress (user_id, node_id, completed, completed_at)
+                             VALUES (?,?,1, " . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+                                ? "datetime('now')"
+                                : "CURRENT_TIMESTAMP") . ")"
+                        );
+                        $stmt->execute([(int)$uid, $nodeRelId]);
+                        if ($stmt->rowCount() > 0) $stats['learning_path_progress']++;
+                    }
+                }
+            }
+        }
+
+        return $stats;
+    }
+}
+
+if (!function_exists('migrate_calendar_events')) {
+    /**
+     * `data.calendarEvents[]` → `calendar_events`.
+     * Idempotent via migration_blob_id_map (entity_type: calendar_event).
+     */
+    function migrate_calendar_events(PDO $pdo, array $events, bool $dryRun = false): array {
+        $stats = ['calendar_events' => 0, 'skipped' => 0];
+        foreach ($events as $ev) {
+            $blobId = (string)($ev['id'] ?? '');
+            if (!$blobId) { $stats['skipped']++; continue; }
+            if (mapped_id($pdo, 'calendar_event', $blobId)) { $stats['skipped']++; continue; }
+
+            $userId = resolve_user($pdo, $ev['user_id'] ?? null);
+            if (!$userId) { $stats['skipped']++; continue; }
+
+            $title = trim((string)($ev['title'] ?? ''));
+            $eventDate = safe_date($ev['event_date'] ?? $ev['date'] ?? null, "calendar_event:{$blobId}.event_date");
+            if (!$title || !$eventDate) { $stats['skipped']++; continue; }
+
+            $type = migration_status_or_default($ev['type'] ?? null, ['event','deadline','reminder','untis','holiday'], 'event');
+
+            if (!$dryRun) {
+                $stmt = $pdo->prepare(
+                    "INSERT INTO calendar_events
+                        (user_id, project_id, title, description, event_date, start_time, end_time,
+                         all_day, type, color, source, external_id)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+                );
+                $stmt->execute([
+                    $userId,
+                    !empty($ev['project_id']) ? (int)$ev['project_id'] : null,
+                    $title,
+                    $ev['description'] ?? null,
+                    $eventDate,
+                    $ev['start_time'] ?? null,
+                    $ev['end_time'] ?? null,
+                    !empty($ev['all_day']) || empty($ev['start_time']) ? 1 : 0,
+                    $type,
+                    $ev['color'] ?? null,
+                    $ev['source'] ?? 'manual',
+                    $ev['external_id'] ?? null,
+                ]);
+                register_map($pdo, 'calendar_event', $blobId, (int)$pdo->lastInsertId());
+            }
+            $stats['calendar_events']++;
+        }
+        return $stats;
+    }
+}
+
+if (!function_exists('migrate_training_plan')) {
+    /**
+     * `data.trainingPlan` (global Single-Object) → `users.training_plan` JSON.
+     * Wird auf ALLE Azubi-User geschrieben (Single-Tenant-Setup üblich).
+     * Idempotent über entity_type='training_plan' mit blob_id='global'.
+     */
+    function migrate_training_plan(PDO $pdo, ?array $plan, bool $dryRun = false): array {
+        $stats = ['training_plan_users' => 0, 'skipped' => 0];
+        if (!$plan) { $stats['skipped']++; return $stats; }
+        if (mapped_id($pdo, 'training_plan', 'global')) { $stats['skipped']++; return $stats; }
+
+        if (!$dryRun) {
+            $azubis = $pdo->query("SELECT id FROM users WHERE role = 'azubi'")->fetchAll(PDO::FETCH_COLUMN);
+            if (!$azubis) {
+                // Fallback: kein Azubi → 1. User (Single-User-Setup ohne Rollen)
+                $azubis = $pdo->query("SELECT id FROM users ORDER BY id ASC LIMIT 1")->fetchAll(PDO::FETCH_COLUMN);
+            }
+            $json = json_encode($plan, JSON_UNESCAPED_UNICODE);
+            foreach ($azubis as $uid) {
+                $pdo->prepare("UPDATE users SET training_plan = ? WHERE id = ?")
+                    ->execute([$json, (int)$uid]);
+                $stats['training_plan_users']++;
+            }
+            // Marker: einmal pro Migration anwenden
+            register_map($pdo, 'training_plan', 'global', 1);
+        }
+        return $stats;
+    }
+}
+
+if (!function_exists('migrate_time_entries_for_task')) {
+    /**
+     * Inline `task.timeLog[]` → `time_entries` (pro Task).
+     * Wird aus dem Task-Loop heraus aufgerufen, nachdem der Task gemappt ist.
+     * Keine eigene Blob-ID → Key "task:{blobTaskId}:tl:{i}" für Idempotenz.
+     */
+    function migrate_time_entries_for_task(
+        PDO $pdo,
+        int $relTaskId,
+        int $relProjectId,
+        ?int $userId,
+        string $blobTaskId,
+        array $timeLog,
+        bool $dryRun = false
+    ): int {
+        if (!$userId) return 0;
+        $count = 0;
+        foreach ($timeLog as $i => $entry) {
+            $key = "task:{$blobTaskId}:tl:{$i}";
+            if (mapped_id($pdo, 'time_entry', $key)) continue;
+
+            $start = safe_ts($entry['start'] ?? $entry['started_at'] ?? null, "$key.start");
+            $end   = safe_ts($entry['end']   ?? $entry['ended_at']   ?? null, "$key.end");
+            if (!$start) continue;
+
+            if (!$dryRun) {
+                $stmt = $pdo->prepare(
+                    "INSERT INTO time_entries (project_id, task_id, user_id, description, started_at, ended_at)
+                     VALUES (?,?,?,?,?,?)"
+                );
+                $stmt->execute([
+                    $relProjectId, $relTaskId, $userId,
+                    $entry['description'] ?? null,
+                    $start, $end,
+                ]);
+                register_map($pdo, 'time_entry', $key, (int)$pdo->lastInsertId());
+            }
+            $count++;
+        }
+        return $count;
+    }
+}
+
+if (!function_exists('migrate_report_file')) {
+    /**
+     * Inline `report.file` (string ODER {url,path}) → `report_files`.
+     * Wird aus dem Report-Loop heraus aufgerufen, nachdem der Report gemappt ist.
+     * Key "report:{blobReportId}:file" für Idempotenz (1 File pro Report).
+     */
+    function migrate_report_file(
+        PDO $pdo,
+        int $relReportId,
+        int $userId,
+        string $blobReportId,
+        mixed $file,
+        bool $dryRun = false
+    ): int {
+        if (!$file) return 0;
+        $key = "report:{$blobReportId}:file";
+        if (mapped_id($pdo, 'report_file', $key)) return 0;
+
+        if (is_array($file)) {
+            $path = $file['path'] ?? $file['url'] ?? null;
+            $originalName = $file['original_name'] ?? $file['name'] ?? null;
+            $mime = $file['mime_type'] ?? $file['mime'] ?? null;
+            $size = !empty($file['file_size']) ? (int)$file['file_size'] : (!empty($file['size']) ? (int)$file['size'] : null);
+        } else {
+            $path = (string)$file;
+            $originalName = null;
+            $mime = null;
+            $size = null;
+        }
+        if (!$path) return 0;
+
+        $filename = basename($path);
+        if (!$originalName) $originalName = $filename;
+
+        if (!$dryRun) {
+            $stmt = $pdo->prepare(
+                "INSERT INTO report_files
+                    (report_id, user_id, filename, original_name, file_path, file_size, mime_type, upload_type)
+                 VALUES (?,?,?,?,?,?,?,'report')"
+            );
+            $stmt->execute([$relReportId, $userId, $filename, $originalName, $path, $size, $mime]);
+            register_map($pdo, 'report_file', $key, (int)$pdo->lastInsertId());
+        }
+        return 1;
     }
 }

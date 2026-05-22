@@ -57,6 +57,10 @@ try {
         'users', 'groups', 'group_members',
         'projects', 'project_assignments',
         'tasks', 'requirements', 'materials', 'reports',
+        // P2-2 neue Ziele:
+        'quizzes', 'quiz_questions', 'quiz_answers',
+        'learning_paths', 'learning_path_nodes', 'learning_path_edges', 'learning_path_progress',
+        'time_entries', 'calendar_events', 'report_files',
     ]);
 } catch (RuntimeException $e) {
     die("FEHLER: " . $e->getMessage() . "\n");
@@ -82,7 +86,13 @@ if (!$row) {
 $blob = json_decode($row['content'], true);
 if (json_last_error() !== JSON_ERROR_NONE) die("FEHLER: Blob ist kein gültiges JSON\n");
 
-$stats = ['projects' => 0, 'tasks' => 0, 'requirements' => 0, 'materials' => 0, 'reports' => 0, 'skipped' => 0];
+$stats = [
+    'projects' => 0, 'tasks' => 0, 'requirements' => 0, 'materials' => 0, 'reports' => 0,
+    'quizzes' => 0, 'quiz_questions' => 0, 'quiz_answers' => 0,
+    'learning_paths' => 0, 'learning_path_nodes' => 0, 'learning_path_edges' => 0, 'learning_path_progress' => 0,
+    'time_entries' => 0, 'calendar_events' => 0, 'report_files' => 0, 'training_plan_users' => 0,
+    'skipped' => 0,
+];
 
 // Hilfsfunktionen sind jetzt in database/migration_helpers.php (P0-4 Refactor):
 //   mapped_id, register_map, resolve_user, safe_date, safe_ts,
@@ -195,7 +205,16 @@ foreach ($projects as $p) {
                 !empty($t['estimated_minutes']) ? (int)$t['estimated_minutes'] : null,
                 $completedAt,
             ]);
-            register_map($pdo, 'task', $blobTaskId, (int)$pdo->lastInsertId());
+            $relTaskId = (int)$pdo->lastInsertId();
+            register_map($pdo, 'task', $blobTaskId, $relTaskId);
+
+            // P2-2: Inline timeLog → time_entries
+            if (!empty($t['timeLog']) && is_array($t['timeLog'])) {
+                $tlOwner = $assignedTo ?: $createdBy;
+                $stats['time_entries'] += migrate_time_entries_for_task(
+                    $pdo, $relTaskId, $relProjId, $tlOwner, $blobTaskId, $t['timeLog'], $dryRun
+                );
+            }
         }
         $stats['tasks']++;
     }
@@ -325,11 +344,42 @@ foreach ($blob['reports'] ?? [] as $r) {
             $fileUrl,
             null,
         ]);
-        register_map($pdo, 'report', $blobRepId, (int)$pdo->lastInsertId());
+        $relRepId = (int)$pdo->lastInsertId();
+        register_map($pdo, 'report', $blobRepId, $relRepId);
+
+        // P2-2: report.file → report_files (zusätzlich zum legacy reports.file_url)
+        if (!empty($r['file'])) {
+            $stats['report_files'] += migrate_report_file(
+                $pdo, $relRepId, $userId, $blobRepId, $r['file'], false
+            );
+        }
     }
     $stats['reports']++;
     echo "  + report:{$blobRepId} → KW{$r['week_number']}/{$r['year']}\n";
 }
+
+// ── P2-2: Quizzes / Lernpfade / Kalender / Trainingsplan ──────
+echo "\nQuizzes...\n";
+$qStats = migrate_quizzes($pdo, $blob['quizzes'] ?? [], $dryRun);
+foreach (['quizzes','quiz_questions','quiz_answers'] as $k) { $stats[$k] += $qStats[$k]; }
+$stats['skipped'] += $qStats['skipped'];
+
+echo "Lernpfade...\n";
+$lpStats = migrate_learning_paths($pdo, $blob['learningPaths'] ?? [], $blob['pathProgress'] ?? [], $dryRun);
+foreach (['learning_paths','learning_path_nodes','learning_path_edges','learning_path_progress'] as $k) {
+    $stats[$k] += $lpStats[$k];
+}
+$stats['skipped'] += $lpStats['skipped'];
+
+echo "Kalender-Events...\n";
+$cStats = migrate_calendar_events($pdo, $blob['calendarEvents'] ?? [], $dryRun);
+$stats['calendar_events'] += $cStats['calendar_events'];
+$stats['skipped']         += $cStats['skipped'];
+
+echo "Trainingsplan...\n";
+$tpStats = migrate_training_plan($pdo, $blob['trainingPlan'] ?? null, $dryRun);
+$stats['training_plan_users'] += $tpStats['training_plan_users'];
+$stats['skipped']             += $tpStats['skipped'];
 
 // ── Zusammenfassung ───────────────────────────────────────────
 echo "\n" . str_repeat("─", 50) . "\n";
