@@ -166,7 +166,12 @@ if ($sub2 === 'tasks' && $id !== null) {
 // GET /api/projects — Liste
 if ($method === 'GET' && $id === null) {
     if ($role === 'ausbilder') {
-        $rows = db()->query("SELECT * FROM projects WHERE archived = 0 ORDER BY updated_at DESC")->fetchAll();
+        // L5-6a: Ausbilder sieht Projekte seiner Gruppe(n) (Mehrmandanten-Isolation).
+        // Ohne Gruppen-Mitgliedschaft → keine Einschränkung (kein Regress im Single-Group-Setup).
+        $gf = with_group_filter(db(), $auth, 'group_id');
+        $s = db()->prepare("SELECT * FROM projects WHERE archived = 0 AND {$gf['clause']} ORDER BY updated_at DESC");
+        $s->execute($gf['params']);
+        $rows = $s->fetchAll();
     } else {
         $rows = db()->prepare("
             SELECT p.* FROM projects p

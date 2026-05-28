@@ -21,6 +21,9 @@ function env(string $key, mixed $default = null): mixed {
     return $_ENV[$key] ?? getenv($key) ?: $default;
 }
 
+// L5-6a: Row-Level-Security-Helper (with_group_filter etc.) — side-effect-frei.
+require_once __DIR__ . '/rls.php';
+
 // ── Konfigurationswerte ──────────────────────────────────────
 define('DB_HOST',    env('DB_HOST',    'localhost'));
 define('DB_PORT',    (int) env('DB_PORT', 3306));

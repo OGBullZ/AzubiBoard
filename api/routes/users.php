@@ -3,16 +3,21 @@
 //  Route: /api/users  (GET / POST / PATCH / DELETE)
 // ============================================================
 
-// ── GET /api/users ── Nutzerliste (alle eingeloggten Nutzer) ─
+// ── GET /api/users ── Nutzerliste ───────────────────────────
 if ($method === 'GET' && !$id) {
-    require_auth();
-    $stmt = db()->query("
+    $auth = require_auth();
+    // L5-6a: Nur Nutzer aus den eigenen Gruppen (+ man selbst). Ohne
+    // Gruppen-Mitgliedschaft → keine Einschränkung (kein Regress).
+    $gf = with_group_filter_users(db(), $auth, 'id');
+    $stmt = db()->prepare("
         SELECT id, name, email, role, avatar_url,
                apprenticeship_year, profession, theme,
                is_active, last_login
         FROM users
+        WHERE {$gf['clause']}
         ORDER BY role DESC, name ASC
     ");
+    $stmt->execute($gf['params']);
     $users = array_map(function($u) {
         $u['id']                  = (int)$u['id'];
         $u['apprenticeship_year'] = (int)($u['apprenticeship_year'] ?? 1);
