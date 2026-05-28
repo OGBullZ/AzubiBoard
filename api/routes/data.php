@@ -134,6 +134,31 @@ if ($method === 'POST') {
         }
     } catch (Throwable $e) { /* Backup darf den Save nicht blocken */ }
 
+    // ── L5-5 (Sprint 12 P2-3): Dual-Write ────────────────────
+    //    Hinter Feature-Flag BACKEND_DUAL_WRITE spiegelt der Save den Blob
+    //    insert-only (idempotent) in die relationalen Tabellen. Der Blob ist
+    //    und bleibt Source-of-Truth: ein Fehler beim Sync darf den bereits
+    //    gespeicherten Blob NIE zurückrollen → alles in try/catch, Tabellen-
+    //    Schema wird vorab geprüft (fehlt es, wird still übersprungen).
+    if (BACKEND_DUAL_WRITE) {
+        try {
+            require_once dirname(__DIR__, 2) . '/database/migration_helpers.php';
+            migration_check_required_tables(db(), [
+                'users', 'groups', 'group_members', 'projects', 'project_assignments',
+                'tasks', 'requirements', 'materials', 'reports',
+                'quizzes', 'quiz_questions', 'quiz_answers',
+                'learning_paths', 'learning_path_nodes', 'learning_path_edges', 'learning_path_progress',
+                'time_entries', 'calendar_events', 'report_files',
+            ]);
+            migration_ensure_map_table(db());
+            migrate_blob_entities(db(), $parsed, false);
+        } catch (Throwable $e) {
+            // Offene Projekt-Transaktion defensiv schließen, Fehler nur loggen.
+            if (db()->inTransaction()) { try { db()->rollBack(); } catch (Throwable $ignore) {} }
+            error_log('[data.php] Dual-Write übersprungen/fehlgeschlagen: ' . $e->getMessage());
+        }
+    }
+
     // Neue Version zurückgeben
     $row = db()->query('SELECT updated_at FROM app_data WHERE id = 1')->fetch();
     $newVersion = $row ? strtotime($row['updated_at']) : time();

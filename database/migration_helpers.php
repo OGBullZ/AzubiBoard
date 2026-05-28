@@ -703,3 +703,293 @@ if (!function_exists('migrate_report_file')) {
         return 1;
     }
 }
+
+if (!function_exists('migration_ensure_map_table')) {
+    /**
+     * Legt die Idempotenz-Mapping-Tabelle an, falls nicht vorhanden.
+     * Driver-aware (MySQL/MariaDB + SQLite für Tests).
+     */
+    function migration_ensure_map_table(PDO $pdo): void {
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS migration_blob_id_map (
+                entity_type TEXT NOT NULL, blob_id TEXT NOT NULL, rel_id INTEGER NOT NULL,
+                PRIMARY KEY (entity_type, blob_id)
+            )");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS migration_blob_id_map (
+                entity_type VARCHAR(50)  NOT NULL,
+                blob_id     VARCHAR(100) NOT NULL,
+                rel_id      INT UNSIGNED NOT NULL,
+                migrated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (entity_type, blob_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+    }
+}
+
+if (!function_exists('migrate_projects')) {
+    /**
+     * `data.projects[]` → projects + tasks + requirements + materials (+ inline timeLog → time_entries).
+     * Idempotent via migration_blob_id_map. Transaktion pro Projekt: alles-oder-nichts
+     * (project + children), bei Fehler Rollback + skip, restliche Projekte laufen weiter.
+     * Side-effect-frei (kein echo) — sowohl vom CLI-Script als auch vom Dual-Write genutzt.
+     */
+    function migrate_projects(PDO $pdo, array $projects, bool $dryRun = false): array {
+        $stats = ['projects'=>0,'tasks'=>0,'requirements'=>0,'materials'=>0,'time_entries'=>0,'skipped'=>0];
+
+        foreach ($projects as $p) {
+            $blobProjId = (string)($p['id'] ?? '');
+            if (!$blobProjId) continue;
+            if (mapped_id($pdo, 'project', $blobProjId)) { $stats['skipped']++; continue; }
+
+            $createdBy = resolve_user($pdo, $p['user_id'] ?? $p['created_by'] ?? null);
+            $title     = trim((string)($p['title'] ?? $p['name'] ?? 'Unbenanntes Projekt'));
+            $status    = migration_status_or_default($p['status'] ?? null, ['green','yellow','red'], 'yellow');
+            $priority  = migration_status_or_default($p['priority'] ?? null, ['low','medium','high','critical'], 'medium');
+            $unit      = migration_status_or_default($p['netzplan_unit'] ?? null, ['W','T','M'], 'W');
+            $archived  = !empty($p['archived']) ? 1 : 0;
+            // group_id aus Gruppen-Mitgliedschaft des Erstellers (P0-6: vorher NULL → RLS-Bruch).
+            $groupId   = resolve_group_for_user($pdo, $createdBy);
+
+            // Lokale Zähler — werden erst nach erfolgreichem Commit in $stats gefaltet,
+            // damit ein Rollback keine Halb-Counts hinterlässt.
+            $local = ['tasks'=>0,'requirements'=>0,'materials'=>0,'time_entries'=>0];
+
+            if (!$dryRun) $pdo->beginTransaction();
+            try {
+                $relProjId = 0;
+                if (!$dryRun) {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO projects
+                            (group_id, created_by, title, description, status, priority,
+                             start_date, deadline, netzplan_unit, color, archived)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $groupId, $createdBy, $title, $p['description'] ?? null, $status, $priority,
+                        safe_date($p['start_date'] ?? null, "project:{$blobProjId}.start_date"),
+                        safe_date($p['deadline']   ?? null, "project:{$blobProjId}.deadline"),
+                        $unit, $p['color'] ?? null, $archived,
+                    ]);
+                    $relProjId = (int)$pdo->lastInsertId();
+                    register_map($pdo, 'project', $blobProjId, $relProjId);
+
+                    if ($createdBy) {
+                        $ignoreVerb = migration_insert_ignore_verb($pdo);
+                        $pdo->prepare("$ignoreVerb INTO project_assignments (project_id, user_id, assigned_by) VALUES (?,?,?)")
+                            ->execute([$relProjId, $createdBy, $createdBy]);
+                    }
+                }
+
+                // ── Tasks ──
+                foreach ($p['tasks'] ?? [] as $t) {
+                    $blobTaskId = (string)($t['id'] ?? '');
+                    if (!$blobTaskId) continue;
+                    if (mapped_id($pdo, 'task', $blobTaskId)) { $stats['skipped']++; continue; }
+
+                    $taskTitle = trim((string)($t['text'] ?? $t['title'] ?? ''));
+                    if (!$taskTitle) continue;
+
+                    $done = !empty($t['done']);
+                    $rawStatus  = $t['status'] ?? ($done ? 'done' : 'open');
+                    $taskStatus = migration_status_or_default($rawStatus, ['open','in_progress','done','blocked','waiting'], $done ? 'done' : 'open');
+                    $taskPrio   = migration_status_or_default($t['priority'] ?? null, ['low','medium','high'], 'medium');
+                    $assignedTo = resolve_user($pdo, $t['assigned_to'] ?? null);
+
+                    if (!$dryRun && $relProjId) {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO tasks
+                                (project_id, assigned_to, created_by, title, description, note, doc, protocol,
+                                 status, priority, due_date, estimated_minutes, completed_at)
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        ");
+                        $completedAt = ($taskStatus === 'done' && !empty($t['completed_at']))
+                            ? safe_ts($t['completed_at'], "task:{$blobTaskId}.completed_at") : null;
+                        $stmt->execute([
+                            $relProjId, $assignedTo, $createdBy, $taskTitle,
+                            $t['description'] ?? null, $t['note'] ?? null, $t['doc'] ?? null, $t['protocol'] ?? null,
+                            $taskStatus, $taskPrio,
+                            safe_date($t['due_date'] ?? null, "task:{$blobTaskId}.due_date"),
+                            !empty($t['estimated_minutes']) ? (int)$t['estimated_minutes'] : null,
+                            $completedAt,
+                        ]);
+                        $relTaskId = (int)$pdo->lastInsertId();
+                        register_map($pdo, 'task', $blobTaskId, $relTaskId);
+
+                        if (!empty($t['timeLog']) && is_array($t['timeLog'])) {
+                            $tlOwner = $assignedTo ?: $createdBy;
+                            $local['time_entries'] += migrate_time_entries_for_task(
+                                $pdo, $relTaskId, $relProjId, $tlOwner, $blobTaskId, $t['timeLog'], $dryRun
+                            );
+                        }
+                    }
+                    $local['tasks']++;
+                }
+
+                // ── Requirements ──
+                foreach ($p['requirements'] ?? [] as $i => $r) {
+                    $blobReqId = (string)($r['id'] ?? "req_{$blobProjId}_{$i}");
+                    if (mapped_id($pdo, 'requirement', $blobReqId)) { $stats['skipped']++; continue; }
+
+                    $reqTitle = trim((string)($r['title'] ?? $r['text'] ?? ''));
+                    if (!$reqTitle) continue;
+                    $prio = migration_status_or_default($r['priority'] ?? null, ['must','should','could'], 'must');
+
+                    if (!$dryRun && $relProjId) {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO requirements (project_id, title, description, done, priority, sort_order, completed_at)
+                            VALUES (?,?,?,?,?,?,?)
+                        ");
+                        $stmt->execute([
+                            $relProjId, $reqTitle, $r['description'] ?? null,
+                            !empty($r['done']) ? 1 : 0, $prio, $i,
+                            !empty($r['done']) ? safe_ts($r['completed_at'] ?? date('Y-m-d H:i:s'), "req:{$blobReqId}.completed_at") : null,
+                        ]);
+                        register_map($pdo, 'requirement', $blobReqId, (int)$pdo->lastInsertId());
+                    }
+                    $local['requirements']++;
+                }
+
+                // ── Materials ──
+                foreach ($p['materials'] ?? [] as $i => $m) {
+                    $blobMatId = (string)($m['id'] ?? "mat_{$blobProjId}_{$i}");
+                    if (mapped_id($pdo, 'material', $blobMatId)) { $stats['skipped']++; continue; }
+
+                    $matName = trim((string)($m['name'] ?? ''));
+                    if (!$matName) continue;
+
+                    if (!$dryRun && $relProjId) {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO materials
+                                (project_id, name, description, quantity, unit, unit_cost, supplier, ordered, sort_order)
+                            VALUES (?,?,?,?,?,?,?,?,?)
+                        ");
+                        $stmt->execute([
+                            $relProjId, $matName, $m['description'] ?? null,
+                            max(0.01, (float)($m['quantity'] ?? 1)), $m['unit'] ?? 'Stück',
+                            max(0, (float)($m['unit_cost'] ?? 0)), $m['supplier'] ?? null,
+                            !empty($m['ordered']) ? 1 : 0, $i,
+                        ]);
+                        register_map($pdo, 'material', $blobMatId, (int)$pdo->lastInsertId());
+                    }
+                    $local['materials']++;
+                }
+
+                if (!$dryRun && $pdo->inTransaction()) $pdo->commit();
+            } catch (\Throwable $e) {
+                if (!$dryRun && $pdo->inTransaction()) $pdo->rollBack();
+                error_log("[migration] migrate_projects rollback for project:{$blobProjId}: " . $e->getMessage());
+                $stats['skipped']++;
+                continue;
+            }
+
+            $stats['projects']++;
+            foreach ($local as $k => $v) $stats[$k] += $v;
+        }
+
+        return $stats;
+    }
+}
+
+if (!function_exists('migrate_reports')) {
+    /**
+     * `data.reports[]` → reports (+ inline file → report_files).
+     * Idempotent via migration_blob_id_map. Pro Report eigene try/catch:
+     * ein fehlerhafter Report blockiert die übrigen nicht (wichtig für Dual-Write).
+     */
+    function migrate_reports(PDO $pdo, array $reports, bool $dryRun = false): array {
+        $stats = ['reports'=>0,'report_files'=>0,'skipped'=>0];
+
+        foreach ($reports as $r) {
+            $blobRepId = (string)($r['id'] ?? '');
+            if (!$blobRepId) continue;
+            if (mapped_id($pdo, 'report', $blobRepId)) { $stats['skipped']++; continue; }
+
+            $userId = resolve_user($pdo, $r['user_id'] ?? null);
+            if (!$userId) { $stats['skipped']++; continue; }
+
+            $repStatus = migration_status_or_default($r['status'] ?? 'draft', ['draft','submitted','reviewed','signed'], 'draft');
+            $weekStart = safe_date($r['week_start'] ?? null, "report:{$blobRepId}.week_start");
+            if (!$weekStart) { $stats['skipped']++; continue; }
+
+            $reviewerId = resolve_user($pdo, $r['reviewer_id'] ?? null);
+
+            try {
+                if (!$dryRun) {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO reports
+                            (user_id, reviewer_id, week_start, week_number, year, title,
+                             activities, learnings, status,
+                             submitted_at, reviewed_at, signed_at, reviewer_comment,
+                             file_url, signed_file_url)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    ");
+                    $fileUrl = null;
+                    if (!empty($r['file']) && is_array($r['file'])) {
+                        $fileUrl = $r['file']['url'] ?? $r['file']['path'] ?? null;
+                    } elseif (!empty($r['file']) && is_string($r['file'])) {
+                        $fileUrl = $r['file'];
+                    }
+                    $stmt->execute([
+                        $userId, $reviewerId, $weekStart,
+                        !empty($r['week_number']) ? (int)$r['week_number'] : null,
+                        !empty($r['year']) ? (int)$r['year'] : null,
+                        $r['title'] ?? null, $r['activities'] ?? null, $r['learnings'] ?? null, $repStatus,
+                        safe_ts($r['submitted_at'] ?? null, "report:{$blobRepId}.submitted_at"),
+                        safe_ts($r['reviewed_at']  ?? null, "report:{$blobRepId}.reviewed_at"),
+                        safe_ts($r['signed_at']    ?? null, "report:{$blobRepId}.signed_at"),
+                        $r['review_comment'] ?? $r['reviewer_comment'] ?? null,
+                        $fileUrl, null,
+                    ]);
+                    $relRepId = (int)$pdo->lastInsertId();
+                    register_map($pdo, 'report', $blobRepId, $relRepId);
+
+                    if (!empty($r['file'])) {
+                        $stats['report_files'] += migrate_report_file($pdo, $relRepId, $userId, $blobRepId, $r['file'], false);
+                    }
+                }
+            } catch (\Throwable $e) {
+                error_log("[migration] migrate_reports skip report:{$blobRepId}: " . $e->getMessage());
+                $stats['skipped']++;
+                continue;
+            }
+            $stats['reports']++;
+        }
+
+        return $stats;
+    }
+}
+
+if (!function_exists('migrate_blob_entities')) {
+    /**
+     * Orchestrator: spiegelt einen kompletten App-Blob insert-only in alle
+     * relationalen Tabellen. Wiederverwendet von migrate_blob_to_relational.php (CLI)
+     * und vom Dual-Write in api/routes/data.php.
+     *
+     * Voraussetzung: Ziel-Tabellen + migration_blob_id_map existieren (Aufrufer prüft).
+     * Idempotent — wiederholte Aufrufe mit gleichem Blob legen nichts doppelt an.
+     */
+    function migrate_blob_entities(PDO $pdo, array $blob, bool $dryRun = false): array {
+        $stats = [
+            'projects'=>0,'tasks'=>0,'requirements'=>0,'materials'=>0,'reports'=>0,
+            'quizzes'=>0,'quiz_questions'=>0,'quiz_answers'=>0,
+            'learning_paths'=>0,'learning_path_nodes'=>0,'learning_path_edges'=>0,'learning_path_progress'=>0,
+            'time_entries'=>0,'calendar_events'=>0,'report_files'=>0,'training_plan_users'=>0,
+            'skipped'=>0,
+        ];
+
+        $parts = [
+            migrate_projects($pdo, $blob['projects'] ?? [], $dryRun),
+            migrate_reports($pdo, $blob['reports'] ?? [], $dryRun),
+            migrate_quizzes($pdo, $blob['quizzes'] ?? [], $dryRun),
+            migrate_learning_paths($pdo, $blob['learningPaths'] ?? [], $blob['pathProgress'] ?? [], $dryRun),
+            migrate_calendar_events($pdo, $blob['calendarEvents'] ?? [], $dryRun),
+            migrate_training_plan($pdo, $blob['trainingPlan'] ?? null, $dryRun),
+        ];
+        foreach ($parts as $s) {
+            foreach ($s as $k => $v) $stats[$k] = ($stats[$k] ?? 0) + $v;
+        }
+
+        return $stats;
+    }
+}

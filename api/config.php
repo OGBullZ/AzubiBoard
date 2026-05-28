@@ -42,6 +42,11 @@ define('ALLOWED_ORIGIN', $origin);
 
 define('APP_ENV', env('APP_ENV', 'production'));
 
+// L5-5 (Sprint 12 P2-3): Dual-Write-Schalter. Wenn true, spiegelt POST /api/data
+// den Blob zusätzlich insert-only in die relationalen Tabellen (idempotent).
+// Default false → reiner Blob-Betrieb, kein Verhalten geändert.
+define('BACKEND_DUAL_WRITE', filter_var(env('BACKEND_DUAL_WRITE', false), FILTER_VALIDATE_BOOLEAN));
+
 // ── Datenbankverbindung ──────────────────────────────────────
 function db(): PDO {
     static $pdo = null;
