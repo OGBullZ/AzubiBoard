@@ -33,6 +33,29 @@ async function apiFetch(path, options = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  L5-5b (Sprint 12 P2-3): Per-Entität-Versionen (forward-compat).
+//  Phase 3 liest Entitäten einzeln aus den relationalen Routes; dann
+//  liefert der Server pro Entität eine eigene Version. Bis dahin sendet
+//  er nur die globale X-Data-Version → dieser Parser liefert {} und es
+//  ändert sich NICHTS am Verhalten.
+//
+//  Header-Format (wenn der Server es später setzt):
+//    X-Entity-Versions: {"projects":1714,"reports":1700}
+// ─────────────────────────────────────────────────────────────
+export function parseEntityVersions(headerValue) {
+  if (!headerValue || typeof headerValue !== 'string') return {};
+  let parsed;
+  try { parsed = JSON.parse(headerValue); } catch { return {}; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) out[k] = n;
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────
 //  Save-Queue: Retry mit Exp-Backoff bei Netz-Fehler.
 //  - localStorage ist sofortige Quelle der Wahrheit.
 //  - Server-Save wird nachträglich versucht; bei Fehlern queue +
@@ -48,8 +71,18 @@ const saveQueue = (() => {
   let lastError   = null;
   let lastSyncTs  = null;
   let knownVersion = 0;       // J2: zuletzt bekannte Server-Version (ETag)
+  let entityVersions = {};    // L5-5b: per-Entität-Versionen (forward-compat, default leer)
 
   const MAX_BACKOFF = 30_000;
+
+  // L5-5b: Liest die optionale X-Entity-Versions-Header aus einer Response
+  // und merged sie in den Store. No-op solange der Server den Header nicht sendet.
+  function captureEntityVersions(res) {
+    try {
+      const merged = parseEntityVersions(res.headers.get('X-Entity-Versions'));
+      if (Object.keys(merged).length) entityVersions = { ...entityVersions, ...merged };
+    } catch { /* Header-Parsing darf nie den Sync brechen */ }
+  }
 
   function emit(type, detail = {}) {
     try { window.dispatchEvent(new CustomEvent('azubiboard:sync', { detail: { type, ...detail } })); } catch {}
@@ -100,6 +133,7 @@ const saveQueue = (() => {
       else {
         try { const j = await res.clone().json(); if (j?.version) knownVersion = j.version; } catch {}
       }
+      captureEntityVersions(res);   // L5-5b: no-op solange Server keinen Header sendet
       backoff   = 1000;
       lastError = null;
       lastSyncTs = Date.now();
@@ -125,6 +159,10 @@ const saveQueue = (() => {
   function setVersion(v) { if (typeof v === 'number' && v > 0) knownVersion = v; }
   function getVersion()  { return knownVersion; }
 
+  // L5-5b: per-Entität-Versionen (forward-compat).
+  function getEntityVersions() { return { ...entityVersions }; }
+  function getEntityVersion(name) { return entityVersions[name] ?? 0; }
+
   function schedule() {
     clearTimeout(retryTimer);
     retryTimer = setTimeout(() => { backoff = Math.min(backoff * 2, MAX_BACKOFF); flush(); }, backoff);
@@ -145,6 +183,9 @@ const saveQueue = (() => {
     enqueue,
     setVersion,
     getVersion,
+    getEntityVersions,
+    getEntityVersion,
+    captureEntityVersions,
     status: () => ({
       pending:    !!pending,
       inflight,
@@ -169,6 +210,7 @@ export const dataService = {
       // J2: Version aus ETag mitnehmen für If-Match beim nächsten Save
       const etag = res.headers.get('ETag');
       if (etag) saveQueue.setVersion(Number(etag.replace(/"/g, '')) || 0);
+      saveQueue.captureEntityVersions(res);   // L5-5b: forward-compat, no-op ohne Header
       return await res.json();
     } catch {
       return loadData();    // Fallback auf localStorage
@@ -211,6 +253,10 @@ export const dataService = {
 
   setKnownVersion(v) { saveQueue.setVersion(v); },
   getKnownVersion()  { return saveQueue.getVersion(); },
+
+  // L5-5b: per-Entität-Versionen (forward-compat für Phase-3-Schema-Reads).
+  getEntityVersions()    { return saveQueue.getEntityVersions(); },
+  getEntityVersion(name) { return saveQueue.getEntityVersion(name); },
 
   // ── J10: Share-Links ─────────────────────────────────────
   async createShareLink({ kind, data, title, ttlDays = 30 }) {
