@@ -151,7 +151,20 @@ if ($method === 'POST') {
                 'time_entries', 'calendar_events', 'report_files',
             ]);
             migration_ensure_map_table(db());
-            migrate_blob_entities(db(), $parsed, false);
+            $dwStats = migrate_blob_entities(db(), $parsed, false);
+
+            // L5-6b: Audit-Eintrag pro Save, wenn der Dual-Write relational
+            // tatsächlich neue Datensätze angelegt hat (nicht nur Blob-Mutation).
+            $dwInserted = 0;
+            foreach ($dwStats as $sk => $sv) { if ($sk !== 'skipped') $dwInserted += (int)$sv; }
+            if ($dwInserted > 0) {
+                audit_ensure_table(db());
+                audit_log_write(db(), $auth, 'data.dual_write', [
+                    'entity_type' => 'data',
+                    'action'      => "dual-write: {$dwInserted} Datensätze relational angelegt",
+                    'meta'        => $dwStats,
+                ]);
+            }
         } catch (Throwable $e) {
             // Offene Projekt-Transaktion defensiv schließen, Fehler nur loggen.
             if (db()->inTransaction()) { try { db()->rollBack(); } catch (Throwable $ignore) {} }

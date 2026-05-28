@@ -19,30 +19,8 @@
 //  DELETE /api/audit/purge — alle Einträge > 365 Tage (ausbilder)
 // ============================================================
 
-// Tabelle anlegen
-db()->exec("
-    CREATE TABLE IF NOT EXISTS audit_log (
-        id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        ts            TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        user_id       INT UNSIGNED    NOT NULL,
-        user_name     VARCHAR(100)    DEFAULT NULL,
-        user_role     VARCHAR(32)     DEFAULT NULL,
-        type          VARCHAR(64)     NOT NULL,
-        entity_type   VARCHAR(32)     DEFAULT NULL,
-        entity_id     VARCHAR(64)     DEFAULT NULL,
-        entity_title  VARCHAR(255)    DEFAULT NULL,
-        project_id    VARCHAR(64)     DEFAULT NULL,
-        project_title VARCHAR(255)    DEFAULT NULL,
-        action        VARCHAR(255)    DEFAULT NULL,
-        ip            VARCHAR(45)     DEFAULT NULL,
-        ua            VARCHAR(255)    DEFAULT NULL,
-        meta          TEXT            DEFAULT NULL,
-        INDEX idx_ts        (ts),
-        INDEX idx_user_ts   (user_id, ts),
-        INDEX idx_type_ts   (type, ts),
-        INDEX idx_entity    (entity_type, entity_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-");
+// Tabelle anlegen (single source-of-truth: audit_ensure_table in config.php)
+audit_ensure_table(db());
 
 // Auto-Cleanup älter als 365 Tage (probabilistisch, 1/500 calls)
 if (mt_rand(1, 500) === 1) {

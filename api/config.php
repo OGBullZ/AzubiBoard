@@ -23,6 +23,8 @@ function env(string $key, mixed $default = null): mixed {
 
 // L5-6a: Row-Level-Security-Helper (with_group_filter etc.) — side-effect-frei.
 require_once __DIR__ . '/rls.php';
+// K5 / L5-6b: Audit-Log-Helper (audit_ensure_table, audit_log_write) — side-effect-frei.
+require_once __DIR__ . '/audit_helpers.php';
 
 // ── Konfigurationswerte ──────────────────────────────────────
 define('DB_HOST',    env('DB_HOST',    'localhost'));
