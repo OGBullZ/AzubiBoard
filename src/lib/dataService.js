@@ -5,8 +5,12 @@
 import { loadData, persistData } from './utils';
 import { authHeader, clearToken, isTokenValid } from './auth';
 import { addBreadcrumb } from './sentry.js';
+import { mapProjectsToBlob, mapReportsToBlob } from './schemaMap.js';
 
 const USE_API  = import.meta.env.VITE_USE_API === 'true';
+// Phase 3: Schema-Reads. Wenn true (+API), liest getData() projects+reports aus
+// den relationalen Routes statt aus dem Blob. Default false → Blob-Pfad unverändert.
+const USE_SCHEMA = import.meta.env.VITE_USE_SCHEMA === 'true';
 // VITE_API_BASE_URL explizit setzen, oder aus Basispfad ableiten
 const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/azubiboard/';
 const API_BASE  = import.meta.env.VITE_API_BASE_URL || `${BASE_PATH}api`;
@@ -197,6 +201,32 @@ const saveQueue = (() => {
   };
 })();
 
+// Phase 3: Overlay-Read. Holt projects+reports aus den relationalen Routes und
+// überlagert sie auf die Blob-Basis. Pro Sektion try/catch → bei Fehler bleibt
+// der jeweilige Blob-Wert erhalten (kein Hard-Fail). Entitäten ohne Read-Route
+// (quizzes/learningPaths/calendar/trainingPlan) kommen weiter aus dem Blob.
+//   fetchJson(path): liefert geparstes JSON, wirft bei !ok.
+// Exportiert für Unit-Tests (injizierbares fetchJson).
+export async function overlaySchemaReads(blobBase, fetchJson) {
+  const out = { ...(blobBase ?? {}) };
+  try {
+    const list = await fetchJson('/projects');
+    if (Array.isArray(list)) {
+      // Liste ist flach → Details (mit tasks/requirements/materials) pro Projekt nachladen.
+      const detailed = await Promise.all(list.map(async (p) => {
+        try { return await fetchJson(`/projects/${p.id}`); }
+        catch { return p; }   // Fallback: flache Row ohne Kinder
+      }));
+      out.projects = mapProjectsToBlob(detailed);
+    }
+  } catch { /* projects bleiben aus Blob */ }
+  try {
+    const reps = await fetchJson('/reports');
+    if (Array.isArray(reps)) out.reports = mapReportsToBlob(reps);
+  } catch { /* reports bleiben aus Blob */ }
+  return out;
+}
+
 export const dataService = {
   // ── App-Daten laden ───────────────────────────────────────
   async getData() {
@@ -211,7 +241,20 @@ export const dataService = {
       const etag = res.headers.get('ETag');
       if (etag) saveQueue.setVersion(Number(etag.replace(/"/g, '')) || 0);
       saveQueue.captureEntityVersions(res);   // L5-5b: forward-compat, no-op ohne Header
-      return await res.json();
+      const blob = await res.json();
+      // Phase 3: optional projects+reports aus Schema überlagern (Flag, default aus).
+      if (USE_SCHEMA) {
+        try {
+          return await overlaySchemaReads(blob, async (path) => {
+            const r = await apiFetch(path);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          });
+        } catch {
+          return blob;   // Schema-Overlay fehlgeschlagen → reiner Blob
+        }
+      }
+      return blob;
     } catch {
       return loadData();    // Fallback auf localStorage
     }
