@@ -22,9 +22,17 @@ $taskId = isset($parts[3]) && is_numeric($parts[3]) ? (int)$parts[3] : null;
 $sub2   = $parts[2] ?? null;  // 'tasks'
 
 // ── Row-Level-Security helper ─────────────────────────────────
-// Ausbilder sehen alle, Azubi nur Projekte seiner Gruppe(n).
+// Ausbilder sehen Projekte ihrer Gruppe(n), Azubi nur zugewiesene.
+// L5-6a-Fix: Ausbilder bekommt denselben Gruppen-Filter wie die Listen-Route
+// (with_group_filter) — sonst umgehen die By-ID-Pfade (GET/PATCH/Tasks) die
+// Mehrmandanten-Isolation. Ohne Gruppen-Mitgliedschaft → 1=1 (kein Regress).
 function project_visible(PDO $pdo, int $projectId, int $userId, string $role): bool {
-    if ($role === 'ausbilder') return true;
+    if ($role === 'ausbilder') {
+        $gf = with_group_filter($pdo, ['sub' => $userId, 'role' => $role], 'group_id');
+        $s = $pdo->prepare("SELECT 1 FROM projects WHERE id = ? AND {$gf['clause']} LIMIT 1");
+        $s->execute([$projectId, ...$gf['params']]);
+        return (bool)$s->fetchColumn();
+    }
     $s = $pdo->prepare("
         SELECT 1 FROM project_assignments pa
         WHERE pa.project_id = ? AND pa.user_id = ?

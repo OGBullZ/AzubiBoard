@@ -47,10 +47,22 @@ final class ProjectsRouteTest extends TestCase
         $this->assertStringContainsString('project_assignments', $this->code, 'RLS muss project_assignments-Tabelle nutzen');
     }
 
-    public function testAusbilderBypassExistsInRls(): void
+    public function testAusbilderIsGroupScopedNotFullBypass(): void
     {
-        // RLS soll Ausbilder Vollzugriff geben (M2 Mentor-Rolle, Sprint 10)
-        $this->assertMatchesRegularExpression('/role.*===?\s*[\'"]ausbilder[\'"]/', $this->code, 'Ausbilder-Bypass in RLS erwartet');
+        // L5-6a-Regression: project_visible() darf Ausbilder KEINEN bedingungslosen
+        // Vollzugriff geben — sonst umgehen die By-ID-Pfade (GET/PATCH/Tasks) die
+        // Gruppen-Isolation, die die Listen-Route korrekt anwendet (Cross-Gruppen-Leak).
+        $this->assertDoesNotMatchRegularExpression(
+            '/===?\s*[\'"]ausbilder[\'"]\s*\)\s*return\s+true/',
+            $this->code,
+            'project_visible() darf für Ausbilder nicht bedingungslos `return true` — Gruppen-Isolation würde umgangen'
+        );
+        // Stattdessen muss derselbe Gruppen-Filter wie in der Listen-Route greifen.
+        $this->assertStringContainsString(
+            'with_group_filter',
+            $this->code,
+            'project_visible() muss with_group_filter auch auf die By-ID-Pfade anwenden'
+        );
     }
 
     public function testProjectStatusEnumMatchesSchema(): void
