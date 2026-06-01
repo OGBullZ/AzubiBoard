@@ -50,6 +50,7 @@ const ShareView = lazy(() => import('./features/share/ShareView.jsx'));
 const TwoFactorSettings = lazy(() => import('./features/auth/TwoFactorSettings.jsx'));
 import { ensureTrash, autoCleanTrash, trashCount as countTrash, softDelete } from './lib/trash.js';
 import { migrateData } from './lib/migrations.js';
+const OnboardingWizard = lazy(() => import('./features/onboarding/OnboardingWizard.jsx'));
 
 // ── App-Mode (einmalig auf Modulebene) ───────────────────────
 const USE_API = import.meta.env.VITE_USE_API === 'true';
@@ -944,6 +945,12 @@ function ProfilePage({ showToast }) {
               style={{ width: '100%', padding: 11, fontSize: 13 }}>
               {saving ? 'Speichern…' : 'Profil speichern'}
             </button>
+            <button className="btn" onClick={() => {
+              if (currentUser?.id) localStorage.removeItem(`azubiboard_onboarded_${currentUser.id}`);
+              window.dispatchEvent(new Event('azubiboard:show-onboarding'));
+            }} style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac)', borderColor: 'var(--c-ac)60' }}>
+              🎓 Einführungs-Wizard erneut anzeigen
+            </button>
           </div>
         )}
 
@@ -1154,7 +1161,8 @@ const App = () => {
   const { toast, showToast, dismissToast } = useToast();
   const _importRef = useRef(null);
   const [conflict, setConflict] = useState(null);  // J2: Konflikt-Payload
-  const [showBackups, setShowBackups] = useState(false); // L4
+  const [showBackups,    setShowBackups]    = useState(false); // L4
+  const [showOnboarding, setShowOnboarding] = useState(false); // UX1
   const justLoggedInRef = useRef(false); // Verhindert Logout durch Unauthorized-Event direkt nach Login
 
   // L3: Sentry-User-Kontext bei Login/Logout aktuell halten (no-op ohne DSN)
@@ -1162,6 +1170,19 @@ const App = () => {
     import('./lib/sentry.js').then(m => m.setSentryUser(currentUser));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id, currentUser?.role]);
+
+  // UX1: Onboarding beim ersten Login anzeigen (localStorage-Flag pro User)
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const key = `azubiboard_onboarded_${currentUser.id}`;
+    if (!localStorage.getItem(key)) setShowOnboarding(true);
+  }, [currentUser?.id]);
+  // UX1: Custom-Event aus ProfilePage erlaubt "Onboarding erneut anzeigen"
+  useEffect(() => {
+    const fn = () => setShowOnboarding(true);
+    window.addEventListener('azubiboard:show-onboarding', fn);
+    return () => window.removeEventListener('azubiboard:show-onboarding', fn);
+  }, []);
 
   // K5: Neue activityLog-Einträge automatisch an Server-Audit weiterleiten.
   //     Set merkt sich gesendete IDs pro Session — bei Reload starten wir
@@ -1308,6 +1329,11 @@ const App = () => {
     clearToken();
     setCurrentUser(null);
   }, [setCurrentUser]);
+
+  const doneOnboarding = useCallback(() => {
+    if (currentUser?.id) localStorage.setItem(`azubiboard_onboarded_${currentUser.id}`, '1');
+    setShowOnboarding(false);
+  }, [currentUser?.id]);
 
   const handleNewProject = useCallback(() => setShowModal(true), []);
 
@@ -1485,6 +1511,17 @@ const App = () => {
           />
         )}
         <SyncIndicator />
+
+        {/* UX1: Onboarding-Wizard beim ersten Login */}
+        {showOnboarding && currentUser && (
+          <Suspense fallback={null}>
+            <OnboardingWizard
+              currentUser={currentUser}
+              onDone={doneOnboarding}
+              onNewProject={() => { doneOnboarding(); handleNewProject(); }}
+            />
+          </Suspense>
+        )}
       </Router>
     </ErrorBoundary>
   );
