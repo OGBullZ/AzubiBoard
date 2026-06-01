@@ -52,6 +52,13 @@ define('APP_ENV', env('APP_ENV', 'production'));
 // Default false → reiner Blob-Betrieb, kein Verhalten geändert.
 define('BACKEND_DUAL_WRITE', filter_var(env('BACKEND_DUAL_WRITE', false), FILTER_VALIDATE_BOOLEAN));
 
+// L5-DEP (Sprint 12 Phase 4): Schema-First-Modus. Wenn true, antwortet
+// POST /api/data mit 410 Gone — Blob-Writes sind dann vollständig depreciert.
+// GET /api/data bleibt lesbar (Legacy-Fallback + Backup-Zugriff).
+// Nur aktivieren wenn VITE_USE_SCHEMA=true im Frontend-Build und
+// alle relationalen Writes implementiert sind.
+define('FORCE_SCHEMA', filter_var(env('FORCE_SCHEMA', false), FILTER_VALIDATE_BOOLEAN));
+
 // ── Datenbankverbindung ──────────────────────────────────────
 function db(): PDO {
     static $pdo = null;

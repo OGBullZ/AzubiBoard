@@ -43,6 +43,12 @@ if ($method === 'GET' && (($parts[1] ?? null) === 'version')) {
 
 // ── GET /api/data ────────────────────────────────────────────
 if ($method === 'GET') {
+    // L5-DEP: Lesezugriff bleibt erhalten (Legacy + Backup), aber im
+    // Schema-First-Modus signalisieren wir die Deprecation per Header.
+    if (FORCE_SCHEMA) {
+        header('Deprecation: true');
+        header('Sunset: ' . gmdate('D, d M Y H:i:s', strtotime('+6 months')) . ' GMT');
+    }
     $row = db()->query('SELECT content, updated_at FROM app_data WHERE id = 1')->fetch();
     if (!$row) {
         // ETag = 0 für leeren State
@@ -61,6 +67,18 @@ if ($method === 'GET') {
 
 // ── POST /api/data ───────────────────────────────────────────
 if ($method === 'POST') {
+    // L5-DEP: Im Schema-First-Modus sind Blob-Writes depreciert.
+    if (FORCE_SCHEMA) {
+        http_response_code(410);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'error'   => 'Blob-Writes sind depreciert (FORCE_SCHEMA=true). Bitte die relationalen Endpoints verwenden.',
+            'status'  => 410,
+            'migrate' => 'Setze VITE_USE_SCHEMA=true im Frontend-Build.',
+        ]);
+        exit;
+    }
+
     // 120 Saves pro Minute pro IP – grob 2/Sek; reicht für aktive Nutzer
     rate_limit('data_save', 120, 60);
 
