@@ -33,7 +33,7 @@
 
 ---
 
-## 🏗️ Sprint 12 — MySQL-Schema-Refactor (L5) · XL · ~4 Tage / ~17 Commits
+## ✅ Sprint 12 — MySQL-Schema-Refactor (L5) · XL · abgeschlossen 2026-06-01
 
 > **Kernproblem:** Alles lebt in `app_data.content` als ein JSON-Blob.
 > Das blockiert: Row-Level-Security, Volltextsuche, Audit pro Entität, Multi-Tenant.
@@ -95,12 +95,12 @@ Neue Routes existieren, lesen aus Tabellen via JOIN, schreiben noch nicht. Front
 
 Pro Commit: Browser-Test der gold-Pfade, Vitest-Update auf neue API.
 
-### Phase 4 — Cleanup (~0.3 Tag, ~2 Commits)
+### Phase 4 — Cleanup (~0.3 Tag, ~2 Commits) ✅ DONE
 
-| Commit | Item |
-|---|---|
-| **L5-DEP** | `data.php` `/api/data` antwortet 410 Gone wenn `VITE_USE_SCHEMA=true` UND Backend `FORCE_SCHEMA=true` |
-| **L5-DOC** | HANDOVER.md auf neuen Stand (Schema-First, kein Blob mehr) + ROADMAP.md |
+| Commit | Item | Status |
+|---|---|---|
+| **L5-DEP** | `2b1c325` — FORCE_SCHEMA=true → POST /api/data 410 Gone + Deprecation-Header bei GET | ✅ |
+| **L5-DOC** | HANDOVER.md (neue Routes, 3-Modi-Architektur, Sprint-12-Historie) + ROADMAP.md | ✅ |
 
 ### Rollback je Phase
 
@@ -187,13 +187,8 @@ Sprint 14+: Vision
 ```
 Erledigt:     OPS1 + DEV1 + OPS9 + OPS10 (alle in install_ubuntu.sh)
 Erledigt:     Pre-Release-Hygiene (Test-Fix v5, ESLint-Config, gh-cli)
-Aktuell:      Sprint 12 (L5 Refactor)                  ~4 Tage / ~17 Commits
-                Phase 0 (PHPUnit + Vorbereitung)         ~3-4h
-                Phase 1 (Read-only Routes)               ~1 Tag
-                Phase 2 (Dual-Write + Row-Level-Security) ~1 Tag
-                Phase 3 (Frontend-Migration alle 6)      ~1.5 Tage
-                Phase 4 (Cleanup + 410)                  ~0.3 Tag
-Danach:       Sprint 13 (Quality + L5-7 FULLTEXT + LINT) ~1 Woche
+Erledigt:     Sprint 12 (L5 Refactor) — Phase 0–4 komplett (2026-06-01)
+Aktuell:      Sprint 13 (Quality + L5-7 FULLTEXT + LINT) ~1 Woche
 Offen:        Sprint 14+ nach Bedarf
 ```
 

@@ -1,8 +1,8 @@
 # 📋 AzubiBoard — Projekt-Handover
 
-> **Stand:** 18. Mai 2026 · **Letzter Commit:** `33a1a05` (HTTPS/Auto-Deploy + Pre-commit Hook + Slash Commands)
+> **Stand:** 1. Juni 2026 · **Letzter Commit:** `2b1c325` (Sprint 12 Phase 4 L5-DEP abgeschlossen)
 > Dieses Dokument fasst den kompletten Projektstand zusammen, damit eine neue Claude-Code-Session
-> (auf einem anderen Laptop) ohne Reibung weiterarbeiten kann.
+> (auf einem anderen Gerät) ohne Reibung weiterarbeiten kann.
 
 ---
 
@@ -13,28 +13,34 @@
 git clone https://github.com/OGBullZ/AzubiBoard.git
 cd AzubiBoard
 
-# 2. Dependencies installieren (~2 min, ca. 600 MB node_modules)
+# 2. Dependencies installieren
 npm install
+composer install   # PHP PHPUnit + Migration-Helpers
 
 # 3. Datenbank einrichten (mit XAMPP/MariaDB lokal)
-#    Option A — komplettes Schema importieren (empfohlen):
-mysql -u root -p azubiboard < database/azubiboard.sql
+#    Basis-Schema:
+mysql -u root azubiboard < database/azubiboard.sql
+#    Sprint 12 Phase 2 Migration (Lernpfade-Tabellen + Soft-Delete + training_plan):
+mysql -u root azubiboard < database/migrations/sprint12_phase2.sql
 
-#    Option B — Minimal-Setup für lokalen Modus (ohne DB):
-#    Einfach `.env` anlegen mit VITE_USE_API=false — alles via localStorage
+#    Oder Minimal-Setup ohne DB (localStorage-Modus):
+#    .env anlegen mit VITE_USE_API=false
 
 # 4. .env aus Beispiel kopieren und anpassen
 cp .env.example .env
-# → DB_PASS, JWT_SECRET, ALLOWED_ORIGIN einstellen
-# → VITE_USE_API=true für API-Modus, false für lokal-only
+# → DB_USER, DB_PASS, JWT_SECRET, ALLOWED_ORIGIN einstellen
+# → VITE_USE_API=true für API-Modus
+# → BACKEND_DUAL_WRITE=true für Dual-Write (Phase 2)
+# → VITE_USE_SCHEMA=true + FORCE_SCHEMA=true für Schema-First-Modus (Phase 4)
 
 # 5. Dev-Server starten
 npm run dev        # http://localhost:5173/azubiboard/
 
 # 6. Verifizieren
-npm test           # 44 Unit-Tests — alle grün
-npm run e2e        # 6 Playwright-Tests (braucht Chromium)
-npm run build      # produktions-Bundle
+npm test           # 65 Vitest-Tests — alle grün
+npm run e2e        # Playwright E2E (braucht Chromium)
+npm run build      # Produktions-Bundle
+# php vendor/bin/phpunit  # 165 PHPUnit-Tests — alle grün
 ```
 
 **Demo-Login** (im lokalen Modus): `ausbilder@firma.de` / `12345678` oder `anna@azubi.de` / `12345678`
@@ -103,44 +109,57 @@ npm run build      # produktions-Bundle
 │  api/config.php     — DB-Pool + JWT + TOTP +              │
 │                       Rate-Limit (file-based)             │
 │  api/routes/                                              │
-│    auth.php         — Login/Register/Profile/2FA          │
-│    data.php         — JSON-Blob CRUD + Versions/Backups   │
-│    users.php        — User-Verwaltung (Ausbilder)         │
-│    share.php        — Public Read-Share-Tokens            │
-│    audit.php        — Server-Side Audit-Log               │
+│    auth.php          — Login/Register/Profile/2FA         │
+│    data.php          — JSON-Blob CRUD + Backups           │
+│                        (POST: 410 wenn FORCE_SCHEMA=true) │
+│    users.php         — User-Verwaltung (Ausbilder)        │
+│    share.php         — Public Read-Share-Tokens           │
+│    audit.php         — Server-Side Audit-Log              │
+│    projects.php      — Sprint 12: Projekte + Tasks (RLS)  │
+│    reports.php       — Sprint 12: Berichte                │
+│    goals.php         — Sprint 12: Lernziele               │
+│    quizzes.php       — Sprint 12: Quiz + Fragen/Antworten │
+│    learning_paths.php— Sprint 12: Lernpfade + Progress    │
+│    calendar.php      — Sprint 12: Kalender-Ereignisse     │
+│    training_plan.php — Sprint 12: Trainingsplan (JSON)    │
 └──────────────────────────┬───────────────────────────────┘
                            │ PDO Prepared Statements
 ┌──────────────────────────▼───────────────────────────────┐
-│  MariaDB (azubiboard)                                     │
+│  MariaDB (azubiboard) — Schema v5                         │
 │                                                          │
-│  ─── Aktiv genutzt:                                       │
-│  app_data           — JSON-Blob (komplette App-Daten)     │
+│  ─── Aktiv (relational, Sprint 12 L5):                   │
+│  projects, tasks, project_assignments, materials,         │
+│  requirements, reports, report_files,                     │
+│  groups, group_members, departments,                      │
+│  calendar_events, time_entries, notifications,            │
+│  quizzes, quiz_questions, quiz_answers,                   │
+│  quiz_attempts, quiz_attempt_answers, learn_categories,   │
+│  learning_paths, learning_path_nodes,                     │
+│  learning_path_edges, learning_path_progress              │
+│                                                          │
+│  ─── Legacy (Blob):                                       │
+│  app_data           — JSON-Blob (Quelle wenn kein Schema) │
 │  app_data_history   — Tägliche Snapshots (30 Tage)        │
-│  users              — Auth-Stammdaten + 2FA-Secrets       │
+│                                                          │
+│  ─── Auth + Infra:                                        │
+│  users              — Auth-Stammdaten + 2FA + training_plan│
 │  share_links        — Public-Read-Tokens                  │
 │  audit_log          — Append-only Audit-Trail             │
-│                                                          │
-│  ─── Vorbereitet (database/azubiboard.sql), aktuell       │
-│      via JSON-Blob abgebildet — wartet auf L5-Refactor:   │
-│  projects, tasks, project_assignments, project_steps,     │
-│  reports, report_entries, report_files, materials,        │
-│  requirements, groups, group_members, departments,        │
-│  netzplan_nodes, netzplan_edges, calendar_events,         │
-│  notifications, time_entries, sessions,                   │
-│  quizzes, quiz_questions, quiz_answers, quiz_attempts,    │
-│  quiz_attempt_answers, learn_categories                   │
+│  sessions           — JWT-jti Logout-Blocklist            │
 └──────────────────────────────────────────────────────────┘
 ```
 
-**Wichtig zur Architektur:**
-Das System läuft **dual** — entweder als reines Frontend (localStorage, `VITE_USE_API=false`)
-oder mit PHP-Backend. Im API-Modus wird der **komplette App-State als ein JSON-Objekt** in
-`app_data.content` gespeichert (Single-Row-Tabelle). Der Backend-Endpoint `POST /api/data`
-überschreibt diesen Blob; Conflict-Detection läuft über `updated_at`-ETag + `If-Match`-Header.
+**Wichtig zur Architektur (Stand Sprint 12 abgeschlossen):**
+Das System läuft in drei Modi:
+1. **localStorage** (`VITE_USE_API=false`) — komplett ohne Backend
+2. **Blob-Modus** (`VITE_USE_API=true`, `VITE_USE_SCHEMA=false`) — PHP-Backend, State als JSON-Blob in `app_data`
+3. **Schema-Modus** (`VITE_USE_API=true`, `VITE_USE_SCHEMA=true`) — relationale Reads via Sprint-12-Routes, Blob als Fallback-Basis
 
-Die `database/azubiboard.sql` enthält ein **vollständigeres normalisiertes Schema** (mit FKs,
-Indizes, etc.), das aktuell **noch nicht aktiv ist**. Der Refactor von JSON-Blob auf normalisiertes
-Schema steht als **Sprint 12 (Item L5)** in der Roadmap.
+Im Schema-Modus ruft `overlaySchemaReads()` in `dataService.js` alle 6 Entitäten-Endpoints parallel ab (projects, reports, quizzes, learningPaths, calendar, trainingPlan) und überlagert sie auf die Blob-Basis.
+
+Mit `FORCE_SCHEMA=true` im Backend liefert `POST /api/data` 410 Gone — Blob-Writes sind dann depreciert. `GET /api/data` bleibt für Legacy + Backup-Zugriff erhalten (mit `Deprecation`-Header).
+
+Sprint 12 (L5 MySQL-Refactor) ist **vollständig abgeschlossen** (Phase 0–4).
 
 ---
 
@@ -148,6 +167,12 @@ Schema steht als **Sprint 12 (Item L5)** in der Roadmap.
 
 | Sprint | Commit | Themen | Status |
 |---|---|---|---|
+| **Sprint 12 Phase 4** | `2b1c325` | L5-DEP: FORCE_SCHEMA → POST /api/data 410 Gone; L5-DOC: HANDOVER + ROADMAP aktualisiert | ✅ |
+| **Sprint 12 Phase 3 (2/2)** | `29ee817` | 4 neue Schema-Read-Routes (quizzes/learningPaths/calendar/trainingPlan); schemaMap.js + overlaySchemaReads() parallel | ✅ |
+| **Sprint 12 Phase 3 (1/2)** | `f18ad83` | VITE_USE_SCHEMA Flag; overlaySchemaReads() projects+reports; schemaMap.js Mapper | ✅ |
+| **Sprint 12 Phase 2** | `14ea5f3` | Dual-Write + Entity-Versionen + RLS (rls.php) + Audit-Log; Security-Fix project_visible() `1f3428b` | ✅ |
+| **Sprint 12 Phase 1** | `c326c1e` | 3 Read-only Routes (projects/reports/goals) + Migration-Script | ✅ |
+| **Sprint 12 Phase 0** | `d72cccf` | PHPUnit-Setup + 47 Tests + Fixture + CI-Integration + Bugfixes group_id/Transaction | ✅ |
 | **Session 18.05b** | `33a1a05` | OPS9 HTTPS/Let's Encrypt in install_ubuntu.sh (Schritt 8/9, optional mit Domain); OPS10 Auto-Deploy-Cron alle 10 min + Logrotate; OPS1 Pre-commit Hook (.githooks/ + package.json prepare); DEV1 Slash Commands (/review /rot /tests /doc-update in .claude/commands/) | ✅ |
 | **Session 18.05** | `74e017e` | BackupsModal: „Aktuellen Stand herunterladen"-Button; mysqldump-Cron tägl. 03:00; Projekt-Liste-Default; CLAUDE.md 12 Arbeitsregeln (Karpathy Rules 1–4 verbatim) | ✅ |
 | **Bugfix** | `7005654` | Projekt-Karten Hover-Actions immer sichtbar (inline display:flex Override) + position:relative fix; GET /api/data/backups/{day} unerreichbar (Routing-Reihenfolge); install_ubuntu.sh: php-mysql-Check + mod_expires | ✅ |
@@ -172,6 +197,11 @@ Schema steht als **Sprint 12 (Item L5)** in der Roadmap.
 - **Schema-Versionen:** `data.schema_version` aktuell **v5** — migrations v1–v5 in `src/lib/migrations.js`.
   - v4: Custom-Quiz aus localStorage → `data.quizzes`
   - v5: `data.learningPaths`, `data.pathProgress` für Lernpfade
+- **Sprint 12 (L5) ist abgeschlossen** — alle 6 Entitäten haben relational Read-Routes. Feature-Flags:
+  - `VITE_USE_SCHEMA=true` → overlaySchemaReads() aktiv (parallel 6 Endpoints)
+  - `BACKEND_DUAL_WRITE=true` → POST /api/data schreibt auch relational (idempotent)
+  - `FORCE_SCHEMA=true` → POST /api/data liefert 410 Gone (Blob-Write-Pfad depreciert)
+- **PHPUnit**: 165 Tests / 598 Assertions (3 Suite-Overlap-Warnings sind bekannt, kein Bug)
 - **OCR-Import**: Tesseract.js + pdfjs-dist werden **dynamisch** importiert (erst wenn Button geklickt). Erster Aufruf lädt ~10 MB Sprachpaket von CDN, danach browser-gecacht.
 - **Dashboard** ist in 11 Widget-Dateien aufgeteilt: `src/features/dashboard/widgets/`.
 
