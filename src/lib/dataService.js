@@ -341,6 +341,17 @@ export const dataService = {
   setKnownVersion(v) { saveQueue.setVersion(v); },
   getKnownVersion()  { return saveQueue.getVersion(); },
 
+  // L5-7: FULLTEXT-Suche — direkt gegen /api/search?q=
+  async search(q) {
+    if (!USE_API || !isTokenValid()) return [];
+    try {
+      const res = await apiFetch(`/search?q=${encodeURIComponent(q)}`);
+      if (!res.ok) return [];
+      const body = await res.json();
+      return body?.results ?? [];
+    } catch { return []; }
+  },
+
   // L5-5b: per-Entität-Versionen (forward-compat für Phase-3-Schema-Reads).
   getEntityVersions()    { return saveQueue.getEntityVersions(); },
   getEntityVersion(name) { return saveQueue.getEntityVersion(name); },

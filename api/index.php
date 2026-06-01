@@ -34,6 +34,7 @@ try {
         'learningPaths' => require __DIR__ . '/routes/learning_paths.php',
         'calendar'      => require __DIR__ . '/routes/calendar.php',
         'trainingPlan'  => require __DIR__ . '/routes/training_plan.php',
+        'search'        => require __DIR__ . '/routes/search.php',
         default         => error("Unbekannte Route '$resource'", 404),
     };
 } catch (PDOException $e) {

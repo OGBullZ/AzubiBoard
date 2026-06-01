@@ -442,11 +442,15 @@ function ShortcutsHelp({ onClose }) {
 }
 
 // ── Global Search ─────────────────────────────────────────────
+const SEARCH_ICONS = { project: '📁', task: '⚡', report: '📝', learn: '📖', default: '🔍' };
+
 function GlobalSearch({ data, onClose }) {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
-  const dQ  = useDebounce(q, 200);
+  const dQ  = useDebounce(q, 300);
   const ref = useRef(null);
+  const [apiResults, setApiResults] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => { ref.current?.focus(); }, []);
   useEffect(() => {
@@ -455,15 +459,46 @@ function GlobalSearch({ data, onClose }) {
     return () => document.removeEventListener('keydown', fn);
   }, [onClose]);
 
+  // Server-FULLTEXT wenn API aktiv und mind. 2 Zeichen
+  useEffect(() => {
+    const trimmed = dQ.trim();
+    let cancelled = false;
+    const run = async () => {
+      if (!USE_API || trimmed.length < 2) { setApiResults([]); setLoading(false); return; }
+      setLoading(true);
+      const res = await dataService.search(trimmed);
+      if (!cancelled) { setApiResults(res); setLoading(false); }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [dQ]);
+
   const lower = dQ.trim().toLowerCase();
-  const results = lower ? [
+
+  // Lokale Fallback-Ergebnisse (immer verfügbar, auch offline)
+  const localResults = lower.length >= 2 ? [
     ...(data?.projects||[]).filter(p => !p.archived && (p.title.toLowerCase().includes(lower) || (p.description||'').toLowerCase().includes(lower)))
       .slice(0,5).map(p => ({ type: 'Projekt', label: p.title, sub: p.description, to: `/project/${p.id}`, icon: '📁' })),
     ...(data?.users||[]).filter(u => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
       .slice(0,3).map(u => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' })),
-    ...(data?.reports||[]).filter(r => (r.title||'').toLowerCase().includes(lower) || (r.content||'').toLowerCase().includes(lower))
-      .slice(0,3).map(r => ({ type: 'Bericht', label: r.title || 'Unbenannter Bericht', sub: r.date, to: '/reports', icon: '📝' })),
+    ...(data?.reports||[]).filter(r => (r.title||'').toLowerCase().includes(lower))
+      .slice(0,3).map(r => ({ type: 'Bericht', label: r.title || 'Bericht', sub: null, to: '/reports', icon: '📝' })),
   ] : [];
+
+  // API-Ergebnisse haben Priorität; lokale Nutzer-Suche immer ergänzen
+  const userResults = lower.length >= 2
+    ? (data?.users||[]).filter(u => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
+        .slice(0,3).map(u => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' }))
+    : [];
+
+  const apiMapped = apiResults.map(r => ({
+    ...r,
+    icon: SEARCH_ICONS[r.icon] || SEARCH_ICONS.default,
+  }));
+
+  const results = lower.length >= 2
+    ? (USE_API ? [...apiMapped, ...userResults] : localResults)
+    : [];
 
   const go = (to) => { navigate(to); onClose(); };
 
@@ -493,7 +528,9 @@ function GlobalSearch({ data, onClose }) {
               </button>
             ))}
           </div>
-        ) : lower ? (
+        ) : loading ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--c-mu)', fontSize: 13 }}>Suche…</div>
+        ) : lower.length >= 2 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--c-mu)', fontSize: 13 }}>Keine Ergebnisse für „{q}"</div>
         ) : (
           <div style={{ padding: '16px 20px', fontSize: 11, color: 'var(--c-mu)' }}>
