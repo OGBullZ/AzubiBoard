@@ -265,6 +265,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
       const prio = { high: 0, medium: 1, low: 2 };
       return (prio[a.priority] ?? 1) - (prio[b.priority] ?? 1);
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [projects, user.id] // now absichtlich ausgelassen — ändert sich nicht sinnvoll innerhalb einer Session
   );
 

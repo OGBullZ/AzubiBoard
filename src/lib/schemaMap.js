@@ -142,10 +142,10 @@ export function mapQuizQuestionRowToBlob(row = {}, category = '') {
 }
 
 // Lernpfad (mit Nodes, Edges → prereqs, Progress) -----------------------
-export function mapLearningPathRowToBlob(path = {}, uid = null) {
+export function mapLearningPathRowToBlob(path = {}, _uid = null) {
   const nodes  = Array.isArray(path.nodes) ? path.nodes : [];
   const edges  = Array.isArray(path.edges) ? path.edges : [];
-  const prog   = path.progress && typeof path.progress === 'object' ? path.progress : {};
+  const _prog  = path.progress && typeof path.progress === 'object' ? path.progress : {};
 
   // Edge: from_node → to_node bedeutet to_node hat from_node als Voraussetzung
   const prereqMap = {};

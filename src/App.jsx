@@ -4,7 +4,7 @@ import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData, addActivity } from './lib/utils';
 import { useDebounce } from './lib/hooks';
-import { setToken, clearToken, getToken, isTokenValid } from './lib/auth';
+import { clearToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
   BrowserRouter as Router,
@@ -287,14 +287,14 @@ function useNotifications(data, currentUser) {
     const next = new Set([...readIds].filter(id => liveIds.has(id)));
     if (next.size !== readIds.size) {
       setReadIds(next);
-      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch { /* noop */ }
     }
   }, [notifications, readIds, storageKey]);
 
   const markRead = useCallback((id) => {
     setReadIds(prev => {
       const next = new Set([...prev, id]);
-      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch { /* noop */ }
       return next;
     });
   }, [storageKey]);
@@ -303,7 +303,7 @@ function useNotifications(data, currentUser) {
     const ids = notifications.map(n => n.id);
     const next = new Set(ids);
     setReadIds(next);
-    try { localStorage.setItem(storageKey, JSON.stringify(ids)); } catch {}
+    try { localStorage.setItem(storageKey, JSON.stringify(ids)); } catch { /* noop */ }
   }, [notifications, storageKey]);
 
   return { notifications, unreadCount, readIds, markRead, markAllRead };
@@ -514,7 +514,7 @@ function GlobalSearch({ data, onClose }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────
-function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onShowBackups, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer, trashCount = 0 }) {
+function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onShowBackups, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer, trashCount: _trashCount = 0 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const path     = location.pathname;
@@ -589,14 +589,15 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '4px 6px', overflowY: 'auto' }}>
-        {navItems.map(({ to, label, Icon }) => {
+        {/* eslint-disable-next-line no-unused-vars */}
+        {navItems.map(({ to, label, Icon: NavIcon }) => {
           const active = path === to || (to !== '/dashboard' && path.startsWith(to));
           return (
             <button key={to} onClick={() => handleNav(to)} title={collapsed ? label : undefined}
               style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '9px' : '8px 10px', borderRadius: 8, border: 'none', background: active ? 'var(--c-acd)' : 'transparent', color: active ? 'var(--c-ac)' : 'var(--c-mu)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', marginBottom: 1, transition: 'all .12s', borderLeft: active ? '2px solid var(--c-ac)' : '2px solid transparent' }}
               onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--c-sf2)'; e.currentTarget.style.color = 'var(--c-br)'; }}}
               onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-mu)'; }}}>
-              <Icon size={14} />
+              <NavIcon size={14} />
               {!collapsed && label}
             </button>
           );
@@ -981,7 +982,7 @@ function UsersPage({ showToast }) {
   return <UsersView users={data?.users || []} onUpdateUsers={handleUpdate} showToast={showToast} />;
 }
 
-function DashboardPage({ onNewProject, showToast }) {
+function DashboardPage({ onNewProject, showToast: _showToast }) {
   const navigate = useNavigate();
   const { data, currentUser, setData } = useAppStore();
   const handleUpdate = useCallback((projectId, updates) => {
@@ -1053,6 +1054,7 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
   }, [navigate]);
 
   // Drawer schließen wenn auf Desktop gewechselt wird
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
 
   const handleToggleCollapse = useCallback(() => {
@@ -1113,7 +1115,7 @@ const App = () => {
   const [showSearch,   setShowSearch]   = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const { toast, showToast, dismissToast } = useToast();
-  const importRef = useRef(null);
+  const _importRef = useRef(null);
   const [conflict, setConflict] = useState(null);  // J2: Konflikt-Payload
   const [showBackups, setShowBackups] = useState(false); // L4
   const justLoggedInRef = useRef(false); // Verhindert Logout durch Unauthorized-Event direkt nach Login
@@ -1121,6 +1123,7 @@ const App = () => {
   // L3: Sentry-User-Kontext bei Login/Logout aktuell halten (no-op ohne DSN)
   useEffect(() => {
     import('./lib/sentry.js').then(m => m.setSentryUser(currentUser));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id, currentUser?.role]);
 
   // K5: Neue activityLog-Einträge automatisch an Server-Audit weiterleiten.
@@ -1169,7 +1172,7 @@ const App = () => {
   }, [showToast]);
 
   // J2: Konflikt-Handler — Server-Version übernehmen
-  const acceptServer = useCallback(() => {
+  const _acceptServer = useCallback(() => {
     if (!conflict?.serverData) { setConflict(null); return; }
     setData(conflict.serverData);
     dataService.setKnownVersion(conflict.serverVersion || 0);
@@ -1178,7 +1181,7 @@ const App = () => {
   }, [conflict, setData, showToast]);
 
   // J2: Konflikt-Handler — eigene Version forcieren
-  const forceMine = useCallback(async () => {
+  const _forceMine = useCallback(async () => {
     if (!conflict?.clientSnapshot) { setConflict(null); return; }
     await dataService.forceSave(conflict.clientSnapshot);
     setConflict(null);

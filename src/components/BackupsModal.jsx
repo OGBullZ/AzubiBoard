@@ -24,12 +24,13 @@ export default function BackupsModal({ onClose, onRestore, showToast }) {
     try {
       const list = await dataService.listBackups();
       setBackups(list);
-    } catch (e) {
+    } catch {
       setBackups([]);
       showToast?.('⚠ Backups konnten nicht geladen werden');
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   const downloadJSON = async (day) => {

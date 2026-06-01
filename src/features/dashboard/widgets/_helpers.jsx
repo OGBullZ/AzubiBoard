@@ -13,6 +13,7 @@ export function LiveClock() {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCountUp(target) {
   const [v, setV] = useState(0);
   useEffect(() => {
@@ -59,6 +60,7 @@ export function Chip({ value, label, color, animated = false }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function urgencyColor(diff) {
   if (diff < 0)  return C.cr;
   if (diff === 0) return C.cr;
@@ -66,6 +68,7 @@ export function urgencyColor(diff) {
   if (diff <= 7)  return C.yw;
   return C.mu;
 }
+// eslint-disable-next-line react-refresh/only-export-components
 export function urgencyBg(diff) {
   if (diff < 0)  return C.crd;
   if (diff === 0) return C.crd;
@@ -73,6 +76,7 @@ export function urgencyBg(diff) {
   if (diff <= 7)  return C.ywd;
   return 'var(--c-sf3)';
 }
+// eslint-disable-next-line react-refresh/only-export-components
 export function urgencyLabel(diff) {
   if (diff < 0)   return `${Math.abs(diff)}d über`;
   if (diff === 0) return 'Heute';
@@ -80,7 +84,9 @@ export function urgencyLabel(diff) {
   return `${diff}d`;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const ST_ICONS  = { in_progress: IcoPlay, not_started: IcoCheck, waiting: IcoPause, blocked: IcoBlock, done: IcoCheck };
+// eslint-disable-next-line react-refresh/only-export-components
 export const ST_COLORS = { in_progress: C.ac, not_started: C.mu, waiting: C.yw, blocked: C.cr, done: C.gr };
 
 export function PanelTitle({ Icon, children, badge, action, onAction }) {

@@ -54,7 +54,7 @@ function StatBox({ label, value, color, sub }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────
-export default function AzubiProfilePage({ azubi, data, currentUser, onBack }) {
+export default function AzubiProfilePage({ azubi, data, currentUser: _currentUser, onBack }) {
   // Hooks IMMER vor Early-Return aufrufen (Rules of Hooks).
   const projects  = useMemo(() => (data?.projects || []).filter(p => !p.archived && (p.assignees || []).includes(azubi?.id)), [data?.projects, azubi?.id]);
   const allTasks  = useMemo(() => projects.flatMap(p => (p.tasks || []).filter(t => t.assignee === azubi?.id)), [projects, azubi?.id]);
@@ -85,7 +85,7 @@ export default function AzubiProfilePage({ azubi, data, currentUser, onBack }) {
   const learned   = goals.filter(g => ['learned','confirmed'].includes(g.progress?.[azubi.id]?.status)).length;
 
   const done    = allTasks.filter(t => t.status === 'done').length;
-  const open    = allTasks.filter(t => t.status !== 'done').length;
+  const _open   = allTasks.filter(t => t.status !== 'done').length;
   const overdue = allTasks.filter(t => t.status !== 'done' && t.deadline && new Date(t.deadline) < new Date()).length;
   const taskPct = allTasks.length > 0 ? Math.round(done / allTasks.length * 100) : 0;
 

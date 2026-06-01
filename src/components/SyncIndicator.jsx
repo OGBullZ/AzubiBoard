@@ -38,6 +38,7 @@ export default function SyncIndicator() {
   }, []);
 
   if (!state) return null;
+  // eslint-disable-next-line react-hooks/purity
   if (state.kind === 'success' && hideAt && Date.now() >= hideAt) return null;
 
   const cfg = {

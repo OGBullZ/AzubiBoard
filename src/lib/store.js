@@ -47,7 +47,7 @@ export function useAppStore() {
     // Funktionale Updates erlaubt: setData(prev => ({ ...prev, users: newList }))
     const next = typeof dataOrFn === 'function' ? dataOrFn(_state.data) : dataOrFn;
     setState({ data: next });
-    try { persistData(next); } catch {}
+    try { persistData(next); } catch { /* noop */ }
     // API-Persistenz (fire & forget) — kein Reload auf 401, nur localStorage-Fallback
     dataService.saveData(next).catch(() => {});
     // Andere Tabs informieren (eigener Tab empfängt seine eigene

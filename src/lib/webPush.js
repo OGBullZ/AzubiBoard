@@ -43,7 +43,7 @@ export function isEnabled() {
 }
 
 export function setEnabled(b) {
-  try { localStorage.setItem(PREF_KEY, b ? 'true' : 'false'); } catch {}
+  try { localStorage.setItem(PREF_KEY, b ? 'true' : 'false'); } catch { /* noop */ }
 }
 
 // Markiert eine Notification-ID als "schon gepusht", damit wir bei
@@ -53,7 +53,7 @@ function getSeen(userId) {
   catch { return new Set(); }
 }
 function setSeen(userId, ids) {
-  try { localStorage.setItem(SEEN_PREFIX + userId, JSON.stringify([...ids].slice(-200))); } catch {}
+  try { localStorage.setItem(SEEN_PREFIX + userId, JSON.stringify([...ids].slice(-200))); } catch { /* noop */ }
 }
 
 // Hauptfunktion: vergleicht aktuelle notifications mit seen-Set,

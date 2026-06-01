@@ -93,7 +93,7 @@ const saveQueue = (() => {
   }
 
   function emit(type, detail = {}) {
-    try { window.dispatchEvent(new CustomEvent('azubiboard:sync', { detail: { type, ...detail } })); } catch {}
+    try { window.dispatchEvent(new CustomEvent('azubiboard:sync', { detail: { type, ...detail } })); } catch { /* noop */ }
   }
 
   async function flush() {
@@ -139,7 +139,7 @@ const saveQueue = (() => {
       const etag = res.headers.get('ETag');
       if (etag) knownVersion = Number(etag.replace(/"/g, '')) || knownVersion;
       else {
-        try { const j = await res.clone().json(); if (j?.version) knownVersion = j.version; } catch {}
+        try { const j = await res.clone().json(); if (j?.version) knownVersion = j.version; } catch { /* noop */ }
       }
       captureEntityVersions(res);   // L5-5b: no-op solange Server keinen Header sendet
       backoff   = 1000;
@@ -334,7 +334,7 @@ export const dataService = {
         const j = await res.json().catch(() => ({}));
         if (j?.version) saveQueue.setVersion(j.version);
       }
-    } catch {}
+    } catch { /* noop */ }
     return newData;
   },
 
@@ -427,7 +427,7 @@ export const dataService = {
       try {
         addBreadcrumb({ category: 'audit', level: 'warning', message: 'audit write failed',
           data: { type: entry.type } });
-      } catch {}
+      } catch { /* noop */ }
     });
   },
 
@@ -657,7 +657,7 @@ export const dataService = {
         method: 'PATCH',
         body:   JSON.stringify({ theme }),
       });
-    } catch {} // UI-unabhängig, kein Toast nötig
+    } catch { /* noop */ } // UI-unabhängig, kein Toast nötig
   },
 
   // ── Login ─────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, uid, fmtDate } from '../../lib/utils.js';
+import { C, uid } from '../../lib/utils.js';
 import { Avatar, Modal, Field } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 

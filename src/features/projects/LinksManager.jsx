@@ -67,7 +67,7 @@ function LinkRow({ link, onRemove, readOnly }) {
   );
 }
 
-export function LinksManager({ links = [], onUpdate, readOnly = false, compact = false }) {
+export function LinksManager({ links = [], onUpdate, readOnly = false, compact: _compact = false }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]         = useState({ url: '', title: '', type: 'tutorial', note: '' });
   const [urlErr, setUrlErr]     = useState('');

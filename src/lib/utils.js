@@ -239,19 +239,19 @@ const SESSION_KEY = 'azubiboard_session';
 const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 Stunden
 
 export function saveSession(userId) {
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId, expires: Date.now() + SESSION_TTL })); } catch {}
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId, expires: Date.now() + SESSION_TTL })); } catch { /* noop */ }
 }
 
 export function loadSession() {
   try {
     const s = JSON.parse(sessionStorage.getItem(SESSION_KEY));
     if (s?.userId && s.expires > Date.now()) return s.userId;
-  } catch {}
+  } catch { /* noop */ }
   return null;
 }
 
 export function clearSession() {
-  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* noop */ }
 }
 
 // ── Datenpersistenz ───────────────────────────────────────────
@@ -261,7 +261,7 @@ export function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return { ...getDefaultData(), ...JSON.parse(saved) };
-  } catch {}
+  } catch { /* noop */ }
   return getDefaultData();
 }
 

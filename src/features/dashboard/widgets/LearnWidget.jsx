@@ -10,10 +10,9 @@ function LearnWidgetImpl({ userId, onNavigate }) {
     try {
       const key = `azubi_quiz_${userId || 'anon'}`;
       const saved = JSON.parse(localStorage.getItem(key) || '[]');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHistory(saved);
-    } catch {
-      // localStorage kann in privaten Fenstern werfen — Stille hier OK
-    }
+    } catch { /* noop */ }
   }, [userId]);
 
   const avg  = history.length > 0 ? Math.round(history.reduce((s, e) => s + e.pct, 0) / history.length) : null;

@@ -3,7 +3,7 @@
 
 // localStorage ist in jsdom vorhanden, aber zwischen Tests sauber halten:
 beforeEach(() => {
-  try { localStorage.clear(); sessionStorage.clear(); } catch {}
+  try { localStorage.clear(); sessionStorage.clear(); } catch { /* noop */ }
 });
 
 // BroadcastChannel-Stub für jsdom (sonst crashen Module die's importieren).

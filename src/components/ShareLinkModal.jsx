@@ -37,7 +37,7 @@ export default function ShareLinkModal({ kind, title, data, onClose }) {
       await navigator.clipboard.writeText(link.url);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
-    } catch {}
+    } catch { /* noop */ }
   };
 
   return (

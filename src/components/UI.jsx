@@ -197,6 +197,7 @@ export function ThemeToggle({ theme, onToggle }) {
 }
 
 // ── Icon Button (APPLE-STYLE: 40x40, better feedback) ───────────
+// eslint-disable-next-line no-unused-vars
 export function IconBtn({ Icon, onClick, label, danger = false, active = false, size = 16, style: s = {} }) {
   const handleClick = (e) => {
     // Spring animation on click

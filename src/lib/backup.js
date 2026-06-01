@@ -10,8 +10,8 @@ const KEY_DISMISSED   = 'azubiboard_backup_dismissed_until';
 const DEFAULT_DAYS    = 7;
 
 export function recordBackup() {
-  try { localStorage.setItem(KEY_LAST_BACKUP, String(Date.now())); } catch {}
-  try { localStorage.removeItem(KEY_DISMISSED); } catch {}
+  try { localStorage.setItem(KEY_LAST_BACKUP, String(Date.now())); } catch { /* noop */ }
+  try { localStorage.removeItem(KEY_DISMISSED); } catch { /* noop */ }
 }
 
 export function lastBackupAt() {
@@ -32,7 +32,7 @@ export function needsBackup(thresholdDays = DEFAULT_DAYS) {
   try {
     const until = Number(localStorage.getItem(KEY_DISMISSED) || 0);
     if (until && Date.now() < until) return false;
-  } catch {}
+  } catch { /* noop */ }
   return daysSinceBackup() >= thresholdDays;
 }
 
@@ -41,5 +41,5 @@ export function snoozeReminder(hours = 24) {
   try {
     const until = Date.now() + hours * 3600_000;
     localStorage.setItem(KEY_DISMISSED, String(until));
-  } catch {}
+  } catch { /* noop */ }
 }

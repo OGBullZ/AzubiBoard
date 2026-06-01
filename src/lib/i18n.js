@@ -19,7 +19,7 @@ function detectLang() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && ['de', 'en'].includes(saved)) return saved;
-  } catch {}
+  } catch { /* noop */ }
   // Browser-Hinweis, Fallback auf de (Hauptzielgruppe)
   const nav = (typeof navigator !== 'undefined' && navigator.language) || 'de';
   return nav.toLowerCase().startsWith('en') ? 'en' : 'de';
@@ -41,7 +41,7 @@ i18n
 export function setLanguage(lng) {
   if (!['de', 'en'].includes(lng)) return;
   i18n.changeLanguage(lng);
-  try { localStorage.setItem(STORAGE_KEY, lng); } catch {}
+  try { localStorage.setItem(STORAGE_KEY, lng); } catch { /* noop */ }
 }
 
 export default i18n;

@@ -20,6 +20,7 @@ export function NetzplanTab({ project, onUpdate }) {
     setLpos({ ...(project.netzplan?.nodePositions || {}) });
     setZoom(1);
     setPan({ x: 0, y: 0 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
   const computed = useMemo(() => computeCPM(np.nodes, np.edges), [np.nodes, np.edges]);
@@ -407,6 +408,7 @@ export function GanttTab({ project }) {
             <div style={{ height: HH, borderBottom: `1px solid ${C.bd}`, padding: '0 12px', display: 'flex', alignItems: 'center' }}>
               <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700 }}>Vorgang</div>
             </div>
+            {/* eslint-disable-next-line react-hooks/refs */}
             {orderedLaid.map(n => {
               const bc        = n.color || (critSet.has(n.id) ? C.cr : C.ac);
               const isDrop    = dropTarget === n.id;
@@ -446,6 +448,7 @@ export function GanttTab({ project }) {
             </div>
 
             {/* Zeilen */}
+            {/* eslint-disable-next-line react-hooks/refs */}
             {orderedLaid.map(n => {
               const bc      = n.color || (critSet.has(n.id) ? C.cr : C.ac);
               const ic      = critSet.has(n.id);

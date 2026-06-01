@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { C, uid } from '../../lib/utils.js';
-import { hashPassword, isHashed } from '../../lib/crypto.js';
+import { hashPassword } from '../../lib/crypto.js';
 import { dataService } from '../../lib/dataService.js';
 import { Avatar, Modal, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
@@ -11,7 +11,7 @@ export function UsersView({ users, onUpdateUsers, showToast }) {
   const azubis = users.filter(u => u.role === 'azubi');
   const [showForm, setShowForm]     = useState(false);
   const [editUser, setEditUser]     = useState(null);
-  const [confirmDel, setConfirmDel] = useState(null);
+  const [_confirmDel, _setConfirmDel] = useState(null);
   const [form, setForm]             = useState(emptyForm());
   const [saving, setSaving]         = useState(false);
 

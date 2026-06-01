@@ -427,7 +427,7 @@ export default function LearnPage({ currentUser }) {
       const prev = JSON.parse(localStorage.getItem(key) || '[]');
       const entry = { score, total, pct: Math.round(score/total*100), date: new Date().toISOString(), questions: quizQuestions.length };
       localStorage.setItem(key, JSON.stringify([entry, ...prev].slice(0, 20)));
-    } catch {}
+    } catch { /* noop */ }
   };
 
   if (view === 'quiz')      return <QuizMode questions={quizQuestions} onFinish={onFinish} />;
@@ -464,7 +464,7 @@ export default function LearnPage({ currentUser }) {
             );
           }
           const total  = paths.length;
-          const done   = paths.filter(p => p.nodes.length > 0 && p.nodes.every(n => prog[n.id]?.completed)).length;
+          const _done  = paths.filter(p => p.nodes.length > 0 && p.nodes.every(n => prog[n.id]?.completed)).length;
           return (
             <div style={{ display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap' }}>
               {paths.slice(0, 3).map(p => {

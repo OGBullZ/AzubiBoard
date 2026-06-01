@@ -64,7 +64,7 @@ const MIGRATIONS = {
       try {
         const stored = JSON.parse(localStorage.getItem('azubiboard_custom_quiz') || '[]');
         if (stored.length > 0) quizzes = stored;
-      } catch {}
+      } catch { /* noop */ }
     }
     return { ...data, quizzes };
   },
