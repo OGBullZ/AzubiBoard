@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { C, ST } from '../lib/utils.js';
 import { IcoMoon, IcoSun } from './Icons.jsx';
 
 // ── Toast ─────────────────────────────────────────────────────
 // payload kann String oder { msg, undo, duration } sein
 export function Toast({ payload, onDismiss }) {
+  const { t } = useTranslation();
   const isObj = payload && typeof payload === 'object';
   const msg   = isObj ? payload.msg  : payload;
   const undo  = isObj ? payload.undo : null;
@@ -21,14 +23,14 @@ export function Toast({ payload, onDismiss }) {
       {undo && (
         <button
           onClick={() => { undo(); onDismiss?.(); }}
-          aria-label="Aktion rückgängig machen"
+          aria-label={t('ui.undoAction')}
           style={{
             background: 'transparent', border: '1px solid var(--c-ac)', color: 'var(--c-ac)',
             borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700,
             cursor: 'pointer', textTransform: 'uppercase', letterSpacing: .6,
             flexShrink: 0
           }}>
-          ↶ Rückgängig
+          {t('ui.undoBtn')}
         </button>
       )}
     </div>
@@ -80,6 +82,7 @@ export function Avatar({ name, url, size = 28 }) {
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 export function Modal({ title, onClose, children, width = 480 }) {
+  const { t } = useTranslation();
   const panelRef = useRef(null);
 
   // Escape → schließen; Focus auf erstes Element setzen
@@ -113,7 +116,7 @@ export function Modal({ title, onClose, children, width = 480 }) {
         onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <h2 id="modal-title" style={{ fontSize: 15, fontWeight: 800, color: C.br, margin: 0 }}>{title}</h2>
-          <button className="del" onClick={onClose} style={{ fontSize: 20 }} aria-label="Dialog schließen">×</button>
+          <button className="del" onClick={onClose} style={{ fontSize: 20 }} aria-label={t('ui.closeDialog')}>×</button>
         </div>
         {children}
       </div>
@@ -185,9 +188,10 @@ export function SectionHeader({ title, count, Icon, action, onAction }) {
 
 // ── Theme Toggle ──────────────────────────────────────────────
 export function ThemeToggle({ theme, onToggle }) {
+  const { t } = useTranslation();
   const dark = theme === 'dark';
   return (
-    <button onClick={onToggle} title={dark ? 'Light Mode' : 'Dark Mode'} aria-label={dark ? 'Light Mode aktivieren' : 'Dark Mode aktivieren'}
+    <button onClick={onToggle} title={dark ? t('ui.lightMode') : t('ui.darkMode')} aria-label={dark ? t('ui.lightModeActivate') : t('ui.darkModeActivate')}
       style={{ width: 34, height: 20, borderRadius: 10, border: `1px solid ${C.bd2}`, background: dark ? C.sf2 : C.acd, cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0, padding: 0, display: 'flex', alignItems: 'center' }}>
       <div style={{ position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: dark ? C.mu : C.ac, left: dark ? 2 : 18, top: 2, transition: 'left .18s, background .18s' }} />
       <span style={{ position: 'absolute', left: 3, display: 'flex', opacity: dark ? .9 : .3, color: C.mu }}><IcoMoon size={9} /></span>

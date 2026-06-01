@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { C, uid, saveSession } from '../../lib/utils.js';
 import { hashPassword, isHashed } from '../../lib/crypto.js';
 import { dataService } from '../../lib/dataService.js';
@@ -7,6 +8,7 @@ import { setToken } from '../../lib/auth.js';
 const USE_API = import.meta.env.VITE_USE_API === 'true';
 
 export default function AuthPage({ onLogin, users, onRegister }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -19,7 +21,7 @@ export default function AuthPage({ onLogin, users, onRegister }) {
 
   async function handleLogin(e) {
     e.preventDefault(); setErr('');
-    if (!email.trim() || !pw.trim()) { setErr('Bitte alle Felder ausfüllen.'); return; }
+    if (!email.trim() || !pw.trim()) { setErr(t('auth.allFieldsRequired')); return; }
     setLoading(true);
     try {
       if (USE_API) {
@@ -35,14 +37,14 @@ export default function AuthPage({ onLogin, users, onRegister }) {
       } else {
         // ── Lokaler Modus: SHA-256 (Entwicklung) ────────────
         const u = users.find(x => x.email.toLowerCase() === email.toLowerCase());
-        if (!u) { setErr('E-Mail oder Passwort falsch.'); setLoading(false); return; }
+        if (!u) { setErr(t('auth.wrongCredentials')); setLoading(false); return; }
         const inputHash = await hashPassword(pw);
         const match = isHashed(u.password) ? inputHash === u.password : pw === u.password;
         if (match) { saveSession(u.id); onLogin(u); }
-        else { setErr('E-Mail oder Passwort falsch.'); setLoading(false); }
+        else { setErr(t('auth.wrongCredentials')); setLoading(false); }
       }
     } catch (err) {
-      setErr(err.message || 'Anmeldung fehlgeschlagen. Bitte erneut versuchen.');
+      setErr(err.message || t('auth.loginFailed'));
       setLoading(false);
     }
   }
@@ -51,14 +53,14 @@ export default function AuthPage({ onLogin, users, onRegister }) {
   async function handle2FA(e) {
     e.preventDefault(); setErr('');
     const code = tfCode.replace(/\s/g, '');
-    if (!code) { setErr('Code eingeben.'); return; }
+    if (!code) { setErr(t('auth.enterCode')); return; }
     setLoading(true);
     try {
       const { token, user } = await dataService.twoFactorCheck(twofa.partial_token, code);
       setToken(token);
       onLogin(user);
     } catch (err) {
-      setErr(err.message || 'Code falsch.');
+      setErr(err.message || t('auth.codeWrong'));
       setTfCode('');
       setLoading(false);
     }
@@ -72,9 +74,9 @@ export default function AuthPage({ onLogin, users, onRegister }) {
 
   async function handleRegister(e) {
     e.preventDefault(); setErr('');
-    if (!name.trim()) { setErr('Bitte Namen eingeben.'); return; }
-    if (!email.trim()) { setErr('Bitte E-Mail eingeben.'); return; }
-    if (!pw.trim() || pw.length < 8) { setErr('Passwort muss mindestens 8 Zeichen haben.'); return; }
+    if (!name.trim()) { setErr(t('auth.enterName')); return; }
+    if (!email.trim()) { setErr(t('auth.enterEmail')); return; }
+    if (!pw.trim() || pw.length < 8) { setErr(t('auth.passwordTooShort')); return; }
     setLoading(true);
     try {
       if (USE_API) {
@@ -87,7 +89,7 @@ export default function AuthPage({ onLogin, users, onRegister }) {
       } else {
         // ── Lokaler Modus ────────────────────────────────────
         if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-          setErr('Diese E-Mail ist bereits registriert.'); setLoading(false); return;
+          setErr(t('auth.alreadyRegistered')); setLoading(false); return;
         }
         const hashed = await hashPassword(pw);
         const newUser = { id: uid(), name: name.trim(), email: email.trim(), password: hashed, role: 'azubi' };
@@ -95,7 +97,7 @@ export default function AuthPage({ onLogin, users, onRegister }) {
         onRegister(newUser);
       }
     } catch (err) {
-      setErr(err.message || 'Registrierung fehlgeschlagen. Bitte erneut versuchen.');
+      setErr(err.message || t('auth.registerFailed'));
       setLoading(false);
     }
   }
@@ -111,7 +113,7 @@ export default function AuthPage({ onLogin, users, onRegister }) {
         <header style={{ textAlign: 'center', marginBottom: 28 }}>
           <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: 15, background: `linear-gradient(135deg, ${C.ac}, #2563eb)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 12, boxShadow: `0 8px 32px ${C.ac}30` }}>A</div>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: C.br, letterSpacing: -.5, margin: 0 }}>AzubiBoard</h1>
-          <p style={{ fontSize: 14, color: C.mu, marginTop: 4 }}>Projektmanagement für Auszubildende</p>
+          <p style={{ fontSize: 14, color: C.mu, marginTop: 4 }}>{t('auth.subtitle')}</p>
         </header>
 
         <div style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 14, padding: 26, boxShadow: '0 8px 40px rgba(0,0,0,.4)' }}>
@@ -120,12 +122,12 @@ export default function AuthPage({ onLogin, users, onRegister }) {
             <form onSubmit={handle2FA} noValidate>
               <div style={{ marginBottom: 16, textAlign: 'center' }}>
                 <div style={{ fontSize: 30, marginBottom: 8 }}>🔐</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: C.br, marginBottom: 4 }}>2-Faktor-Authentifizierung</div>
-                <div style={{ fontSize: 12, color: C.mu }}>Code aus deiner Authenticator-App eingeben.</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.br, marginBottom: 4 }}>{t('auth.twoFactor')}</div>
+                <div style={{ fontSize: 12, color: C.mu }}>{t('auth.twoFactorHint')}</div>
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label htmlFor="tf-code" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>
-                  6-stelliger Code oder Recovery-Code
+                  {t('auth.twoFactorLabel')}
                 </label>
                 <input id="tf-code" type="text" inputMode="numeric" autoComplete="one-time-code"
                   value={tfCode}
@@ -144,17 +146,17 @@ export default function AuthPage({ onLogin, users, onRegister }) {
                 style={{ width: '100%', padding: '13px', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 9 }}>
                 {loading
                   ? <span style={{ width: 16, height: 16, border: '2px solid #fff4', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .6s linear infinite', display: 'inline-block' }} />
-                  : 'Bestätigen'}
+                  : t('common.confirm')}
               </button>
               <button type="button" onClick={cancelTwoFA}
                 style={{ width: '100%', padding: '9px', fontSize: 12, background: 'transparent', border: 'none', color: C.mu, cursor: 'pointer' }}>
-                ← Zurück zur Anmeldung
+                {t('auth.backToLogin')}
               </button>
             </form>
           ) : (
           <>
           <div role="tablist" style={{ display: 'flex', background: C.sf2, borderRadius: 8, padding: 3, marginBottom: 22, gap: 3 }}>
-            {[['login', 'Anmelden'], ['register', 'Registrieren']].map(([m, l]) => (
+            {[['login', t('auth.login')], ['register', t('auth.register')]].map(([m, l]) => (
               <button key={m} role="tab" aria-selected={mode === m}
                 onClick={() => { setMode(m); setErr(''); }}
                 style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none', background: mode === m ? C.ac : 'transparent', color: mode === m ? '#fff' : C.mu, transition: 'all .15s', letterSpacing: .3 }}>
@@ -166,18 +168,18 @@ export default function AuthPage({ onLogin, users, onRegister }) {
           <form onSubmit={mode === 'login' ? handleLogin : handleRegister} noValidate>
             {mode === 'register' && (
               <div style={{ marginBottom: 16 }}>
-                <label htmlFor="reg-name" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>Vollständiger Name</label>
+                <label htmlFor="reg-name" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>{t('auth.fullName')}</label>
                 <input id="reg-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Max Mustermann" autoComplete="name" autoFocus style={{ width: '100%', padding: '12px 16px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.tx, fontFamily: 'inherit', transition: 'border .2s', boxSizing: 'border-box' }} onFocus={e => e.target.style.borderColor = C.ac} onBlur={e => e.target.style.borderColor = C.bd2} />
               </div>
             )}
             <div style={{ marginBottom: 16 }}>
-              <label htmlFor="auth-email" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>E-Mail-Adresse</label>
+              <label htmlFor="auth-email" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>{t('auth.emailAddress')}</label>
               <input id="auth-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@firma.de" autoComplete="email" autoFocus={mode === 'login'} style={{ width: '100%', padding: '12px 16px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.tx, fontFamily: 'inherit', transition: 'border .2s', boxSizing: 'border-box' }} onFocus={e => e.target.style.borderColor = C.ac} onBlur={e => e.target.style.borderColor = C.bd2} />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <label htmlFor="auth-pw" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>Passwort</label>
+              <label htmlFor="auth-pw" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>{t('auth.password')}</label>
               <input id="auth-pw" type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} style={{ width: '100%', padding: '12px 16px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.tx, fontFamily: 'inherit', transition: 'border .2s', boxSizing: 'border-box' }} onFocus={e => e.target.style.borderColor = C.ac} onBlur={e => e.target.style.borderColor = C.bd2} />
-              {mode === 'register' && <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>Mindestens 8 Zeichen</div>}
+              {mode === 'register' && <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>{t('auth.passwordHint')}</div>}
             </div>
 
             {err && (
@@ -190,16 +192,16 @@ export default function AuthPage({ onLogin, users, onRegister }) {
               style={{ width: '100%', padding: '13px', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {loading
                 ? <span style={{ width: 16, height: 16, border: '2px solid #fff4', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .6s linear infinite', display: 'inline-block' }} />
-                : mode === 'login' ? 'Anmelden' : 'Konto erstellen'}
+                : mode === 'login' ? t('auth.login') : t('auth.createAccount')}
             </button>
           </form>
 
           <div style={{ marginTop: 16, padding: '11px 14px', background: C.sf2, borderRadius: 8, fontSize: 12, color: C.mu, borderLeft: `3px solid ${C.ac}` }}>
-            <div style={{ fontWeight: 700, marginBottom: 9, color: C.tx, fontSize: 12 }}>Demo — Schnellzugang</div>
+            <div style={{ fontWeight: 700, marginBottom: 9, color: C.tx, fontSize: 12 }}>{t('auth.demoQuickAccess')}</div>
             <div style={{ display: 'flex', gap: 7 }}>
               {[
-                { label: 'Ausbilder', email: 'ausbilder@firma.de' },
-                { label: 'Azubi',     email: 'anna@azubi.de'      },
+                { label: t('auth.trainer'), email: 'ausbilder@firma.de' },
+                { label: t('auth.apprentice'), email: 'anna@azubi.de' },
               ].map(({ label, email: demoEmail }) => (
                 <button key={label} type="button"
                   onClick={() => { setMode('login'); setEmail(demoEmail); setPw('1234'); setErr(''); }}

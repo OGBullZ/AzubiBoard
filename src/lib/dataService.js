@@ -10,6 +10,7 @@ import {
   mapQuizzesToBlob, mapLearningPathsToBlob, extractPathProgress,
   mapCalendarEventsToBlob,
 } from './schemaMap.js';
+import { AppState, SearchResponse, validate } from './schemas.js';
 
 const USE_API  = import.meta.env.VITE_USE_API === 'true';
 // Phase 3: Schema-Reads. Wenn true (+API), liest getData() projects+reports aus
@@ -285,7 +286,9 @@ export const dataService = {
       const etag = res.headers.get('ETag');
       if (etag) saveQueue.setVersion(Number(etag.replace(/"/g, '')) || 0);
       saveQueue.captureEntityVersions(res);   // L5-5b: forward-compat, no-op ohne Header
-      const blob = await res.json();
+      const rawBlob = await res.json();
+      // T1: Zod-Validierung an der API-Grenze (nur im Dev-Modus wird geloggt)
+      const blob = validate(AppState, rawBlob, 'GET /data');
       // Phase 3: optional projects+reports aus Schema überlagern (Flag, default aus).
       if (USE_SCHEMA) {
         try {
@@ -347,8 +350,9 @@ export const dataService = {
     try {
       const res = await apiFetch(`/search?q=${encodeURIComponent(q)}`);
       if (!res.ok) return [];
-      const body = await res.json();
-      return body?.results ?? [];
+      const raw = await res.json();
+      const validated = validate(SearchResponse, raw, 'GET /search');
+      return validated?.results ?? [];
     } catch { return []; }
   },
 
