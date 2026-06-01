@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { C, uid, today } from '../../lib/utils.js';
 import { Avatar, Modal } from '../../components/UI.jsx';
 
 export function NewProjectModal({ users, groups, currentUser, onClose, onCreate }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     title: '', description: '', status: 'yellow',
@@ -37,7 +39,7 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
   };
 
   const next = () => {
-    if (step === 1 && !form.title.trim()) { setErr('Bitte einen Projekttitel eingeben.'); return; }
+    if (step === 1 && !form.title.trim()) { setErr(t('project.titleRequired')); return; }
     setErr('');
     setStep(s => s + 1);
   };
@@ -46,10 +48,10 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
     onCreate({ ...form, id: uid(), tasks: [], steps: [], calendarEvents: [] });
   };
 
-  const STEPS = ['Grunddaten', 'Zeitraum & Team', 'Details'];
+  const STEPS = [t('project.step1'), t('project.step2'), t('project.step3')];
 
   return (
-    <Modal title="Neues Projekt" onClose={onClose} width={500}>
+    <Modal title={t('project.newProject')} onClose={onClose} width={500}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 22 }}>
         {STEPS.map((s, i) => {
           const n = i + 1;
@@ -76,16 +78,16 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
       {step === 1 && (
         <div style={{ animation: 'fadeUp .15s ease', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>Projekttitel *</label>
+            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createTitle')}</label>
             <input value={form.title} onChange={e => u('title', e.target.value)}
               onKeyDown={e => e.key === 'Enter' && next()}
               placeholder="z.B. Weboberfläche Azubi-Verwaltung"
               autoFocus style={{ fontSize: 15, padding: '10px 13px', fontWeight: 600 }} />
           </div>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>Beschreibung</label>
+            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createDescription')}</label>
             <textarea value={form.description} onChange={e => u('description', e.target.value)}
-              placeholder="Was soll in diesem Projekt erreicht werden?"
+              placeholder={t('project.descPlaceholder')}
               style={{ minHeight: 100, fontSize: 13, lineHeight: 1.65 }} />
           </div>
         </div>
@@ -95,25 +97,25 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
         <div style={{ animation: 'fadeUp .15s ease', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>Startdatum</label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createStartDate')}</label>
               <input type="date" value={form.startDate} onChange={e => u('startDate', e.target.value)} style={{ fontSize: 13 }} />
             </div>
             <div>
-              <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>Deadline</label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createDeadline')}</label>
               <input type="date" value={form.deadline} onChange={e => u('deadline', e.target.value)} style={{ fontSize: 13 }} />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>Gruppe (optional)</label>
+            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createGroup')}</label>
             <select value={form.groupId} onChange={e => u('groupId', e.target.value)} style={{ fontSize: 13 }}>
-              <option value="">— Keine Gruppe —</option>
+              <option value="">{t('project.createNoGroup')}</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 9, display: 'block' }}>Azubis zuweisen</label>
+            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 9, display: 'block' }}>{t('project.createAssign')}</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {users.filter(u2 => u2.role === 'azubi').map(u2 => {
                 const sel = form.assignees.includes(u2.id);
@@ -138,14 +140,14 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
 
       {step === 3 && (
         <div style={{ animation: 'fadeUp .15s ease', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p style={{ fontSize: 12, color: C.mu, margin: 0 }}>Optional — alles kann auch später im Projekt hinzugefügt werden.</p>
+          <p style={{ fontSize: 12, color: C.mu, margin: 0 }}>{t('project.createOptionalNote')}</p>
 
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 7, display: 'block' }}>
-              Material <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.materials.length})</span>
+              {t('project.createMaterial')} <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.materials.length})</span>
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 55px 75px auto', gap: 6, marginBottom: 6 }}>
-              <input value={matForm.name} onChange={e => setMatForm(f => ({ ...f, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addMat()} placeholder="Bezeichnung…" style={{ fontSize: 12 }} />
+              <input value={matForm.name} onChange={e => setMatForm(f => ({ ...f, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addMat()} placeholder={t('project.matNamePlaceholder')} style={{ fontSize: 12 }} />
               <input type="number" min="1" value={matForm.qty} onChange={e => setMatForm(f => ({ ...f, qty: e.target.value }))} style={{ fontSize: 12 }} />
               <input type="number" min="0" step="0.01" value={matForm.cost} onChange={e => setMatForm(f => ({ ...f, cost: e.target.value }))} placeholder="€" style={{ fontSize: 12 }} />
               <button className="abtn" onClick={addMat} style={{ padding: '6px 10px', fontSize: 11 }}>+</button>
@@ -161,10 +163,10 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
 
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 7, display: 'block' }}>
-              Anforderungen <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.requirements.length})</span>
+              {t('project.createRequirements')} <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.requirements.length})</span>
             </label>
             <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-              <input value={reqText} onChange={e => setReqText(e.target.value)} onKeyDown={e => e.key === 'Enter' && addReq()} placeholder="Anforderung hinzufügen…" style={{ flex: 1, fontSize: 12 }} />
+              <input value={reqText} onChange={e => setReqText(e.target.value)} onKeyDown={e => e.key === 'Enter' && addReq()} placeholder={t('project.reqPlaceholder')} style={{ flex: 1, fontSize: 12 }} />
               <button className="abtn" onClick={addReq} style={{ padding: '6px 10px', fontSize: 11 }}>+</button>
             </div>
             {form.requirements.map(r => (
@@ -178,11 +180,11 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
 
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 7, display: 'block' }}>
-              Links <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.links.length})</span>
+              {t('project.createLinks')} <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.links.length})</span>
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, marginBottom: 6 }}>
-              <input value={linkForm.url} onChange={e => setLinkForm(f => ({ ...f, url: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addLink()} placeholder="URL…" style={{ fontSize: 12 }} />
-              <input value={linkForm.title} onChange={e => setLinkForm(f => ({ ...f, title: e.target.value }))} placeholder="Titel (optional)" style={{ fontSize: 12 }} />
+              <input value={linkForm.url} onChange={e => setLinkForm(f => ({ ...f, url: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addLink()} placeholder={t('project.urlPlaceholder')} style={{ fontSize: 12 }} />
+              <input value={linkForm.title} onChange={e => setLinkForm(f => ({ ...f, title: e.target.value }))} placeholder={t('project.titleOptional')} style={{ fontSize: 12 }} />
               <button className="abtn" onClick={addLink} style={{ padding: '6px 10px', fontSize: 11 }}>+</button>
             </div>
             {form.links.map(l => (
@@ -198,19 +200,19 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
 
       <div style={{ display: 'flex', gap: 9, marginTop: 22 }}>
         {step > 1 && (
-          <button className="btn" onClick={() => setStep(s => s - 1)} style={{ padding: '11px 16px', fontSize: 13 }}>← Zurück</button>
+          <button className="btn" onClick={() => setStep(s => s - 1)} style={{ padding: '11px 16px', fontSize: 13 }}>← {t('common.back')}</button>
         )}
         {step < 3 ? (
           <button className="abtn" onClick={next} style={{ flex: 1, padding: 12, fontSize: 14, justifyContent: 'center', fontWeight: 800 }}>
-            Weiter →
+            {t('common.next')} →
           </button>
         ) : (
           <button className="abtn" onClick={submit} style={{ flex: 1, padding: 12, fontSize: 14, justifyContent: 'center', fontWeight: 800, background: C.gr }}>
-            ✓ Projekt erstellen
+            {t('project.createBtn')}
           </button>
         )}
         {step === 1 && (
-          <button className="btn" onClick={onClose} style={{ padding: '11px 16px' }}>Abbrechen</button>
+          <button className="btn" onClick={onClose} style={{ padding: '11px 16px' }}>{t('common.cancel')}</button>
         )}
       </div>
     </Modal>

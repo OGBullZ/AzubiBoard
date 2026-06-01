@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from 'react-i18next';
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
 import { useDebounce } from '../../lib/hooks.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';

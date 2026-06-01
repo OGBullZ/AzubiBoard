@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { C, fmtDate } from '../../lib/utils.js';
 import { useDebounce } from '../../lib/hooks.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
@@ -9,6 +10,7 @@ import {
 } from '../../components/Icons.jsx';
 
 export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNew, onDelete, onArchive, onUnarchive, onDuplicate }) {
+  const { t } = useTranslation();
   const [filter,      setFilter]      = useState('all');
   const [search,      setSearch]      = useState('');
   const [showArchive, setShowArchive] = useState(false);
@@ -49,22 +51,22 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
     });
 
   const FILTERS = [
-    ['all',    'Alle',       null,  C.ac, active.length],
-    ['mine',   'Meine',      null,  C.mu, active.filter(p => (p.assignees||[]).includes(currentUser.id)).length],
-    ['green',  'Abgeschlossen', C.gr,  C.gr, active.filter(p => p.status === 'green').length],
-    ['yellow', 'Laufend',    C.yw,  C.yw, active.filter(p => p.status === 'yellow').length],
-    ['red',    'Problem',    C.cr,  C.cr, active.filter(p => p.status === 'red').length],
+    ['all',    t('project.filterAll'),     null,  C.ac, active.length],
+    ['mine',   t('project.filterMine'),    null,  C.mu, active.filter(p => (p.assignees||[]).includes(currentUser.id)).length],
+    ['green',  t('project.filterDone'),    C.gr,  C.gr, active.filter(p => p.status === 'green').length],
+    ['yellow', t('project.filterRunning'), C.yw,  C.yw, active.filter(p => p.status === 'yellow').length],
+    ['red',    t('project.filterProblem'), C.cr,  C.cr, active.filter(p => p.status === 'red').length],
   ];
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px 20px' }} className="anim">
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>Projekte</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>{t('project.projects')}</h1>
         <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }}>
             <div style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: C.textSecondary, pointerEvents: 'none' }}><IcoSearch size={12} /></div>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Suchen…" style={{ paddingLeft: 28, width: 200 }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('common.search') + '…'} style={{ paddingLeft: 28, width: 200 }} />
           </div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {FILTERS.map(([v, l, dot, c, cnt]) => (
@@ -75,27 +77,27 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
               </button>
             ))}
           </div>
-          <select value={sort} onChange={e => setSort(e.target.value)} aria-label="Sortierung"
+          <select value={sort} onChange={e => setSort(e.target.value)} aria-label={t('common.filter')}
             style={{ fontSize: 11, padding: '5px 28px 5px 9px', width: 'auto', color: C.mu, background: 'var(--c-sf2)', border: `1px solid var(--c-bd)` }}>
-            <option value="title_asc">A → Z</option>
-            <option value="title_desc">Z → A</option>
-            <option value="status">Status</option>
-            <option value="deadline">Deadline</option>
-            <option value="progress">Fortschritt</option>
+            <option value="title_asc">{t('project.sortAZ')}</option>
+            <option value="title_desc">{t('project.sortZA')}</option>
+            <option value="status">{t('project.sortStatus')}</option>
+            <option value="deadline">{t('project.sortDeadline')}</option>
+            <option value="progress">{t('project.sortProgress')}</option>
           </select>
           <button className="abtn" onClick={onNew} style={{ fontSize: 12 }}>
-            <IcoPlus size={13} /> Neu
+            <IcoPlus size={13} /> {t('common.new')}
           </button>
           <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 7, padding: 2, gap: 2, border: `1px solid var(--c-bd)` }}>
             <button onClick={() => setViewMode('grid')}
               style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'grid' ? C.ac : 'transparent', color: viewMode === 'grid' ? '#fff' : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
               <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/><rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/></svg>
-              Grid
+              {t('project.viewGrid')}
             </button>
             <button onClick={() => setViewMode('table')}
               style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'table' ? C.ac : 'transparent', color: viewMode === 'table' ? '#fff' : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
               <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="14" height="3" rx="1"/><rect x="0" y="5" width="14" height="3" rx="1"/><rect x="0" y="10" width="14" height="3" rx="1"/></svg>
-              Liste
+              {t('project.viewList')}
             </button>
           </div>
         </div>
@@ -103,14 +105,14 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {visible.length === 0 ? (
-          <EmptyState Icon={IcoSearch} title="Keine Projekte"
-            subtitle={dSearch ? `Nichts für "${dSearch}"` : 'Noch keine Projekte in dieser Kategorie'}
-            action={!dSearch ? '+ Neues Projekt' : undefined} onAction={!dSearch ? onNew : undefined} />
+          <EmptyState Icon={IcoSearch} title={t('project.noProjects')}
+            subtitle={dSearch ? `Nichts für "${dSearch}"` : t('project.noProjectsCategory')}
+            action={!dSearch ? '+ ' + t('project.newProject') : undefined} onAction={!dSearch ? onNew : undefined} />
         ) : viewMode === 'table' ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid var(--c-bd)`, textAlign: 'left' }}>
-                {['Projekt','Status','Fortschritt','Azubis','Deadline','Aufgaben'].map(h => (
+                {[t('project.tableProject'), t('project.tableStatus'), t('project.tableProgress'), t('project.tableApprentices'), t('project.tableDeadline'), t('project.tableTasks')].map(h => (
                   <th key={h} style={{ padding: '7px 12px', fontSize: 13, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .8, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
                 {isAusbilder(currentUser) && <th style={{ width: 60 }} />}
@@ -162,9 +164,9 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                     {isAusbilder(currentUser) && (
                       <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <IconBtn Icon={IcoDoc}     onClick={() => onDuplicate?.(p.id)} label="Duplizieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
-                          <IconBtn Icon={IcoArchive} onClick={() => onArchive?.(p.id)} label="Archivieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
-                          <IconBtn Icon={IcoTrash}   onClick={() => onDelete(p.id, p.title)} label="Löschen" danger />
+                          <IconBtn Icon={IcoDoc}     onClick={() => onDuplicate?.(p.id)} label={t('project.labelDuplicate')} style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
+                          <IconBtn Icon={IcoArchive} onClick={() => onArchive?.(p.id)} label={t('project.labelArchive')} style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
+                          <IconBtn Icon={IcoTrash}   onClick={() => onDelete(p.id, p.title)} label={t('project.labelDelete')} danger />
                         </div>
                       </td>
                     )}
@@ -191,9 +193,9 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                   onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderLeftColor = sc; }}>
                   {isAusbilder(currentUser) && (
                     <div className="hover-action" style={{ position: 'absolute', top: 8, right: 8, gap: 4 }}>
-                      <IconBtn Icon={IcoDoc}     onClick={e => { e.stopPropagation(); onDuplicate?.(p.id); }} label="Duplizieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
-                      <IconBtn Icon={IcoArchive} onClick={e => { e.stopPropagation(); onArchive?.(p.id); }} label="Archivieren" style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
-                      <IconBtn Icon={IcoTrash}   onClick={e => { e.stopPropagation(); onDelete(p.id, p.title); }} label="Löschen" danger />
+                      <IconBtn Icon={IcoDoc}     onClick={e => { e.stopPropagation(); onDuplicate?.(p.id); }} label={t('project.labelDuplicate')} style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
+                      <IconBtn Icon={IcoArchive} onClick={e => { e.stopPropagation(); onArchive?.(p.id); }} label={t('project.labelArchive')} style={{ background: 'var(--c-sf)', border: `1px solid var(--c-bd2)` }} />
+                      <IconBtn Icon={IcoTrash}   onClick={e => { e.stopPropagation(); onDelete(p.id, p.title); }} label={t('project.labelDelete')} danger />
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 7, gap: 8 }}>
@@ -229,7 +231,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
               style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: `1px solid var(--c-bd)`, borderRadius: 7, padding: '6px 14px', cursor: 'pointer', color: C.textSecondary, fontSize: 12, fontWeight: 600, marginBottom: 12, transition: 'border-color .15s' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = C.bd2}
               onMouseLeave={e => e.currentTarget.style.borderColor = C.bd}>
-              <IcoArchive size={13} /> Archiv ({archived.length}) <span style={{ fontSize: 10, marginLeft: 2 }}>{showArchive ? '▲' : '▼'}</span>
+              <IcoArchive size={13} /> {t('project.archiveSection')} ({archived.length}) <span style={{ fontSize: 10, marginLeft: 2 }}>{showArchive ? '▲' : '▼'}</span>
             </button>
             {showArchive && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
@@ -237,11 +239,11 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                   <div key={p.id} style={{ background: 'var(--c-sf2)', border: `1px solid var(--c-bd)`, borderRadius: 9, padding: '11px 14px', opacity: .6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
                       <span style={{ fontSize: 16, fontWeight: 700, color: C.br, wordBreak: 'break-word', flex: 1 }}>{p.title}</span>
-                      <span className="tag" style={{ background: 'var(--c-sf3)', color: C.textSecondary, border: `1px solid var(--c-bd2)`, fontSize: 9, flexShrink: 0 }}>Archiv</span>
+                      <span className="tag" style={{ background: 'var(--c-sf3)', color: C.textSecondary, border: `1px solid var(--c-bd2)`, fontSize: 9, flexShrink: 0 }}>{t('project.archiveTag')}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 7 }}>
-                      <button onClick={() => onUnarchive?.(p.id)} className="btn" style={{ fontSize: 11, padding: '3px 9px' }}>Wiederherstellen</button>
-                      <button onClick={() => onDelete(p.id, p.title)} className="del" style={{ fontSize: 11 }}>Löschen</button>
+                      <button onClick={() => onUnarchive?.(p.id)} className="btn" style={{ fontSize: 11, padding: '3px 9px' }}>{t('common.restore')}</button>
+                      <button onClick={() => onDelete(p.id, p.title)} className="del" style={{ fontSize: 11 }}>{t('common.delete')}</button>
                     </div>
                   </div>
                 ))}
