@@ -63,6 +63,11 @@ define('SMTP_FROM_NAME',  env('SMTP_FROM_NAME', 'AzubiBoard'));
 // SMTP_SECURE: 'tls' (STARTTLS, Port 587), 'ssl' (Port 465), '' (kein TLS)
 define('SMTP_SECURE',     env('SMTP_SECURE', 'tls'));
 
+// AI2 (Sprint 14): Claude-API-Schlüssel für KI-Features.
+// Holen bei https://console.anthropic.com → API Keys.
+// Leer lassen → /api/ai/* antwortet mit 503.
+define('CLAUDE_API_KEY', env('CLAUDE_API_KEY', ''));
+
 // L5-DEP (Sprint 12 Phase 4): Schema-First-Modus. Wenn true, antwortet
 // POST /api/data mit 410 Gone — Blob-Writes sind dann vollständig depreciert.
 // GET /api/data bleibt lesbar (Legacy-Fallback + Backup-Zugriff).

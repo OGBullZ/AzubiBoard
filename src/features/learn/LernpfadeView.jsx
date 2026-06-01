@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { C, uid } from '../../lib/utils.js';
 import { Modal, Field, ProgressBar, EmptyState } from '../../components/UI.jsx';
+import AiGoalSuggestions from './AiGoalSuggestions.jsx';
 
 // ── Topological sort (Kahn's algorithm) ───────────────────────
 function topoSort(nodes) {
@@ -43,7 +44,7 @@ const EMPTY_PATH = { title: '', description: '', lehrjahr: 1 };
 const EMPTY_NODE = { title: '', description: '', type: 'article', prereqs: [], content: '' };
 
 // ── Detail-Ansicht eines Lernpfades ───────────────────────────
-function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEditPath, onAddNode, onEditNode, onDeleteNode }) {
+function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEditPath, onAddNode, onEditNode, onDeleteNode, onAiSuggest }) {
   const sorted   = topoSort(path.nodes);
   const [selNode, setSelNode] = useState(null);
 
@@ -65,6 +66,9 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
         {isAusbilder && (
           <div style={{ display: 'flex', gap: 6 }}>
             <button className="btn" onClick={onEditPath} style={{ fontSize: 11, padding: '4px 10px' }}>✎ Pfad</button>
+            <button className="btn" onClick={onAiSuggest}
+              style={{ fontSize: 11, padding: '4px 10px', color: C.ac, borderColor: C.ac + '60' }}
+              title="KI-Lernziele vorschlagen">🤖 KI</button>
             <button className="abtn" onClick={onAddNode} style={{ fontSize: 11, padding: '4px 10px' }}>+ Lernziel</button>
           </div>
         )}
@@ -291,6 +295,7 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }) {
   const [showNodeModal, setShowNodeModal] = useState(false);
   const [nodeForm,      setNodeForm]      = useState(EMPTY_NODE);
   const [editingNode,   setEditingNode]   = useState(null);
+  const [showAiModal,   setShowAiModal]   = useState(false);
 
   const isAusbilder  = currentUser?.role === 'ausbilder';
   const userId       = currentUser?.id || 'anon';
@@ -359,6 +364,22 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }) {
     setSelPath(updatedPath);
   };
 
+  // ── AI2: Bulk-Add nodes from KI suggestions ──
+  const addNodesFromAi = (suggestions) => {
+    if (!selPath || suggestions.length === 0) return;
+    const newNodes = suggestions.map(s => ({
+      id:          uid(),
+      title:       s.title,
+      description: s.description || '',
+      type:        s.type || 'task',
+      prereqs:     [],
+      content:     '',
+    }));
+    const updatedPath = { ...selPath, nodes: [...selPath.nodes, ...newNodes] };
+    savePaths(learningPaths.map(p => p.id === selPath.id ? updatedPath : p));
+    setSelPath(updatedPath);
+  };
+
   // Keep selPath in sync with latest data
   const currentSelPath = selPath ? (learningPaths.find(p => p.id === selPath.id) || selPath) : null;
 
@@ -375,6 +396,7 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }) {
           onAddNode={openAddNode}
           onEditNode={openEditNode}
           onDeleteNode={deleteNode}
+          onAiSuggest={() => setShowAiModal(true)}
         />
         {showPathModal && (
           <PathModal form={pathForm} setForm={setPathForm} onSave={savePathForm} onClose={() => setShowPathModal(false)}
@@ -384,6 +406,14 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }) {
           <NodeEditModal form={nodeForm} setForm={setNodeForm} onSave={saveNodeForm} onClose={() => setShowNodeModal(false)}
             title={editingNode ? 'Lernziel bearbeiten' : 'Neues Lernziel'}
             allNodes={currentSelPath.nodes} />
+        )}
+        {showAiModal && (
+          <AiGoalSuggestions
+            lehrjahr={currentSelPath.lehrjahr}
+            existingTitles={currentSelPath.nodes.map(n => n.title)}
+            onAdd={addNodesFromAi}
+            onClose={() => setShowAiModal(false)}
+          />
         )}
       </>
     );

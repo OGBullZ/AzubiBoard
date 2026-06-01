@@ -35,6 +35,7 @@ try {
         'calendar'      => require __DIR__ . '/routes/calendar.php',
         'trainingPlan'  => require __DIR__ . '/routes/training_plan.php',
         'search'        => require __DIR__ . '/routes/search.php',
+        'ai'            => require __DIR__ . '/routes/ai.php',
         default         => error("Unbekannte Route '$resource'", 404),
     };
 } catch (PDOException $e) {

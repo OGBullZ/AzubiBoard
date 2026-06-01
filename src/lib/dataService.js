@@ -344,6 +344,22 @@ export const dataService = {
   setKnownVersion(v) { saveQueue.setVersion(v); },
   getKnownVersion()  { return saveQueue.getVersion(); },
 
+  // AI2: Claude-API Lernziel-Vorschläge — POST /api/ai/suggest-goals
+  async suggestGoals({ profession, lehrjahr, context = '', existingTitles = [], count = 6 }) {
+    if (!USE_API || !isTokenValid()) throw new Error('API nicht verfügbar (VITE_USE_API oder kein Login)');
+    const res = await apiFetch('/ai/suggest-goals', {
+      method: 'POST',
+      body:   JSON.stringify({ profession, lehrjahr, context, existingTitles, count }),
+    });
+    if (res.status === 503) throw new Error('KI nicht konfiguriert — CLAUDE_API_KEY in .env setzen');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.suggestions ?? [];
+  },
+
   // L5-7: FULLTEXT-Suche — direkt gegen /api/search?q=
   async search(q) {
     if (!USE_API || !isTokenValid()) return [];
