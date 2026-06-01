@@ -124,6 +124,95 @@ export function mapReportRowToBlob(row = {}) {
   });
 }
 
+// Quiz-Frage (aus quiz_questions+quiz_answers, quiz.title als Kategorie) --------
+export function mapQuizQuestionRowToBlob(row = {}, category = '') {
+  return compact({
+    id:       String(row.id ?? ''),
+    question: row.question_text ?? '',
+    category: category,
+    type:     row.question_type === 'multiple' ? 'multiple' : 'single',
+    answers:  Array.isArray(row.answers)
+      ? row.answers.map(a => ({
+          id:      String(a.id ?? ''),
+          text:    a.answer_text ?? '',
+          correct: bool(a.is_correct),
+        }))
+      : [],
+  });
+}
+
+// Lernpfad (mit Nodes, Edges → prereqs, Progress) -----------------------
+export function mapLearningPathRowToBlob(path = {}, uid = null) {
+  const nodes  = Array.isArray(path.nodes) ? path.nodes : [];
+  const edges  = Array.isArray(path.edges) ? path.edges : [];
+  const prog   = path.progress && typeof path.progress === 'object' ? path.progress : {};
+
+  // Edge: from_node → to_node bedeutet to_node hat from_node als Voraussetzung
+  const prereqMap = {};
+  for (const e of edges) {
+    const to = String(e.to_node ?? '');
+    if (!prereqMap[to]) prereqMap[to] = [];
+    prereqMap[to].push(String(e.from_node ?? ''));
+  }
+
+  const mappedNodes = nodes.map(n => compact({
+    id:          String(n.id ?? ''),
+    title:       n.title ?? '',
+    description: n.description ?? undefined,
+    type:        n.type ?? 'article',
+    content:     n.content ?? undefined,
+    prereqs:     prereqMap[String(n.id)] ?? [],
+  }));
+
+  return compact({
+    id:          String(path.id ?? ''),
+    title:       path.title ?? '',
+    description: path.description ?? undefined,
+    lehrjahr:    path.lehrjahr ? Number(path.lehrjahr) : undefined,
+    nodes:       mappedNodes,
+  });
+}
+
+// pathProgress aus Lernpfad-Liste ----------------------------------------
+export function extractPathProgress(paths = []) {
+  const out = {};
+  for (const path of paths) {
+    const prog = path.progress && typeof path.progress === 'object' ? path.progress : {};
+    for (const [nodeId, p] of Object.entries(prog)) {
+      out[String(nodeId)] = {
+        completed:    bool(p.completed),
+        completed_at: p.completed_at ?? undefined,
+      };
+    }
+  }
+  return out;
+}
+
+// Kalender-Ereignis ------------------------------------------------------
+export function mapCalendarEventRowToBlob(row = {}) {
+  return compact({
+    id:        String(row.id ?? ''),
+    date:      row.event_date ?? null,
+    title:     row.title ?? '',
+    note:      row.description ?? undefined,
+    projectId: row.project_id ? String(row.project_id) : undefined,
+    type:      row.type ?? 'event',
+    color:     row.color ?? undefined,
+  });
+}
+
 // Listen-Helfer ---------------------------------------------------------
 export const mapProjectsToBlob = (rows = []) => rows.map(mapProjectRowToBlob);
 export const mapReportsToBlob  = (rows = []) => rows.map(mapReportRowToBlob);
+export const mapCalendarEventsToBlob = (rows = []) => rows.map(mapCalendarEventRowToBlob);
+export function mapQuizzesToBlob(quizzes = []) {
+  const questions = [];
+  for (const q of quizzes) {
+    const cat = q.title ?? '';
+    for (const question of (q.questions ?? [])) {
+      questions.push(mapQuizQuestionRowToBlob(question, cat));
+    }
+  }
+  return questions;
+}
+export const mapLearningPathsToBlob = (rows = []) => rows.map(r => mapLearningPathRowToBlob(r));

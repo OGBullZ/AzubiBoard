@@ -5,7 +5,7 @@
 :: ============================================================
 setlocal
 
-set PROJECT=C:\Users\Master\Desktop\Code\AzubiBoard
+set PROJECT=C:\Users\Master\projects\AzubiBoard
 set TARGET=C:\xampp\htdocs\azubiboard
 
 echo.

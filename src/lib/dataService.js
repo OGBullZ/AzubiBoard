@@ -5,7 +5,11 @@
 import { loadData, persistData } from './utils';
 import { authHeader, clearToken, isTokenValid } from './auth';
 import { addBreadcrumb } from './sentry.js';
-import { mapProjectsToBlob, mapReportsToBlob } from './schemaMap.js';
+import {
+  mapProjectsToBlob, mapReportsToBlob,
+  mapQuizzesToBlob, mapLearningPathsToBlob, extractPathProgress,
+  mapCalendarEventsToBlob,
+} from './schemaMap.js';
 
 const USE_API  = import.meta.env.VITE_USE_API === 'true';
 // Phase 3: Schema-Reads. Wenn true (+API), liest getData() projects+reports aus
@@ -201,29 +205,69 @@ const saveQueue = (() => {
   };
 })();
 
-// Phase 3: Overlay-Read. Holt projects+reports aus den relationalen Routes und
+// Phase 3: Overlay-Read. Holt Entitäten aus den relationalen Routes und
 // überlagert sie auf die Blob-Basis. Pro Sektion try/catch → bei Fehler bleibt
-// der jeweilige Blob-Wert erhalten (kein Hard-Fail). Entitäten ohne Read-Route
-// (quizzes/learningPaths/calendar/trainingPlan) kommen weiter aus dem Blob.
+// der jeweilige Blob-Wert erhalten (kein Hard-Fail).
 //   fetchJson(path): liefert geparstes JSON, wirft bei !ok.
 // Exportiert für Unit-Tests (injizierbares fetchJson).
 export async function overlaySchemaReads(blobBase, fetchJson) {
   const out = { ...(blobBase ?? {}) };
-  try {
-    const list = await fetchJson('/projects');
-    if (Array.isArray(list)) {
-      // Liste ist flach → Details (mit tasks/requirements/materials) pro Projekt nachladen.
-      const detailed = await Promise.all(list.map(async (p) => {
-        try { return await fetchJson(`/projects/${p.id}`); }
-        catch { return p; }   // Fallback: flache Row ohne Kinder
-      }));
-      out.projects = mapProjectsToBlob(detailed);
-    }
-  } catch { /* projects bleiben aus Blob */ }
-  try {
-    const reps = await fetchJson('/reports');
-    if (Array.isArray(reps)) out.reports = mapReportsToBlob(reps);
-  } catch { /* reports bleiben aus Blob */ }
+
+  // projects + reports + quizzes + learningPaths + calendar + trainingPlan
+  // parallel fetchen — jede Sektion isoliert try/catch
+  await Promise.all([
+    (async () => {
+      try {
+        const list = await fetchJson('/projects');
+        if (Array.isArray(list)) {
+          const detailed = await Promise.all(list.map(async (p) => {
+            try { return await fetchJson(`/projects/${p.id}`); }
+            catch { return p; }
+          }));
+          out.projects = mapProjectsToBlob(detailed);
+        }
+      } catch { /* projects bleiben aus Blob */ }
+    })(),
+
+    (async () => {
+      try {
+        const reps = await fetchJson('/reports');
+        if (Array.isArray(reps)) out.reports = mapReportsToBlob(reps);
+      } catch { /* reports bleiben aus Blob */ }
+    })(),
+
+    (async () => {
+      try {
+        const quizzes = await fetchJson('/quizzes');
+        if (Array.isArray(quizzes)) out.quizzes = mapQuizzesToBlob(quizzes);
+      } catch { /* quizzes bleiben aus Blob */ }
+    })(),
+
+    (async () => {
+      try {
+        const paths = await fetchJson('/learningPaths');
+        if (Array.isArray(paths)) {
+          out.learningPaths = mapLearningPathsToBlob(paths);
+          out.pathProgress  = extractPathProgress(paths);
+        }
+      } catch { /* learningPaths bleiben aus Blob */ }
+    })(),
+
+    (async () => {
+      try {
+        const evs = await fetchJson('/calendar');
+        if (Array.isArray(evs)) out.calendarEvents = mapCalendarEventsToBlob(evs);
+      } catch { /* calendarEvents bleiben aus Blob */ }
+    })(),
+
+    (async () => {
+      try {
+        const plan = await fetchJson('/trainingPlan');
+        if (plan && typeof plan === 'object') out.trainingPlan = plan;
+      } catch { /* trainingPlan bleibt aus Blob */ }
+    })(),
+  ]);
+
   return out;
 }
 
