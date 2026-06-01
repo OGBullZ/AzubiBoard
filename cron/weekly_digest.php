@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 // Skript läuft unabhängig von cors() etc. — eigene minimale Bootstrap
 require_once __DIR__ . '/../api/config.php';
+require_once __DIR__ . '/../api/mailer.php';
 
 if (PHP_SAPI !== 'cli' && !getenv('FORCE_RUN')) {
     http_response_code(403);
@@ -150,12 +151,7 @@ function build_body(array $recipient, array $reports, array $tasks, array $inact
 }
 
 function send_digest_mail(string $to, string $subject, string $body): bool {
-    $from = env('MAIL_FROM', 'azubiboard@localhost');
-    $headers = "From: AzubiBoard <$from>\r\n"
-             . "Reply-To: $from\r\n"
-             . "Content-Type: text/plain; charset=UTF-8\r\n"
-             . "X-Mailer: AzubiBoard-Cron\r\n";
-    return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
+    return send_mail($to, $subject, $body);
 }
 
 $sent = 0; $failed = 0;

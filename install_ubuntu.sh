@@ -389,6 +389,109 @@ cat > /etc/logrotate.d/azubiboard-deploy << 'LR'
 LR
 ok "Logrotate für Deploy-Log eingerichtet"
 
+# ── 8c. Deploy-Key (OPS3) ────────────────────────────────────
+# Generiert ein Ed25519-SSH-Schlüsselpaar für den automatischen git-Pull.
+# Public Key muss einmalig in GitHub → Repository → Settings → Deploy Keys
+# als Read-Only-Key eingetragen werden.
+# Danach Remote auf SSH umstellen: git remote set-url origin git@github.com:OGBullZ/AzubiBoard.git
+hdr "8c/9 Deploy-Key einrichten (OPS3)"
+
+DEPLOY_KEY_FILE="/root/.ssh/azubiboard_deploy"
+if [ ! -f "$DEPLOY_KEY_FILE" ]; then
+    ssh-keygen -t ed25519 -f "$DEPLOY_KEY_FILE" -N "" -C "azubiboard-deploy@$(hostname)" > /dev/null 2>&1
+    ok "Deploy-Key generiert: $DEPLOY_KEY_FILE"
+else
+    ok "Deploy-Key existiert bereits: $DEPLOY_KEY_FILE"
+fi
+
+# SSH-Config: GitHub nutzt den Deploy-Key automatisch
+SSH_CONFIG="/root/.ssh/config"
+if ! grep -q "azubiboard-deploy" "$SSH_CONFIG" 2>/dev/null; then
+    cat >> "$SSH_CONFIG" << SSHCFG
+
+# AzubiBoard Deploy-Key (OPS3)
+Host github.com-azubiboard
+    HostName github.com
+    User git
+    IdentityFile $DEPLOY_KEY_FILE
+    IdentitiesOnly yes
+SSHCFG
+    chmod 600 "$SSH_CONFIG"
+    ok "SSH-Config aktualisiert"
+fi
+
+# GitHub Host-Key vorab akzeptieren (verhindert interaktive Prompt beim ersten Pull)
+ssh-keyscan -H github.com >> /root/.ssh/known_hosts 2>/dev/null
+ok "GitHub Host-Key in known_hosts eingetragen"
+
+# Remote auf SSH umstellen wenn noch HTTPS
+cd "$REPO_DIR"
+CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || echo "")
+if echo "$CURRENT_REMOTE" | grep -q "https://"; then
+    git remote set-url origin "git@github.com-azubiboard:OGBullZ/AzubiBoard.git"
+    ok "Git-Remote auf SSH-URL umgestellt"
+fi
+
+echo ""
+echo -e "${YELLOW}  WICHTIG: Public Key zu GitHub hinzufügen:${NC}"
+echo -e "  Repository → Settings → Deploy Keys → Add deploy key (Read-only):"
+echo ""
+cat "$DEPLOY_KEY_FILE.pub"
+echo ""
+
+# ── SEC1: UFW + Fail2ban ─────────────────────────────────────
+hdr "SEC1: UFW + Fail2ban einrichten"
+
+# UFW: nur SSH (22), HTTP (80), HTTPS (443) erlauben
+if command -v ufw &>/dev/null || apt-get install -y -q ufw &>/dev/null; then
+    ufw --force reset > /dev/null 2>&1
+    ufw default deny incoming  > /dev/null 2>&1
+    ufw default allow outgoing > /dev/null 2>&1
+    ufw allow 22/tcp            > /dev/null 2>&1  # SSH
+    ufw allow 80/tcp            > /dev/null 2>&1  # HTTP
+    ufw allow 443/tcp           > /dev/null 2>&1  # HTTPS
+    ufw --force enable          > /dev/null 2>&1
+    ok "UFW aktiviert (22/80/443 offen, Rest blocked)"
+else
+    info "UFW konnte nicht installiert werden — manuell nachholen"
+fi
+
+# Fail2ban: Apache + SSH schützen
+if apt-get install -y -q fail2ban &>/dev/null; then
+    cat > /etc/fail2ban/jail.d/azubiboard.conf << 'F2B'
+[sshd]
+enabled  = true
+port     = ssh
+maxretry = 5
+bantime  = 3600
+findtime = 600
+
+[apache-auth]
+enabled  = true
+port     = http,https
+maxretry = 10
+bantime  = 3600
+findtime = 600
+
+[apache-badbots]
+enabled  = true
+port     = http,https
+maxretry = 2
+bantime  = 86400
+
+[apache-noscript]
+enabled  = true
+port     = http,https
+maxretry = 6
+bantime  = 3600
+F2B
+    systemctl enable fail2ban  > /dev/null 2>&1
+    systemctl restart fail2ban > /dev/null 2>&1
+    ok "Fail2ban eingerichtet (SSH + Apache, Ban: 1h/24h)"
+else
+    info "Fail2ban konnte nicht installiert werden — manuell nachholen"
+fi
+
 # ── 9. Fertig ─────────────────────────────────────────────────
 hdr "9/9 Fertig"
 
@@ -405,6 +508,8 @@ fi
 echo -e "  phpMyAdmin: ${CYAN}http://localhost/phpmyadmin${NC}  (nur lokal)"
 echo -e "  DB-Backups: ${CYAN}/var/backups/azubiboard/${NC}  (tägl. 03:00, 30 Tage)"
 echo -e "  Auto-Deploy: alle 10 min, Log: ${CYAN}/var/log/azubiboard-deploy.log${NC}"
+echo -e "  Firewall:    UFW aktiv (22/80/443) · Fail2ban aktiv"
+echo -e "  Deploy-Key:  /root/.ssh/azubiboard_deploy.pub → in GitHub eintragen!"
 echo ""
 echo -e "${YELLOW}  Nächste Schritte:${NC}"
 APP_URL="${DOMAIN:+https://${DOMAIN}}${DOMAIN:-http://${SERVER_IP}}"

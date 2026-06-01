@@ -87,7 +87,7 @@ jobs:
           npm install --no-save @lhci/cli@0.14.x
           npx vite preview --port 4173 --strictPort &
           sleep 4
-          npx lhci autorun || echo "::warning::Lighthouse-Schwellen verletzt (non-blocking)"
+          npx lhci autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 

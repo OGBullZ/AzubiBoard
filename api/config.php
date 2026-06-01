@@ -52,6 +52,17 @@ define('APP_ENV', env('APP_ENV', 'production'));
 // Default false → reiner Blob-Betrieb, kein Verhalten geändert.
 define('BACKEND_DUAL_WRITE', filter_var(env('BACKEND_DUAL_WRITE', false), FILTER_VALIDATE_BOOLEAN));
 
+// N1 (Sprint 13): SMTP-Konfiguration für PHPMailer.
+// Leer lassen → Fallback auf native mail().
+define('SMTP_HOST',       env('SMTP_HOST', ''));
+define('SMTP_PORT',  (int) env('SMTP_PORT', 587));
+define('SMTP_USER',       env('SMTP_USER', ''));
+define('SMTP_PASS',       env('SMTP_PASS', ''));
+define('SMTP_FROM',       env('SMTP_FROM', env('MAIL_FROM', 'azubiboard@localhost')));
+define('SMTP_FROM_NAME',  env('SMTP_FROM_NAME', 'AzubiBoard'));
+// SMTP_SECURE: 'tls' (STARTTLS, Port 587), 'ssl' (Port 465), '' (kein TLS)
+define('SMTP_SECURE',     env('SMTP_SECURE', 'tls'));
+
 // L5-DEP (Sprint 12 Phase 4): Schema-First-Modus. Wenn true, antwortet
 // POST /api/data mit 410 Gone — Blob-Writes sind dann vollständig depreciert.
 // GET /api/data bleibt lesbar (Legacy-Fallback + Backup-Zugriff).

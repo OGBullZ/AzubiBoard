@@ -14,14 +14,13 @@ module.exports = {
       },
     },
     assert: {
-      // Non-blocking Schwellen: PR scheitert NICHT, aber Werte werden geloggt.
-      // Auf "error" hochstufen, wenn die App stabil über den Werten liegt.
+      // Q2 Sprint 13: accessibility + best-practices sind jetzt blocking (error).
+      // performance bleibt warn (von Netz/CPU des CI-Runners abhängig).
       assertions: {
-        'categories:performance':   ['warn', { minScore: 0.85 }],
-        'categories:accessibility': ['warn', { minScore: 0.90 }],
-        'categories:best-practices': ['warn', { minScore: 0.90 }],
-        'categories:seo':           ['warn', { minScore: 0.85 }],
-        // PWA wird in neueren Lighthouse-Versionen separat getestet
+        'categories:performance':    ['warn',  { minScore: 0.80 }],
+        'categories:accessibility':  ['error', { minScore: 0.88 }],
+        'categories:best-practices': ['error', { minScore: 0.88 }],
+        'categories:seo':            ['error', { minScore: 0.80 }],
       },
     },
     upload: {
