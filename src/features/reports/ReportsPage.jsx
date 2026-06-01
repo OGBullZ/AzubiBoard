@@ -14,6 +14,25 @@ import {
   IcoStar, IcoChevron, IcoSearch, IcoX
 } from '../../components/Icons.jsx';
 
+// Status labels are resolved at runtime via t() in the components below
+// We keep a helper to map key → color/bg; labels come from i18n
+const STATUS_REPORT_META = {
+  draft:     { c: C.mu,  bg: 'var(--c-sf2)' },
+  submitted: { c: C.ac,  bg: C.acd          },
+  reviewed:  { c: C.yw,  bg: C.ywd          },
+  signed:    { c: C.gr,  bg: '#07130a'      },
+};
+
+function useStatusReport() {
+  const { t } = useTranslation();
+  return {
+    draft:     { l: t('report.statusDraft'),     ...STATUS_REPORT_META.draft     },
+    submitted: { l: t('report.statusSubmitted'), ...STATUS_REPORT_META.submitted },
+    reviewed:  { l: t('report.statusReviewed'),  ...STATUS_REPORT_META.reviewed  },
+    signed:    { l: t('report.statusSigned'),    ...STATUS_REPORT_META.signed    },
+  };
+}
+// Legacy static map for printouts (no hook needed there, strings stay in DE as print output is always DE)
 const STATUS_REPORT = {
   draft:     { l: 'Entwurf',        c: C.mu,  bg: 'var(--c-sf2)' },
   submitted: { l: 'Eingereicht',    c: C.ac,  bg: C.acd          },
@@ -36,7 +55,9 @@ const TEMPLATES = [
 ];
 
 function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete }) {
-  const st       = STATUS_REPORT[report.status] || STATUS_REPORT.draft;
+  const { t } = useTranslation();
+  const STATUS_REPORT_I18N = useStatusReport();
+  const st       = STATUS_REPORT_I18N[report.status] || STATUS_REPORT_I18N.draft;
   const iso      = getISOWeek(report.week_start);
   const kw       = iso.week;
   const isoYear  = iso.year ?? new Date(report.week_start).getFullYear();
@@ -88,18 +109,18 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete })
         {canSubmit && (
           <button className="abtn" onClick={e => { e.stopPropagation(); onSubmit(report.id); }}
             style={{ fontSize: 11, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 5 }}>
-            <IcoChevron size={11} /> Einreichen
+            <IcoChevron size={11} /> {t('report.submit')}
           </button>
         )}
         {canSign && (
           <button className="abtn" onClick={e => { e.stopPropagation(); onSign(report.id); }}
             style={{ fontSize: 11, padding: '5px 12px', background: C.gr, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <IcoCheck size={11} /> Bestätigen
+            <IcoCheck size={11} /> {t('report.confirm')}
           </button>
         )}
         {canDelete && (
           <button className="del" onClick={e => { e.stopPropagation(); onDelete(report.id); }}
-            style={{ marginLeft: 'auto', fontSize: 12 }} title="Berichtsheft löschen">×</button>
+            style={{ marginLeft: 'auto', fontSize: 12 }} title={t('report.reports')}>×</button>
         )}
       </div>
     </div>
@@ -107,6 +128,8 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete })
 }
 
 function ReportEditor({ report, currentUser, projects, onSave, onClose, showToast }) {
+  const { t } = useTranslation();
+  const STATUS_REPORT_I18N = useStatusReport();
   const [form, setForm] = useState({
     title:            report?.title            || '',
     activities:       report?.activities       || '',
@@ -309,46 +332,46 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     <>
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }} className="anim">
       <div style={{ background: 'var(--c-sf)', borderBottom: `1px solid var(--c-bd)`, padding: '10px 20px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button className="btn" onClick={onClose} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}><IcoBack size={12} /> Zurück</button>
+        <button className="btn" onClick={onClose} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}><IcoBack size={12} /> {t('common.back')}</button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>{report ? `KW ${kw} · Berichtsheft bearbeiten` : 'Neues Berichtsheft'}</div>
-          {report?.status && <div style={{ fontSize: 10, color: STATUS_REPORT[report.status]?.c, fontWeight: 700 }}>● {STATUS_REPORT[report.status]?.l}</div>}
+          <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>{report ? t('report.editTitle', { kw }) : t('report.newTitle')}</div>
+          {report?.status && <div style={{ fontSize: 10, color: STATUS_REPORT_I18N[report.status]?.c, fontWeight: 700 }}>● {STATUS_REPORT_I18N[report.status]?.l}</div>}
         </div>
         <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, gap: 3 }}>
           {/* eslint-disable-next-line no-unused-vars */}
-          {[['text','Texteingabe', IcoDoc], ['upload','PDF hochladen', IcoReport]].map(([k, l, Icon]) => (
+          {[['text', t('report.tabText'), IcoDoc], ['upload', t('report.tabPdf'), IcoReport]].map(([k, l, Icon]) => (
             <button key={k} onClick={() => setTab(k)}
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', background: tab === k ? C.ac : 'transparent', color: tab === k ? '#fff' : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
               <Icon size={12} />{l}
             </button>
           ))}
         </div>
-        <button className="btn" onClick={printReport} title="Einfaches PDF (1 Seite)" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>🖨 PDF</button>
-        <button className="btn" onClick={printReportIHK} title="IHK-konform mit Stammdaten + Unterschriftenfeldern" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>📄 IHK-Format</button>
+        <button className="btn" onClick={printReport} title="Einfaches PDF (1 Seite)" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>{t('report.printSimple')}</button>
+        <button className="btn" onClick={printReportIHK} title="IHK-konform mit Stammdaten + Unterschriftenfeldern" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>{t('report.printIHK')}</button>
         {isOwner && !readOnly && (
           <button className="btn" onClick={() => setShowOcr(true)} title="Handschriftliches Berichtsheft per OCR einscannen"
             style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: C.yw + '80', color: C.yw }}>
-            📷 OCR-Import
+            {t('report.ocrImport')}
           </button>
         )}
         {readOnly && !isReview && (
           <div style={{ padding: '5px 12px', background: C.ywd, border: `1px solid ${C.yw}50`, borderRadius: 7, fontSize: 11, color: C.yw, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-            🔒 Gesperrt – Bericht wurde eingereicht
+            {t('report.locked')}
           </div>
         )}
         {isOwner && !readOnly && (
-          <button className="abtn" onClick={save} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><IcoCheck size={13} /> Speichern</button>
+          <button className="abtn" onClick={save} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><IcoCheck size={13} /> {t('report.saveBtn')}</button>
         )}
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', gap: 18, alignItems: 'flex-start' }}>
         <div style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="card">
-            <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>Metadaten</div>
-            <Field label="Woche (Montag)">
+            <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.metadataLabel')}</div>
+            <Field label={t('report.weekStart')}>
               <input type="date" value={form.week_start} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, week_start: e.target.value }))} />
             </Field>
-            <Field label="Titel (optional)">
+            <Field label={t('report.weekTitle')}>
               <input value={form.title} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="z.B. Projektarbeit Woche 3" />
             </Field>
             <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>KW {kw} · {new Date(form.week_start).getFullYear()}</div>
@@ -356,15 +379,15 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
 
           {isOwner && !readOnly && tab === 'text' && (
             <div className="card">
-              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>Autofill</div>
+              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.autofillLabel')}</div>
               <button onClick={autoFillFromTasks} className="abtn"
                 style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, background: C.gr }}>
-                ⚡ Aus Aufgaben befüllen
+                {t('report.autofillBtn')}
               </button>
               <div style={{ fontSize: 9, color: C.mu, marginBottom: 10, lineHeight: 1.5 }}>
-                Fügt alle Aufgaben mit Deadline in KW {kw} automatisch ins Tätigkeitsfeld ein.
+                {t('report.autofillHint', { kw })}
               </div>
-              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 8 }}>Vorlage</div>
+              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 8 }}>{t('report.templateLabel')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {TEMPLATES.map(t => (
                   <button key={t.label} onClick={() => applyTemplate(t)} className="btn"
@@ -378,8 +401,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
 
           {isReview && report && (
             <div className="card">
-              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>Ausbilder-Aktion</div>
-              <Field label="Kommentar">
+              <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.reviewerLabel')}</div>
+              <Field label={t('report.reviewerComment')}>
                 <textarea value={form.reviewer_comment} onChange={e => setForm(f => ({ ...f, reviewer_comment: e.target.value }))} placeholder="Feedback, Hinweise…" style={{ minHeight: 80, fontSize: 12 }} />
               </Field>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -387,14 +410,14 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                   <button className="abtn"
                     onClick={() => { onSave({ ...report, ...form, status: 'reviewed', reviewed_at: new Date().toISOString() }); showToast('✓ Als geprüft markiert'); }}
                     style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, background: C.yw }}>
-                    <IcoCheck size={12} /> Als geprüft markieren
+                    <IcoCheck size={12} /> {t('report.markReviewed')}
                   </button>
                 )}
                 {['reviewed'].includes(report?.status) && (
                   <button className="abtn"
                     onClick={() => { onSave({ ...report, ...form, status: 'signed', signed_at: new Date().toISOString() }); showToast('✓ Unterschrieben'); }}
                     style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, background: C.gr }}>
-                    <IcoStar size={12} /> Unterschreiben
+                    <IcoStar size={12} /> {t('report.signReport')}
                   </button>
                 )}
               </div>
@@ -406,8 +429,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
           {tab === 'text' ? (
             <>
               {[
-                { key: 'activities', label: 'Tätigkeitsbericht', Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200 },
-                { key: 'learnings',  label: 'Lernbericht',       Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160 },
+                { key: 'activities', label: t('report.activitySection'), Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200 },
+                { key: 'learnings',  label: t('report.learningSection'),  Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160 },
               // eslint-disable-next-line no-unused-vars
               ].map(({ key, label, Icon, color, ph, minH }) => {
                 const comments = (form.sectionComments?.[key] || []);
@@ -430,7 +453,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                         {comments.length > 0 && <span style={{ fontSize: 9, background: C.ywd, color: C.yw, borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>{comments.length} Kommentar{comments.length !== 1 ? 'e' : ''}</span>}
                       </div>
                       <button onClick={() => copyToClipboard(form[key], key)} className="btn" style={{ fontSize: 10, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {copied === key ? <><IcoCheck size={10} /> Kopiert</> : 'Kopieren'}
+                        {copied === key ? <><IcoCheck size={10} /> {t('common.copied')}</> : t('common.copy')}
                       </button>
                     </div>
                     <textarea value={form[key]} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={ph}
@@ -439,7 +462,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                     {/* Ausbilder-Kommentare */}
                     {(comments.length > 0 || isReview) && (
                       <div style={{ marginTop: 10, borderTop: `1px solid ${C.bd}`, paddingTop: 10 }}>
-                        <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 7 }}>Ausbilder-Kommentare</div>
+                        <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 7 }}>{t('report.reviewerComments')}</div>
                         {comments.map(c => (
                           <div key={c.id} style={{ display: 'flex', gap: 8, padding: '6px 9px', background: C.ywd, border: `1px solid ${C.yw}25`, borderRadius: 7, marginBottom: 5 }}>
                             <IcoNote size={11} style={{ color: C.yw, flexShrink: 0, marginTop: 2 }} />
@@ -454,7 +477,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                           <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
                             <input value={newComment[key] || ''} onChange={e => setNewComment(n => ({ ...n, [key]: e.target.value }))}
                               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())}
-                              placeholder="Kommentar hinzufügen… (Enter)" style={{ flex: 1, fontSize: 11, padding: '5px 9px' }} />
+                              placeholder={t('report.addComment')} style={{ flex: 1, fontSize: 11, padding: '5px 9px' }} />
                             <button className="abtn" onClick={addComment} style={{ fontSize: 11, padding: '5px 11px', background: C.yw }}>+</button>
                           </div>
                         )}
@@ -467,7 +490,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
           ) : (
             <div className="card">
               <div style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <IcoReport size={13} style={{ color: C.ac }} /> PDF-Upload
+                <IcoReport size={13} style={{ color: C.ac }} /> {t('report.pdfUploadTitle')}
               </div>
               <div
                 style={{ border: `2px dashed ${C.bd2}`, borderRadius: 10, padding: '32px 20px', textAlign: 'center', background: 'var(--c-sf3)', cursor: 'pointer', transition: 'border-color .15s, background .15s' }}
@@ -476,8 +499,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                 onDrop={e => { e.currentTarget.style.borderColor = C.bd2; e.currentTarget.style.background = 'var(--c-sf3)'; handleDrop(e); }}
                 onClick={() => fileRef.current?.click()}>
                 <IcoReport size={32} style={{ color: C.mu, marginBottom: 10, display: 'block', margin: '0 auto 10px' }} />
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 5 }}>PDF hierher ziehen oder klicken</div>
-                <div style={{ fontSize: 11, color: C.mu }}>Nur PDF-Dateien · Max. 10 MB</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 5 }}>{t('report.pdfDropHint')}</div>
+                <div style={{ fontSize: 11, color: C.mu }}>{t('report.pdfTypeHint')}</div>
                 <input ref={fileRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={e => handleFile(e)} />
               </div>
               {form.file && (
@@ -589,6 +612,8 @@ function printJahresmappe(reports, year, showToast) {
 }
 
 export default function ReportsPage({ currentUser, data, onUpdateData, showToast }) {
+  const { t } = useTranslation();
+  const STATUS_REPORT_I18N = useStatusReport();
   const reports              = data.reports || [];
   const [view,    setView]   = useState('list');
   const [editing, setEditing]= useState(null);
@@ -675,9 +700,9 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '14px 20px' }} className="anim">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>Berichtshefte</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>{t('report.reports')}</h1>
           <p style={{ fontSize: 12, color: C.mu, marginTop: 3 }}>
-            {isStaff(currentUser) ? 'Alle eingereichten Berichte' : 'Deine wöchentlichen Ausbildungsberichte'}
+            {isStaff(currentUser) ? t('report.allReports') : t('report.myReports')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -685,18 +710,18 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             <>
               <button className="btn" onClick={() => printJahresmappe(reports, new Date().getFullYear(), showToast)}
                 style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
-                📚 Jahresmappe {new Date().getFullYear()}
+                📚 {t('report.annualFolder', { year: new Date().getFullYear() })}
               </button>
               <button className="btn" onClick={() => setShareOpen(true)} title="Read-Only-Link erzeugen (für IHK/Eltern/Schule)"
                 style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
-                🔗 Teilen
+                🔗 {t('report.share')}
               </button>
             </>
           )}
           {currentUser.role === 'azubi' && (
             <button className="abtn" onClick={() => { setEditing(null); setView('edit'); }}
               style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-              <IcoPlus size={13} /> Neuer Bericht
+              <IcoPlus size={13} /> {t('report.newReport')}
             </button>
           )}
         </div>
@@ -705,7 +730,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
       {/* Suche */}
       <div style={{ position: 'relative', marginBottom: 10, flexShrink: 0 }}>
         <IcoSearch size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.mu, pointerEvents: 'none' }} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Berichte durchsuchen… (Titel, Tätigkeiten, Lernbericht, Name)"
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('report.searchPlaceholder')}
           style={{ width: '100%', paddingLeft: 32, paddingRight: search ? 32 : 10, fontSize: 13 }} />
         {search && (
           <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.mu, display: 'flex' }}>
@@ -715,7 +740,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
-        {Object.entries(STATUS_REPORT).map(([k, v]) => {
+        {Object.entries(STATUS_REPORT_I18N).map(([k, v]) => {
           const cnt = myReports.filter(r => r.status === k).length;
           return (
             <div key={k} onClick={() => setFilter(filter === k ? 'alle' : k)}
@@ -726,16 +751,16 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
           );
         })}
         {filter !== 'alle' && (
-          <button onClick={() => setFilter('alle')} className="btn" style={{ fontSize: 11 }}>× Alle anzeigen</button>
+          <button onClick={() => setFilter('alle')} className="btn" style={{ fontSize: 11 }}>{t('report.showAll')}</button>
         )}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
           <EmptyState Icon={IcoReport}
-            title={q ? `Keine Ergebnisse für „${q}"` : 'Keine Berichtshefte'}
-            subtitle={q ? 'Versuche einen anderen Suchbegriff.' : (currentUser.role === 'azubi' ? 'Erstelle deinen ersten Wochenbericht.' : 'Noch keine Berichte in dieser Kategorie.')}
-            action={!q && currentUser.role === 'azubi' ? '+ Neuer Bericht' : undefined}
+            title={q ? t('report.noResults', { q }) : t('report.noReports')}
+            subtitle={q ? 'Versuche einen anderen Suchbegriff.' : (currentUser.role === 'azubi' ? t('report.noReportsSub') : t('report.noReportsStaff'))}
+            action={!q && currentUser.role === 'azubi' ? '+ ' + t('report.newReport') : undefined}
             onAction={!q && currentUser.role === 'azubi' ? () => { setEditing(null); setView('edit'); } : undefined} />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, alignContent: 'start' }}>
@@ -751,7 +776,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
       {confirmDel && (
         <ConfirmDialog
-          message="Berichtsheft in den Papierkorb verschieben? Wiederherstellung möglich für 30 Tage."
+          message={t('report.deleteConfirm')}
           onConfirm={() => {
             const snapshot = data;
             const report   = reports.find(r => r.id === confirmDel);
@@ -760,7 +785,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             } else {
               onUpdateData({ ...data, reports: reports.filter(r => r.id !== confirmDel) });
             }
-            showToast('🗑 Berichtsheft → Papierkorb (30 Tage)', { undo: () => onUpdateData(snapshot) });
+            showToast(t('report.deletedToast'), { undo: () => onUpdateData(snapshot) });
             setConfirmDel(null);
           }}
           onCancel={() => setConfirmDel(null)}

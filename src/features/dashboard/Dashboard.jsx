@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
+import { useTranslation } from 'react-i18next';
 import { C, fmtDate, fmtLocalDate } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
@@ -28,6 +29,7 @@ import { MonthReportModal }    from './widgets/MonthReportModal.jsx';
 //  AUSBILDER-DASHBOARD
 // ─────────────────────────────────────────────────────────────
 function AusbilderDashboard({ user, projects, users, reports, calendarEvents, activityLog, onOpenProject, onUpdateProject, onNavigate }) {
+  const { t } = useTranslation();
   const now      = new Date();
   const azubis   = useMemo(() => users.filter(u => u.role === 'azubi'),              [users]);
   const active   = useMemo(() => projects.filter(p => !p.archived),                  [projects]);
@@ -36,7 +38,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
   const [showMonthReport, setShowMonthReport] = useState(false);
 
   const hour = now.getHours();
-  const greeting = hour < 12 ? 'Guten Morgen' : hour < 17 ? 'Guten Tag' : 'Guten Abend';
+  const greeting = hour < 12 ? t('dashboard.morningGreeting') : hour < 17 ? t('dashboard.afternoonGreeting') : t('dashboard.eveningGreeting');
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} className="anim">
@@ -54,22 +56,22 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Chip value={azubis.length}  label="Azubis"    color={C.ac} />
-          <Chip value={active.length}  label="Projekte"  color={C.gr} animated />
-          <Chip value={pending.length} label="Berichte"  color={pending.length > 0 ? C.yw : C.mu} />
-          {problems.length > 0 && <Chip value={problems.length} label="Probleme" color={C.cr} />}
+          <Chip value={azubis.length}  label={t('dashboard.chipAzubis')}   color={C.ac} />
+          <Chip value={active.length}  label={t('dashboard.chipProjects')} color={C.gr} animated />
+          <Chip value={pending.length} label={t('dashboard.chipReports')}  color={pending.length > 0 ? C.yw : C.mu} />
+          {problems.length > 0 && <Chip value={problems.length} label={t('dashboard.chipProblems')} color={C.cr} />}
           <button onClick={() => setShowMonthReport(true)}
             style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, borderRadius: 7, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu, cursor: 'pointer' }}>
-            📊 Monatsreport
+            {t('dashboard.monthReport')}
           </button>
         </div>
       </div>
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1.4fr) minmax(300px, 360px)', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ padding: '16px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <PanelTitle Icon={IcoUsers}>Azubi-Übersicht</PanelTitle>
+          <PanelTitle Icon={IcoUsers}>{t('dashboard.azubiOverview')}</PanelTitle>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {azubis.length === 0
-              ? <div style={{ fontSize: 12, color: C.textSecondary, fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>Keine Azubis vorhanden</div>
+              ? <div style={{ fontSize: 12, color: C.textSecondary, fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{t('dashboard.noAzubis')}</div>
               : azubis.map(a => {
               const myProjects = active.filter(p => (p.assignees||[]).includes(a.id));
               const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id && t.status !== 'done'));
@@ -96,10 +98,10 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               const ampel = overdue.length > 2 ? C.cr
                 : (overdue.length > 0 || !hasThisWeek) ? C.yw
                 : C.gr;
-              const ampelLabel = overdue.length > 2 ? 'Kritisch'
-                : overdue.length > 0 ? 'Überfällig'
-                : !hasThisWeek ? 'Bericht fehlt'
-                : 'Alles OK';
+              const ampelLabel = overdue.length > 2 ? t('dashboard.statusCritical')
+                : overdue.length > 0 ? t('dashboard.statusOverdue')
+                : !hasThisWeek ? t('dashboard.statusMissingReport')
+                : t('dashboard.statusOk');
 
               return (
                 <div key={a.id} style={{ padding: '11px 12px', background: 'var(--c-sf2)', border: `1px solid ${ampel}30`, borderLeft: `3px solid ${ampel}`, borderRadius: 9, marginBottom: 8, transition: 'border-color .2s' }}>
@@ -122,19 +124,19 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
                   {/* Stats-Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginTop: 8 }}>
                     <div style={{ background: 'var(--c-sf3)', borderRadius: 6, padding: '5px 7px' }}>
-                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>Offen</div>
+                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>{t('dashboard.statOpen')}</div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: myTasks.length > 0 ? C.ac : C.mu, fontFamily: C.mono, lineHeight: 1.2 }}>{myTasks.length}</div>
-                      {inProgress.length > 0 && <div style={{ fontSize: 8, color: C.ac }}>▶ {inProgress.length} aktiv</div>}
+                      {inProgress.length > 0 && <div style={{ fontSize: 8, color: C.ac }}>▶ {inProgress.length} {t('dashboard.statActive')}</div>}
                     </div>
                     <div style={{ background: overdue.length > 0 ? C.crd : 'var(--c-sf3)', borderRadius: 6, padding: '5px 7px', border: overdue.length > 0 ? `1px solid ${C.cr}25` : 'none' }}>
-                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>Überfällig</div>
+                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>{t('dashboard.statOverdue')}</div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: overdue.length > 0 ? C.cr : C.mu, fontFamily: C.mono, lineHeight: 1.2 }}>{overdue.length}</div>
-                      {overdue.length > 0 && <div style={{ fontSize: 8, color: C.cr }}>⚠ zu spät</div>}
+                      {overdue.length > 0 && <div style={{ fontSize: 8, color: C.cr }}>{t('dashboard.statLate')}</div>}
                     </div>
                     <div style={{ background: 'var(--c-sf3)', borderRadius: 6, padding: '5px 7px' }}>
-                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>Std KW</div>
+                      <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>{t('dashboard.statHoursKW')}</div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: weekHours > 0 ? C.gr : C.mu, fontFamily: C.mono, lineHeight: 1.2 }}>{weekHours.toFixed(1)}</div>
-                      <div style={{ fontSize: 8, color: C.textSecondary }}>geloggt</div>
+                      <div style={{ fontSize: 8, color: C.textSecondary }}>{t('dashboard.statLogged')}</div>
                     </div>
                   </div>
 
@@ -142,7 +144,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
                   <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <button onClick={() => onNavigate(`azubi/${a.id}`)}
                       style={{ marginLeft: 'auto', fontSize: 9, padding: '2px 7px', borderRadius: 4, border: `1px solid ${C.bd2}`, background: 'transparent', color: C.ac, cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>
-                      Profil →
+                      {t('dashboard.profileLink')}
                     </button>
                     <IcoReport size={10} style={{ color: C.textSecondary, flexShrink: 0 }} />
                     {lastReport ? (
@@ -155,12 +157,12 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
                         </span>
                         {!hasThisWeek && (
                           <span style={{ fontSize: 9, fontWeight: 700, color: C.yw, background: C.ywd, borderRadius: 4, padding: '1px 6px', marginLeft: 'auto' }}>
-                            ⚠ KW fehlt
+                            {t('dashboard.reportMissing')}
                           </span>
                         )}
                       </div>
                     ) : (
-                      <span style={{ fontSize: 10, color: C.cr, fontWeight: 700 }}>Noch kein Berichtsheft</span>
+                      <span style={{ fontSize: 10, color: C.cr, fontWeight: 700 }}>{t('dashboard.noReport')}</span>
                     )}
                   </div>
                 </div>
@@ -171,7 +173,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
         <div style={{ padding: '16px 20px', borderRight: `1px solid var(--c-bd)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {problems.length > 0 && (
             <div style={{ marginBottom: 14, flexShrink: 0 }}>
-              <PanelTitle Icon={IcoAlert} badge={{ text: problems.length, bg: C.crd, c: C.cr }}>Projekte mit Problemen</PanelTitle>
+              <PanelTitle Icon={IcoAlert} badge={{ text: problems.length, bg: C.crd, c: C.cr }}>{t('dashboard.problemProjects')}</PanelTitle>
               {problems.map(p => (
                 <button key={p.id} onClick={() => onOpenProject(p.id)} className="row-btn"
                   style={{ justifyContent: 'space-between', marginBottom: 4, padding: '7px 9px', border: `1px solid ${C.cr}25`, borderRadius: 8, background: C.crd }}>
@@ -184,18 +186,18 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               ))}
             </div>
           )}
-          <PanelTitle Icon={IcoFolder} count={active.length}>Alle Projekte</PanelTitle>
+          <PanelTitle Icon={IcoFolder} count={active.length}>{t('dashboard.allProjects')}</PanelTitle>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {active.map(p => <ProjectCard key={p.id} project={p} users={users} onClick={() => onOpenProject(p.id)} onUpdate={onUpdateProject} />)}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowY: 'auto' }}>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
-            <PanelTitle Icon={IcoReport} badge={pending.length > 0 ? { text: `${pending.length} ausstehend`, bg: C.ywd, c: C.yw } : undefined}>
-              Berichtshefte
+            <PanelTitle Icon={IcoReport} badge={pending.length > 0 ? { text: t('dashboard.pendingBadge', { count: pending.length }), bg: C.ywd, c: C.yw } : undefined}>
+              {t('dashboard.pendingReports')}
             </PanelTitle>
             {pending.length === 0 ? (
-              <div style={{ fontSize: 11, color: C.gr, textAlign: 'center', padding: '6px 0' }}>Alle Berichte geprüft ✓</div>
+              <div style={{ fontSize: 11, color: C.gr, textAlign: 'center', padding: '6px 0' }}>{t('dashboard.allReviewed')}</div>
             ) : (
               <>
                 {pending.slice(0, 4).map(r => (
@@ -205,26 +207,26 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.user_name}</div>
                       <div style={{ fontSize: 9, color: C.textSecondary }}>KW {r.week_number} · {fmtDate(r.week_start)}</div>
                     </div>
-                    <span className="tag" style={{ background: C.ywd, color: C.yw, border: `1px solid ${C.yw}30`, fontSize: 9 }}>Prüfen</span>
+                    <span className="tag" style={{ background: C.ywd, color: C.yw, border: `1px solid ${C.yw}30`, fontSize: 9 }}>{t('report.statusSubmitted')}</span>
                   </div>
                 ))}
-                {pending.length > 4 && <div style={{ fontSize: 10, color: C.textSecondary, marginTop: 6, textAlign: 'center' }}>+{pending.length - 4} weitere</div>}
+                {pending.length > 4 && <div style={{ fontSize: 10, color: C.textSecondary, marginTop: 6, textAlign: 'center' }}>{t('dashboard.moreReports', { count: pending.length - 4 })}</div>}
               </>
             )}
             <button onClick={() => onNavigate?.('reports')} className="btn" style={{ fontSize: 10, width: '100%', justifyContent: 'center', padding: '4px 0', marginTop: 8 }}>
-              Alle Berichtshefte →
+              {t('dashboard.allReportsLink')}
             </button>
           </div>
           <div style={{ padding: '16px 20px', borderTop: `1px solid var(--c-bd)`, flexShrink: 0 }}>
-            <PanelTitle Icon={IcoClock}>Zeiterfassung</PanelTitle>
+            <PanelTitle Icon={IcoClock}>{t('dashboard.timeTracking')}</PanelTitle>
             <ZeiterfassungWidget users={users} projects={active} />
           </div>
           <div style={{ padding: '16px 20px', borderTop: `1px solid var(--c-bd)`, flexShrink: 0 }}>
-            <PanelTitle Icon={IcoCalendar}>Nächste Termine</PanelTitle>
+            <PanelTitle Icon={IcoCalendar}>{t('dashboard.nextDeadlines')}</PanelTitle>
             <CalWidget calendarEvents={calendarEvents} projects={active} onNavigate={() => onNavigate?.('calendar')} />
           </div>
           <div style={{ padding: '16px 20px', flexShrink: 0, borderTop: `1px solid var(--c-bd)` }}>
-            <PanelTitle Icon={IcoNote}>Letzte Aktivitäten</PanelTitle>
+            <PanelTitle Icon={IcoNote}>{t('dashboard.recentActivity')}</PanelTitle>
             <ActivityFeed activityLog={activityLog} />
           </div>
         </div>
@@ -237,6 +239,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
 //  AZUBI-DASHBOARD
 // ─────────────────────────────────────────────────────────────
 function AzubiDashboard({ user, projects, users, reports, calendarEvents, activityLog, onNewProject, onOpenProject, onUpdateProject, onNavigate }) {
+  const { t } = useTranslation();
   const now  = new Date();
 
   const mine = useMemo(
@@ -292,7 +295,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
   }, [projects, onUpdateProject]);
 
   const hour = now.getHours();
-  const greeting = hour < 12 ? 'Guten Morgen' : hour < 17 ? 'Guten Tag' : 'Guten Abend';
+  const greeting = hour < 12 ? t('dashboard.morningGreeting') : hour < 17 ? t('dashboard.afternoonGreeting') : t('dashboard.eveningGreeting');
 
   const inProgress = useMemo(() => allTasks.filter(t => t.status === 'in_progress').length, [allTasks]);
   const overdue    = useMemo(() => allTasks.filter(t => t.isOverdue).length,                [allTasks]);
@@ -312,19 +315,19 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
           </div>
         </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Chip value={mine.length}     label="Projekte" color={C.ac}  animated />
-          <Chip value={allTasks.length} label="Offen"    color={C.mu}  animated />
-          {inProgress > 0 && <Chip value={inProgress} label="Aktiv"    color={C.yw} animated />}
-          {overdue > 0    && <Chip value={overdue}     label="Überfäll." color={C.cr} />}
+          <Chip value={mine.length}     label={t('dashboard.chipProjects')} color={C.ac}  animated />
+          <Chip value={allTasks.length} label={t('dashboard.chipOpen')}     color={C.mu}  animated />
+          {inProgress > 0 && <Chip value={inProgress} label={t('dashboard.chipActive')}   color={C.yw} animated />}
+          {overdue > 0    && <Chip value={overdue}     label={t('dashboard.chipOverdue')}  color={C.cr} />}
         </div>
         <button className="abtn" onClick={onNewProject} style={{ fontSize: 12, flexShrink: 0 }}>
-          <IcoPlus size={13} /> Neues Projekt
+          <IcoPlus size={13} /> {t('dashboard.newProject')}
         </button>
       </div>
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(320px, 1.4fr) minmax(300px, 360px)', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 16px 10px' }}>
-            <PanelTitle Icon={IcoPlay} count={allTasks.length}>Meine Aufgaben</PanelTitle>
+            <PanelTitle Icon={IcoPlay} count={allTasks.length}>{t('dashboard.myTasks')}</PanelTitle>
             <HeroTask task={heroTask}
               onToggle={() => heroTask && toggleTask(heroTask.projectId, heroTask.id)}
               onOpen={onOpenProject}
@@ -337,16 +340,16 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
             )}
           </div>
           <div style={{ flexShrink: 0, padding: '12px 16px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
-            <PanelTitle Icon={IcoTrendUp}>Wochenübersicht</PanelTitle>
+            <PanelTitle Icon={IcoTrendUp}>{t('dashboard.weekOverview')}</PanelTitle>
             <WeekProgress tasks={allProjectTasks} userId={user.id} />
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 10px' }}>
-            <PanelTitle Icon={IcoFolder} count={mine.length}>Aktive Projekte</PanelTitle>
+            <PanelTitle Icon={IcoFolder} count={mine.length}>{t('dashboard.activeProjects')}</PanelTitle>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {mine.length === 0 ? (
-                <EmptyState Icon={IcoFolder} title="Keine Projekte" subtitle="Erstelle dein erstes Projekt" action="+ Erstellen" onAction={onNewProject} />
+                <EmptyState Icon={IcoFolder} title={t('project.noProjects')} subtitle={t('dashboard.noProjectsSub')} action={'+ ' + t('common.create')} onAction={onNewProject} />
               ) : mine.map(p => (
                 <div key={p.id} style={{ marginBottom: 12 }}>
                   <ProjectCard project={p} users={users} onClick={() => onOpenProject(p.id)} onUpdate={onUpdateProject} />
@@ -355,25 +358,25 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
             </div>
           </div>
           <div style={{ flexShrink: 0, padding: '12px 18px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
-            <PanelTitle Icon={IcoNote}>Letzte Aktivitäten</PanelTitle>
+            <PanelTitle Icon={IcoNote}>{t('dashboard.recentActivity')}</PanelTitle>
             <ActivityFeed activityLog={activityLog} />
           </div>
         </div>
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
-            <PanelTitle Icon={IcoClock}>Deadlines</PanelTitle>
+            <PanelTitle Icon={IcoClock}>{t('dashboard.deadlines')}</PanelTitle>
             <DeadlineWidget projects={projects} userId={user.id} isAusbilder={false} onOpen={onOpenProject} />
           </div>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
-            <PanelTitle Icon={IcoCalendar}>Nächste Termine</PanelTitle>
+            <PanelTitle Icon={IcoCalendar}>{t('dashboard.nextDeadlines')}</PanelTitle>
             <CalWidget calendarEvents={calendarEvents} projects={projects} onNavigate={() => onNavigate?.('calendar')} />
           </div>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
-            <PanelTitle Icon={IcoReport}>Berichtshefte</PanelTitle>
+            <PanelTitle Icon={IcoReport}>{t('dashboard.pendingReports')}</PanelTitle>
             <ReportWidget reports={reports} userId={user.id} onNavigate={() => onNavigate?.('reports')} />
           </div>
           <div style={{ padding: '16px 20px', flexShrink: 0 }}>
-            <PanelTitle Icon={IcoLearn}>Lernfortschritt</PanelTitle>
+            <PanelTitle Icon={IcoLearn}>{t('dashboard.learningProgress')}</PanelTitle>
             <LearnWidget userId={user.id} onNavigate={() => onNavigate?.('learn')} />
           </div>
         </div>
