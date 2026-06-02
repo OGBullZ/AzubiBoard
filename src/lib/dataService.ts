@@ -24,7 +24,7 @@ const API_BASE  = import.meta.env.VITE_API_BASE_URL || `${BASE_PATH}api`;
  * Fetch-Wrapper: hängt Auth-Header an und behandelt 401 über Event
  * (kein window.reload mehr — das übernimmt App.jsx via Event-Listener).
  */
-async function apiFetch(path, options = {}) {
+async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
@@ -51,12 +51,12 @@ async function apiFetch(path, options = {}) {
 //  Header-Format (wenn der Server es später setzt):
 //    X-Entity-Versions: {"projects":1714,"reports":1700}
 // ─────────────────────────────────────────────────────────────
-export function parseEntityVersions(headerValue) {
+export function parseEntityVersions(headerValue: string | null): Record<string, number> {
   if (!headerValue || typeof headerValue !== 'string') return {};
-  let parsed;
+  let parsed: unknown;
   try { parsed = JSON.parse(headerValue); } catch { return {}; }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-  const out = {};
+  const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(parsed)) {
     const n = Number(v);
     if (Number.isFinite(n) && n > 0) out[k] = n;
@@ -73,27 +73,27 @@ export function parseEntityVersions(headerValue) {
 //    Calls aktualisieren nur das `pending`-Snapshot.
 // ─────────────────────────────────────────────────────────────
 const saveQueue = (() => {
-  let pending     = null;     // letztes data-Snapshot, das raus soll
+  let pending: Record<string, unknown> | null = null;     // letztes data-Snapshot, das raus soll
   let inflight    = false;    // läuft gerade ein POST?
-  let retryTimer  = null;     // setTimeout-Handle
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;     // setTimeout-Handle
   let backoff     = 1000;     // ms, exp-backoff
-  let lastError   = null;
-  let lastSyncTs  = null;
+  let lastError: Error | null = null;
+  let lastSyncTs: number | null = null;
   let knownVersion = 0;       // J2: zuletzt bekannte Server-Version (ETag)
-  let entityVersions = {};    // L5-5b: per-Entität-Versionen (forward-compat, default leer)
+  let entityVersions: Record<string, number> = {};    // L5-5b: per-Entität-Versionen (forward-compat, default leer)
 
   const MAX_BACKOFF = 30_000;
 
   // L5-5b: Liest die optionale X-Entity-Versions-Header aus einer Response
   // und merged sie in den Store. No-op solange der Server den Header nicht sendet.
-  function captureEntityVersions(res) {
+  function captureEntityVersions(res: Response) {
     try {
       const merged = parseEntityVersions(res.headers.get('X-Entity-Versions'));
       if (Object.keys(merged).length) entityVersions = { ...entityVersions, ...merged };
     } catch { /* Header-Parsing darf nie den Sync brechen */ }
   }
 
-  function emit(type, detail = {}) {
+  function emit(type: string, detail: Record<string, unknown> = {}) {
     try { window.dispatchEvent(new CustomEvent('azubiboard:sync', { detail: { type, ...detail } })); } catch { /* noop */ }
   }
 
@@ -109,7 +109,7 @@ const saveQueue = (() => {
     inflight = true;
     emit('start');
     try {
-      const headers = knownVersion ? { 'If-Match': `"${knownVersion}"` } : {};
+      const headers: Record<string, string> = knownVersion ? { 'If-Match': `"${knownVersion}"` } : {};
       const res = await apiFetch('/data', {
         method: 'POST',
         headers,
@@ -151,11 +151,11 @@ const saveQueue = (() => {
       // Wenn währenddessen neuere Daten kamen, behalten wir sie;
       // andernfalls wieder das alte Snapshot in die Queue.
       pending  = pending ?? snapshot;
-      lastError = err;
+      lastError = err instanceof Error ? err : new Error(String(err));
       emit('error', { error: err });
       // L3: Breadcrumb für Sentry — keine Daten leaken, nur Status
       addBreadcrumb({ category: 'sync', level: 'warning', message: 'save failed',
-        data: { backoff_ms: backoff, version: knownVersion, error: err?.message } });
+        data: { backoff_ms: backoff, version: knownVersion, error: lastError.message } });
       schedule();
     } finally {
       inflight = false;
@@ -165,19 +165,19 @@ const saveQueue = (() => {
   }
 
   // Externer Setter: nach GET /api/data kennen wir die Version
-  function setVersion(v) { if (typeof v === 'number' && v > 0) knownVersion = v; }
+  function setVersion(v: number) { if (typeof v === 'number' && v > 0) knownVersion = v; }
   function getVersion()  { return knownVersion; }
 
   // L5-5b: per-Entität-Versionen (forward-compat).
   function getEntityVersions() { return { ...entityVersions }; }
-  function getEntityVersion(name) { return entityVersions[name] ?? 0; }
+  function getEntityVersion(name: string) { return entityVersions[name] ?? 0; }
 
   function schedule() {
-    clearTimeout(retryTimer);
+    if (retryTimer) clearTimeout(retryTimer);
     retryTimer = setTimeout(() => { backoff = Math.min(backoff * 2, MAX_BACKOFF); flush(); }, backoff);
   }
 
-  function enqueue(data) {
+  function enqueue(data: Record<string, unknown>) {
     pending = data;            // immer das neueste Snapshot
     if (!inflight) flush();
   }
@@ -211,8 +211,11 @@ const saveQueue = (() => {
 // der jeweilige Blob-Wert erhalten (kein Hard-Fail).
 //   fetchJson(path): liefert geparstes JSON, wirft bei !ok.
 // Exportiert für Unit-Tests (injizierbares fetchJson).
-export async function overlaySchemaReads(blobBase, fetchJson) {
-  const out = { ...(blobBase ?? {}) };
+export async function overlaySchemaReads(
+  blobBase: Record<string, unknown> | null | undefined,
+  fetchJson: (path: string) => Promise<unknown>,
+): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = { ...(blobBase ?? {}) };
 
   // projects + reports + quizzes + learningPaths + calendar + trainingPlan
   // parallel fetchen — jede Sektion isoliert try/catch
@@ -309,7 +312,7 @@ export const dataService = {
 
   // ── App-Daten speichern ───────────────────────────────────
   // Synchron: localStorage sofort. Async: Server via Retry-Queue.
-  saveData(newData) {
+  saveData(newData: Record<string, unknown>) {
     if (!USE_API) { persistData(newData); return Promise.resolve(newData); }
     persistData(newData);                        // optimistic, sofort lokal
     if (!isTokenValid()) return Promise.resolve(newData);
@@ -323,7 +326,7 @@ export const dataService = {
   },
 
   // J2: Force-Save (überschreibt If-Match-Check serverseitig)
-  async forceSave(newData) {
+  async forceSave(newData: Record<string, unknown>) {
     if (!USE_API) { persistData(newData); return newData; }
     persistData(newData);
     if (!isTokenValid()) return newData;
@@ -341,11 +344,13 @@ export const dataService = {
     return newData;
   },
 
-  setKnownVersion(v) { saveQueue.setVersion(v); },
+  setKnownVersion(v: number) { saveQueue.setVersion(v); },
   getKnownVersion()  { return saveQueue.getVersion(); },
 
   // AI1: Tätigkeitsbericht aus Aufgaben generieren — POST /api/ai/fill-report
-  async fillReport({ taskGroups, weekNumber, year, profession = '', lehrjahr = 1 }) {
+  async fillReport({ taskGroups, weekNumber, year, profession = '', lehrjahr = 1 }: {
+    taskGroups: unknown; weekNumber: number; year: number; profession?: string; lehrjahr?: number;
+  }) {
     if (!USE_API || !isTokenValid()) throw new Error('API nicht verfügbar');
     const res = await apiFetch('/ai/fill-report', {
       method: 'POST',
@@ -360,7 +365,9 @@ export const dataService = {
   },
 
   // AI2: Claude-API Lernziel-Vorschläge — POST /api/ai/suggest-goals
-  async suggestGoals({ profession, lehrjahr, context = '', existingTitles = [], count = 6 }) {
+  async suggestGoals({ profession, lehrjahr, context = '', existingTitles = [], count = 6 }: {
+    profession: string; lehrjahr: number; context?: string; existingTitles?: string[]; count?: number;
+  }) {
     if (!USE_API || !isTokenValid()) throw new Error('API nicht verfügbar (VITE_USE_API oder kein Login)');
     const res = await apiFetch('/ai/suggest-goals', {
       method: 'POST',
@@ -376,7 +383,7 @@ export const dataService = {
   },
 
   // L5-7: FULLTEXT-Suche — direkt gegen /api/search?q=
-  async search(q) {
+  async search(q: string) {
     if (!USE_API || !isTokenValid()) return [];
     try {
       const res = await apiFetch(`/search?q=${encodeURIComponent(q)}`);
@@ -389,10 +396,12 @@ export const dataService = {
 
   // L5-5b: per-Entität-Versionen (forward-compat für Phase-3-Schema-Reads).
   getEntityVersions()    { return saveQueue.getEntityVersions(); },
-  getEntityVersion(name) { return saveQueue.getEntityVersion(name); },
+  getEntityVersion(name: string) { return saveQueue.getEntityVersion(name); },
 
   // ── J10: Share-Links ─────────────────────────────────────
-  async createShareLink({ kind, data, title, ttlDays = 30 }) {
+  async createShareLink({ kind, data, title, ttlDays = 30 }: {
+    kind: string; data: unknown; title: string; ttlDays?: number;
+  }) {
     if (!USE_API) throw new Error('Share-Links benötigen API-Modus');
     const res = await apiFetch('/share', {
       method: 'POST',
@@ -413,13 +422,13 @@ export const dataService = {
     } catch { return []; }
   },
 
-  async revokeShareLink(token) {
+  async revokeShareLink(token: string) {
     if (!USE_API) return;
     await apiFetch(`/share/${encodeURIComponent(token)}`, { method: 'DELETE' });
   },
 
   // Public-Endpoint: kein Auth-Header (Token ist im Pfad)
-  async fetchShareLink(token) {
+  async fetchShareLink(token: string) {
     const res = await fetch(`${API_BASE}/share/${encodeURIComponent(token)}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -437,7 +446,7 @@ export const dataService = {
     } catch { return []; }
   },
 
-  async fetchBackup(day) {
+  async fetchBackup(day: string) {
     if (!USE_API) return null;
     const res = await apiFetch(`/data/backups/${encodeURIComponent(day)}`);
     if (!res.ok) {
@@ -447,7 +456,7 @@ export const dataService = {
     return await res.json();
   },
 
-  async restoreBackup(day) {
+  async restoreBackup(day: string) {
     if (!USE_API) throw new Error('Restore nur im API-Modus möglich');
     const res = await apiFetch('/data/restore', {
       method: 'POST',
@@ -464,7 +473,7 @@ export const dataService = {
   // Fire-and-forget: ein fehlgeschlagener Audit-Write blockiert
   // den eigentlichen Vorgang NICHT, sondern wird nur an Sentry
   // gebreadcrumbt. Im local-mode (USE_API=false) ist es No-Op.
-  writeAudit(entry) {
+  writeAudit(entry: { type: string; [k: string]: unknown }) {
     if (!USE_API || !isTokenValid() || !entry?.type) return;
     apiFetch('/audit', {
       method: 'POST',
@@ -477,7 +486,9 @@ export const dataService = {
     });
   },
 
-  async listAudit({ limit = 100, offset = 0, type, userId, since, until } = {}) {
+  async listAudit({ limit = 100, offset = 0, type, userId, since, until }: {
+    limit?: number; offset?: number; type?: string; userId?: string | number; since?: string; until?: string;
+  } = {}) {
     if (!USE_API || !isTokenValid()) return { total: 0, items: [], limit, offset };
     const p = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (type)    p.set('type', type);
@@ -517,7 +528,7 @@ export const dataService = {
     return await res.json();   // { secret, otpauth_url }
   },
 
-  async twoFactorVerify(code) {
+  async twoFactorVerify(code: string) {
     if (!USE_API) throw new Error('2FA nur im API-Modus möglich');
     const res = await apiFetch('/auth/2fa/verify', {
       method: 'POST',
@@ -530,7 +541,7 @@ export const dataService = {
     return await res.json();   // { ok, recovery_codes, activated_at }
   },
 
-  async twoFactorDisable(password, code) {
+  async twoFactorDisable(password: string, code: string) {
     if (!USE_API) throw new Error('2FA nur im API-Modus möglich');
     const res = await apiFetch('/auth/2fa/disable', {
       method: 'POST',
@@ -545,7 +556,7 @@ export const dataService = {
 
   // Während des Logins, wenn requires_2fa=true gemeldet wurde.
   // Liefert dasselbe Format wie login() — { token, user }.
-  async twoFactorCheck(partial_token, code) {
+  async twoFactorCheck(partial_token: string, code: string) {
     if (!USE_API) throw new Error('2FA nur im API-Modus möglich');
     const res = await fetch(`${API_BASE}/auth/2fa/check`, {
       method:  'POST',
@@ -592,14 +603,14 @@ export const dataService = {
       if (!res.ok) return null;
       // Integer-IDs als String normalisieren (für Kompatibilität mit Blob)
       const users = await res.json();
-      return users.map(u => ({ ...u, id: String(u.id) }));
+      return users.map((u: Record<string, unknown>) => ({ ...u, id: String(u.id) }));
     } catch {
       return null;
     }
   },
 
   // ── Nutzer anlegen (Ausbilder only) ───────────────────────
-  async createUser(userData) {
+  async createUser(userData: Record<string, unknown>) {
     if (!USE_API) return null;
     const res = await apiFetch('/users', {
       method: 'POST',
@@ -614,7 +625,7 @@ export const dataService = {
   },
 
   // ── Nutzer aktualisieren (Ausbilder only) ─────────────────
-  async updateUser(id, updates) {
+  async updateUser(id: string, updates: Record<string, unknown>) {
     if (!USE_API) return null;
     const res = await apiFetch(`/users/${id}`, {
       method: 'PATCH',
@@ -628,7 +639,7 @@ export const dataService = {
   },
 
   // ── Nutzer deaktivieren ───────────────────────────────────
-  async deactivateUser(id) {
+  async deactivateUser(id: string) {
     if (!USE_API) return null;
     const res = await apiFetch(`/users/${id}`, { method: 'DELETE' });
     if (!res.ok) {
@@ -639,7 +650,7 @@ export const dataService = {
   },
 
   // ── Nutzer reaktivieren ───────────────────────────────────
-  async activateUser(id) {
+  async activateUser(id: string) {
     if (!USE_API) return null;
     const res = await apiFetch(`/users/${id}/activate`, { method: 'POST' });
     if (!res.ok) {
@@ -650,7 +661,7 @@ export const dataService = {
   },
 
   // ── Profil-Felder aktualisieren (name, profession, etc.) ──
-  async updateProfile(fields) {
+  async updateProfile(fields: Record<string, unknown>) {
     if (!USE_API) return null;
     const res = await apiFetch('/auth/profile', {
       method: 'PATCH',
@@ -664,7 +675,7 @@ export const dataService = {
   },
 
   // ── Passwort des eingeloggten Nutzers ändern ──────────────
-  async changePassword(old_password, new_password) {
+  async changePassword(old_password: string, new_password: string) {
     if (!USE_API) throw new Error('Passwortänderung nur im API-Modus verfügbar');
     const res = await apiFetch('/auth/password', {
       method: 'PATCH',
@@ -678,7 +689,7 @@ export const dataService = {
   },
 
   // ── Profilbild hochladen (multipart/form-data) ───────────
-  async uploadAvatar(file) {
+  async uploadAvatar(file: File) {
     if (!USE_API) throw new Error('Avatar-Upload nur im API-Modus verfügbar');
     const formData = new FormData();
     formData.append('avatar', file);
@@ -696,7 +707,7 @@ export const dataService = {
   },
 
   // ── Theme in DB persistieren (fire & forget) ─────────────
-  async syncTheme(theme) {
+  async syncTheme(theme: string) {
     if (!USE_API || !isTokenValid()) return;
     try {
       await apiFetch('/auth/theme', {
@@ -707,7 +718,7 @@ export const dataService = {
   },
 
   // ── Login ─────────────────────────────────────────────────
-  async login(email, password) {
+  async login(email: string, password: string) {
     if (!USE_API) return null;   // lokaler Modus: null → App macht's selbst
     const res = await fetch(`${API_BASE}/auth/login`, {
       method:  'POST',
@@ -722,7 +733,7 @@ export const dataService = {
   },
 
   // ── Registrierung ─────────────────────────────────────────
-  async register(name, email, password) {
+  async register(name: string, email: string, password: string) {
     if (!USE_API) return null;
     const res = await fetch(`${API_BASE}/auth/register`, {
       method:  'POST',

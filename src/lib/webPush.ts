@@ -13,16 +13,23 @@
 const PREF_KEY     = 'azubiboard_notify_enabled';
 const SEEN_PREFIX  = 'azubiboard_notify_seen_';
 
-export function isSupported() {
+interface PushNotification {
+  id: string;
+  title?: string;
+  message?: string;
+  severity?: string;
+}
+
+export function isSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
 
-export function currentPermission() {
+export function currentPermission(): NotificationPermission | 'unsupported' {
   if (!isSupported()) return 'unsupported';
   return Notification.permission;
 }
 
-export async function requestPermission() {
+export async function requestPermission(): Promise<NotificationPermission | 'unsupported'> {
   if (!isSupported()) return 'unsupported';
   if (Notification.permission === 'granted') return 'granted';
   if (Notification.permission === 'denied')  return 'denied';
@@ -35,24 +42,24 @@ export async function requestPermission() {
 }
 
 // User-Präferenz (kann auch bei granted Permission unabhängig deaktiviert sein)
-export function isEnabled() {
+export function isEnabled(): boolean {
   try {
     const v = localStorage.getItem(PREF_KEY);
     return v === null ? true : v === 'true';   // Default: an, wenn nicht explizit aus
   } catch { return true; }
 }
 
-export function setEnabled(b) {
+export function setEnabled(b: boolean): void {
   try { localStorage.setItem(PREF_KEY, b ? 'true' : 'false'); } catch { /* noop */ }
 }
 
 // Markiert eine Notification-ID als "schon gepusht", damit wir bei
 // erneutem Polling kein Spam-Buzzing produzieren.
-function getSeen(userId) {
-  try { return new Set(JSON.parse(localStorage.getItem(SEEN_PREFIX + userId) || '[]')); }
+function getSeen(userId: string): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_PREFIX + userId) || '[]') as string[]); }
   catch { return new Set(); }
 }
-function setSeen(userId, ids) {
+function setSeen(userId: string, ids: Set<string>): void {
   try { localStorage.setItem(SEEN_PREFIX + userId, JSON.stringify([...ids].slice(-200))); } catch { /* noop */ }
 }
 
@@ -61,7 +68,7 @@ function setSeen(userId, ids) {
 //  - User Permission gegeben (granted)
 //  - Settings-Toggle on
 //  - Tab gerade nicht im Vordergrund (sonst nervig — UI-Bell reicht)
-export function fireForNewNotifications(userId, notifications) {
+export function fireForNewNotifications(userId: string, notifications: PushNotification[]): void {
   if (!userId || !notifications?.length) return;
   if (!isSupported() || Notification.permission !== 'granted' || !isEnabled()) return;
 

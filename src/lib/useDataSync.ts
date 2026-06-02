@@ -11,7 +11,14 @@ import { dataService } from './dataService.js';
 
 const POLL_INTERVAL_MS = 25_000; // 25s — gut für Multi-User-Wahrnehmung
 
-export function useDataSync(setData, currentUser, getCurrentData) {
+type AppData = Record<string, unknown>;
+type CurrentUser = Record<string, unknown> | null;
+
+export function useDataSync(
+  setData: (data: AppData) => void,
+  currentUser: CurrentUser,
+  getCurrentData: () => AppData | null,
+): void {
   const lastVersion = useRef(0);
   // Beim ersten Erfolgreichen GET die "Server-Version" einbürgern,
   // damit wir nicht direkt nach Login einen unnötigen Reload triggern.
@@ -20,7 +27,7 @@ export function useDataSync(setData, currentUser, getCurrentData) {
   useEffect(() => {
     if (!currentUser) return;
     let cancelled = false;
-    let timer = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     async function poll() {
       if (cancelled) return;
@@ -68,9 +75,10 @@ export function useDataSync(setData, currentUser, getCurrentData) {
     // Wenn wir SELBST gerade gespeichert haben, Version notieren —
     // sonst würden wir uns selbst beim nächsten Poll als "Update von außen"
     // wahrnehmen.
-    const onSyncSuccess = (e) => {
-      if (e.detail?.type === 'success' && e.detail.ts) {
-        lastVersion.current = Math.floor(e.detail.ts / 1000);
+    const onSyncSuccess = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.type === 'success' && detail.ts) {
+        lastVersion.current = Math.floor(detail.ts / 1000);
       }
     };
     window.addEventListener('azubiboard:sync', onSyncSuccess);

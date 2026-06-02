@@ -1,5 +1,5 @@
 // ============================================================
-//  schemaMap.js — Sprint 12 Phase 3
+//  schemaMap.ts — Sprint 12 Phase 3  (T1 Sprint 14: js → ts migriert)
 //  Reine Reverse-Mapper: relationale DB-Row → Blob-Shape, die das
 //  Frontend (Store/Komponenten) erwartet. Kehrt die Forward-Migration
 //  aus database/migration_helpers.php um.
@@ -8,12 +8,16 @@
 //  Toleriert fehlende Felder (Routes liefern je nach Stand mehr/weniger).
 // ============================================================
 
+type Row = Record<string, unknown>;
+type Blob = Record<string, unknown>;
+
 // Hilfen ----------------------------------------------------------------
-const idStr = (v) => (v === null || v === undefined ? undefined : String(v));
-const bool  = (v) => v === true || v === 1 || v === '1';
+const idStr = (v: unknown): string | undefined =>
+  (v === null || v === undefined ? undefined : String(v));
+const bool = (v: unknown): boolean => v === true || v === 1 || v === '1';
 // nullische/leere Werte aus einem Objekt entfernen (kompakte Blob-Form)
-function compact(obj) {
-  const out = {};
+function compact(obj: Blob): Blob {
+  const out: Blob = {};
   for (const [k, v] of Object.entries(obj)) {
     if (v !== undefined && v !== null) out[k] = v;
   }
@@ -21,7 +25,7 @@ function compact(obj) {
 }
 
 // Time-Entry (aus time_entries) → Blob-timeLog-Eintrag ------------------
-export function mapTimeEntryRowToBlob(row = {}) {
+export function mapTimeEntryRowToBlob(row: Row = {}): Blob {
   return compact({
     start:       row.started_at ?? row.start ?? null,
     end:         row.ended_at ?? row.end ?? null,
@@ -30,7 +34,7 @@ export function mapTimeEntryRowToBlob(row = {}) {
 }
 
 // Task ------------------------------------------------------------------
-export function mapTaskRowToBlob(row = {}) {
+export function mapTaskRowToBlob(row: Row = {}): Blob {
   const title = row.title ?? row.text ?? '';
   const timeLog = Array.isArray(row.timeLog)
     ? row.timeLog.map(mapTimeEntryRowToBlob)
@@ -55,7 +59,7 @@ export function mapTaskRowToBlob(row = {}) {
 }
 
 // Requirement -----------------------------------------------------------
-export function mapRequirementRowToBlob(row = {}) {
+export function mapRequirementRowToBlob(row: Row = {}): Blob {
   return compact({
     id:           idStr(row.id),
     title:        row.title ?? '',
@@ -67,7 +71,7 @@ export function mapRequirementRowToBlob(row = {}) {
 }
 
 // Material --------------------------------------------------------------
-export function mapMaterialRowToBlob(row = {}) {
+export function mapMaterialRowToBlob(row: Row = {}): Blob {
   return compact({
     id:          idStr(row.id),
     name:        row.name ?? '',
@@ -81,7 +85,7 @@ export function mapMaterialRowToBlob(row = {}) {
 }
 
 // Project (enriched: tasks/requirements/materials) ----------------------
-export function mapProjectRowToBlob(row = {}) {
+export function mapProjectRowToBlob(row: Row = {}): Blob {
   return compact({
     id:            idStr(row.id),
     title:         row.title ?? '',
@@ -102,7 +106,7 @@ export function mapProjectRowToBlob(row = {}) {
 }
 
 // Report ----------------------------------------------------------------
-export function mapReportRowToBlob(row = {}) {
+export function mapReportRowToBlob(row: Row = {}): Blob {
   // Datei: relational als file_url (String) → Blob führt `file` (hier als String).
   const file = row.file_url ?? row.file ?? undefined;
   return compact({
@@ -125,14 +129,14 @@ export function mapReportRowToBlob(row = {}) {
 }
 
 // Quiz-Frage (aus quiz_questions+quiz_answers, quiz.title als Kategorie) --------
-export function mapQuizQuestionRowToBlob(row = {}, category = '') {
+export function mapQuizQuestionRowToBlob(row: Row = {}, category = ''): Blob {
   return compact({
     id:       String(row.id ?? ''),
     question: row.question_text ?? '',
     category: category,
     type:     row.question_type === 'multiple' ? 'multiple' : 'single',
     answers:  Array.isArray(row.answers)
-      ? row.answers.map(a => ({
+      ? row.answers.map((a: Row) => ({
           id:      String(a.id ?? ''),
           text:    a.answer_text ?? '',
           correct: bool(a.is_correct),
@@ -142,20 +146,20 @@ export function mapQuizQuestionRowToBlob(row = {}, category = '') {
 }
 
 // Lernpfad (mit Nodes, Edges → prereqs, Progress) -----------------------
-export function mapLearningPathRowToBlob(path = {}, _uid = null) {
+export function mapLearningPathRowToBlob(path: Row = {}, _uid: string | null = null): Blob {
   const nodes  = Array.isArray(path.nodes) ? path.nodes : [];
   const edges  = Array.isArray(path.edges) ? path.edges : [];
   const _prog  = path.progress && typeof path.progress === 'object' ? path.progress : {};
 
   // Edge: from_node → to_node bedeutet to_node hat from_node als Voraussetzung
-  const prereqMap = {};
-  for (const e of edges) {
+  const prereqMap: Record<string, string[]> = {};
+  for (const e of edges as Row[]) {
     const to = String(e.to_node ?? '');
     if (!prereqMap[to]) prereqMap[to] = [];
     prereqMap[to].push(String(e.from_node ?? ''));
   }
 
-  const mappedNodes = nodes.map(n => compact({
+  const mappedNodes = (nodes as Row[]).map((n) => compact({
     id:          String(n.id ?? ''),
     title:       n.title ?? '',
     description: n.description ?? undefined,
@@ -174,11 +178,11 @@ export function mapLearningPathRowToBlob(path = {}, _uid = null) {
 }
 
 // pathProgress aus Lernpfad-Liste ----------------------------------------
-export function extractPathProgress(paths = []) {
-  const out = {};
+export function extractPathProgress(paths: Row[] = []): Record<string, Blob> {
+  const out: Record<string, Blob> = {};
   for (const path of paths) {
     const prog = path.progress && typeof path.progress === 'object' ? path.progress : {};
-    for (const [nodeId, p] of Object.entries(prog)) {
+    for (const [nodeId, p] of Object.entries(prog as Record<string, Row>)) {
       out[String(nodeId)] = {
         completed:    bool(p.completed),
         completed_at: p.completed_at ?? undefined,
@@ -189,7 +193,7 @@ export function extractPathProgress(paths = []) {
 }
 
 // Kalender-Ereignis ------------------------------------------------------
-export function mapCalendarEventRowToBlob(row = {}) {
+export function mapCalendarEventRowToBlob(row: Row = {}): Blob {
   return compact({
     id:        String(row.id ?? ''),
     date:      row.event_date ?? null,
@@ -202,17 +206,17 @@ export function mapCalendarEventRowToBlob(row = {}) {
 }
 
 // Listen-Helfer ---------------------------------------------------------
-export const mapProjectsToBlob = (rows = []) => rows.map(mapProjectRowToBlob);
-export const mapReportsToBlob  = (rows = []) => rows.map(mapReportRowToBlob);
-export const mapCalendarEventsToBlob = (rows = []) => rows.map(mapCalendarEventRowToBlob);
-export function mapQuizzesToBlob(quizzes = []) {
-  const questions = [];
+export const mapProjectsToBlob = (rows: Row[] = []) => rows.map(mapProjectRowToBlob);
+export const mapReportsToBlob  = (rows: Row[] = []) => rows.map(mapReportRowToBlob);
+export const mapCalendarEventsToBlob = (rows: Row[] = []) => rows.map(mapCalendarEventRowToBlob);
+export function mapQuizzesToBlob(quizzes: Row[] = []): Blob[] {
+  const questions: Blob[] = [];
   for (const q of quizzes) {
-    const cat = q.title ?? '';
-    for (const question of (q.questions ?? [])) {
+    const cat = (q.title as string) ?? '';
+    for (const question of ((q.questions as Row[]) ?? [])) {
       questions.push(mapQuizQuestionRowToBlob(question, cat));
     }
   }
   return questions;
 }
-export const mapLearningPathsToBlob = (rows = []) => rows.map(r => mapLearningPathRowToBlob(r));
+export const mapLearningPathsToBlob = (rows: Row[] = []) => rows.map((r) => mapLearningPathRowToBlob(r));

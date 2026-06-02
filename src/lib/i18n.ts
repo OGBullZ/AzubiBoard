@@ -15,10 +15,12 @@ import en from '../locales/en.json';
 
 const STORAGE_KEY = 'azubiboard_lang';
 
-function detectLang() {
+type Lang = 'de' | 'en';
+
+function detectLang(): Lang {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && ['de', 'en'].includes(saved)) return saved;
+    if (saved === 'de' || saved === 'en') return saved;
   } catch { /* noop */ }
   // Browser-Hinweis, Fallback auf de (Hauptzielgruppe)
   const nav = (typeof navigator !== 'undefined' && navigator.language) || 'de';
@@ -38,8 +40,8 @@ i18n
     returnEmptyString: false,
   });
 
-export function setLanguage(lng) {
-  if (!['de', 'en'].includes(lng)) return;
+export function setLanguage(lng: string): void {
+  if (lng !== 'de' && lng !== 'en') return;
   i18n.changeLanguage(lng);
   try { localStorage.setItem(STORAGE_KEY, lng); } catch { /* noop */ }
 }

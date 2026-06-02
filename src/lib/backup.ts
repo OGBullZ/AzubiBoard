@@ -1,5 +1,5 @@
 // ============================================================
-//  backup.js – Datensicherungs-Reminder
+//  backup.ts – Datensicherungs-Reminder  (T1 Sprint 14: js → ts migriert)
 //  Trackt letztes Export-Datum in localStorage und liefert
 //  needsBackup() für UI-Reminder. Kein Auto-Download – der
 //  User muss aktiv klicken (kein "Surprise"-Verhalten).
@@ -9,25 +9,25 @@ const KEY_LAST_BACKUP = 'azubiboard_last_backup_ts';
 const KEY_DISMISSED   = 'azubiboard_backup_dismissed_until';
 const DEFAULT_DAYS    = 7;
 
-export function recordBackup() {
+export function recordBackup(): void {
   try { localStorage.setItem(KEY_LAST_BACKUP, String(Date.now())); } catch { /* noop */ }
   try { localStorage.removeItem(KEY_DISMISSED); } catch { /* noop */ }
 }
 
-export function lastBackupAt() {
+export function lastBackupAt(): number | null {
   try {
     const v = localStorage.getItem(KEY_LAST_BACKUP);
     return v ? Number(v) : null;
   } catch { return null; }
 }
 
-export function daysSinceBackup() {
+export function daysSinceBackup(): number {
   const ts = lastBackupAt();
   if (!ts) return Infinity;
   return (Date.now() - ts) / 86_400_000;
 }
 
-export function needsBackup(thresholdDays = DEFAULT_DAYS) {
+export function needsBackup(thresholdDays: number = DEFAULT_DAYS): boolean {
   // Dismissed-Window respektieren ("nicht heute erinnern")
   try {
     const until = Number(localStorage.getItem(KEY_DISMISSED) || 0);
@@ -37,7 +37,7 @@ export function needsBackup(thresholdDays = DEFAULT_DAYS) {
 }
 
 // Reminder bis zum Ende des Tages aussetzen
-export function snoozeReminder(hours = 24) {
+export function snoozeReminder(hours: number = 24): void {
   try {
     const until = Date.now() + hours * 3600_000;
     localStorage.setItem(KEY_DISMISSED, String(until));
