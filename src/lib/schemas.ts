@@ -185,7 +185,7 @@ export const AppState = z.object({
   calendarEvents: z.array(CalendarEvent).optional().default([]),
   quizzes:        z.array(QuizQuestion).optional().default([]),
   learningPaths:  z.array(LearningPath).optional().default([]),
-  pathProgress:   z.record(z.object({ completed: z.boolean(), completed_at: isoTs })).optional().default({}),
+  pathProgress:   z.record(z.string(), z.object({ completed: z.boolean(), completed_at: isoTs })).optional().default({}),
   trainingPlan:   z.object({
     goals:    z.array(z.unknown()).optional().default([]),
     examDate: optStr,
@@ -197,10 +197,14 @@ export const AppState = z.object({
 
 // ── Validate Helper ───────────────────────────────────────────
 // Gibt data zurück (ggf. partial) und loggt Fehler im Development.
-export function validate(schema, data, context = '') {
+export function validate<T extends z.ZodTypeAny>(
+  schema: T,
+  data: unknown,
+  context = '',
+): z.infer<T> {
   const result = schema.safeParse(data);
   if (!result.success && import.meta.env.DEV) {
     console.warn(`[schema] Validierungsfehler${context ? ` in ${context}` : ''}:`, result.error.flatten());
   }
-  return result.success ? result.data : data;
+  return result.success ? result.data : (data as z.infer<T>);
 }
