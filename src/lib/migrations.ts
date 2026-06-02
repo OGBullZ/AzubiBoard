@@ -1,5 +1,6 @@
 // ============================================================
-//  migrations.js — Schema-Migrations für data-Blob (L2)
+//  migrations.ts — Schema-Migrations für data-Blob (L2)
+//  (T1 Sprint 14: js → ts migriert)
 //
 //  data.schema_version  hält die aktuelle Schema-Version. Beim
 //  Laden wird `migrateData(data)` aufgerufen und alle nötigen
@@ -14,18 +15,36 @@
 //  Wenn data.schema_version >= aktuelle Version → no-op.
 // ============================================================
 
+// Legacy-Blob: bewusst lose typisiert — Migrations transformieren
+// untypisierte Alt-Daten, daher any[] für verschachtelte Strukturen.
+interface MigData {
+  schema_version?: number;
+  projects?: any[];
+  calendarEvents?: any[];
+  reports?: any[];
+  quizzes?: any[];
+  trash?: unknown;
+  trainingPlan?: unknown;
+  activityLog?: unknown[];
+  learningPaths?: unknown[];
+  pathProgress?: Record<string, unknown>;
+  [k: string]: unknown;
+}
+
+type Migration = (data: MigData) => MigData;
+
 // Aktuelle Schema-Version. Bei jeder neuen Migration um 1 hochzählen.
 export const CURRENT_SCHEMA_VERSION = 5;
 
 // Einzelne Migrations als Map: zielversion → migrate(prev)
-const MIGRATIONS = {
+const MIGRATIONS: Record<number, Migration> = {
   1: (data) => {
     // Migration v0 → v1:
     //   - Sicherstellen dass calendarEvents existiert
     //   - timeLog-Felder pro Task initialisieren wenn fehlend
     const projects = (data.projects || []).map(p => ({
       ...p,
-      tasks: (p.tasks || []).map(t => ({ ...t, timeLog: t.timeLog || [] })),
+      tasks: (p.tasks || []).map((t: any) => ({ ...t, timeLog: t.timeLog || [] })),
     }));
     return {
       ...data,
@@ -75,12 +94,12 @@ const MIGRATIONS = {
     //   - Reports ohne updated_at bekommen einen Default
     const projects = (data.projects || []).map(p => ({
       ...p,
-      tasks: (p.tasks || []).map((t, i) => ({
+      tasks: (p.tasks || []).map((t: any, i: number) => ({
         ...t,
         id: t.id || `task_legacy_${Date.now()}_${i}`,
       })),
     }));
-    const reports = (data.reports || []).map(r => ({
+    const reports = (data.reports || []).map((r: any) => ({
       ...r,
       updated_at: r.updated_at || r.created_at || new Date().toISOString(),
     }));
@@ -88,13 +107,13 @@ const MIGRATIONS = {
   },
 };
 
-export function migrateData(data) {
+export function migrateData(data: MigData): MigData {
   if (!data || typeof data !== 'object') return data;
   const from = Number(data.schema_version) || 0;
   if (from >= CURRENT_SCHEMA_VERSION) return data;
 
   let migrated = data;
-  const applied = [];
+  const applied: number[] = [];
   for (let v = from + 1; v <= CURRENT_SCHEMA_VERSION; v++) {
     const fn = MIGRATIONS[v];
     if (!fn) continue;
@@ -104,7 +123,7 @@ export function migrateData(data) {
     } catch (err) {
       // Bei Migrations-Fehlern: lieber alte Daten behalten als kaputtschreiben
       console.error(`[migrations] step v${v} failed:`, err);
-      return { ...data, _migrationError: err.message, _migrationFailedAt: v };
+      return { ...data, _migrationError: (err as Error).message, _migrationFailedAt: v };
     }
   }
   return {
@@ -116,9 +135,9 @@ export function migrateData(data) {
 }
 
 // Test-Helper: gibt zurück welche Migrations laufen würden, ohne sie anzuwenden
-export function pendingMigrations(data) {
+export function pendingMigrations(data?: MigData | null): number[] {
   const from = Number(data?.schema_version) || 0;
-  const list = [];
+  const list: number[] = [];
   for (let v = from + 1; v <= CURRENT_SCHEMA_VERSION; v++) {
     if (MIGRATIONS[v]) list.push(v);
   }
