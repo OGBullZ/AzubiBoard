@@ -15,6 +15,7 @@ export default defineConfig({
 
   use: {
     baseURL: 'http://localhost:4173/azubiboard/',
+    locale:  'de-DE',  // i18n.detectLang() liest navigator.language → deutsche UI (Tests prüfen DE-Strings)
     trace:   'retain-on-failure',
     screenshot: 'only-on-failure',
   },
