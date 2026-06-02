@@ -1,6 +1,6 @@
 // ============================================================
-//  utils.js – AzubiBoard Design System & Helpers
-//  Pfad: src/utils.js
+//  utils.ts – AzubiBoard Design System & Helpers
+//  Pfad: src/lib/utils.ts  (T1 Sprint 14: js → ts migriert)
 // ============================================================
 
 // ── Farb-System ───────────────────────────────────────────────
@@ -49,9 +49,9 @@ export const ST = {
 };
 
 // Platzhalter – werden in manchen Importen referenziert
-export const S  = {};
-export const T  = {};
-export const Sh = {};
+export const S:  Record<string, unknown> = {};
+export const T:  Record<string, unknown> = {};
+export const Sh: Record<string, unknown> = {};
 
 // ── Farbpalette (für Netzplan-Knoten) ────────────────────────
 export const PAL = [
@@ -63,16 +63,16 @@ export const PAL = [
 export const UDAYS = { W: 7, T: 1, M: 30 };
 
 // ── ID-Generator ─────────────────────────────────────────────
-export const uid = () =>
+export const uid = (): string =>
   Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-4);
 
 // ── Datums-Helfer ────────────────────────────────────────────
-export const today = () => new Date().toISOString().split('T')[0];
+export const today = (): string => new Date().toISOString().split('T')[0];
 
-export const fmtDate = (d) => {
+export const fmtDate = (d?: string | null): string => {
   if (!d) return '';
   try {
-    return new Date(d + 'T12:00:00').toLocaleDateString('de-DE', {
+    return new Date(`${d}T12:00:00`).toLocaleDateString('de-DE', {
       day: '2-digit', month: '2-digit', year: 'numeric',
     });
   } catch {
@@ -80,18 +80,18 @@ export const fmtDate = (d) => {
   }
 };
 
-export const getDeadlineDaysLeft = (deadline) => {
+export const getDeadlineDaysLeft = (deadline?: string | null): number | null => {
   if (!deadline) return null;
-  const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
+  const diff = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000);
   return diff;
 };
 
 // ── ISO-8601 Kalenderwoche ───────────────────────────────────
 // Korrekt für Jahresgrenzen: 29.12.2025 → KW1/2026, 01.01.2024 → KW1/2024
 // Akzeptiert ISO-Datumsstring ('YYYY-MM-DD') oder Date-Objekt.
-export function getISOWeek(input) {
+export function getISOWeek(input?: string | Date | null): { year: number | null; week: number | null } {
   if (!input) return { year: null, week: null };
-  const d = input instanceof Date ? new Date(input) : new Date(input + 'T12:00:00');
+  const d = input instanceof Date ? new Date(input) : new Date(`${input}T12:00:00`);
   if (isNaN(d.getTime())) return { year: null, week: null };
   // Donnerstag der gleichen Woche bestimmt das Jahr (ISO 8601)
   const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -100,16 +100,16 @@ export function getISOWeek(input) {
   const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
   const firstDayNr = (firstThursday.getUTCDay() + 6) % 7;
   firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNr + 3);
-  const week = 1 + Math.round((target - firstThursday) / (7 * 86400000));
+  const week = 1 + Math.round((target.getTime() - firstThursday.getTime()) / (7 * 86400000));
   return { year: target.getUTCFullYear(), week };
 }
 
 // Kompakte Variante – gibt nur Wochennummer zurück
-export const getKW = (input) => getISOWeek(input).week;
+export const getKW = (input?: string | Date | null): number | null => getISOWeek(input).week;
 
 // Montag der ISO-Woche zu einem Datum (lokale Zeit, 00:00:00)
-export function getISOWeekMonday(input) {
-  const d = input instanceof Date ? new Date(input) : new Date(input + 'T12:00:00');
+export function getISOWeekMonday(input?: string | Date | null): Date | null {
+  const d = input instanceof Date ? new Date(input) : new Date(`${input}T12:00:00`);
   if (isNaN(d.getTime())) return null;
   const dayNr = (d.getDay() + 6) % 7;
   d.setHours(0, 0, 0, 0);
@@ -118,7 +118,7 @@ export function getISOWeekMonday(input) {
 }
 
 // Lokales Datum als YYYY-MM-DD ohne UTC-Shift
-export function fmtLocalDate(d) {
+export function fmtLocalDate(d?: string | Date | null): string {
   if (!d) return '';
   const date = d instanceof Date ? d : new Date(d);
   if (isNaN(date.getTime())) return '';
@@ -128,15 +128,21 @@ export function fmtLocalDate(d) {
   return `${y}-${m}-${day}`;
 }
 
+// ── Netzplan-Typen ───────────────────────────────────────────
+type NodeId = string | number;
+interface GraphEdge { from: NodeId; to: NodeId; }
+interface GraphNode { id: NodeId; d: number; }
+interface CpmNode extends GraphNode { faz: number; fez: number; saz: number; sez: number; gp: number; }
+
 // ── Netzplan: Zyklus-Erkennung ───────────────────────────────
-export function detectCycle(edges, from, to) {
-  const adj = {};
+export function detectCycle(edges: GraphEdge[], from: NodeId, to: NodeId): boolean {
+  const adj: Record<string, NodeId[]> = {};
   edges.forEach(e => {
     if (!adj[e.from]) adj[e.from] = [];
     adj[e.from].push(e.to);
   });
-  const visited = new Set();
-  function dfs(node) {
+  const visited = new Set<NodeId>();
+  function dfs(node: NodeId): boolean {
     if (node === from) return true;
     if (visited.has(node)) return false;
     visited.add(node);
@@ -146,14 +152,14 @@ export function detectCycle(edges, from, to) {
 }
 
 // ── Netzplan: Topologische Sortierung ────────────────────────
-function topSort(nodes, edges) {
-  const inDeg = {};
+function topSort(nodes: GraphNode[], edges: GraphEdge[]): NodeId[] {
+  const inDeg: Record<string, number> = {};
   nodes.forEach(n => (inDeg[n.id] = 0));
   edges.forEach(e => { if (inDeg[e.to] !== undefined) inDeg[e.to]++; });
   const queue = nodes.filter(n => inDeg[n.id] === 0).map(n => n.id);
-  const result = [];
+  const result: NodeId[] = [];
   while (queue.length) {
-    const id = queue.shift();
+    const id = queue.shift()!;
     result.push(id);
     edges
       .filter(e => e.from === id)
@@ -163,8 +169,8 @@ function topSort(nodes, edges) {
 }
 
 // ── Netzplan: CPM-Berechnung ─────────────────────────────────
-export function computeCPM(nodes, edges) {
-  const nodeMap = {};
+export function computeCPM(nodes: GraphNode[], edges: GraphEdge[]): CpmNode[] {
+  const nodeMap: Record<string, CpmNode> = {};
   nodes.forEach(n => (nodeMap[n.id] = { ...n, faz: 0, fez: 0, saz: 0, sez: 0, gp: 0 }));
 
   const sorted = topSort(nodes, edges);
@@ -198,8 +204,11 @@ export function computeCPM(nodes, edges) {
 }
 
 // ── Netzplan: Auto-Layout ─────────────────────────────────────
-export function computeLayout(nodes, edges) {
-  const cols = {};
+export function computeLayout<TNode extends GraphNode>(
+  nodes: TNode[],
+  edges: GraphEdge[],
+): Array<TNode & { col: number; row: number }> {
+  const cols: Record<string, number> = {};
   const sorted = topSort(nodes, edges);
 
   sorted.forEach(id => {
@@ -210,8 +219,8 @@ export function computeLayout(nodes, edges) {
     cols[id] = preds.length ? Math.max(...preds) + 1 : 0;
   });
 
-  const rowCount = {};
-  const rows = {};
+  const rowCount: Record<string, number> = {};
+  const rows: Record<string, number> = {};
   sorted.forEach(id => {
     const col = cols[id] || 0;
     if (!rowCount[col]) rowCount[col] = 0;
@@ -226,10 +235,15 @@ export function computeLayout(nodes, edges) {
 }
 
 // ── Activity Log ─────────────────────────────────────────────
-export function addActivity(data, entry) {
+interface ActivityEntry { id: string; ts: string; [k: string]: unknown; }
+
+export function addActivity(
+  data: { activityLog?: ActivityEntry[]; [k: string]: unknown },
+  entry: Record<string, unknown>,
+): { activityLog: ActivityEntry[]; [k: string]: unknown } {
   // entry = { type, userId, userName, entityTitle, projectId, projectTitle, action }
   const log = data.activityLog || [];
-  const newEntry = { id: uid(), ts: new Date().toISOString(), ...entry };
+  const newEntry: ActivityEntry = { id: uid(), ts: new Date().toISOString(), ...entry };
   // Max 100 Einträge, neueste zuerst
   return { ...data, activityLog: [newEntry, ...log].slice(0, 100) };
 }
@@ -238,26 +252,27 @@ export function addActivity(data, entry) {
 const SESSION_KEY = 'azubiboard_session';
 const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 Stunden
 
-export function saveSession(userId) {
+export function saveSession(userId: string | number): void {
   try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId, expires: Date.now() + SESSION_TTL })); } catch { /* noop */ }
 }
 
-export function loadSession() {
+export function loadSession(): string | number | null {
   try {
-    const s = JSON.parse(sessionStorage.getItem(SESSION_KEY));
-    if (s?.userId && s.expires > Date.now()) return s.userId;
+    const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null') as
+      { userId?: string | number; expires?: number } | null;
+    if (s?.userId != null && (s.expires ?? 0) > Date.now()) return s.userId;
   } catch { /* noop */ }
   return null;
 }
 
-export function clearSession() {
+export function clearSession(): void {
   try { sessionStorage.removeItem(SESSION_KEY); } catch { /* noop */ }
 }
 
 // ── Datenpersistenz ───────────────────────────────────────────
 const STORAGE_KEY = 'azubiboard_v2';
 
-export function loadData() {
+export function loadData(): Record<string, unknown> {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return { ...getDefaultData(), ...JSON.parse(saved) };
@@ -265,7 +280,7 @@ export function loadData() {
   return getDefaultData();
 }
 
-export function persistData(data) {
+export function persistData(data: Record<string, unknown>): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {
@@ -273,7 +288,7 @@ export function persistData(data) {
   }
 }
 
-function getDefaultData() {
+function getDefaultData(): Record<string, unknown> {
   // SHA-256('1234') – Passwörter niemals im Klartext speichern
   const PW = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
   return {
