@@ -6,13 +6,16 @@
 
 require_once __DIR__ . '/../ai_helpers.php';
 
-$user   = require_role('ausbilder', 'mentor');
+$user   = require_auth();  // Feinere Rollentrennung pro Aktion
 $action = $parts[1] ?? null;
 
 if ($method !== 'POST') error('Method Not Allowed', 405);
 
 if ($action === 'suggest-goals') {
+    if (!in_array($user['role'], ['ausbilder', 'mentor'])) error('Keine Berechtigung', 403);
     ai_suggest_goals($user);
+} elseif ($action === 'fill-report') {
+    ai_fill_report($user);
 } else {
     error("Unbekannte KI-Aktion '$action'", 404);
 }
@@ -71,3 +74,76 @@ function ai_suggest_goals(array $user): never {
     respond(['suggestions' => $suggestions]);
 }
 
+// ── AI1: Tätigkeitsbericht aus Aufgaben generieren ───────────
+
+function ai_fill_report(array $user): never {
+    if (!CLAUDE_API_KEY) {
+        error('KI-Feature nicht konfiguriert. Bitte CLAUDE_API_KEY in .env setzen.', 503);
+    }
+
+    rate_limit('ai_fillreport_' . $user['id'], 15, 3600); // 15 Calls/Stunde pro Nutzer
+
+    $b = body();
+
+    // taskGroups: [{ project: "...", tasks: ["...", "..."] }]
+    $taskGroups = (array)($b['taskGroups'] ?? []);
+    if (empty($taskGroups)) error('taskGroups erforderlich', 400);
+    if (count($taskGroups) > 20) $taskGroups = array_slice($taskGroups, 0, 20);
+
+    $weekNumber = clean_int($b['weekNumber'] ?? date('W'), 1, 53, 'weekNumber');
+    $year       = clean_int($b['year']       ?? (int)date('Y'), 2020, 2100, 'year');
+    $profession = clean_str($b['profession'] ?? '', 200, false) ?? 'Auszubildende/r';
+    $lehrjahr   = clean_int($b['lehrjahr']   ?? 1, 1, 3, 'lehrjahr');
+
+    // Aufgabenliste als Text aufbauen
+    $taskLines = [];
+    foreach ($taskGroups as $grp) {
+        $proj  = mb_substr(trim((string)($grp['project'] ?? 'Projekt')), 0, 100);
+        $tasks = array_slice(array_map(
+            fn($t) => '  - ' . mb_substr(trim((string)$t), 0, 150),
+            (array)($grp['tasks'] ?? [])
+        ), 0, 20);
+        if (!empty($tasks)) {
+            $taskLines[] = "$proj:\n" . implode("\n", $tasks);
+        }
+    }
+
+    if (empty($taskLines)) error('Keine verwertbaren Aufgaben', 400);
+
+    $taskListStr = implode("\n\n", $taskLines);
+
+    $systemPrompt = 'Du bist ein Experte für Ausbildungsberichtshefte in Deutschland (IHK-Standard). '
+        . 'Du schreibst professionelle Tätigkeits- und Lernberichte für Auszubildende. '
+        . 'Gib AUSSCHLIESSLICH valides JSON zurück – kein Markdown, kein Code-Block, keine Erklärung.';
+
+    $userPrompt = "Schreibe einen professionellen Ausbildungsbericht (KW {$weekNumber}/{$year}) "
+        . "für eine/n Auszubildende/n als \"{$profession}\" im {$lehrjahr}. Ausbildungsjahr.\n\n"
+        . "Durchgeführte Aufgaben:\n{$taskListStr}\n\n"
+        . "Anforderungen:\n"
+        . "- Tätigkeitsbericht: 120-250 Wörter, Vergangenheitsform, IHK-gerechte Fachsprache\n"
+        . "- Lernbericht: 60-120 Wörter, was wurde dabei gelernt/vertieft\n"
+        . "- Natürlich formuliert, nicht wie eine Liste, sondern als Fließtext\n"
+        . "- Berufsspezifische Fachbegriffe verwenden\n\n"
+        . "Gib NUR dieses JSON zurück (keine anderen Zeichen davor oder danach):\n"
+        . '{"activities":"...","learnings":"..."}';
+
+    $rawText = claude_call_raw($userPrompt, $systemPrompt, 1536);
+
+    if ($rawText === null) {
+        error('KI-Anfrage fehlgeschlagen. Bitte erneut versuchen.', 502);
+    }
+
+    // Extrahiere JSON-Objekt (Claude könnte Markdown-Blöcke drumrum haben)
+    $parsed = null;
+    if (preg_match('/\{[\s\S]*"activities"[\s\S]*"learnings"[\s\S]*\}/m', $rawText, $m)) {
+        $parsed = json_decode($m[0], true);
+    }
+    if (!is_array($parsed) || empty($parsed['activities'])) {
+        error('KI-Antwort konnte nicht verarbeitet werden. Bitte erneut versuchen.', 502);
+    }
+
+    respond([
+        'activities' => mb_substr(trim((string)($parsed['activities'] ?? '')), 0, 3000),
+        'learnings'  => mb_substr(trim((string)($parsed['learnings']  ?? '')), 0, 1500),
+    ]);
+}

@@ -60,6 +60,49 @@ function claude_call(string $userPrompt, string $systemPrompt = '', int $maxToke
 }
 
 /**
+ * Wie claude_call(), gibt aber den rohen Text zurück (für nicht-Array-Antworten).
+ * Gibt null zurück bei Fehler oder fehlendem Key.
+ */
+function claude_call_raw(string $userPrompt, string $systemPrompt = '', int $maxTokens = 1024): ?string {
+    if (!defined('CLAUDE_API_KEY') || CLAUDE_API_KEY === '') return null;
+
+    $payload = json_encode([
+        'model'      => 'claude-haiku-4-5-20251001',
+        'max_tokens' => $maxTokens,
+        'system'     => $systemPrompt,
+        'messages'   => [['role' => 'user', 'content' => $userPrompt]],
+    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
+    $ch = curl_init('https://api.anthropic.com/v1/messages');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'x-api-key: '        . CLAUDE_API_KEY,
+            'anthropic-version: 2023-06-01',
+        ],
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr  = curl_error($ch);
+    curl_close($ch);
+
+    if ($curlErr || !$response || $httpCode !== 200) {
+        error_log("[AI] Claude API raw: HTTP $httpCode | curl: $curlErr");
+        return null;
+    }
+
+    $data = json_decode($response, true);
+    $text = $data['content'][0]['text'] ?? null;
+    return is_string($text) && $text !== '' ? $text : null;
+}
+
+/**
  * Bereinigt und validiert einen einzelnen KI-Vorschlag.
  * Gibt null zurück wenn title leer oder Input kein Array ist.
  */

@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
 import { useDebounce } from '../../lib/hooks.js';
@@ -140,10 +141,11 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     file:             report?.file             || null,
     sectionComments:  report?.sectionComments  || { activities: [], learnings: [] },
   });
-  const [newComment, setNewComment] = useState({ activities: '', learnings: '' });
-  const [tab,     setTab]     = useState('text');
-  const [copied,  setCopied]  = useState('');
-  const [showOcr, setShowOcr] = useState(false);
+  const [newComment,  setNewComment]  = useState({ activities: '', learnings: '' });
+  const [tab,         setTab]         = useState('text');
+  const [copied,      setCopied]      = useState('');
+  const [showOcr,     setShowOcr]     = useState(false);
+  const [aiLoading,   setAiLoading]   = useState(false);
   const fileRef = useRef();
 
   const isOwner  = !report || report.user_id === currentUser.id;
@@ -169,6 +171,33 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     setForm(f => ({ ...f, activities: f.activities ? `${f.activities}\n\n${text}` : text }));
     showToast(`✓ ${groups.reduce((s, g) => s + g.tasks.length, 0)} Aufgaben eingefügt`);
   };
+
+  const aiWriteReport = useCallback(async () => {
+    const ws  = form.week_start;
+    const we  = (() => { const d = new Date(ws); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; })();
+    const taskGroups = [];
+    (projects || []).forEach(p => {
+      const wt = (p.tasks || []).filter(task => task.text && task.deadline && task.deadline >= ws && task.deadline <= we);
+      if (wt.length) taskGroups.push({ project: p.title, tasks: wt.map(task => task.text + (task.status === 'done' ? ' (erledigt)' : '')) });
+    });
+    if (!taskGroups.length) { showToast(t('report.aiAutofillNoTasks', { kw })); return; }
+    setAiLoading(true);
+    try {
+      const result = await dataService.fillReport({
+        taskGroups,
+        weekNumber: kw,
+        year: new Date(ws).getFullYear(),
+        profession: currentUser?.profession || '',
+        lehrjahr:   currentUser?.apprenticeship_year || 1,
+      });
+      setForm(f => ({ ...f, activities: result.activities || f.activities, learnings: result.learnings || f.learnings }));
+      showToast(t('report.aiAutofillDone'));
+    } catch (e) {
+      showToast(t('report.aiAutofillError', { msg: e.message }));
+    } finally {
+      setAiLoading(false);
+    }
+  }, [form.week_start, projects, kw, currentUser, showToast, t]);
 
   const copyToClipboard = async (text, key) => {
     try {
@@ -381,8 +410,12 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
             <div className="card">
               <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.autofillLabel')}</div>
               <button onClick={autoFillFromTasks} className="abtn"
-                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, background: C.gr }}>
+                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, background: C.gr }}>
                 {t('report.autofillBtn')}
+              </button>
+              <button onClick={aiWriteReport} disabled={aiLoading} className="abtn"
+                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, background: C.ac, opacity: aiLoading ? .7 : 1 }}>
+                {aiLoading ? t('report.aiAutofillLoading') : t('report.aiAutofillBtn')}
               </button>
               <div style={{ fontSize: 9, color: C.mu, marginBottom: 10, lineHeight: 1.5 }}>
                 {t('report.autofillHint', { kw })}

@@ -344,6 +344,21 @@ export const dataService = {
   setKnownVersion(v) { saveQueue.setVersion(v); },
   getKnownVersion()  { return saveQueue.getVersion(); },
 
+  // AI1: Tätigkeitsbericht aus Aufgaben generieren — POST /api/ai/fill-report
+  async fillReport({ taskGroups, weekNumber, year, profession = '', lehrjahr = 1 }) {
+    if (!USE_API || !isTokenValid()) throw new Error('API nicht verfügbar');
+    const res = await apiFetch('/ai/fill-report', {
+      method: 'POST',
+      body:   JSON.stringify({ taskGroups, weekNumber, year, profession, lehrjahr }),
+    });
+    if (res.status === 503) throw new Error('KI nicht konfiguriert — CLAUDE_API_KEY in .env setzen');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json(); // { activities, learnings }
+  },
+
   // AI2: Claude-API Lernziel-Vorschläge — POST /api/ai/suggest-goals
   async suggestGoals({ profession, lehrjahr, context = '', existingTitles = [], count = 6 }) {
     if (!USE_API || !isTokenValid()) throw new Error('API nicht verfügbar (VITE_USE_API oder kein Login)');

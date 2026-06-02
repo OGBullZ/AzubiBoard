@@ -48,10 +48,24 @@ final class AiRouteTest extends TestCase
 
     // ── Route-Struktur ───────────────────────────────────────────
 
-    public function testRouteRequiresAusbilderOrMentorRole(): void
+    public function testRouteRequiresAuth(): void
     {
-        $this->assertStringContainsString("require_role('ausbilder', 'mentor')", $this->routeCode,
-            'ai.php muss require_role mit ausbilder + mentor aufrufen');
+        $this->assertStringContainsString('require_auth()', $this->routeCode,
+            'ai.php muss require_auth() aufrufen');
+    }
+
+    public function testSuggestGoalsRestrictsToAusbilder(): void
+    {
+        $this->assertStringContainsString("'ausbilder', 'mentor'", $this->routeCode,
+            'suggest-goals muss auf ausbilder + mentor beschränkt sein');
+    }
+
+    public function testFillReportActionExists(): void
+    {
+        $this->assertStringContainsString('fill-report', $this->routeCode,
+            'ai.php muss fill-report Aktion enthalten');
+        $this->assertStringContainsString('ai_fill_report', $this->routeCode,
+            'ai_fill_report() Funktion muss vorhanden sein');
     }
 
     public function testRouteRequiresHelpersFile(): void
