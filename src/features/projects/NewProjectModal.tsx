@@ -1,0 +1,254 @@
+import { useState } from "react";
+import { useTranslation } from 'react-i18next';
+import { C, uid, today } from '../../lib/utils.js';
+import { Avatar, Modal } from '../../components/UI.jsx';
+import type { User } from '../../types';
+
+type Group = { id: string; name: string };
+
+type FormMaterial = { id: string; name: string; qty: number; cost: number };
+type FormRequirement = { id: string; text: string; done: boolean };
+type FormLink = { id: string; url: string; title: string; type: string; note: string };
+
+type FormState = {
+  title: string;
+  description: string;
+  status: string;
+  assignees: User['id'][];
+  groupId: string;
+  startDate: string;
+  deadline: string;
+  netzplan: { nodes: unknown[]; edges: unknown[]; unit: string; nodePositions: Record<string, unknown> };
+  materials: FormMaterial[];
+  requirements: FormRequirement[];
+  links: FormLink[];
+};
+
+type MatForm = { name: string; qty: number | string; cost: number | string };
+type LinkForm = { url: string; title: string };
+
+type NewProjectModalProps = {
+  users: User[];
+  groups: Group[];
+  currentUser: User;
+  onClose: () => void;
+  onCreate: (project: FormState & { id: string; tasks: unknown[]; steps: unknown[]; calendarEvents: unknown[] }) => void;
+};
+
+export function NewProjectModal({ users, groups, currentUser, onClose, onCreate }: NewProjectModalProps) {
+  const { t } = useTranslation();
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState<FormState>({
+    title: '', description: '', status: 'yellow',
+    assignees: [currentUser.id],
+    groupId: '', startDate: today(), deadline: '',
+    netzplan: { nodes: [], edges: [], unit: 'W', nodePositions: {} },
+    materials: [], requirements: [], links: [],
+  });
+  const [err, setErr] = useState('');
+  const [matForm, setMatForm] = useState<MatForm>({ name: '', qty: 1, cost: 0 });
+  const [reqText, setReqText] = useState('');
+  const [linkForm, setLinkForm] = useState<LinkForm>({ url: '', title: '' });
+
+  const u = <K extends keyof FormState>(f: K, v: FormState[K]) => setForm(p => ({ ...p, [f]: v }));
+  const toggleAssignee = (id: User['id']) => u('assignees', form.assignees.includes(id) ? form.assignees.filter(x => x !== id) : [...form.assignees, id]);
+
+  const addMat = () => {
+    if (!matForm.name.trim()) return;
+    u('materials', [...form.materials, { id: uid(), name: matForm.name.trim(), qty: Number(matForm.qty) || 1, cost: Number(matForm.cost) || 0 }]);
+    setMatForm({ name: '', qty: 1, cost: 0 });
+  };
+  const addReq = () => {
+    if (!reqText.trim()) return;
+    u('requirements', [...form.requirements, { id: uid(), text: reqText.trim(), done: false }]);
+    setReqText('');
+  };
+  const addLink = () => {
+    if (!linkForm.url.trim()) return;
+    const url = linkForm.url.startsWith('http') ? linkForm.url : 'https://' + linkForm.url;
+    u('links', [...form.links, { id: uid(), url, title: linkForm.title.trim(), type: 'other', note: '' }]);
+    setLinkForm({ url: '', title: '' });
+  };
+
+  const next = () => {
+    if (step === 1 && !form.title.trim()) { setErr(t('project.titleRequired')); return; }
+    setErr('');
+    setStep(s => s + 1);
+  };
+
+  const submit = () => {
+    onCreate({ ...form, id: uid(), tasks: [], steps: [], calendarEvents: [] });
+  };
+
+  const STEPS = [t('project.step1'), t('project.step2'), t('project.step3')];
+
+  return (
+    <Modal title={t('project.newProject')} onClose={onClose} width={500}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 22 }}>
+        {STEPS.map((s, i) => {
+          const n = i + 1;
+          const done = n < step;
+          const active = n === step;
+          return (
+            <div key={s} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: 26, height: 26, borderRadius: '50%', background: done ? C.gr : active ? C.ac : 'var(--c-sf3)', border: `2px solid ${done ? C.gr : active ? C.ac : 'var(--c-bd2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: (done || active) ? '#fff' : C.mu, transition: 'all .2s', flexShrink: 0 }}>
+                  {done ? '✓' : n}
+                </div>
+                <span style={{ fontSize: 10, fontWeight: active ? 700 : 400, color: active ? C.ac : done ? C.gr : C.mu, whiteSpace: 'nowrap' }}>{s}</span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div style={{ flex: 1, height: 2, background: done ? C.gr : 'var(--c-bd2)', margin: '0 6px', marginTop: -14, transition: 'background .3s' }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {err && <div role="alert" style={{ fontSize: 12, color: C.cr, background: C.crd, border: `1px solid ${C.cr}30`, borderRadius: 7, padding: '8px 12px', marginBottom: 14 }}>⚠ {err}</div>}
+
+      {step === 1 && (
+        <div style={{ animation: 'fadeUp .15s ease', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createTitle')}</label>
+            <input value={form.title} onChange={e => u('title', e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && next()}
+              placeholder="z.B. Weboberfläche Azubi-Verwaltung"
+              autoFocus style={{ fontSize: 15, padding: '10px 13px', fontWeight: 600 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createDescription')}</label>
+            <textarea value={form.description} onChange={e => u('description', e.target.value)}
+              placeholder={t('project.descPlaceholder')}
+              style={{ minHeight: 100, fontSize: 13, lineHeight: 1.65 }} />
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div style={{ animation: 'fadeUp .15s ease', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createStartDate')}</label>
+              <input type="date" value={form.startDate} onChange={e => u('startDate', e.target.value)} style={{ fontSize: 13 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createDeadline')}</label>
+              <input type="date" value={form.deadline} onChange={e => u('deadline', e.target.value)} style={{ fontSize: 13 }} />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createGroup')}</label>
+            <select value={form.groupId} onChange={e => u('groupId', e.target.value)} style={{ fontSize: 13 }}>
+              <option value="">{t('project.createNoGroup')}</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 9, display: 'block' }}>{t('project.createAssign')}</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {users.filter(u2 => u2.role === 'azubi').map(u2 => {
+                const sel = form.assignees.includes(u2.id);
+                return (
+                  <button key={u2.id} onClick={() => toggleAssignee(u2.id)} aria-pressed={sel}
+                    style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 13px', borderRadius: 10, background: sel ? C.acd : 'var(--c-sf2)', border: `2px solid ${sel ? C.ac : 'var(--c-bd2)'}`, cursor: 'pointer', transition: 'all .12s', textAlign: 'left' }}>
+                    <Avatar name={u2.name} size={34} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: sel ? C.ac : C.br }}>{u2.name}</div>
+                      <div style={{ fontSize: 10, color: C.mu }}>{u2.email} · LJ {u2.apprenticeship_year || 1}</div>
+                    </div>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${sel ? C.ac : 'var(--c-bd2)'}`, background: sel ? C.ac : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 11, fontWeight: 800, color: '#fff', transition: 'all .12s' }}>
+                      {sel ? '✓' : ''}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div style={{ animation: 'fadeUp .15s ease', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <p style={{ fontSize: 12, color: C.mu, margin: 0 }}>{t('project.createOptionalNote')}</p>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 7, display: 'block' }}>
+              {t('project.createMaterial')} <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.materials.length})</span>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 55px 75px auto', gap: 6, marginBottom: 6 }}>
+              <input value={matForm.name} onChange={e => setMatForm(f => ({ ...f, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addMat()} placeholder={t('project.matNamePlaceholder')} style={{ fontSize: 12 }} />
+              <input type="number" min="1" value={matForm.qty} onChange={e => setMatForm(f => ({ ...f, qty: e.target.value }))} style={{ fontSize: 12 }} />
+              <input type="number" min="0" step="0.01" value={matForm.cost} onChange={e => setMatForm(f => ({ ...f, cost: e.target.value }))} placeholder="€" style={{ fontSize: 12 }} />
+              <button className="abtn" onClick={addMat} style={{ padding: '6px 10px', fontSize: 11 }}>+</button>
+            </div>
+            {form.materials.length > 0 && form.materials.map(m => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.mu, padding: '3px 0', borderBottom: `1px solid var(--c-bd)22` }}>
+                <span style={{ flex: 1, color: C.tx }}>{m.name}</span>
+                <span style={{ fontFamily: C.mono }}>{m.qty}× · {(m.qty * m.cost).toFixed(2)} €</span>
+                <button className="del" onClick={() => u('materials', form.materials.filter(x => x.id !== m.id))} style={{ fontSize: 12 }}>×</button>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 7, display: 'block' }}>
+              {t('project.createRequirements')} <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.requirements.length})</span>
+            </label>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+              <input value={reqText} onChange={e => setReqText(e.target.value)} onKeyDown={e => e.key === 'Enter' && addReq()} placeholder={t('project.reqPlaceholder')} style={{ flex: 1, fontSize: 12 }} />
+              <button className="abtn" onClick={addReq} style={{ padding: '6px 10px', fontSize: 11 }}>+</button>
+            </div>
+            {form.requirements.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '3px 0', borderBottom: `1px solid var(--c-bd)22` }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gr, flexShrink: 0 }} />
+                <span style={{ flex: 1, color: C.tx }}>{r.text}</span>
+                <button className="del" onClick={() => u('requirements', form.requirements.filter(x => x.id !== r.id))} style={{ fontSize: 12 }}>×</button>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 7, display: 'block' }}>
+              {t('project.createLinks')} <span style={{ color: C.mu, fontWeight: 400, fontSize: 10 }}>({form.links.length})</span>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, marginBottom: 6 }}>
+              <input value={linkForm.url} onChange={e => setLinkForm(f => ({ ...f, url: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addLink()} placeholder={t('project.urlPlaceholder')} style={{ fontSize: 12 }} />
+              <input value={linkForm.title} onChange={e => setLinkForm(f => ({ ...f, title: e.target.value }))} placeholder={t('project.titleOptional')} style={{ fontSize: 12 }} />
+              <button className="abtn" onClick={addLink} style={{ padding: '6px 10px', fontSize: 11 }}>+</button>
+            </div>
+            {form.links.map(l => (
+              <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '3px 0', borderBottom: `1px solid var(--c-bd)22` }}>
+                <span style={{ fontSize: 10, color: C.ac }}>🔗</span>
+                <span style={{ flex: 1, color: C.ac, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title || l.url}</span>
+                <button className="del" onClick={() => u('links', form.links.filter(x => x.id !== l.id))} style={{ fontSize: 12 }}>×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 9, marginTop: 22 }}>
+        {step > 1 && (
+          <button className="btn" onClick={() => setStep(s => s - 1)} style={{ padding: '11px 16px', fontSize: 13 }}>← {t('common.back')}</button>
+        )}
+        {step < 3 ? (
+          <button className="abtn" onClick={next} style={{ flex: 1, padding: 12, fontSize: 14, justifyContent: 'center', fontWeight: 800 }}>
+            {t('common.next')} →
+          </button>
+        ) : (
+          <button className="abtn" onClick={submit} style={{ flex: 1, padding: 12, fontSize: 14, justifyContent: 'center', fontWeight: 800, background: C.gr }}>
+            {t('project.createBtn')}
+          </button>
+        )}
+        {step === 1 && (
+          <button className="btn" onClick={onClose} style={{ padding: '11px 16px' }}>{t('common.cancel')}</button>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+export default NewProjectModal;
