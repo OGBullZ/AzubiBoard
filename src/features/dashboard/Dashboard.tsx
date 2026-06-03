@@ -25,10 +25,26 @@ import { ActivityFeed }        from './widgets/ActivityFeed.jsx';
 import { ZeiterfassungWidget } from './widgets/ZeiterfassungWidget.jsx';
 import { MonthReportModal }    from './widgets/MonthReportModal.jsx';
 
+// Blob-Daten weichen vom Zod-Schema ab (task.assignee, task.timeLog, task.note,
+// p.archived, user.apprenticeship_year etc. sind blob-only). Daher any für die
+// blob-geformten Domain-Werte; getypt werden Props-Struktur und Handler.
+type DashboardProps = {
+  user: any;
+  projects: any[];
+  users: any[];
+  reports: any[];
+  calendarEvents?: any[];
+  activityLog?: any[];
+  onNewProject?: () => void;
+  onOpenProject: (id: any) => void;
+  onUpdateProject?: (id: any, patch: any) => void;
+  onNavigate: (route: string) => void;
+};
+
 // ─────────────────────────────────────────────────────────────
 //  AUSBILDER-DASHBOARD
 // ─────────────────────────────────────────────────────────────
-function AusbilderDashboard({ user, projects, users, reports, calendarEvents, activityLog, onOpenProject, onUpdateProject, onNavigate }) {
+function AusbilderDashboard({ user, projects, users, reports, calendarEvents, activityLog, onOpenProject, onUpdateProject, onNavigate }: DashboardProps) {
   const { t } = useTranslation();
   const now      = new Date();
   const azubis   = useMemo(() => users.filter(u => u.role === 'azubi'),              [users]);
@@ -74,10 +90,10 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               ? <div style={{ fontSize: 12, color: C.textSecondary, fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{t('dashboard.noAzubis')}</div>
               : azubis.map(a => {
               const myProjects = active.filter(p => (p.assignees||[]).includes(a.id));
-              const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id && t.status !== 'done'));
-              const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id && t.status === 'in_progress'));
-              const overdue    = myTasks.filter(t => t.deadline && new Date(t.deadline) < now);
-              const doneTotal  = myProjects.flatMap(p => (p.tasks||[]).filter(t => t.status === 'done' || t.done)).length;
+              const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter((t: any) => t.assignee === a.id && t.status !== 'done'));
+              const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter((t: any) => t.assignee === a.id && t.status === 'in_progress'));
+              const overdue    = myTasks.filter((t: any) => t.deadline && new Date(t.deadline) < now);
+              const doneTotal  = myProjects.flatMap(p => (p.tasks||[]).filter((t: any) => t.status === 'done' || t.done)).length;
               const totalTasks = myProjects.flatMap(p => (p.tasks||[])).length;
               const pct        = totalTasks > 0 ? Math.round(doneTotal / totalTasks * 100) : 0;
 
@@ -86,13 +102,13 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               const myReports  = reports.filter(r => r.user_id === a.id).sort((x,y) => y.week_start.localeCompare(x.week_start));
               const lastReport = myReports[0] || null;
               const hasThisWeek = myReports.some(r => r.week_start >= weekMon);
-              const REPORT_ST  = { draft: { l: 'Entwurf', c: C.mu }, submitted: { l: 'Eingereicht', c: C.ac }, reviewed: { l: 'Geprüft', c: C.yw }, signed: { l: 'Fertig', c: C.gr } };
+              const REPORT_ST: any  = { draft: { l: 'Entwurf', c: C.mu }, submitted: { l: 'Eingereicht', c: C.ac }, reviewed: { l: 'Geprüft', c: C.yw }, signed: { l: 'Fertig', c: C.gr } };
 
               // Stunden diese Woche
               const weekEnd    = (() => { const d = new Date(weekMon + 'T12:00:00'); d.setDate(d.getDate()+6); return fmtLocalDate(d); })();
-              const weekHours  = active.flatMap(p => (p.tasks||[]).filter(t => t.assignee === a.id))
-                .flatMap(t => (t.timeLog||[]).filter(e => e.date >= weekMon && e.date <= weekEnd))
-                .reduce((s, e) => s + (Number(e.hours)||0), 0);
+              const weekHours  = active.flatMap(p => (p.tasks||[]).filter((t: any) => t.assignee === a.id))
+                .flatMap((t: any) => (t.timeLog||[]).filter((e: any) => e.date >= weekMon && e.date <= weekEnd))
+                .reduce((s: number, e: any) => s + (Number(e.hours)||0), 0);
 
               // Ampel
               const ampel = overdue.length > 2 ? C.cr
@@ -223,7 +239,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
           </div>
           <div style={{ padding: '16px 20px', borderTop: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoCalendar}>{t('dashboard.nextDeadlines')}</PanelTitle>
-            <CalWidget calendarEvents={calendarEvents} projects={active} onNavigate={() => onNavigate?.('calendar')} />
+            <CalWidget calendarEvents={calendarEvents || []} projects={active} onNavigate={() => onNavigate?.('calendar')} />
           </div>
           <div style={{ padding: '16px 20px', flexShrink: 0, borderTop: `1px solid var(--c-bd)` }}>
             <PanelTitle Icon={IcoNote}>{t('dashboard.recentActivity')}</PanelTitle>
@@ -238,7 +254,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
 // ─────────────────────────────────────────────────────────────
 //  AZUBI-DASHBOARD
 // ─────────────────────────────────────────────────────────────
-function AzubiDashboard({ user, projects, users, reports, calendarEvents, activityLog, onNewProject, onOpenProject, onUpdateProject, onNavigate }) {
+function AzubiDashboard({ user, projects, users, reports, calendarEvents, activityLog, onNewProject, onOpenProject, onUpdateProject, onNavigate }: DashboardProps) {
   const { t } = useTranslation();
   const now  = new Date();
 
@@ -250,14 +266,14 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
   const allTasks = useMemo(() =>
     projects.flatMap(p =>
       (p.tasks||[])
-        .filter(t => t.assignee === user.id && t.status !== 'done')
-        .map(t => ({
+        .filter((t: any) => t.assignee === user.id && t.status !== 'done')
+        .map((t: any) => ({
           ...t,
           projectTitle: p.title,
           projectId:    p.id,
           isOverdue:    !!(t.deadline && new Date(t.deadline) < now),
         }))
-    ).sort((a, b) => {
+    ).sort((a: any, b: any) => {
       if (a.isOverdue && !b.isOverdue) return -1;
       if (!a.isOverdue && b.isOverdue) return 1;
       if (a.status === 'in_progress' && b.status !== 'in_progress') return -1;
@@ -265,7 +281,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
       if (a.deadline && !b.deadline) return -1;
       if (!a.deadline && b.deadline) return 1;
       if (a.deadline && b.deadline) return a.deadline < b.deadline ? -1 : 1;
-      const prio = { high: 0, medium: 1, low: 2 };
+      const prio: any = { high: 0, medium: 1, low: 2 };
       return (prio[a.priority] ?? 1) - (prio[b.priority] ?? 1);
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,29 +292,29 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
   const queueTasks      = useMemo(() => allTasks.slice(1),       [allTasks]);
   const allProjectTasks = useMemo(() => projects.flatMap(p => (p.tasks||[])), [projects]);
 
-  const toggleTask = useCallback((projectId, taskId) => {
+  const toggleTask = useCallback((projectId: any, taskId: any) => {
     if (!onUpdateProject) return;
     const proj = projects.find(p => p.id === projectId);
     if (!proj) return;
     onUpdateProject(projectId, {
-      tasks: proj.tasks.map(t => t.id === taskId ? { ...t, status: t.status === 'done' ? 'not_started' : 'done' } : t),
+      tasks: proj.tasks.map((t: any) => t.id === taskId ? { ...t, status: t.status === 'done' ? 'not_started' : 'done' } : t),
     });
   }, [projects, onUpdateProject]);
 
-  const updateTaskNote = useCallback((projectId, taskId, note) => {
+  const updateTaskNote = useCallback((projectId: any, taskId: any, note: any) => {
     if (!onUpdateProject) return;
     const proj = projects.find(p => p.id === projectId);
     if (!proj) return;
     onUpdateProject(projectId, {
-      tasks: proj.tasks.map(t => t.id === taskId ? { ...t, note } : t),
+      tasks: proj.tasks.map((t: any) => t.id === taskId ? { ...t, note } : t),
     });
   }, [projects, onUpdateProject]);
 
   const hour = now.getHours();
   const greeting = hour < 12 ? t('dashboard.morningGreeting') : hour < 17 ? t('dashboard.afternoonGreeting') : t('dashboard.eveningGreeting');
 
-  const inProgress = useMemo(() => allTasks.filter(t => t.status === 'in_progress').length, [allTasks]);
-  const overdue    = useMemo(() => allTasks.filter(t => t.isOverdue).length,                [allTasks]);
+  const inProgress = useMemo(() => allTasks.filter((t: any) => t.status === 'in_progress').length, [allTasks]);
+  const overdue    = useMemo(() => allTasks.filter((t: any) => t.isOverdue).length,                [allTasks]);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} className="anim">
@@ -369,7 +385,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
           </div>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoCalendar}>{t('dashboard.nextDeadlines')}</PanelTitle>
-            <CalWidget calendarEvents={calendarEvents} projects={projects} onNavigate={() => onNavigate?.('calendar')} />
+            <CalWidget calendarEvents={calendarEvents || []} projects={projects} onNavigate={() => onNavigate?.('calendar')} />
           </div>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoReport}>{t('dashboard.pendingReports')}</PanelTitle>
@@ -388,7 +404,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
 // ─────────────────────────────────────────────────────────────
 //  EXPORT
 // ─────────────────────────────────────────────────────────────
-export function Dashboard(props) {
+export function Dashboard(props: DashboardProps) {
   // M2: Mentor sieht dasselbe Dashboard wie Ausbilder (read-only durch ausgeblendete Aktionen).
   const role = props.user?.role;
   if (role === 'ausbilder' || role === 'mentor') {

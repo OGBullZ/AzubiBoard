@@ -1,3 +1,4 @@
+// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import { useState, useRef, useCallback } from "react";
 import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';

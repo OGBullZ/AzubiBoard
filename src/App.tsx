@@ -1,3 +1,4 @@
+// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import React, { useEffect, useCallback, useState, useRef, useMemo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';

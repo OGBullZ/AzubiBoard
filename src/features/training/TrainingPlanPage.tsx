@@ -1,3 +1,4 @@
+// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import { useState } from 'react';
 import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
 import { softDelete } from '../../lib/trash.js';

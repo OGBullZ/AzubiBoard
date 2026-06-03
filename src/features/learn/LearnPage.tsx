@@ -1,3 +1,4 @@
+// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import { useState } from "react";
 import { C, uid } from '../../lib/utils.js';
 import { ProgressBar, Modal, Field } from '../../components/UI.jsx';

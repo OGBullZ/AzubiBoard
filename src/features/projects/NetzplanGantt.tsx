@@ -3,17 +3,38 @@ import { C, PAL, UDAYS, detectCycle, computeCPM, computeLayout } from '../../lib
 
 const NW = 162, NH = 92, CG = 178, RG = 138, NP = 36;
 
-export function NetzplanTab({ project, onUpdate }) {
-  const np = useMemo(() => project.netzplan || { nodes: [], edges: [], unit: 'W', nodePositions: {} }, [project.netzplan]);
-  const [lpos, setLpos] = useState({});
+// Netzplan ist blob-only (nicht im Zod-Schema) → ad-hoc Typen.
+type NetzNode = { id: number; name: string; d: number; color: string | null; comment?: string };
+type NetzEdge = { id: string; from: number; to: number };
+type Netzplan = {
+  nodes: NetzNode[];
+  edges: NetzEdge[];
+  unit: string;
+  nodePositions: Record<number, { x: number; y: number }>;
+};
+// computeCPM/computeLayout (utils.js, untyped) reichern Knoten mit berechneten Feldern an.
+type LaidNode = NetzNode & {
+  col: number; row: number; gp: number;
+  faz: number; fez: number; saz: number; sez: number;
+};
+type Pos = { x: number; y: number };
+
+type NetzplanTabProps = {
+  project: any;
+  onUpdate: (id: any, patch: any) => void;
+};
+
+export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
+  const np = useMemo<Netzplan>(() => project.netzplan || { nodes: [], edges: [], unit: 'W', nodePositions: {} }, [project.netzplan]);
+  const [lpos, setLpos] = useState<Record<number, Pos>>({});
   const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const panR = useRef(null), dragR = useRef(null), contR = useRef(null), rectR = useRef(null);
+  const [pan, setPan] = useState<Pos>({ x: 0, y: 0 });
+  const panR = useRef<any>(null), dragR = useRef<any>(null), contR = useRef<HTMLDivElement>(null), rectR = useRef<DOMRect | null>(null);
   const [isDrag, setIsDrag] = useState(false);
   const [cycErr, setCycErr] = useState('');
   const [nName, setNName] = useState(''), [nD, setND] = useState(1);
-  const [eF, setEF] = useState(''), [eT, setET] = useState('');
-  const [editN, setEditN] = useState(null);
+  const [eF, setEF] = useState<string>(''), [eT, setET] = useState<string>('');
+  const [editN, setEditN] = useState<number | null>(null);
   const nidR = useRef(np.nodes.length > 0 ? Math.max(...np.nodes.map(n => n.id)) + 1 : 1);
 
   useEffect(() => {
@@ -24,12 +45,12 @@ export function NetzplanTab({ project, onUpdate }) {
   }, [project.id]);
 
   const computed = useMemo(() => computeCPM(np.nodes, np.edges), [np.nodes, np.edges]);
-  const laid = useMemo(() => computeLayout(computed, np.edges), [computed, np.edges]);
+  const laid = useMemo<LaidNode[]>(() => computeLayout(computed, np.edges) as unknown as LaidNode[], [computed, np.edges]);
   const critSet = useMemo(() => new Set(laid.filter(n => n.gp === 0).map(n => n.id)), [laid]);
 
-  const getPos = n => lpos[n.id] || { x: NP + n.col * (NW + CG), y: NP + n.row * (NH + RG) };
+  const getPos = (n: LaidNode): Pos => lpos[n.id] || { x: NP + n.col * (NW + CG), y: NP + n.row * (NH + RG) };
 
-  function svgCoords(e) {
+  function svgCoords(e: { clientX: number; clientY: number }): Pos {
     // Sprint-9 H5: BoundingRect ist im aktiven Drag/Pan via rectR.current gecached
     // (Setup im onMouseDown), sonst Fallback auf live-Lookup.
     const r = rectR.current || contR.current?.getBoundingClientRect();
@@ -37,7 +58,7 @@ export function NetzplanTab({ project, onUpdate }) {
     return { x: (e.clientX - r.left - pan.x) / zoom, y: (e.clientY - r.top - pan.y) / zoom };
   }
 
-  function save(patch) {
+  function save(patch: Partial<Netzplan>) {
     onUpdate(project.id, { netzplan: { ...np, ...patch } });
   }
 
@@ -47,13 +68,13 @@ export function NetzplanTab({ project, onUpdate }) {
     save({ nodes: [...np.nodes, { id, name: nName.trim(), d: Math.max(1, nD), color: null, comment: '' }] });
     setNName(''); setND(1);
   };
-  const removeNode = id => {
+  const removeNode = (id: number) => {
     const newPos = { ...lpos }; delete newPos[id];
     setLpos(newPos);
     save({ nodes: np.nodes.filter(n => n.id !== id), edges: np.edges.filter(e => e.from !== id && e.to !== id), nodePositions: newPos });
     if (editN === id) setEditN(null);
   };
-  const updateNode = (id, f, v) => save({ nodes: np.nodes.map(n => n.id === id ? { ...n, [f]: f === 'd' ? Math.max(1, Number(v)) : v } : n) });
+  const updateNode = (id: number, f: string, v: any) => save({ nodes: np.nodes.map(n => n.id === id ? { ...n, [f]: f === 'd' ? Math.max(1, Number(v)) : v } : n) });
 
   const addEdge = () => {
     const f = Number(eF), t = Number(eT);
@@ -64,7 +85,7 @@ export function NetzplanTab({ project, onUpdate }) {
     save({ edges: [...np.edges, { id: `e${f}-${t}-${Date.now()}`, from: f, to: t }] });
     setEF(''); setET('');
   };
-  const removeEdge = id => save({ edges: np.edges.filter(e => e.id !== id) });
+  const removeEdge = (id: string) => save({ edges: np.edges.filter(e => e.id !== id) });
   const resetLayout = () => { setLpos({}); save({ nodePositions: {} }); };
 
   const maxX = laid.length ? Math.max(...laid.map(n => getPos(n).x)) + NW + NP : 500;
@@ -120,7 +141,7 @@ export function NetzplanTab({ project, onUpdate }) {
                   <input value={n.name} onChange={e => updateNode(n.id, 'name', e.target.value)} aria-label="Vorgang umbenennen" style={{ fontSize: 12 }} />
                   <input type="number" min="1" value={n.d} onChange={e => updateNode(n.id, 'd', e.target.value)} aria-label="Dauer ändern" style={{ fontSize: 12 }} />
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }} role="group" aria-label="Farbe wählen">
-                    {PAL.map(col => (
+                    {PAL.map((col: string) => (
                       <button key={col} onClick={() => updateNode(n.id, 'color', n.color === col ? null : col)}
                         aria-label={`Farbe ${col}`} aria-pressed={n.color === col}
                         style={{ width: 14, height: 14, borderRadius: 3, background: col, cursor: 'pointer', border: `2px solid ${n.color === col ? '#fff' : col + '30'}`, padding: 0 }} />
@@ -159,7 +180,7 @@ export function NetzplanTab({ project, onUpdate }) {
         style={{ flex: 1, background: C.bg, border: `1px solid ${C.bd}`, borderRadius: 10, overflow: 'hidden', position: 'relative', cursor: isDrag ? 'grabbing' : panR.current ? 'grab' : 'default' }}
         role="img" aria-label="Netzplan Diagramm"
         onWheel={e => { e.preventDefault(); setZoom(z => Math.min(Math.max(z * (e.deltaY > 0 ? .9 : 1.1), .1), 4)); }}
-        onMouseDown={e => { if (e.altKey || e.button === 1) { e.preventDefault(); rectR.current = contR.current?.getBoundingClientRect(); panR.current = { sx: e.clientX - pan.x, sy: e.clientY - pan.y }; } }}
+        onMouseDown={e => { if (e.altKey || e.button === 1) { e.preventDefault(); rectR.current = contR.current?.getBoundingClientRect() ?? null; panR.current = { sx: e.clientX - pan.x, sy: e.clientY - pan.y }; } }}
         onMouseMove={e => {
           if (panR.current) setPan({ x: e.clientX - panR.current.sx, y: e.clientY - panR.current.sy });
           if (dragR.current) { const sc = svgCoords(e); setLpos(p => ({ ...p, [dragR.current.id]: { x: Math.max(0, sc.x - dragR.current.ox), y: Math.max(0, sc.y - dragR.current.oy) } })); }
@@ -238,7 +259,7 @@ export function NetzplanTab({ project, onUpdate }) {
                   onMouseDown={e => {
                     if (panR.current) return;
                     e.stopPropagation();
-                    rectR.current = contR.current?.getBoundingClientRect();
+                    rectR.current = contR.current?.getBoundingClientRect() ?? null;
                     const sc = svgCoords(e), cp = getPos(n);
                     dragR.current = { id: n.id, ox: sc.x - cp.x, oy: sc.y - cp.y };
                     setIsDrag(true);
@@ -296,15 +317,17 @@ export function NetzplanTab({ project, onUpdate }) {
   );
 }
 
-export function GanttTab({ project }) {
-  const np = project.netzplan || { nodes: [], edges: [], unit: 'W', nodePositions: {} };
+type GanttTabProps = { project: any };
+
+export function GanttTab({ project }: GanttTabProps) {
+  const np: Netzplan = project.netzplan || { nodes: [], edges: [], unit: 'W', nodePositions: {} };
   const computed = useMemo(() => computeCPM(np.nodes, np.edges), [np.nodes, np.edges]);
-  const laid     = useMemo(() => computeLayout(computed, np.edges), [computed, np.edges]);
+  const laid     = useMemo<LaidNode[]>(() => computeLayout(computed, np.edges) as unknown as LaidNode[], [computed, np.edges]);
 
   // ── Row order (drag-to-reorder, purely visual) ──────────────
-  const [ganttOrder, setGanttOrder] = useState(() => laid.map(n => n.id));
-  const dragId  = useRef(null);
-  const [dropTarget, setDropTarget] = useState(null); // id of row being hovered over
+  const [ganttOrder, setGanttOrder] = useState<number[]>(() => laid.map(n => n.id));
+  const dragId  = useRef<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<number | null>(null); // id of row being hovered over
 
   // Sync when nodes are added / removed in Netzplan
   useEffect(() => {
@@ -316,23 +339,23 @@ export function GanttTab({ project }) {
     });
   }, [laid]);
 
-  const orderedLaid = useMemo(
-    () => ganttOrder.map(id => laid.find(n => n.id === id)).filter(Boolean),
+  const orderedLaid = useMemo<LaidNode[]>(
+    () => ganttOrder.map(id => laid.find(n => n.id === id)).filter(Boolean) as LaidNode[],
     [ganttOrder, laid]
   );
 
-  const onDragStart = useCallback((e, id) => {
+  const onDragStart = useCallback((e: React.DragEvent, id: number) => {
     dragId.current = id;
     e.dataTransfer.effectAllowed = 'move';
   }, []);
 
-  const onDragOver = useCallback((e, id) => {
+  const onDragOver = useCallback((e: React.DragEvent, id: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDropTarget(id);
   }, []);
 
-  const onDrop = useCallback((e, targetId) => {
+  const onDrop = useCallback((e: React.DragEvent, targetId: number) => {
     e.preventDefault();
     const src = dragId.current;
     if (!src || src === targetId) { setDropTarget(null); return; }
@@ -357,9 +380,9 @@ export function GanttTab({ project }) {
   const totalDur = laid.length ? Math.max(...laid.map(n => n.fez)) : 0;
   const cols     = Array.from({ length: totalDur + 1 }, (_, i) => i);
   const CW = 52, RH = 36, HH = 44, NMW = 175;
-  const ud = UDAYS[np.unit] || 7;
+  const ud = (UDAYS as Record<string, number>)[np.unit] || 7;
 
-  const addDays = (s, n) => {
+  const addDays = (s: any, n: number): Date | null => {
     if (!s) return null;
     const d = new Date(s);
     d.setDate(d.getDate() + Math.round(n));
@@ -368,9 +391,9 @@ export function GanttTab({ project }) {
 
   const critSet  = new Set(laid.filter(n => n.gp === 0).map(n => n.id));
   const ps       = project.startDate ? new Date(project.startDate) : null;
-  const todayOff = ps ? Math.floor((new Date() - ps) / (86400000 * ud)) : null;
+  const todayOff = ps ? Math.floor((+new Date() - +ps) / (86400000 * ud)) : null;
   const endDate  = addDays(project.startDate, totalDur * ud);
-  const unitLabel = { W: 'Wochen', T: 'Tage', M: 'Monate' }[np.unit] || np.unit;
+  const unitLabel = ({ W: 'Wochen', T: 'Tage', M: 'Monate' } as Record<string, string>)[np.unit] || np.unit;
 
   if (laid.length === 0) {
     return (

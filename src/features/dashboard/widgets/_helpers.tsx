@@ -111,6 +111,7 @@ type PanelTitleProps = {
   Icon?: IconComponent;
   children?: ReactNode;
   badge?: { text: ReactNode; bg?: string; c?: string } | null | false;
+  count?: number;   // von einigen Call-Sites übergeben, im Body (noch) ungenutzt
   action?: ReactNode;
   onAction?: () => void;
 };
