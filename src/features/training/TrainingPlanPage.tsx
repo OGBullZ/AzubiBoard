@@ -1,4 +1,3 @@
-// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import { useState } from 'react';
 import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
 import { softDelete } from '../../lib/trash.js';
@@ -20,16 +19,16 @@ const STATUS_CFG = {
   confirmed: { l: 'Bestätigt',   c: C.gr, bg: '#07130a',        dot: '●' },
 };
 
-function mkGoal(overrides = {}) {
+function mkGoal(overrides: any = {}): any {
   return { id: uid(), title: '', description: '', year: 1, quarter: 1, category: 'Fachkompetenz', progress: {}, ...overrides };
 }
 
 // ── Prüfungs-Countdown Widget (E3) ───────────────────────────
-function ExamCountdown({ examDate, isAusbilder, onChange }) {
+function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: any; isAusbilder: any; onChange: (v: any) => void }) {
   const [editing, setEditing] = useState(false);
-  const [val,     setVal]     = useState(examDate || '');
+  const [val,     setVal]     = useState<string>(examDate || '');
 
-  const days   = examDate ? Math.ceil((new Date(examDate) - new Date()) / 86400000) : null;
+  const days   = examDate ? Math.ceil((+new Date(examDate) - +new Date()) / 86400000) : null;
   const urgent = days !== null && days <= 90;
   const over   = days !== null && days < 0;
 
@@ -75,9 +74,9 @@ function ExamCountdown({ examDate, isAusbilder, onChange }) {
 }
 
 // ── Goal Form ─────────────────────────────────────────────────
-function GoalForm({ initial, onSave, onCancel }) {
-  const [form, setForm] = useState(initial || mkGoal());
-  const f = v => setForm(p => ({ ...p, ...v }));
+function GoalForm({ initial, onSave, onCancel }: { initial?: any; onSave: (goal: any) => void; onCancel: () => void }) {
+  const [form, setForm] = useState<any>(initial || mkGoal());
+  const f = (v: any) => setForm((p: any) => ({ ...p, ...v }));
   const valid = form.title.trim().length > 0;
   return (
     <div className="card" style={{ marginBottom: 10, background: C.acd, border: `1px solid ${C.ac}30` }}>
@@ -117,17 +116,17 @@ function GoalForm({ initial, onSave, onCancel }) {
 }
 
 // ── Goal Row ──────────────────────────────────────────────────
-function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, onEdit }) {
+function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, onEdit }: { goal: any; currentUser: any; azubis: any[]; isAusbilder: any; onUpdate: (updated: any, opts?: any) => void; onDelete: (id: any) => void; onEdit: (goal: any) => void }) {
   const [expanded, setExpanded] = useState(false);
 
   const myStatus = goal.progress?.[currentUser.id]?.status || 'open';
-  const myCfg    = STATUS_CFG[myStatus];
+  const myCfg    = (STATUS_CFG as any)[myStatus];
 
   const totalProgress = isAusbilder
-    ? azubis.map(a => ({ user: a, st: goal.progress?.[a.id]?.status || 'open' }))
+    ? azubis.map((a: any) => ({ user: a, st: goal.progress?.[a.id]?.status || 'open' }))
     : null;
-  const confirmedCount = totalProgress?.filter(p => p.st === 'confirmed').length || 0;
-  const learnedCount   = totalProgress?.filter(p => p.st !== 'open').length || 0;
+  const confirmedCount = totalProgress?.filter((p: any) => p.st === 'confirmed').length || 0;
+  const learnedCount   = totalProgress?.filter((p: any) => p.st !== 'open').length || 0;
 
   const markLearned = () => {
     const next = myStatus === 'open' ? 'learned' : 'open';
@@ -135,7 +134,7 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
     onUpdate({ ...goal, progress: prog }, next === 'learned' ? { learnedFor: currentUser.id } : null);
   };
 
-  const confirmUser = (userId) => {
+  const confirmUser = (userId: any) => {
     const cur = goal.progress?.[userId]?.status;
     const next = cur === 'confirmed' ? 'learned' : 'confirmed';
     const prog = { ...(goal.progress || {}), [userId]: { ...(goal.progress?.[userId] || {}), status: next, confirmedBy: currentUser.id, confirmedTs: new Date().toISOString() } };
@@ -217,9 +216,9 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
           {/* Ausbilder: per-azubi progress */}
           {isAusbilder && azubis.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {azubis.map(a => {
+              {azubis.map((a: any) => {
                 const st  = goal.progress?.[a.id]?.status || 'open';
-                const cfg = STATUS_CFG[st];
+                const cfg = (STATUS_CFG as any)[st];
                 return (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Avatar name={a.name} url={a.avatar_url} size={20} />
@@ -247,26 +246,26 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
 }
 
 // ── Main Page ─────────────────────────────────────────────────
-export default function TrainingPlanPage({ currentUser, data, onUpdateData, showToast }) {
+export default function TrainingPlanPage({ currentUser, data, onUpdateData, showToast }: { currentUser: any; data: any; onUpdateData: (data: any) => void; showToast?: (msg: string, opts?: any) => void }) {
   const plan       = data?.trainingPlan || { goals: [], examDate: null };
   const goals      = plan.goals || [];
-  const azubis     = (data?.users || []).filter(u => u.role === 'azubi');
+  const azubis     = (data?.users || []).filter((u: any) => u.role === 'azubi');
   const isAusbilder = currentUser.role === 'ausbilder';
   const toast       = showToast || (() => {});
 
   const [showAdd,    setShowAdd]    = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [editGoal,   setEditGoal]   = useState(null);
+  const [editGoal,   setEditGoal]   = useState<any>(null);
   const [filterY,    setFilterY]    = useState(isAusbilder ? 'all' : String(currentUser.apprenticeship_year || 1));
   const [filterCat,  setFilterCat]  = useState('all');
 
-  const savePlan = (patch, audit) => {
+  const savePlan = (patch: any, audit?: any) => {
     let next = { ...data, trainingPlan: { ...plan, ...patch } };
     if (audit) next = addActivity(next, audit);
     onUpdateData(next);
   };
 
-  const addGoal = (goal) => {
+  const addGoal = (goal: any) => {
     savePlan({ goals: [...goals, goal] }, {
       type:        'goal_added',
       userId:      currentUser.id,
@@ -281,7 +280,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
   };
 
   // J16: Bulk-Import — fügt alle Goals auf einmal hinzu mit Audit-Log
-  const importGoals = (newGoals) => {
+  const importGoals = (newGoals: any[]) => {
     if (!newGoals?.length) return;
     let next = { ...data, trainingPlan: { ...plan, goals: [...goals, ...newGoals] } };
     next = addActivity(next, {
@@ -298,12 +297,12 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
     toast(`✓ ${newGoals.length} Lernziel${newGoals.length === 1 ? '' : 'e'} importiert`);
   };
 
-  const updateGoal = (updated, opts) => {
-    const before = goals.find(g => g.id === updated.id);
+  const updateGoal = (updated: any, opts?: any) => {
+    const before = goals.find((g: any) => g.id === updated.id);
     let audit = null;
     // Spezialfall: Ausbilder bestätigt Status (confirm) → eigener Audit-Eintrag
     if (opts?.confirmedFor) {
-      const azubi = (data?.users || []).find(u => u.id === opts.confirmedFor);
+      const azubi = (data?.users || []).find((u: any) => u.id === opts.confirmedFor);
       audit = {
         type:        'goal_confirmed',
         userId:      currentUser.id,
@@ -334,16 +333,16 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
         action:      'Lernziel aktualisiert',
       };
     }
-    savePlan({ goals: goals.map(g => g.id === updated.id ? updated : g) }, audit);
+    savePlan({ goals: goals.map((g: any) => g.id === updated.id ? updated : g) }, audit);
     setEditGoal(null);
   };
 
-  const deleteGoal = (id) => {
+  const deleteGoal = (id: any) => {
     const snapshot = data;
-    const goal     = goals.find(g => g.id === id);
+    const goal     = goals.find((g: any) => g.id === id);
     if (!goal) return;
     // J3: in Papierkorb verschieben (statt hart löschen) + Audit-Log
-    let next = softDelete(data, 'goals', goal, currentUser);
+    let next: any = softDelete(data, 'goals', goal, currentUser);
     next = addActivity(next, {
       type:        'goal_deleted',
       userId:      currentUser.id,
@@ -358,14 +357,14 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
   };
 
   // Filter & group
-  const filtered = goals.filter(g =>
+  const filtered = goals.filter((g: any) =>
     (filterY   === 'all' || g.year     === Number(filterY))   &&
     (filterCat === 'all' || g.category === filterCat)
   );
 
-  const grouped = YEARS.reduce((acc, y) => {
-    acc[y] = QUARTERS.reduce((qa, q) => {
-      qa[q] = filtered.filter(g => g.year === y && g.quarter === q);
+  const grouped = YEARS.reduce((acc: any, y) => {
+    acc[y] = QUARTERS.reduce((qa: any, q) => {
+      qa[q] = filtered.filter((g: any) => g.year === y && g.quarter === q);
       return qa;
     }, {});
     return acc;
@@ -373,8 +372,8 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
 
   // My overall progress (azubi)
   const myTotal     = goals.length;
-  const myLearned   = goals.filter(g => ['learned','confirmed'].includes(g.progress?.[currentUser.id]?.status)).length;
-  const myConfirmed = goals.filter(g => g.progress?.[currentUser.id]?.status === 'confirmed').length;
+  const myLearned   = goals.filter((g: any) => ['learned','confirmed'].includes(g.progress?.[currentUser.id]?.status)).length;
+  const myConfirmed = goals.filter((g: any) => g.progress?.[currentUser.id]?.status === 'confirmed').length;
   const myPct       = myTotal > 0 ? Math.round(myConfirmed / myTotal * 100) : 0;
 
   return (
@@ -383,7 +382,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       <ExamCountdown
         examDate={plan.examDate}
         isAusbilder={isAusbilder}
-        onChange={date => savePlan({ examDate: date })}
+        onChange={(date: any) => savePlan({ examDate: date })}
       />
 
       {/* Header */}
@@ -462,7 +461,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
                       <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.ac, display: 'inline-block' }} />
                       Q{q} ({qGoals.length})
                     </div>
-                    {qGoals.map(goal =>
+                    {qGoals.map((goal: any) =>
                       editGoal?.id === goal.id ? (
                         <GoalForm key={goal.id} initial={editGoal} onSave={updateGoal} onCancel={() => setEditGoal(null)} />
                       ) : (

@@ -1,4 +1,3 @@
-// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import React, { useEffect, useCallback, useState, useRef, useMemo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
@@ -69,18 +68,20 @@ function RouteFallback() {
 }
 
 // ── Theme aus User-Objekt übernehmen (nach Login / Startup) ──
-function applyUserTheme(theme) {
+function applyUserTheme(theme?: string | null) {
   if (!theme) return;
   localStorage.setItem('azubiboard_theme', theme);
   document.documentElement.setAttribute('data-theme', theme);
 }
 
 // ── Global Toast Hook ─────────────────────────────────────────
+type ToastState = null | string | { msg: string; undo: (() => void) | null; duration: number };
+type ShowToast = (msg: string, opts?: { undo?: (() => void) | null; duration?: number }) => void;
 function useToast() {
   // toast = null | string | { msg, undo, duration }
-  const [toast, setToast] = useState(null);
-  const timer = useRef(null);
-  const showToast = useCallback((msg, opts) => {
+  const [toast, setToast] = useState<ToastState>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showToast = useCallback((msg: string, opts?: { undo?: (() => void) | null; duration?: number }) => {
     clearTimeout(timer.current);
     if (opts && typeof opts === 'object') {
       const duration = opts.duration ?? (opts.undo ? 6000 : 2800);
@@ -103,7 +104,7 @@ function useIsMobile(bp = 768) {
   const [m, setM] = useState(() => window.innerWidth < bp);
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${bp - 1}px)`);
-    const h = e => setM(e.matches);
+    const h = (e: MediaQueryListEvent) => setM(e.matches);
     mq.addEventListener('change', h);
     return () => mq.removeEventListener('change', h);
   }, [bp]);
@@ -144,7 +145,7 @@ function useTheme() {
   // OS-Theme-Änderungen live mitsynchronisieren (nur wenn kein manuelles Override)
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: light)');
-    const handler = (e) => {
+    const handler = (e: MediaQueryListEvent) => {
       // Nur anpassen wenn das Theme noch dem OS-Standard entspricht (kein manuelles Toggle)
       const stored = localStorage.getItem('azubiboard_theme_manual');
       if (stored) return; // Nutzer hat manuell gewählt → ignorieren
@@ -225,22 +226,22 @@ function NotificationPermissionRow() {
 }
 
 // ── Notifications ─────────────────────────────────────────────
-function useNotifications(data, currentUser) {
+function useNotifications(data: any, currentUser: any) {
   const storageKey = `azubiboard_notif_read_${currentUser?.id || 'anon'}`;
-  const [readIds, setReadIds] = useState(() => {
+  const [readIds, setReadIds] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
     catch { return new Set(); }
   });
 
-  const notifications = useMemo(() => {
+  const notifications = useMemo<any[]>(() => {
     if (!data || !currentUser) return [];
-    const items = [];
+    const items: any[] = [];
     const now = new Date();
 
-    (data.projects || []).filter(p => !p.archived).forEach(project => {
-      (project.tasks || []).forEach(task => {
+    (data.projects || []).filter((p: any) => !p.archived).forEach((project: any) => {
+      (project.tasks || []).forEach((task: any) => {
         if (task.assignee !== currentUser.id || task.status === 'done' || !task.deadline) return;
-        const d = Math.ceil((new Date(task.deadline) - now) / 86400000);
+        const d = Math.ceil((+new Date(task.deadline) - +now) / 86400000);
         if (d < 0)
           items.push({ id: `task-${task.id}-overdue`, type: 'deadline', severity: 'critical', title: task.text, message: `Überfällig seit ${Math.abs(d)} Tag${Math.abs(d) !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
         else if (d <= 3)
@@ -248,7 +249,7 @@ function useNotifications(data, currentUser) {
       });
 
       if (project.assignees?.includes(currentUser.id) && project.deadline) {
-        const d = Math.ceil((new Date(project.deadline) - now) / 86400000);
+        const d = Math.ceil((+new Date(project.deadline) - +now) / 86400000);
         if (d < 0)
           items.push({ id: `project-${project.id}-overdue`, type: 'project', severity: 'critical', title: project.title, message: 'Projektdeadline überschritten', projectId: project.id });
         else if (d <= 3)
@@ -257,16 +258,16 @@ function useNotifications(data, currentUser) {
     });
 
     if (currentUser.role === 'ausbilder' || currentUser.role === 'mentor') {
-      (data.reports || []).filter(r => r.status === 'submitted').forEach(r => {
+      (data.reports || []).filter((r: any) => r.status === 'submitted').forEach((r: any) => {
         items.push({ id: `report-${r.id}-submitted`, type: 'report', severity: 'info', title: 'Bericht zur Prüfung', message: `${r.user_name || 'Azubi'} · KW ${r.week_number}/${r.year}` });
       });
     } else {
-      (data.reports || []).filter(r => r.user_id === currentUser.id && (r.status === 'reviewed' || r.status === 'signed')).forEach(r => {
+      (data.reports || []).filter((r: any) => r.user_id === currentUser.id && (r.status === 'reviewed' || r.status === 'signed')).forEach((r: any) => {
         items.push({ id: `report-${r.id}-${r.status}`, type: 'report', severity: 'info', title: r.status === 'signed' ? 'Bericht unterschrieben' : 'Bericht geprüft', message: `KW ${r.week_number}/${r.year} · Feedback verfügbar` });
       });
     }
 
-    const order = { critical: 0, warning: 1, info: 2 };
+    const order: Record<string, number> = { critical: 0, warning: 1, info: 2 };
     return items.sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
   }, [data, currentUser]);
 
@@ -293,7 +294,7 @@ function useNotifications(data, currentUser) {
     }
   }, [notifications, readIds, storageKey]);
 
-  const markRead = useCallback((id) => {
+  const markRead = useCallback((id: string) => {
     setReadIds(prev => {
       const next = new Set([...prev, id]);
       try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch { /* noop */ }
@@ -311,8 +312,10 @@ function useNotifications(data, currentUser) {
   return { notifications, unreadCount, readIds, markRead, markAllRead };
 }
 
-function NotificationItem({ n, read, onMarkRead, navigate, onClose }) {
-  const clr = { critical: 'var(--c-cr)', warning: 'var(--c-yw)', info: 'var(--c-ac)' }[n.severity] || 'var(--c-ac)';
+function NotificationItem({ n, read, onMarkRead, navigate, onClose }: {
+  n: any; read: boolean; onMarkRead: (id: string) => void; navigate: (to: string) => void; onClose: () => void;
+}) {
+  const clr = ({ critical: 'var(--c-cr)', warning: 'var(--c-yw)', info: 'var(--c-ac)' } as Record<string, string>)[n.severity] || 'var(--c-ac)';
   const Icon = n.severity === 'critical' ? IcoAlert : n.type === 'report' ? IcoReport : IcoClock;
   const handleClick = () => {
     onMarkRead(n.id);
@@ -338,18 +341,18 @@ function NotificationItem({ n, read, onMarkRead, navigate, onClose }) {
   );
 }
 
-function NotificationBell({ collapsed }) {
+function NotificationBell({ collapsed }: { collapsed: boolean }) {
   const { data, currentUser } = useAppStore();
   const navigate = useNavigate();
   const { notifications, unreadCount, readIds, markRead, markAllRead } = useNotifications(data, currentUser);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
-  const btnRef = useRef(null);
-  const panelRef = useRef(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const fn = e => { if (!panelRef.current?.contains(e.target) && !btnRef.current?.contains(e.target)) setOpen(false); };
+    const fn = (e: MouseEvent) => { if (!panelRef.current?.contains(e.target as Node) && !btnRef.current?.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
   }, [open]);
@@ -399,9 +402,9 @@ function NotificationBell({ collapsed }) {
 }
 
 // ── Keyboard Shortcuts Help ───────────────────────────────────
-function ShortcutsHelp({ onClose }) {
+function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   useEffect(() => {
-    const fn = e => { if (e.key === 'Escape' || e.key === '?') onClose(); };
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === '?') onClose(); };
     document.addEventListener('keydown', fn);
     return () => document.removeEventListener('keydown', fn);
   }, [onClose]);
@@ -444,19 +447,19 @@ function ShortcutsHelp({ onClose }) {
 }
 
 // ── Global Search ─────────────────────────────────────────────
-const SEARCH_ICONS = { project: '📁', task: '⚡', report: '📝', learn: '📖', default: '🔍' };
+const SEARCH_ICONS: Record<string, string> = { project: '📁', task: '⚡', report: '📝', learn: '📖', default: '🔍' };
 
-function GlobalSearch({ data, onClose }) {
+function GlobalSearch({ data, onClose }: { data: any; onClose: () => void }) {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const dQ  = useDebounce(q, 300);
-  const ref = useRef(null);
-  const [apiResults, setApiResults] = useState([]);
+  const ref = useRef<HTMLInputElement>(null);
+  const [apiResults, setApiResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { ref.current?.focus(); }, []);
   useEffect(() => {
-    const fn = e => { if (e.key === 'Escape') onClose(); };
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', fn);
     return () => document.removeEventListener('keydown', fn);
   }, [onClose]);
@@ -478,22 +481,22 @@ function GlobalSearch({ data, onClose }) {
   const lower = dQ.trim().toLowerCase();
 
   // Lokale Fallback-Ergebnisse (immer verfügbar, auch offline)
-  const localResults = lower.length >= 2 ? [
-    ...(data?.projects||[]).filter(p => !p.archived && (p.title.toLowerCase().includes(lower) || (p.description||'').toLowerCase().includes(lower)))
-      .slice(0,5).map(p => ({ type: 'Projekt', label: p.title, sub: p.description, to: `/project/${p.id}`, icon: '📁' })),
-    ...(data?.users||[]).filter(u => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
-      .slice(0,3).map(u => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' })),
-    ...(data?.reports||[]).filter(r => (r.title||'').toLowerCase().includes(lower))
-      .slice(0,3).map(r => ({ type: 'Bericht', label: r.title || 'Bericht', sub: null, to: '/reports', icon: '📝' })),
+  const localResults: any[] = lower.length >= 2 ? [
+    ...(data?.projects||[]).filter((p: any) => !p.archived && (p.title.toLowerCase().includes(lower) || (p.description||'').toLowerCase().includes(lower)))
+      .slice(0,5).map((p: any) => ({ type: 'Projekt', label: p.title, sub: p.description, to: `/project/${p.id}`, icon: '📁' })),
+    ...(data?.users||[]).filter((u: any) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
+      .slice(0,3).map((u: any) => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' })),
+    ...(data?.reports||[]).filter((r: any) => (r.title||'').toLowerCase().includes(lower))
+      .slice(0,3).map((r: any) => ({ type: 'Bericht', label: r.title || 'Bericht', sub: null, to: '/reports', icon: '📝' })),
   ] : [];
 
   // API-Ergebnisse haben Priorität; lokale Nutzer-Suche immer ergänzen
-  const userResults = lower.length >= 2
-    ? (data?.users||[]).filter(u => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
-        .slice(0,3).map(u => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' }))
+  const userResults: any[] = lower.length >= 2
+    ? (data?.users||[]).filter((u: any) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
+        .slice(0,3).map((u: any) => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' }))
     : [];
 
-  const apiMapped = apiResults.map(r => ({
+  const apiMapped = apiResults.map((r: any) => ({
     ...r,
     icon: SEARCH_ICONS[r.icon] || SEARCH_ICONS.default,
   }));
@@ -502,7 +505,7 @@ function GlobalSearch({ data, onClose }) {
     ? (USE_API ? [...apiMapped, ...userResults] : localResults)
     : [];
 
-  const go = (to) => { navigate(to); onClose(); };
+  const go = (to: string) => { navigate(to); onClose(); };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 900, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '15vh' }}
@@ -553,13 +556,30 @@ function GlobalSearch({ data, onClose }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────
-function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onShowBackups, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer, trashCount: _trashCount = 0 }) {
+interface SidebarProps {
+  currentUser: any;
+  onLogout: () => void;
+  onNewProject: () => void;
+  onExport: () => void;
+  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onShowBackups?: (() => void) | null;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  onSearch: () => void;
+  theme: string;
+  onToggleTheme: () => void;
+  isMobile: boolean;
+  drawerOpen: boolean;
+  onCloseDrawer?: () => void;
+  trashCount?: number;
+}
+function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onShowBackups, collapsed, onToggleCollapse, onSearch, theme, onToggleTheme, isMobile, drawerOpen, onCloseDrawer, trashCount: _trashCount = 0 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const path     = location.pathname;
   const isAusbilder = currentUser?.role === 'ausbilder';
 
-  const handleNav = (to) => { navigate(to); if (isMobile) onCloseDrawer?.(); };
+  const handleNav = (to: string) => { navigate(to); if (isMobile) onCloseDrawer?.(); };
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard',      Icon: IcoDashboard },
@@ -576,7 +596,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
   const hue = (currentUser?.name?.charCodeAt(0) || 100) * 37 % 360;
   const w   = isMobile ? 220 : (collapsed ? 52 : 200);
 
-  const drawerStyle = isMobile ? {
+  const drawerStyle: React.CSSProperties = isMobile ? {
     position:  'fixed',
     left:      0,
     top:       0,
@@ -676,7 +696,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
               {currentUser?.avatar_url
                 ? <img src={currentUser.avatar_url} alt={currentUser.name} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.1)' }} />
                 : <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
-                    {currentUser?.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+                    {currentUser?.name?.split(' ').map((w: string) => w[0]).slice(0,2).join('').toUpperCase()}
                   </div>}
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-br)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser?.name?.split(' ')[0]}</div>
@@ -699,7 +719,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
               {currentUser?.avatar_url
                 ? <img src={currentUser.avatar_url} alt={currentUser.name} style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.1)' }} />
                 : <div style={{ width: 22, height: 22, borderRadius: '50%', background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
-                    {currentUser?.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+                    {currentUser?.name?.split(' ').map((w: string) => w[0]).slice(0,2).join('').toUpperCase()}
                   </div>}
             </button>
           </>
@@ -726,23 +746,26 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 }
 
 // ── ProjectDetail Wrapper ─────────────────────────────────────
-function ProjectDetailWrapper({ showToast }) {
+function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data, setData, currentUser } = useAppStore();
-  const project = data?.projects?.find(p => p.id === id);
+  const store = useAppStore();
+  const data = store.data as any;
+  const setData = store.setData;
+  const currentUser = store.currentUser;
+  const project = data?.projects?.find((p: any) => p.id === id);
 
-  const handleUpdate = useCallback((projectId, updates) => {
-    setData({ ...data, projects: (data?.projects||[]).map(p => p.id === projectId ? { ...p, ...updates } : p) });
+  const handleUpdate = useCallback((projectId: string, updates: any) => {
+    setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === projectId ? { ...p, ...updates } : p) });
   }, [data, setData]);
 
-  const handleArchive = useCallback((projectId) => {
-    setData({ ...data, projects: (data?.projects||[]).map(p => p.id === projectId ? { ...p, archived: true } : p) });
+  const handleArchive = useCallback((projectId: string) => {
+    setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === projectId ? { ...p, archived: true } : p) });
     showToast('Projekt archiviert');
   }, [data, setData, showToast]);
 
-  const handleActivity = useCallback((entry) => {
-    setData(prev => addActivity(prev, entry));
+  const handleActivity = useCallback((entry: any) => {
+    setData((prev: any) => addActivity(prev, entry));
   }, [setData]);
 
   if (!project) return <div className="card" style={{ margin: 24 }}>Projekt nicht gefunden</div>;
@@ -770,8 +793,12 @@ function ProjectDetailWrapper({ showToast }) {
 }
 
 // ── Profil-Seite ──────────────────────────────────────────────
-function ProfilePage({ showToast }) {
-  const { currentUser, data, setCurrentUser, setData } = useAppStore();
+function ProfilePage({ showToast }: { showToast: ShowToast }) {
+  const store = useAppStore();
+  const currentUser = store.currentUser as any;
+  const data = store.data as any;
+  const setCurrentUser = store.setCurrentUser;
+  const setData = store.setData;
   const [tab, setTab]               = useState('info');
   const [name, setName]             = useState(() => currentUser?.name || '');
   const [profession, setProfession] = useState(() => currentUser?.profession || '');
@@ -780,18 +807,18 @@ function ProfilePage({ showToast }) {
   const [newPw, setNewPw]           = useState('');
   const [saving, setSaving]         = useState(false);
   const [avatarHov, setAvatarHov]   = useState(false);
-  const avatarInputRef              = useRef(null);
+  const avatarInputRef              = useRef<HTMLInputElement>(null);
   const toast = showToast || (() => {});
 
   if (!currentUser) return null;
 
   const isAzubi = currentUser.role === 'azubi';
-  const myProjects = (data?.projects || []).filter(p => !p.archived && p.assignees?.includes(currentUser.id));
+  const myProjects = (data?.projects || []).filter((p: any) => !p.archived && p.assignees?.includes(currentUser.id));
   const hue = (currentUser.name?.charCodeAt(0) || 100) * 37 % 360;
 
   // Eingabe-Style wiederverwenden
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' };
-  const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 };
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' };
+  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 };
 
   const saveProfile = async () => {
     const trimName = name.trim();
@@ -799,7 +826,7 @@ function ProfilePage({ showToast }) {
     const parsedYear = Number(year);
     if (!trimName) return;
 
-    const changes = {};
+    const changes: any = {};
     if (trimName !== currentUser.name)                             changes.name = trimName;
     if (trimProf !== (currentUser.profession || ''))              changes.profession = trimProf;
     if (isAzubi && parsedYear !== (currentUser.apprenticeship_year || 1)) changes.apprenticeship_year = parsedYear;
@@ -810,9 +837,9 @@ function ProfilePage({ showToast }) {
       if (USE_API) await dataService.updateProfile(changes);
       const updatedUser = { ...currentUser, ...changes };
       setCurrentUser(updatedUser);
-      if (data) setData({ ...data, users: (data.users || []).map(u => u.id === currentUser.id ? { ...u, ...changes } : u) });
+      if (data) setData({ ...data, users: (data.users || []).map((u: any) => u.id === currentUser.id ? { ...u, ...changes } : u) });
       toast('✓ Profil gespeichert');
-    } catch (e) { toast('⚠ ' + e.message); }
+    } catch (e: any) { toast('⚠ ' + e.message); }
     finally { setSaving(false); }
   };
 
@@ -827,7 +854,7 @@ function ProfilePage({ showToast }) {
       } else {
         toast('⚠ Passwortänderung nur im API-Modus verfügbar');
       }
-    } catch (e) { toast('⚠ ' + e.message); }
+    } catch (e: any) { toast('⚠ ' + e.message); }
     finally { setSaving(false); }
   };
 
@@ -835,7 +862,7 @@ function ProfilePage({ showToast }) {
     if (!USE_API) { toast('⚠ Avatar-Upload nur im API-Modus verfügbar'); return; }
     avatarInputRef.current?.click();
   };
-  const handleAvatarFile = async (e) => {
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setSaving(true);
@@ -843,13 +870,13 @@ function ProfilePage({ showToast }) {
       const { avatar_url } = await dataService.uploadAvatar(file);
       const updatedUser = { ...currentUser, avatar_url };
       setCurrentUser(updatedUser);
-      if (data) setData({ ...data, users: (data.users || []).map(u => u.id === currentUser.id ? { ...u, avatar_url } : u) });
+      if (data) setData({ ...data, users: (data.users || []).map((u: any) => u.id === currentUser.id ? { ...u, avatar_url } : u) });
       toast('✓ Profilbild gespeichert');
-    } catch (err) { toast('⚠ ' + err.message); }
+    } catch (err: any) { toast('⚠ ' + err.message); }
     finally { setSaving(false); e.target.value = ''; }
   };
 
-  const tabBtn = (key, label) => (
+  const tabBtn = (key: string, label: string) => (
     <button key={key} onClick={() => setTab(key)}
       style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none',
         background: tab === key ? 'var(--c-ac)' : 'transparent',
@@ -872,7 +899,7 @@ function ProfilePage({ showToast }) {
             ? <img src={currentUser.avatar_url} alt={currentUser.name}
                 style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)', display: 'block' }} />
             : <div style={{ width: 56, height: 56, borderRadius: '50%', background: `hsl(${hue},45%,22%)`, border: '2px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: `hsl(${hue},65%,75%)` }}>
-                {currentUser.name?.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+                {currentUser.name?.split(' ').map((w: string) => w[0]).slice(0,2).join('').toUpperCase()}
               </div>}
           <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: avatarHov ? 1 : 0, transition: 'opacity .15s' }}>
             <span style={{ fontSize: 16 }}>📷</span>
@@ -897,7 +924,7 @@ function ProfilePage({ showToast }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {[
           { label: 'Aktive Projekte',  value: myProjects.length,                                                                                     color: 'var(--c-ac)' },
-          { label: 'Offene Aufgaben',  value: myProjects.flatMap(p => p.tasks||[]).filter(t => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
+          { label: 'Offene Aufgaben',  value: myProjects.flatMap((p: any) => p.tasks||[]).filter((t: any) => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ borderLeft: `3px solid ${s.color}`, padding: '10px 14px' }}>
             <div style={{ fontSize: 10, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{s.label}</div>
@@ -991,60 +1018,74 @@ function ProfilePage({ showToast }) {
 }
 
 // ── Seiten-Wrapper ────────────────────────────────────────────
-function CalendarPage({ showToast }) {
-  const { data, setData } = useAppStore();
-  const handleUpdate = useCallback((projectId, updates) => {
+function CalendarPage({ showToast }: { showToast: ShowToast }) {
+  const store = useAppStore();
+  const data = store.data as any;
+  const setData = store.setData;
+  const handleUpdate = useCallback((projectId: string, updates: any) => {
     if (projectId === '_cal') {
       setData({ ...data, calendarEvents: [...(data.calendarEvents || []), updates.ev] });
     } else if (projectId === '_cal_del') {
-      setData({ ...data, calendarEvents: (data.calendarEvents || []).filter(e => e.id !== updates.id) });
+      setData({ ...data, calendarEvents: (data.calendarEvents || []).filter((e: any) => e.id !== updates.id) });
     } else if (projectId === '_cal_edit') {
-      setData({ ...data, calendarEvents: (data.calendarEvents || []).map(e => e.id === updates.ev.id ? updates.ev : e) });
+      setData({ ...data, calendarEvents: (data.calendarEvents || []).map((e: any) => e.id === updates.ev.id ? updates.ev : e) });
     } else {
-      setData({ ...data, projects: (data?.projects||[]).map(p => p.id === projectId ? { ...p, ...updates } : p) });
+      setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === projectId ? { ...p, ...updates } : p) });
     }
   }, [data, setData]);
   return <CalendarView projects={data?.projects||[]} calendarEvents={data?.calendarEvents||[]} users={data?.users||[]} onUpdate={handleUpdate} showToast={showToast} />;
 }
 
-function GroupsPage({ showToast }) {
-  const { data, setData } = useAppStore();
-  const handleUpdateGroups = useCallback((groups) => setData({ ...data, groups }), [data, setData]);
+function GroupsPage({ showToast }: { showToast: ShowToast }) {
+  const store = useAppStore();
+  const data = store.data as any;
+  const setData = store.setData;
+  const handleUpdateGroups = useCallback((groups: any) => setData({ ...data, groups }), [data, setData]);
   return <GroupsView groups={data?.groups||[]} users={data?.users||[]} projects={data?.projects||[]} onUpdateGroups={handleUpdateGroups} showToast={showToast} />;
 }
 
 function AzubiProfileWrapper() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data, currentUser } = useAppStore();
-  const azubi = (data?.users || []).find(u => u.id === id);
+  const store = useAppStore();
+  const data = store.data as any;
+  const currentUser = store.currentUser as any;
+  const azubi = (data?.users || []).find((u: any) => u.id === id);
   return <AzubiProfilePage azubi={azubi} data={data} currentUser={currentUser} onBack={() => navigate(-1)} />;
 }
 
-function UsersPage({ showToast }) {
-  const { data, setData } = useAppStore();
-  const handleUpdate = useCallback((users) => setData({ ...data, users }), [data, setData]);
+function UsersPage({ showToast }: { showToast: ShowToast }) {
+  const store = useAppStore();
+  const data = store.data as any;
+  const setData = store.setData;
+  const handleUpdate = useCallback((users: any) => setData({ ...data, users }), [data, setData]);
   return <UsersView users={data?.users || []} onUpdateUsers={handleUpdate} showToast={showToast} />;
 }
 
-function DashboardPage({ onNewProject, showToast: _showToast }) {
+function DashboardPage({ onNewProject, showToast: _showToast }: { onNewProject: () => void; showToast: ShowToast }) {
   const navigate = useNavigate();
-  const { data, currentUser, setData } = useAppStore();
-  const handleUpdate = useCallback((projectId, updates) => {
-    setData({ ...data, projects: (data?.projects||[]).map(p => p.id === projectId ? { ...p, ...updates } : p) });
+  const store = useAppStore();
+  const data = store.data as any;
+  const currentUser = store.currentUser;
+  const setData = store.setData;
+  const handleUpdate = useCallback((projectId: string, updates: any) => {
+    setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === projectId ? { ...p, ...updates } : p) });
   }, [data, setData]);
   return (
     <Dashboard user={currentUser} projects={data?.projects||[]} users={data?.users||[]} reports={data?.reports||[]} calendarEvents={data?.calendarEvents||[]}
       activityLog={data?.activityLog||[]}
-      onOpenProject={id => navigate(`/project/${id}`)} onUpdateProject={handleUpdate} onNewProject={onNewProject} onNavigate={path => navigate('/' + path.replace(/^\//, ''))} />
+      onOpenProject={(id: string) => navigate(`/project/${id}`)} onUpdateProject={handleUpdate} onNewProject={onNewProject} onNavigate={(path: string) => navigate('/' + path.replace(/^\//, ''))} />
   );
 }
 
-function ProjectsPage({ onNewProject, showToast }) {
+function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; showToast: ShowToast }) {
   const navigate = useNavigate();
-  const { data, currentUser, setData } = useAppStore();
-  const duplicate = id => {
-    const src = (data?.projects||[]).find(p => p.id === id);
+  const store = useAppStore();
+  const data = store.data as any;
+  const currentUser = store.currentUser as any;
+  const setData = store.setData;
+  const duplicate = (id: string | number) => {
+    const src = (data?.projects||[]).find((p: any) => p.id === id);
     if (!src) return;
     const copy = {
       ...src,
@@ -1053,37 +1094,49 @@ function ProjectsPage({ onNewProject, showToast }) {
       archived: false,
       comments: [],
       calendarEvents: [],
-      tasks: (src.tasks || []).map(t => ({ ...t, id: `t_${Math.random().toString(36).slice(2)}`, status: 'open', done: false })),
+      tasks: (src.tasks || []).map((t: any) => ({ ...t, id: `t_${Math.random().toString(36).slice(2)}`, status: 'open', done: false })),
     };
     setData({ ...data, projects: [...(data?.projects||[]), copy] });
     showToast('✓ Projekt dupliziert');
   };
   return (
     <ProjectPool projects={data?.projects||[]} users={data?.users||[]} groups={data?.groups||[]} currentUser={currentUser}
-      onOpen={id => navigate(`/project/${id}`)} onNew={onNewProject}
-      onDelete={id => {
-        const project  = (data?.projects||[]).find(p => p.id === id);
+      onOpen={(id: string | number) => navigate(`/project/${id}`)} onNew={onNewProject}
+      onDelete={(id: string | number) => {
+        const project  = (data?.projects||[]).find((p: any) => p.id === id);
         const snapshot = data;
         if (project) {
           setData(softDelete(data, 'projects', project, currentUser));
         } else {
-          setData({ ...data, projects: (data?.projects||[]).filter(p => p.id !== id) });
+          setData({ ...data, projects: (data?.projects||[]).filter((p: any) => p.id !== id) });
         }
         showToast('🗑 Projekt → Papierkorb (30 Tage)', { undo: () => setData(snapshot) });
       }}
-      onArchive={id => {
+      onArchive={(id: string | number) => {
         const snapshot = data;
-        setData({ ...data, projects: (data?.projects||[]).map(p => p.id === id ? { ...p, archived: true } : p) });
+        setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === id ? { ...p, archived: true } : p) });
         showToast('📦 Projekt archiviert', { undo: () => setData(snapshot) });
       }}
-      onUnarchive={id => { setData({ ...data, projects: (data?.projects||[]).map(p => p.id === id ? { ...p, archived: false } : p) }); showToast('Projekt wiederhergestellt'); }}
+      onUnarchive={(id: string | number) => { setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === id ? { ...p, archived: false } : p) }); showToast('Projekt wiederhergestellt'); }}
       onDuplicate={duplicate}
     />
   );
 }
 
 // ── AppLayout ─────────────────────────────────────────────────
-function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, onBackup, onShowBackups, trashCount = 0, children }) {
+interface AppLayoutProps {
+  currentUser: any;
+  onLogout: () => void;
+  onNewProject: () => void;
+  onExport: () => void;
+  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSearch: () => void;
+  onBackup?: (() => void) | null;
+  onShowBackups?: (() => void) | null;
+  trashCount?: number;
+  children?: React.ReactNode;
+}
+function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, onBackup, onShowBackups, trashCount = 0, children }: AppLayoutProps) {
   const [collapsed,   setCollapsed]   = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
   const [drawerOpen,  setDrawerOpen]  = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -1093,7 +1146,7 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
 
   // G+letter navigation from global keyboard handler
   useEffect(() => {
-    const fn = e => navigate(e.detail);
+    const fn = (e: Event) => navigate((e as CustomEvent).detail);
     window.addEventListener('azubiboard:navigate', fn);
     return () => window.removeEventListener('azubiboard:navigate', fn);
   }, [navigate]);
@@ -1155,13 +1208,17 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
 
 // ── Root App ──────────────────────────────────────────────────
 const App = () => {
-  const { data, currentUser, setData, setCurrentUser } = useAppStore();
+  const store = useAppStore();
+  const data = store.data as any;
+  const currentUser = store.currentUser as any;
+  const setData = store.setData;
+  const setCurrentUser = store.setCurrentUser;
   const [showModal,    setShowModal]    = useState(false);
   const [showSearch,   setShowSearch]   = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const { toast, showToast, dismissToast } = useToast();
   const _importRef = useRef(null);
-  const [conflict, setConflict] = useState(null);  // J2: Konflikt-Payload
+  const [conflict, setConflict] = useState<any>(null);  // J2: Konflikt-Payload
   const [showBackups,    setShowBackups]    = useState(false); // L4
   const [showOnboarding, setShowOnboarding] = useState(false); // UX1
   const justLoggedInRef = useRef(false); // Verhindert Logout durch Unauthorized-Event direkt nach Login
@@ -1189,19 +1246,19 @@ const App = () => {
   //     Set merkt sich gesendete IDs pro Session — bei Reload starten wir
   //     mit nur den neuesten 30 Einträgen als "schon gesehen", damit
   //     der Audit-Server nicht mit kompletter Historie geflutet wird.
-  const auditSentRef = useRef(null);
+  const auditSentRef = useRef<Set<any> | null>(null);
   useEffect(() => {
     if (!data?.activityLog?.length || !currentUser) return;
     if (!auditSentRef.current) {
       // Initial-Pool: alles was schon da war ist "alt"
-      auditSentRef.current = new Set((data.activityLog || []).map(e => e.id));
+      auditSentRef.current = new Set((data.activityLog || []).map((e: any) => e.id));
       return;
     }
     const seen   = auditSentRef.current;
-    const fresh  = (data.activityLog || []).filter(e => e.id && !seen.has(e.id));
+    const fresh  = (data.activityLog || []).filter((e: any) => e.id && !seen.has(e.id));
     if (!fresh.length) return;
     // Senden in der zeitlich aufsteigenden Reihenfolge
-    fresh.slice().reverse().forEach(e => {
+    fresh.slice().reverse().forEach((e: any) => {
       seen.add(e.id);
       dataService.writeAudit({
         type:          e.type,
@@ -1220,9 +1277,10 @@ const App = () => {
 
   // J2: Conflict-Event vom dataService abfangen → Dialog anzeigen
   useEffect(() => {
-    const onSync = (e) => {
-      if (e.detail?.type === 'conflict') {
-        setConflict(e.detail);
+    const onSync = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.type === 'conflict') {
+        setConflict(detail);
         showToast('⚠ Speicherkonflikt — bitte entscheiden');
       }
     };
@@ -1263,12 +1321,12 @@ const App = () => {
   // ── Daten laden, Passwörter migrieren, Session prüfen ────
   useEffect(() => {
     (async () => {
-      const loaded = await dataService.getData();
+      const loaded = await dataService.getData() as any;
 
       // Passwort-Migration: Klartext → SHA-256 (nur local-mode)
       let migrated = false;
       const migratedUsers = await Promise.all(
-        (loaded.users || []).map(async (u) => {
+        (loaded.users || []).map(async (u: any) => {
           if (!isHashed(u.password)) {
             migrated = true;
             return { ...u, password: await hashPassword(u.password) };
@@ -1276,7 +1334,7 @@ const App = () => {
           return u;
         })
       );
-      let finalData = migrated ? { ...loaded, users: migratedUsers } : loaded;
+      let finalData: any = migrated ? { ...loaded, users: migratedUsers } : loaded;
       // L2: Schema-Migrations VOR allen anderen Transforms anwenden.
       //     Setzt data.schema_version + initialisiert fehlende Felder.
       const beforeVersion = finalData.schema_version;
@@ -1314,13 +1372,13 @@ const App = () => {
   }, []); // eslint-disable-line
 
   // Nach Login: MySQL-User laden und in Blob mergen (API-Modus)
-  const handleLogin = useCallback(async (user) => {
+  const handleLogin = useCallback(async (user: any) => {
     justLoggedInRef.current = true;
     setCurrentUser(user);
     applyUserTheme(user.theme);  // Theme aus DB nach Login anwenden
     if (USE_API) {
       const apiUsers = await dataService.getUsers();
-      if (apiUsers) setData(prev => prev ? { ...prev, users: apiUsers } : prev);
+      if (apiUsers) setData((prev: any) => prev ? { ...prev, users: apiUsers } : prev);
     }
     justLoggedInRef.current = false;
   }, [setCurrentUser, setData]);
@@ -1340,9 +1398,10 @@ const App = () => {
 
   useEffect(() => {
     let gPrefix = false;
-    let gTimer  = null;
-    const fn = (e) => {
-      const inInput = ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName) || e.target.isContentEditable;
+    let gTimer: ReturnType<typeof setTimeout> | undefined;
+    const fn = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const inInput = ['INPUT','TEXTAREA','SELECT'].includes(target.tagName) || target.isContentEditable;
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); if (currentUser) setShowSearch(s => !s); return; }
       if (inInput) return;
       if (e.key === '?') { if (currentUser) setShowShortcuts(s => !s); return; }
@@ -1352,7 +1411,7 @@ const App = () => {
       if (gPrefix) {
         gPrefix = false; clearTimeout(gTimer);
         // Navigation dispatched via custom event (AppLayout handles it inside Router)
-        const map = { d: '/dashboard', p: '/projects', k: '/calendar', r: '/reports', u: '/users' };
+        const map: Record<string, string> = { d: '/dashboard', p: '/projects', k: '/calendar', r: '/reports', u: '/users' };
         if (map[e.key]) window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: map[e.key] }));
       }
     };
@@ -1360,7 +1419,7 @@ const App = () => {
     return () => { document.removeEventListener('keydown', fn); clearTimeout(gTimer); };
   }, [currentUser]);
 
-  const handleCreate = useCallback((projectData) => {
+  const handleCreate = useCallback((projectData: any) => {
     const newProject = { ...projectData, id: `proj_${Date.now()}`, tasks: [], steps: [], calendarEvents: [], archived: false };
     const withProject = { ...data, projects: [...(data?.projects || []), newProject] };
     const withActivity = addActivity(withProject, {
@@ -1391,13 +1450,13 @@ const App = () => {
   }, [data, showToast]);
 
   // Daten-Import
-  const handleImport = useCallback((e) => {
+  const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const imported = JSON.parse(ev.target.result);
+        const imported = JSON.parse(ev.target?.result as string);
         if (!imported.users || !Array.isArray(imported.projects)) throw new Error('Ungültiges Format');
         setData(imported);
         showToast('✓ Daten importiert');
@@ -1437,7 +1496,7 @@ const App = () => {
         <AuthPage
           onLogin={handleLogin}
           users={data?.users || []}
-          onRegister={async newUser => {
+          onRegister={async (newUser: any) => {
             const withUser = { ...data, users: [...(data?.users || []), newUser] };
             const withActivity = addActivity(withUser, {
               type: 'user_registered',
@@ -1453,7 +1512,7 @@ const App = () => {
             // In API-Modus: frische Nutzerliste nach Registrierung laden
             if (USE_API) {
               const apiUsers = await dataService.getUsers();
-              if (apiUsers) setData(prev => prev ? { ...prev, users: apiUsers } : prev);
+              if (apiUsers) setData((prev: any) => prev ? { ...prev, users: apiUsers } : prev);
             }
           }}
         />
@@ -1497,7 +1556,7 @@ const App = () => {
           )}
         </AppLayout>
 
-        {toast && <Toast payload={toast} onDismiss={dismissToast} />}
+        {toast && <Toast payload={toast as any} onDismiss={dismissToast} />}
         {showSearch    && <GlobalSearch   data={data} onClose={() => setShowSearch(false)} />}
         {showShortcuts && <ShortcutsHelp  onClose={() => setShowShortcuts(false)} />}
         {showBackups   && (

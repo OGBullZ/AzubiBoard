@@ -1,4 +1,3 @@
-// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import { useState, useRef, useCallback } from "react";
 import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';
@@ -56,10 +55,13 @@ const TEMPLATES = [
   { label: 'Schul- & Betrieb', activities: `Betrieb (Mo/Di/Do/Fr):\n- \n\nBerufsschule (Mi):\n- Fächer: \n- Themen: `, learnings: `Im Betrieb gelernt:\n- \n\nIn der Schule gelernt:\n- ` },
 ];
 
-function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete }) {
+function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete }: {
+  report: any; currentUser: any;
+  onOpen: (r: any) => void; onSubmit: (id: any) => void; onSign: (id: any) => void; onDelete: (id: any) => void;
+}) {
   const { t } = useTranslation();
   const STATUS_REPORT_I18N = useStatusReport();
-  const st       = STATUS_REPORT_I18N[report.status] || STATUS_REPORT_I18N.draft;
+  const st       = STATUS_REPORT_I18N[report.status as keyof ReturnType<typeof useStatusReport>] || STATUS_REPORT_I18N.draft;
   const iso      = getISOWeek(report.week_start);
   const kw       = iso.week;
   const isoYear  = iso.year ?? new Date(report.week_start).getFullYear();
@@ -129,10 +131,13 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete })
   );
 }
 
-function ReportEditor({ report, currentUser, projects, onSave, onClose, showToast }) {
+function ReportEditor({ report, currentUser, projects, onSave, onClose, showToast }: {
+  report: any; currentUser: any; projects: any;
+  onSave: (rep: any) => void; onClose: () => void; showToast: (msg: string, opts?: any) => void;
+}) {
   const { t } = useTranslation();
   const STATUS_REPORT_I18N = useStatusReport();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<any>({
     title:            report?.title            || '',
     activities:       report?.activities       || '',
     learnings:        report?.learnings        || '',
@@ -142,12 +147,12 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     file:             report?.file             || null,
     sectionComments:  report?.sectionComments  || { activities: [], learnings: [] },
   });
-  const [newComment,  setNewComment]  = useState({ activities: '', learnings: '' });
-  const [tab,         setTab]         = useState('text');
+  const [newComment,  setNewComment]  = useState<Record<string, string>>({ activities: '', learnings: '' });
+  const [tab,         setTab]         = useState<string>('text');
   const [copied,      setCopied]      = useState('');
   const [showOcr,     setShowOcr]     = useState(false);
   const [aiLoading,   setAiLoading]   = useState(false);
-  const fileRef = useRef();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const isOwner  = !report || report.user_id === currentUser.id;
   const isReview = isAusbilder(currentUser);
@@ -155,52 +160,52 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const readOnly = (report?.status !== 'draft' && !isReview) || (!isOwner && isStaff(currentUser) && !isReview);
   const kw       = getKW(form.week_start);
 
-  const applyTemplate = (tmpl) => { setForm(f => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
+  const applyTemplate = (tmpl: any) => { setForm((f: any) => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
 
   const autoFillFromTasks = () => {
     const ws  = form.week_start;
     const we  = (() => { const d = new Date(ws); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; })();
-    const groups = [];
-    (projects || []).forEach(p => {
-      const wt = (p.tasks || []).filter(t => t.text && t.deadline && t.deadline >= ws && t.deadline <= we);
+    const groups: any[] = [];
+    (projects || []).forEach((p: any) => {
+      const wt = (p.tasks || []).filter((t: any) => t.text && t.deadline && t.deadline >= ws && t.deadline <= we);
       if (wt.length) groups.push({ title: p.title, tasks: wt });
     });
     if (!groups.length) { showToast('⚠ Keine Aufgaben mit Deadline in dieser KW'); return; }
     const text = groups.map(g =>
-      `${g.title}:\n${g.tasks.map(t => `- ${t.text}${t.status === 'done' ? ' ✓' : ''}`).join('\n')}`
+      `${g.title}:\n${g.tasks.map((t: any) => `- ${t.text}${t.status === 'done' ? ' ✓' : ''}`).join('\n')}`
     ).join('\n\n');
-    setForm(f => ({ ...f, activities: f.activities ? `${f.activities}\n\n${text}` : text }));
+    setForm((f: any) => ({ ...f, activities: f.activities ? `${f.activities}\n\n${text}` : text }));
     showToast(`✓ ${groups.reduce((s, g) => s + g.tasks.length, 0)} Aufgaben eingefügt`);
   };
 
   const aiWriteReport = useCallback(async () => {
     const ws  = form.week_start;
     const we  = (() => { const d = new Date(ws); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; })();
-    const taskGroups = [];
-    (projects || []).forEach(p => {
-      const wt = (p.tasks || []).filter(task => task.text && task.deadline && task.deadline >= ws && task.deadline <= we);
-      if (wt.length) taskGroups.push({ project: p.title, tasks: wt.map(task => task.text + (task.status === 'done' ? ' (erledigt)' : '')) });
+    const taskGroups: any[] = [];
+    (projects || []).forEach((p: any) => {
+      const wt = (p.tasks || []).filter((task: any) => task.text && task.deadline && task.deadline >= ws && task.deadline <= we);
+      if (wt.length) taskGroups.push({ project: p.title, tasks: wt.map((task: any) => task.text + (task.status === 'done' ? ' (erledigt)' : '')) });
     });
     if (!taskGroups.length) { showToast(t('report.aiAutofillNoTasks', { kw })); return; }
     setAiLoading(true);
     try {
       const result = await dataService.fillReport({
         taskGroups,
-        weekNumber: kw,
+        weekNumber: kw as number,
         year: new Date(ws).getFullYear(),
         profession: currentUser?.profession || '',
         lehrjahr:   currentUser?.apprenticeship_year || 1,
       });
-      setForm(f => ({ ...f, activities: result.activities || f.activities, learnings: result.learnings || f.learnings }));
+      setForm((f: any) => ({ ...f, activities: result.activities || f.activities, learnings: result.learnings || f.learnings }));
       showToast(t('report.aiAutofillDone'));
-    } catch (e) {
+    } catch (e: any) {
       showToast(t('report.aiAutofillError', { msg: e.message }));
     } finally {
       setAiLoading(false);
     }
   }, [form.week_start, projects, kw, currentUser, showToast, t]);
 
-  const copyToClipboard = async (text, key) => {
+  const copyToClipboard = async (text: string, key: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(key);
@@ -212,18 +217,18 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     }
   };
 
-  const handleFile = (e) => {
+  const handleFile = (e: any) => {
     const file = e.target?.files?.[0] || e;
     if (!file) return;
     if (file.type !== 'application/pdf' && !file.type?.includes('pdf')) { showToast('⚠ Nur PDF-Dateien'); return; }
     if (file.size > 10 * 1024 * 1024) { showToast('⚠ Max. 10 MB'); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => { setForm(f => ({ ...f, file: { name: file.name, size: file.size, type: file.type, data: ev.target.result } })); showToast('✓ PDF geladen'); };
+    reader.onload = (ev) => { setForm((f: any) => ({ ...f, file: { name: file.name, size: file.size, type: file.type, data: ev.target!.result } })); showToast('✓ PDF geladen'); };
     reader.onerror = () => { showToast('⚠ PDF konnte nicht gelesen werden'); };
     reader.readAsDataURL(file);
   };
 
-  const handleDrop = (e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFile(file); };
+  const handleDrop = (e: any) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFile(file); };
 
   const save = () => {
     const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year: new Date(form.week_start).getFullYear(), updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
@@ -242,7 +247,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   //  - Seitennummer-Variable im Footer (CSS-Counter)
   const printReportIHK = () => printVariant('ihk');
 
-  const printVariant = (variant) => {
+  const printVariant = (variant: string) => {
     const w = window.open('', '_blank');
     if (!w) { showToast('⚠ Popup blockiert – bitte Pop-ups erlauben'); return; }
     const isoYear = getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear();
@@ -270,7 +275,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
       <h1>Ausbildungsnachweis – KW ${kw} / ${isoYear}</h1>
       <div class="meta">
         <strong>${currentUser.name}</strong> · Woche vom ${new Date(form.week_start).toLocaleDateString('de-DE')} ·
-        <span class="status">${STATUS_REPORT[form.status]?.l || form.status}</span>
+        <span class="status">${STATUS_REPORT[form.status as keyof typeof STATUS_REPORT]?.l || form.status}</span>
       </div>
       ${form.title ? `<h2>Thema</h2><p>${form.title}</p>` : ''}
       <h2>Durchgeführte Tätigkeiten</h2><pre>${form.activities || '–'}</pre>
@@ -365,11 +370,11 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
         <button className="btn" onClick={onClose} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}><IcoBack size={12} /> {t('common.back')}</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>{report ? t('report.editTitle', { kw }) : t('report.newTitle')}</div>
-          {report?.status && <div style={{ fontSize: 10, color: STATUS_REPORT_I18N[report.status]?.c, fontWeight: 700 }}>● {STATUS_REPORT_I18N[report.status]?.l}</div>}
+          {report?.status && <div style={{ fontSize: 10, color: STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.c, fontWeight: 700 }}>● {STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.l}</div>}
         </div>
         <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, gap: 3 }}>
           {/* eslint-disable-next-line no-unused-vars */}
-          {[['text', t('report.tabText'), IcoDoc], ['upload', t('report.tabPdf'), IcoReport]].map(([k, l, Icon]) => (
+          {([['text', t('report.tabText'), IcoDoc], ['upload', t('report.tabPdf'), IcoReport]] as [string, string, any][]).map(([k, l, Icon]) => (
             <button key={k} onClick={() => setTab(k)}
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', background: tab === k ? C.ac : 'transparent', color: tab === k ? '#fff' : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
               <Icon size={12} />{l}
@@ -399,10 +404,10 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
           <div className="card">
             <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.metadataLabel')}</div>
             <Field label={t('report.weekStart')}>
-              <input type="date" value={form.week_start} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, week_start: e.target.value }))} />
+              <input type="date" value={form.week_start} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, week_start: e.target.value }))} />
             </Field>
             <Field label={t('report.weekTitle')}>
-              <input value={form.title} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="z.B. Projektarbeit Woche 3" />
+              <input value={form.title} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="z.B. Projektarbeit Woche 3" />
             </Field>
             <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>KW {kw} · {new Date(form.week_start).getFullYear()}</div>
           </div>
@@ -437,7 +442,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
             <div className="card">
               <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.reviewerLabel')}</div>
               <Field label={t('report.reviewerComment')}>
-                <textarea value={form.reviewer_comment} onChange={e => setForm(f => ({ ...f, reviewer_comment: e.target.value }))} placeholder="Feedback, Hinweise…" style={{ minHeight: 80, fontSize: 12 }} />
+                <textarea value={form.reviewer_comment} onChange={e => setForm((f: any) => ({ ...f, reviewer_comment: e.target.value }))} placeholder="Feedback, Hinweise…" style={{ minHeight: 80, fontSize: 12 }} />
               </Field>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {['submitted','reviewed'].includes(report?.status) && (
@@ -472,11 +477,11 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                   const txt = newComment[key]?.trim();
                   if (!txt) return;
                   const entry = { id: Date.now().toString(36), text: txt, reviewerName: currentUser.name, ts: new Date().toISOString() };
-                  setForm(f => ({ ...f, sectionComments: { ...f.sectionComments, [key]: [...(f.sectionComments?.[key]||[]), entry] } }));
-                  setNewComment(n => ({ ...n, [key]: '' }));
+                  setForm((f: any) => ({ ...f, sectionComments: { ...f.sectionComments, [key]: [...(f.sectionComments?.[key]||[]), entry] } }));
+                  setNewComment((n: any) => ({ ...n, [key]: '' }));
                 };
-                const delComment = (id) => {
-                  setForm(f => ({ ...f, sectionComments: { ...f.sectionComments, [key]: (f.sectionComments?.[key]||[]).filter(c => c.id !== id) } }));
+                const delComment = (id: any) => {
+                  setForm((f: any) => ({ ...f, sectionComments: { ...f.sectionComments, [key]: (f.sectionComments?.[key]||[]).filter((c: any) => c.id !== id) } }));
                 };
                 return (
                   <div key={key} className="card">
@@ -490,14 +495,14 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                         {copied === key ? <><IcoCheck size={10} /> {t('common.copied')}</> : t('common.copy')}
                       </button>
                     </div>
-                    <textarea value={form[key]} disabled={!isOwner || readOnly} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={ph}
+                    <textarea value={form[key]} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, [key]: e.target.value }))} placeholder={ph}
                       style={{ minHeight: minH, fontSize: 12, lineHeight: 1.7 }} />
 
                     {/* Ausbilder-Kommentare */}
                     {(comments.length > 0 || isReview) && (
                       <div style={{ marginTop: 10, borderTop: `1px solid ${C.bd}`, paddingTop: 10 }}>
                         <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 7 }}>{t('report.reviewerComments')}</div>
-                        {comments.map(c => (
+                        {comments.map((c: any) => (
                           <div key={c.id} style={{ display: 'flex', gap: 8, padding: '6px 9px', background: C.ywd, border: `1px solid ${C.yw}25`, borderRadius: 7, marginBottom: 5 }}>
                             <IcoNote size={11} style={{ color: C.yw, flexShrink: 0, marginTop: 2 }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -509,7 +514,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                         ))}
                         {isReview && (
                           <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
-                            <input value={newComment[key] || ''} onChange={e => setNewComment(n => ({ ...n, [key]: e.target.value }))}
+                            <input value={newComment[key] || ''} onChange={e => setNewComment((n: any) => ({ ...n, [key]: e.target.value }))}
                               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())}
                               placeholder={t('report.addComment')} style={{ flex: 1, fontSize: 11, padding: '5px 9px' }} />
                             <button className="abtn" onClick={addComment} style={{ fontSize: 11, padding: '5px 11px', background: C.yw }}>+</button>
@@ -546,7 +551,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                       <div style={{ fontSize: 10, color: C.mu }}>{(form.file.size / 1024).toFixed(0)} KB</div>
                     </div>
                     {isOwner && !readOnly && (
-                      <button onClick={() => setForm(f => ({ ...f, file: null }))} className="del" style={{ fontSize: 14 }}>×</button>
+                      <button onClick={() => setForm((f: any) => ({ ...f, file: null }))} className="del" style={{ fontSize: 14 }}>×</button>
                     )}
                   </div>
                   {form.file.data && (
@@ -563,8 +568,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     {showOcr && (
       <PdfOcrImport
         existingFile={form.file}
-        onImport={({ activities, learnings }) => {
-          setForm(f => ({
+        onImport={({ activities, learnings }: { activities: any; learnings: any }) => {
+          setForm((f: any) => ({
             ...f,
             activities: activities || f.activities,
             learnings:  learnings  || f.learnings,
@@ -578,25 +583,25 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   );
 }
 
-function printJahresmappe(reports, year, showToast) {
+function printJahresmappe(reports: any[], year: number, showToast?: (msg: string, opts?: any) => void) {
   const yearReports = reports
-    .filter(r => {
+    .filter((r: any) => {
       const iso = getISOWeek(r.week_start);
       const ry  = r.year ?? iso.year ?? new Date(r.week_start).getFullYear();
       return ry === year;
     })
-    .sort((a, b) => new Date(a.week_start) - new Date(b.week_start));
+    .sort((a: any, b: any) => +new Date(a.week_start) - +new Date(b.week_start));
 
   if (!yearReports.length) {
     showToast?.(`⚠ Keine Berichte für ${year} vorhanden`);
     return;
   }
 
-  const byUser = yearReports.reduce((acc, r) => {
+  const byUser = yearReports.reduce((acc: Record<string, { name: string; reports: any[] }>, r: any) => {
     if (!acc[r.user_id]) acc[r.user_id] = { name: r.user_name || 'Unbekannt', reports: [] };
     acc[r.user_id].reports.push(r);
     return acc;
-  }, {});
+  }, {} as Record<string, { name: string; reports: any[] }>);
 
   const w = window.open('', '_blank');
   if (!w) { showToast?.('⚠ Popup blockiert – bitte Pop-ups erlauben'); return; }
@@ -624,7 +629,7 @@ function printJahresmappe(reports, year, showToast) {
   <h1>Ausbildungsnachweis-Mappe ${year}</h1>
   ${Object.values(byUser).map(u => `
     <h2>${u.name}</h2>
-    ${u.reports.map((r, i) => {
+    ${u.reports.map((r: any, i: number) => {
       const iso = getISOWeek(r.week_start);
       const kw  = r.week_number ?? iso.week ?? '';
       const yr  = r.year ?? iso.year ?? year;
@@ -645,23 +650,25 @@ function printJahresmappe(reports, year, showToast) {
   else w.onload = () => w.print();
 }
 
-export default function ReportsPage({ currentUser, data, onUpdateData, showToast }) {
+export default function ReportsPage({ currentUser, data, onUpdateData, showToast }: {
+  currentUser: any; data: any; onUpdateData: (next: any) => void; showToast: (msg: string, opts?: any) => void;
+}) {
   const { t } = useTranslation();
   const STATUS_REPORT_I18N = useStatusReport();
   const reports              = data.reports || [];
   const [view,    setView]   = useState('list');
-  const [editing, setEditing]= useState(null);
+  const [editing, setEditing]= useState<any>(null);
   const [filter,  setFilter] = useState('alle');
   const [search,  setSearch] = useState('');
   const dSearch = useDebounce(search);
-  const [confirmDel, setConfirmDel] = useState(null);
+  const [confirmDel, setConfirmDel] = useState<any>(null);
   const [shareOpen,  setShareOpen]  = useState(false);  // J10
 
-  const myReports = currentUser.role === 'azubi' ? reports.filter(r => r.user_id === currentUser.id) : reports;
+  const myReports = currentUser.role === 'azubi' ? reports.filter((r: any) => r.user_id === currentUser.id) : reports;
   const q = dSearch.trim().toLowerCase();
   const filtered = myReports
-    .filter(r => filter === 'alle' || r.status === filter)
-    .filter(r => !q || (
+    .filter((r: any) => filter === 'alle' || r.status === filter)
+    .filter((r: any) => !q || (
       (r.title || '').toLowerCase().includes(q) ||
       (r.activities || '').toLowerCase().includes(q) ||
       (r.learnings || '').toLowerCase().includes(q) ||
@@ -669,9 +676,9 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
       String(r.week_number).includes(q)
     ));
 
-  const saveReport = (rep) => {
-    const existing = reports.find(r => r.id === rep.id);
-    const next = { ...data, reports: existing ? reports.map(r => r.id === rep.id ? rep : r) : [...reports, rep] };
+  const saveReport = (rep: any) => {
+    const existing = reports.find((r: any) => r.id === rep.id);
+    const next = { ...data, reports: existing ? reports.map((r: any) => r.id === rep.id ? rep : r) : [...reports, rep] };
     const iso  = getISOWeek(rep.week_start);
     onUpdateData(addActivity(next, {
       type:        'report_saved',
@@ -684,15 +691,15 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
     }));
   };
 
-  const deleteReport = (id) => {
+  const deleteReport = (id: any) => {
     setConfirmDel(id);
     // Toast fires in ConfirmDialog.onConfirm, not here
   };
 
-  const submitReport = (id) => {
-    const rep = reports.find(r => r.id === id);
+  const submitReport = (id: any) => {
+    const rep = reports.find((r: any) => r.id === id);
     const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
-    const next = { ...data, reports: reports.map(r => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) };
+    const next = { ...data, reports: reports.map((r: any) => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) };
     onUpdateData(addActivity(next, {
       type:        'report_submitted',
       userId:      currentUser.id,
@@ -705,10 +712,10 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
     showToast('✓ Berichtsheft eingereicht');
   };
 
-  const signReport = (id) => {
-    const rep = reports.find(r => r.id === id);
+  const signReport = (id: any) => {
+    const rep = reports.find((r: any) => r.id === id);
     const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
-    const next = { ...data, reports: reports.map(r => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) };
+    const next = { ...data, reports: reports.map((r: any) => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) };
     onUpdateData(addActivity(next, {
       type:        'report_signed',
       userId:      currentUser.id,
@@ -775,7 +782,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         {Object.entries(STATUS_REPORT_I18N).map(([k, v]) => {
-          const cnt = myReports.filter(r => r.status === k).length;
+          const cnt = myReports.filter((r: any) => r.status === k).length;
           return (
             <div key={k} onClick={() => setFilter(filter === k ? 'alle' : k)}
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px', background: filter === k ? v.c + '18' : 'var(--c-sf2)', border: `1px solid ${filter === k ? v.c + '50' : 'var(--c-bd)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all .12s' }}>
@@ -798,9 +805,9 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             onAction={!q && currentUser.role === 'azubi' ? () => { setEditing(null); setView('edit'); } : undefined} />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, alignContent: 'start' }}>
-            {[...filtered].sort((a, b) => new Date(b.week_start) - new Date(a.week_start)).map(r => (
+            {[...filtered].sort((a: any, b: any) => +new Date(b.week_start) - +new Date(a.week_start)).map((r: any) => (
               <ReportCard key={r.id} report={r} currentUser={currentUser}
-                onOpen={(rep) => { setEditing(rep); setView('edit'); }}
+                onOpen={(rep: any) => { setEditing(rep); setView('edit'); }}
                 onSubmit={submitReport} onSign={signReport}
                 onDelete={deleteReport} />
             ))}
@@ -813,11 +820,11 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
           message={t('report.deleteConfirm')}
           onConfirm={() => {
             const snapshot = data;
-            const report   = reports.find(r => r.id === confirmDel);
+            const report   = reports.find((r: any) => r.id === confirmDel);
             if (report) {
               onUpdateData(softDelete(data, 'reports', report, currentUser));
             } else {
-              onUpdateData({ ...data, reports: reports.filter(r => r.id !== confirmDel) });
+              onUpdateData({ ...data, reports: reports.filter((r: any) => r.id !== confirmDel) });
             }
             showToast(t('report.deletedToast'), { undo: () => onUpdateData(snapshot) });
             setConfirmDel(null);
@@ -830,7 +837,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         <ShareLinkModal
           kind="jahresmappe"
           title={`Jahresmappe ${new Date().getFullYear()}`}
-          data={{ reports: reports.filter(r => {
+          data={{ reports: reports.filter((r: any) => {
             const iso = getISOWeek(r.week_start);
             const yr  = r.year ?? iso.year ?? new Date(r.week_start).getFullYear();
             return yr === new Date().getFullYear();
