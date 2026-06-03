@@ -1,5 +1,5 @@
-// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import { useState } from "react";
+import type { CSSProperties, ComponentType, ReactNode } from "react";
 import { C, uid, fmtDate } from '../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar, Modal, Field, IconBtn } from '../../components/UI.jsx';
 import { TasksTab, MaterialsTab, RequirementsTab, StepsTab } from './ProjectTabs.jsx';
@@ -14,7 +14,11 @@ import {
 
 const LABEL_PRESETS = ['#0071e3','#3fb950','#f78166','#a371f7','#f0883e','#e3b341','#58a6ff','#ff7b72'];
 
-function LabelsManager({ project, onUpdate }) {
+// Components operate auf dem JSON-"Blob" (Feldnamen weichen vom Zod-Schema ab),
+// daher bewusst `any` für project/user/blob-Werte.
+type UpdateFn = (id: any, patch: any) => void;
+
+function LabelsManager({ project, onUpdate }: { project: any; onUpdate: UpdateFn }) {
   const [name,  setName]  = useState('');
   const [color, setColor] = useState(LABEL_PRESETS[0]);
   const labels = project.labels || [];
@@ -26,11 +30,11 @@ function LabelsManager({ project, onUpdate }) {
     setColor(LABEL_PRESETS[0]);
   };
 
-  const removeLabel = (id) => {
-    onUpdate(project.id, { labels: labels.filter(l => l.id !== id) });
+  const removeLabel = (id: any) => {
+    onUpdate(project.id, { labels: labels.filter((l: any) => l.id !== id) });
     // also strip labelId from tasks
-    const tasks = (project.tasks || []).map(t => ({
-      ...t, labelIds: (t.labelIds || []).filter(x => x !== id)
+    const tasks = (project.tasks || []).map((t: any) => ({
+      ...t, labelIds: (t.labelIds || []).filter((x: any) => x !== id)
     }));
     onUpdate(project.id, { tasks });
   };
@@ -60,7 +64,7 @@ function LabelsManager({ project, onUpdate }) {
 
       {labels.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-          {labels.map(lb => (
+          {labels.map((lb: any) => (
             <div key={lb.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 5, background: lb.color + '22', border: `1.5px solid ${lb.color}60` }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color, display: 'inline-block', flexShrink: 0 }} />
               <span style={{ fontSize: 11, fontWeight: 700, color: lb.color }}>{lb.name}</span>
@@ -78,7 +82,7 @@ function LabelsManager({ project, onUpdate }) {
   );
 }
 
-function CommentsSection({ project, currentUser, onUpdate }) {
+function CommentsSection({ project, currentUser, onUpdate }: { project: any; currentUser: any; onUpdate: UpdateFn }) {
   const [text, setText] = useState('');
   const comments = project.comments || [];
 
@@ -89,7 +93,7 @@ function CommentsSection({ project, currentUser, onUpdate }) {
     setText('');
   };
 
-  const remove = (id) => onUpdate(project.id, { comments: comments.filter(c => c.id !== id) });
+  const remove = (id: any) => onUpdate(project.id, { comments: comments.filter((c: any) => c.id !== id) });
 
   return (
     <section className="card" style={{ marginTop: 16 }}>
@@ -103,7 +107,7 @@ function CommentsSection({ project, currentUser, onUpdate }) {
         <div style={{ fontSize: 12, color: C.mu, fontStyle: 'italic', marginBottom: 14 }}>Noch keine Kommentare</div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: comments.length > 0 ? 14 : 0 }}>
-        {comments.map(c => (
+        {comments.map((c: any) => (
           <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <Avatar name={c.authorName} size={28} />
             <div style={{ flex: 1, background: C.sf3, borderRadius: 8, padding: '8px 11px', border: `1px solid ${C.bd}` }}>
@@ -147,7 +151,7 @@ const TABS = [
 ];
 
 // ── Burndown Chart (H2) ───────────────────────────────────────
-function BurndownTab({ project }) {
+function BurndownTab({ project }: { project: any }) {
   const tasks = project.tasks || [];
   if (tasks.length === 0) return (
     <div className="card anim" style={{ padding: 40, textAlign: 'center', color: C.mu }}>Noch keine Aufgaben für den Burndown-Chart.</div>
@@ -156,14 +160,14 @@ function BurndownTab({ project }) {
   // Build daily snapshots: for each date from startDate to today,
   // count tasks that were NOT done (= remaining work)
   const start = project.startDate ? new Date(project.startDate) : (() => {
-    const dates = tasks.filter(t => t.created).map(t => new Date(t.created));
+    const dates = tasks.filter((t: any) => t.created).map((t: any) => new Date(t.created));
     return dates.length ? new Date(Math.min(...dates)) : new Date();
   })();
   const end   = project.deadline ? new Date(project.deadline) : new Date();
   const today = new Date();
 
   const dayMs  = 86400000;
-  const numDays = Math.max(1, Math.min(120, Math.ceil((end - start) / dayMs) + 1));
+  const numDays = Math.max(1, Math.min(120, Math.ceil(((end as any) - (start as any)) / dayMs) + 1));
 
   // Ideal burndown line: from total tasks → 0 over the period
   const totalTasks = tasks.length;
@@ -175,7 +179,7 @@ function BurndownTab({ project }) {
     const ds = d.toISOString().split('T')[0];
     // remaining = tasks where deadline > d (or no deadline) AND status not done,
     // OR status was done after d (if updated_at is available)
-    const remaining = tasks.filter(t => {
+    const remaining = tasks.filter((t: any) => {
       if (t.status !== 'done') return true;           // still open
       // Check if it was done after this day
       const doneDate = t.updated_at ? t.updated_at.split('T')[0] : null;
@@ -193,14 +197,14 @@ function BurndownTab({ project }) {
   const iW = W - PAD.l - PAD.r;
   const iH = H - PAD.t - PAD.b;
 
-  const xFor = i => PAD.l + (i / Math.max(1, numDays - 1)) * iW;
-  const yFor = v => PAD.t + iH - (v / Math.max(1, totalTasks)) * iH;
+  const xFor = (i: number) => PAD.l + (i / Math.max(1, numDays - 1)) * iW;
+  const yFor = (v: number) => PAD.t + iH - (v / Math.max(1, totalTasks)) * iH;
 
   const idealLine = points.map((p, i) => `${xFor(i)},${yFor(p.ideal)}`).join(' ');
   const actualLine = visPoints.map((p, i) => `${xFor(i)},${yFor(p.remaining)}`).join(' ');
 
-  const donePct  = Math.round((totalTasks - (visPoints.at(-1)?.remaining ?? totalTasks)) / totalTasks * 100);
-  const doneCount = tasks.filter(t => t.status === 'done').length;
+  const donePct  = Math.round((totalTasks - ((visPoints as any).at(-1)?.remaining ?? totalTasks)) / totalTasks * 100);
+  const doneCount = tasks.filter((t: any) => t.status === 'done').length;
 
   // Y-axis labels
   const yLabels = [0, Math.round(totalTasks/4), Math.round(totalTasks/2), Math.round(3*totalTasks/4), totalTasks];
@@ -274,7 +278,17 @@ function BurndownTab({ project }) {
   );
 }
 
-function StatCard({ label, value, sub, color, Icon, onClick, hint }) {
+type StatCardProps = {
+  label: ReactNode;
+  value: ReactNode;
+  sub?: ReactNode;
+  color: string;
+  Icon?: ComponentType<{ size?: number }>;
+  onClick?: () => void;
+  hint?: ReactNode;
+};
+
+function StatCard({ label, value, sub, color, Icon, onClick, hint }: StatCardProps) {
   const [hov, setHov] = useState(false);
   return (
     <div className="card"
@@ -295,28 +309,28 @@ function StatCard({ label, value, sub, color, Icon, onClick, hint }) {
   );
 }
 
-function MaterialsPopup({ project, onUpdate, onClose }) {
-  const [form, setForm] = useState({ name: '', qty: 1, cost: 0 });
+function MaterialsPopup({ project, onUpdate, onClose }: { project: any; onUpdate: UpdateFn; onClose: () => void }) {
+  const [form, setForm] = useState<any>({ name: '', qty: 1, cost: 0 });
   const add = () => {
     if (!form.name.trim()) return;
     onUpdate(project.id, { materials: [...project.materials, { id: uid(), name: form.name.trim(), qty: Number(form.qty) || 1, cost: Number(form.cost) || 0 }] });
     setForm({ name: '', qty: 1, cost: 0 });
   };
-  const remove = id => onUpdate(project.id, { materials: project.materials.filter(m => m.id !== id) });
-  const total = project.materials.reduce((s, m) => s + (m.cost || 0) * (m.qty || 1), 0);
+  const remove = (id: any) => onUpdate(project.id, { materials: project.materials.filter((m: any) => m.id !== id) });
+  const total = project.materials.reduce((s: number, m: any) => s + (m.cost || 0) * (m.qty || 1), 0);
 
   return (
     <Modal title="Materialkosten" onClose={onClose} width={500}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px auto', gap: 8, alignItems: 'flex-end', marginBottom: 14 }}>
-        <div><label>Bezeichnung</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && add()} placeholder="z.B. HDMI-Kabel" autoFocus /></div>
-        <div><label>Menge</label><input type="number" min="1" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} /></div>
-        <div><label>Kosten €</label><input type="number" min="0" step="0.01" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} /></div>
+        <div><label>Bezeichnung</label><input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && add()} placeholder="z.B. HDMI-Kabel" autoFocus /></div>
+        <div><label>Menge</label><input type="number" min="1" value={form.qty} onChange={e => setForm((f: any) => ({ ...f, qty: e.target.value }))} /></div>
+        <div><label>Kosten €</label><input type="number" min="0" step="0.01" value={form.cost} onChange={e => setForm((f: any) => ({ ...f, cost: e.target.value }))} /></div>
         <button className="abtn" onClick={add} style={{ alignSelf: 'flex-end', padding: '7px 12px' }}><IcoPlus size={13} /></button>
       </div>
       <div style={{ background: 'var(--c-sf3)', borderRadius: 8, overflow: 'hidden', border: `1px solid var(--c-bd)` }}>
         {project.materials.length === 0 ? (
           <div style={{ padding: '16px', textAlign: 'center', color: C.mu, fontSize: 12 }}>Noch kein Material</div>
-        ) : project.materials.map(m => (
+        ) : project.materials.map((m: any) => (
           <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 28px', padding: '8px 12px', borderBottom: `1px solid var(--c-bd)22`, alignItems: 'center', fontSize: 12 }}>
             <span style={{ fontWeight: 600, color: C.br }}>{m.name}</span>
             <span style={{ fontFamily: C.mono, color: C.mu }}>{m.qty}×</span>
@@ -336,7 +350,7 @@ function MaterialsPopup({ project, onUpdate, onClose }) {
   );
 }
 
-function ZeitraumPopup({ project, onUpdate, onClose }) {
+function ZeitraumPopup({ project, onUpdate, onClose }: { project: any; onUpdate: UpdateFn; onClose: () => void }) {
   const [startDate, setStart]    = useState(project.startDate || '');
   const [deadline,  setDeadline] = useState(project.deadline  || '');
   const save = () => { onUpdate(project.id, { startDate, deadline }); onClose(); };
@@ -356,12 +370,12 @@ function ZeitraumPopup({ project, onUpdate, onClose }) {
   );
 }
 
-function RequirementsPopup({ project, onUpdate, onClose }) {
+function RequirementsPopup({ project, onUpdate, onClose }: { project: any; onUpdate: UpdateFn; onClose: () => void }) {
   const [text, setText] = useState('');
   const add    = () => { if (!text.trim()) return; onUpdate(project.id, { requirements: [...project.requirements, { id: uid(), text: text.trim(), done: false }] }); setText(''); };
-  const toggle = id => onUpdate(project.id, { requirements: project.requirements.map(r => r.id === id ? { ...r, done: !r.done } : r) });
-  const remove = id => onUpdate(project.id, { requirements: project.requirements.filter(r => r.id !== id) });
-  const done  = project.requirements.filter(r => r.done).length;
+  const toggle = (id: any) => onUpdate(project.id, { requirements: project.requirements.map((r: any) => r.id === id ? { ...r, done: !r.done } : r) });
+  const remove = (id: any) => onUpdate(project.id, { requirements: project.requirements.filter((r: any) => r.id !== id) });
+  const done  = project.requirements.filter((r: any) => r.done).length;
   const pct   = project.requirements.length ? Math.round(done / project.requirements.length * 100) : 0;
   return (
     <Modal title="Anforderungen" onClose={onClose} width={480}>
@@ -375,7 +389,7 @@ function RequirementsPopup({ project, onUpdate, onClose }) {
           <div style={{ fontSize: 10, color: C.mu, marginTop: 3 }}>{done}/{project.requirements.length} erfüllt</div>
         </div>
       )}
-      {project.requirements.map(r => (
+      {project.requirements.map((r: any) => (
         <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--c-sf3)', border: `1px solid ${r.done ? C.gr + '30' : 'var(--c-bd)'}`, borderRadius: 7, marginBottom: 5 }}>
           <button onClick={() => toggle(r.id)} style={{ width: 17, height: 17, borderRadius: 4, border: `2px solid ${r.done ? C.gr : 'var(--c-bd2)'}`, background: r.done ? C.gr : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .12s' }}>
             {r.done && <IcoCheck size={9} style={{ color: '#fff' }} />}
@@ -388,7 +402,7 @@ function RequirementsPopup({ project, onUpdate, onClose }) {
   );
 }
 
-function LinksPopup({ project, onUpdate, onClose }) {
+function LinksPopup({ project, onUpdate, onClose }: any) {
   return (
     <Modal title="Links & Ressourcen" onClose={onClose} width={520}>
       <LinksManager links={project.links || []} onUpdate={links => onUpdate(project.id, { links })} />
@@ -396,14 +410,14 @@ function LinksPopup({ project, onUpdate, onClose }) {
   );
 }
 
-export default function ProjectDetail({ project, users, groups, currentUser, onUpdate, onBack, onArchive, showToast, onActivity }) {
+export default function ProjectDetail({ project, users, groups, currentUser, onUpdate, onBack, onArchive, showToast, onActivity }: any) {
   const [tab,       setTab]      = useState('overview');
   const [editMode,  setEditMode] = useState(false);
   const [form,      setForm]     = useState({ ...project });
   const [saving,    setSaving]   = useState(false);
-  const [popup, setPopup] = useState(null);
+  const [popup, setPopup] = useState<string | null>(null);
 
-  const uf = (f, v) => setForm(p => ({ ...p, [f]: v }));
+  const uf = (f: any, v: any) => setForm((p: any) => ({ ...p, [f]: v }));
 
   const save = () => {
     setSaving(true);
@@ -412,17 +426,17 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
   };
   const cancel = () => { setForm({ ...project }); setEditMode(false); };
 
-  const totalCost    = project.materials.reduce((s, m) => s + (m.cost || 0) * (m.qty || 1), 0);
-  const doneReq      = project.requirements.filter(r => r.done).length;
-  const doneTasks    = project.tasks.filter(t => t.status === 'done' || t.done).length;
+  const totalCost    = project.materials.reduce((s: any, m: any) => s + (m.cost || 0) * (m.qty || 1), 0);
+  const doneReq      = project.requirements.filter((r: any) => r.done).length;
+  const doneTasks    = project.tasks.filter((t: any) => t.status === 'done' || t.done).length;
   const taskPct      = project.tasks.length > 0 ? Math.round(doneTasks / project.tasks.length * 100) : 0;
-  const group        = groups.find(g => g.id === project.groupId);
-  const assignedUsers = users.filter(u => project.assignees.includes(u.id));
+  const group        = groups.find((g: any) => g.id === project.groupId);
+  const assignedUsers = users.filter((u: any) => project.assignees.includes(u.id));
   const isOverdue    = project.deadline && new Date(project.deadline) < new Date() && project.status !== 'green';
   const linkCount    = (project.links || []).length;
-  const activeCount  = project.tasks.filter(t => t.status === 'in_progress').length;
+  const activeCount  = project.tasks.filter((t: any) => t.status === 'in_progress').length;
 
-  const goTab = t => { setTab(t); setPopup(null); };
+  const goTab = (t: any) => { setTab(t); setPopup(null); };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }} className="anim">
@@ -521,11 +535,11 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 <label>Zugewiesen</label>
                 {editMode ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                    {users.filter(u => u.role === 'azubi').map(u => {
+                    {users.filter((u: any) => u.role === 'azubi').map((u: any) => {
                       const sel = form.assignees.includes(u.id);
                       return (
                         <button key={u.id} aria-pressed={sel}
-                          onClick={() => uf('assignees', sel ? form.assignees.filter(x => x !== u.id) : [...form.assignees, u.id])}
+                          onClick={() => uf('assignees', sel ? form.assignees.filter((x: any) => x !== u.id) : [...form.assignees, u.id])}
                           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 7, background: sel ? C.acd : 'var(--c-sf2)', border: `1px solid ${sel ? C.ac : 'var(--c-bd2)'}`, cursor: 'pointer', transition: 'all .12s' }}>
                           <Avatar name={u.name} size={18} />
                           <span style={{ fontSize: 12, fontWeight: 600, color: sel ? C.ac : C.tx }}>{u.name}</span>
@@ -538,7 +552,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
                     {assignedUsers.length === 0
                       ? <span style={{ fontSize: 12, color: C.mu, fontStyle: 'italic' }}>Niemand zugewiesen</span>
-                      : assignedUsers.map(u => (
+                      : assignedUsers.map((u: any) => (
                           <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px', background: 'var(--c-sf2)', borderRadius: 7, border: `1px solid var(--c-bd)` }}>
                             <Avatar name={u.name} size={24} />
                             <div>
@@ -556,7 +570,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 {editMode
                   ? <select value={form.groupId || ''} onChange={e => uf('groupId', e.target.value || null)}>
                       <option value="">— Keine Gruppe —</option>
-                      {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      {groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
                   : <div style={{ fontSize: 13, color: group ? C.tx : C.mu, marginTop: 4 }}>
                       {group
@@ -623,7 +637,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                   Links
                   <span style={{ fontSize: 9, color: C.ac, fontWeight: 700 }}>{linkCount > 0 ? `${linkCount} · Bearbeiten →` : '+ Hinzufügen →'}</span>
                 </div>
-                {linkCount > 0 && (project.links || []).slice(0, 3).map(l => (
+                {linkCount > 0 && (project.links || []).slice(0, 3).map((l: any) => (
                   <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', fontSize: 11, color: C.ac, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <IcoLink size={10} style={{ flexShrink: 0 }} />
                     {l.title || l.url}

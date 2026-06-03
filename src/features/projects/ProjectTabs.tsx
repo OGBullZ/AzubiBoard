@@ -1,4 +1,3 @@
-// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import { useState } from "react";
 import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, useDraggable } from '@dnd-kit/core';
 import { C, uid, today, fmtDate } from '../../lib/utils.js';
@@ -10,7 +9,7 @@ import {
   IcoClock, IcoChevronD, IcoMaterial
 } from '../../components/Icons.jsx';
 
-const TASK_STATUS = {
+const TASK_STATUS: Record<string, { label: string; color: string; bg: string; Icon: any }> = {
   in_progress: { label: 'In Bearbeitung', color: C.ac,  bg: 'var(--c-acd)',      Icon: IcoPlay   },
   not_started: { label: 'Nicht begonnen', color: C.mu,  bg: 'var(--c-sf2)',      Icon: IcoCheck  },
   waiting:     { label: 'Wartend',        color: C.yw,  bg: 'var(--c-ywd)',      Icon: IcoPause  },
@@ -18,17 +17,17 @@ const TASK_STATUS = {
   done:        { label: 'Erledigt',       color: C.gr,  bg: 'var(--st-green-bg)', Icon: IcoCheck },
 };
 const STATUS_ORDER = ['in_progress','not_started','waiting','blocked','done'];
-const PRIORITY = {
+const PRIORITY: Record<string, { l: string; c: string }> = {
   high:   { l: 'Hoch',    c: C.cr },
   medium: { l: 'Mittel',  c: C.yw },
   low:    { l: 'Niedrig', c: C.mu },
 };
 
-function mkTask(overrides = {}) {
+function mkTask(overrides: any = {}) {
   return { id: uid(), text: '', status: 'not_started', priority: 'medium', assignee: null, deadline: '', note: '', doc: '', protocol: '', links: [], labelIds: [], estimatedHours: 0, timeLog: [], created: today(), ...overrides };
 }
 
-function LabelChip({ label, tiny = false }) {
+function LabelChip({ label, tiny = false }: { label: any; tiny?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: tiny ? 9 : 10, fontWeight: 700, color: '#fff', background: label.color, borderRadius: 4, padding: tiny ? '1px 5px' : '2px 7px', lineHeight: 1.3 }}>
       {label.name}
@@ -37,12 +36,12 @@ function LabelChip({ label, tiny = false }) {
 }
 
 // ── Zeit-Tab (Stunden-Log) ────────────────────────────────────
-function ZeitTab({ task, onUpdate, currentUser }) {
+function ZeitTab({ task, onUpdate, currentUser }: { task: any; onUpdate: any; currentUser: any }) {
   const [hours, setHours] = useState('');
   const [desc,  setDesc]  = useState('');
 
   const timeLog     = task.timeLog || [];
-  const totalLogged = timeLog.reduce((s, e) => s + (Number(e.hours) || 0), 0);
+  const totalLogged = timeLog.reduce((s: number, e: any) => s + (Number(e.hours) || 0), 0);
   const estimated   = Number(task.estimatedHours) || 0;
   const pct         = estimated > 0 ? Math.min(100, Math.round(totalLogged / estimated * 100)) : 0;
 
@@ -62,8 +61,8 @@ function ZeitTab({ task, onUpdate, currentUser }) {
     setDesc('');
   };
 
-  const removeEntry = (entryId) =>
-    onUpdate(task.id, { timeLog: timeLog.filter(e => e.id !== entryId) });
+  const removeEntry = (entryId: any) =>
+    onUpdate(task.id, { timeLog: timeLog.filter((e: any) => e.id !== entryId) });
 
   return (
     <div>
@@ -126,13 +125,13 @@ function ZeitTab({ task, onUpdate, currentUser }) {
   );
 }
 
-function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels, selected, onToggleSelect }) {
-  const assignee   = users.find(u => u.id === task.assignee);
+function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels, selected, onToggleSelect }: any) {
+  const assignee   = users.find((u: any) => u.id === task.assignee);
   const st         = TASK_STATUS[task.status] || TASK_STATUS.not_started;
   const pr         = PRIORITY[task.priority]  || PRIORITY.medium;
   const over       = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
   const lc         = (task.links || []).length;
-  const taskLabels = (projectLabels || []).filter(lb => (task.labelIds || []).includes(lb.id));
+  const taskLabels = (projectLabels || []).filter((lb: any) => (task.labelIds || []).includes(lb.id));
 
   return (
     <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? C.ac + '70' : isOpen ? st.color + '50' : C.bd}`, background: selected ? C.acd + '44' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
@@ -174,7 +173,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
               </span>
             )}
             {(task.timeLog || []).length > 0 && (() => {
-              const logged = (task.timeLog || []).reduce((s, e) => s + (Number(e.hours) || 0), 0);
+              const logged = (task.timeLog || []).reduce((s: number, e: any) => s + (Number(e.hours) || 0), 0);
               const est    = Number(task.estimatedHours) || 0;
               const over   = est > 0 && logged > est;
               return (
@@ -183,7 +182,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
                 </span>
               );
             })()}
-            {taskLabels.map(lb => <LabelChip key={lb.id} label={lb} tiny />)}
+            {taskLabels.map((lb: any) => <LabelChip key={lb.id} label={lb} tiny />)}
           </div>
         </div>
 
@@ -224,7 +223,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
                 style={{ fontSize: 11, padding: '3px 9px', borderRadius: 6, background: !task.assignee ? C.acd : C.sf2, border: `1px solid ${!task.assignee ? C.ac : C.bd2}`, color: !task.assignee ? C.ac : C.mu, cursor: 'pointer' }}>
                 Niemand
               </button>
-              {users.map(u => (
+              {users.map((u: any) => (
                 <button key={u.id} onClick={() => onUpdate(task.id, { assignee: u.id })} aria-pressed={task.assignee === u.id}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 6, background: task.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${task.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer', transition: 'all .12s' }}>
                   <Avatar name={u.name} size={16} />
@@ -238,12 +237,12 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
             <div>
               <label>Labels</label>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
-                {(projectLabels || []).map(lb => {
+                {(projectLabels || []).map((lb: any) => {
                   const active = (task.labelIds || []).includes(lb.id);
                   return (
                     <button key={lb.id} onClick={() => {
                       const ids = task.labelIds || [];
-                      onUpdate(task.id, { labelIds: active ? ids.filter(x => x !== lb.id) : [...ids, lb.id] });
+                      onUpdate(task.id, { labelIds: active ? ids.filter((x: any) => x !== lb.id) : [...ids, lb.id] });
                     }}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, border: `2px solid ${active ? lb.color : C.bd2}`, background: active ? lb.color + '22' : C.sf2, color: active ? lb.color : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color, display: 'inline-block', flexShrink: 0 }} />
@@ -263,10 +262,10 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   );
 }
 
-function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }) {
+function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { task: any; onUpdate: any; projectMaterials?: any[]; currentUser: any }) {
   const [active, setActive] = useState('note');
   const lc         = (task.links || []).length;
-  const zeitLogged = (task.timeLog || []).reduce((s, e) => s + (Number(e.hours) || 0), 0);
+  const zeitLogged = (task.timeLog || []).reduce((s: number, e: any) => s + (Number(e.hours) || 0), 0);
 
   const TABS = [
     { k: 'note',     l: 'Notiz',     Icon: IcoNote, val: task.note,     ph: 'Kurze Notiz, Hinweis für andere…' },
@@ -275,7 +274,7 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }) {
   ];
   const cur = TABS.find(t => t.k === active);
 
-  const tabBtn = (key, icon, label, accentColor = C.ac, accentBg = C.acd) => {
+  const tabBtn = (key: string, icon: any, label: any, accentColor = C.ac, accentBg = C.acd) => {
     const isActive = active === key;
     return (
       <button onClick={() => setActive(key)}
@@ -315,7 +314,7 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }) {
           <LinksManager links={task.links || []} onUpdate={links => onUpdate(task.id, { links })} compact />
         ) : active === 'materials' ? (
           <MaterialRef materials={projectMaterials} taskRef={task.materialRef || []}
-            onUpdate={refs => onUpdate(task.id, { materialRef: refs })} />
+            onUpdate={(refs: any) => onUpdate(task.id, { materialRef: refs })} />
         ) : active === 'zeit' ? (
           <ZeitTab task={task} onUpdate={onUpdate} currentUser={currentUser} />
         ) : (
@@ -327,15 +326,15 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }) {
   );
 }
 
-function MaterialRef({ materials, taskRef, onUpdate }) {
-  const toggleRef = (id) => {
-    const updated = taskRef.includes(id) ? taskRef.filter(r => r !== id) : [...taskRef, id];
+function MaterialRef({ materials, taskRef, onUpdate }: { materials: any[]; taskRef: any[]; onUpdate: any }) {
+  const toggleRef = (id: any) => {
+    const updated = taskRef.includes(id) ? taskRef.filter((r: any) => r !== id) : [...taskRef, id];
     onUpdate(updated);
   };
   return (
     <div>
       <div style={{ fontSize: 10, color: C.mu, marginBottom: 7 }}>Materialien die für diese Aufgabe benötigt werden:</div>
-      {materials.map(m => {
+      {materials.map((m: any) => {
         const sel = taskRef.includes(m.id);
         return (
           <div key={m.id} onClick={() => toggleRef(m.id)}
@@ -352,8 +351,8 @@ function MaterialRef({ materials, taskRef, onUpdate }) {
   );
 }
 
-function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels, selection, onToggleSelect }) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
+function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels, selection, onToggleSelect }: any) {
+  const [collapsed, setCollapsed] = useState<boolean>(defaultCollapsed ?? false);
   const st = TASK_STATUS[status];
   if (!tasks.length) return null;
 
@@ -368,12 +367,12 @@ function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, 
       </button>
       {!collapsed && (
         <div style={{ background: C.sf3, border: `1px solid ${st.color}18`, borderTop: 'none', borderRadius: '0 0 7px 7px', padding: '5px 5px 3px' }}>
-          {[...tasks].sort((a, b) => {
+          {[...tasks].sort((a: any, b: any) => {
             if (!a.deadline && !b.deadline) return 0;
             if (!a.deadline) return 1;
             if (!b.deadline) return -1;
-            return new Date(a.deadline) - new Date(b.deadline);
-          }).map(t => (
+            return +new Date(a.deadline) - +new Date(b.deadline);
+          }).map((t: any) => (
             <TaskCard key={t.id} task={t} users={users} currentUser={currentUser}
               isOpen={openTask === t.id} onToggle={() => onToggleTask(t.id)}
               onUpdate={onUpdate} onRemove={onRemove}
@@ -387,8 +386,8 @@ function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, 
 }
 
 // ── Kanban Card ───────────────────────────────────────────────
-function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }) {
-  const assignee = users.find(u => u.id === task.assignee);
+function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: any) {
+  const assignee = users.find((u: any) => u.id === task.assignee);
   const pr  = PRIORITY[task.priority] || PRIORITY.medium;
   const st  = TASK_STATUS[task.status] || TASK_STATUS.not_started;
   const over = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
@@ -428,7 +427,7 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }) {
 }
 
 // ── Kanban DnD ────────────────────────────────────────────────
-function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }) {
+function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: any) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
@@ -438,7 +437,7 @@ function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }
   );
 }
 
-function DroppableColumn({ status, children }) {
+function DroppableColumn({ status, children }: { status: string; children: any }) {
   const { isOver, setNodeRef } = useDroppable({ id: status });
   const st = TASK_STATUS[status];
   return (
@@ -450,8 +449,8 @@ function DroppableColumn({ status, children }) {
 }
 
 // ── Kanban Board ──────────────────────────────────────────────
-function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
-  const [activeId, setActiveId] = useState(null);
+function KanbanBoard({ tasks, users, onUpdate, onRemove }: any) {
+  const [activeId, setActiveId] = useState<any>(null);
   // PointerSensor: Maus/Stift (8 px Toleranz für Klick-vs-Drag).
   // TouchSensor: 200 ms Press + 5 px Toleranz für mobile Geräte (verhindert Scroll-Konflikt).
   // KeyboardSensor: Tab + Space + Pfeiltasten für a11y.
@@ -460,12 +459,12 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
     useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor),
   );
-  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+  const activeTask = activeId ? tasks.find((t: any) => t.id === activeId) : null;
   const activeIdx  = activeTask ? STATUS_ORDER.indexOf(activeTask.status || 'not_started') : 0;
 
-  const handleDragEnd = ({ active, over }) => {
+  const handleDragEnd = ({ active, over }: any) => {
     if (!over) { setActiveId(null); return; }
-    const fromStatus = tasks.find(t => t.id === active.id)?.status || 'not_started';
+    const fromStatus = tasks.find((t: any) => t.id === active.id)?.status || 'not_started';
     if (over.id !== fromStatus) {
       onUpdate(active.id, { status: over.id });
     }
@@ -474,13 +473,13 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
 
   return (
     <DndContext sensors={sensors}
-      onDragStart={({ active }) => setActiveId(active.id)}
+      onDragStart={({ active }: any) => setActiveId(active.id)}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}>
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
         {STATUS_ORDER.map((status, idx) => {
           const st   = TASK_STATUS[status];
-          const cols = tasks.filter(t => (t.status || 'not_started') === status);
+          const cols = tasks.filter((t: any) => (t.status || 'not_started') === status);
           return (
             <div key={status} style={{ minWidth: 200, flex: '0 0 200px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: st.bg, border: `1px solid ${st.color}28`, borderRadius: '8px 8px 0 0' }}>
@@ -489,7 +488,7 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
                 <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `${st.color}18`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
               </div>
               <DroppableColumn status={status}>
-                {cols.map(task => (
+                {cols.map((task: any) => (
                   <DraggableCard key={task.id} task={task} users={users} statusIdx={idx} totalCols={STATUS_ORDER.length} onUpdate={onUpdate} onRemove={onRemove} />
                 ))}
                 {cols.length === 0 && !activeId && (
@@ -511,33 +510,33 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }) {
   );
 }
 
-export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) {
-  const [openTask,     setOpenTask]     = useState(null);
+export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: any) {
+  const [openTask,     setOpenTask]     = useState<any>(null);
   const [showAdd,      setShowAdd]      = useState(false);
-  const [newTask,      setNewTask]      = useState(mkTask({ assignee: currentUser.id }));
+  const [newTask,      setNewTask]      = useState<any>(mkTask({ assignee: currentUser.id }));
   const [viewMode,     setViewMode]     = useState('list');
-  const [filterLabel,  setFilterLabel]  = useState(null);
-  const [selection,    setSelection]    = useState(new Set());
+  const [filterLabel,  setFilterLabel]  = useState<any>(null);
+  const [selection,    setSelection]    = useState<Set<any>>(new Set());
 
-  const toggleSelect   = (id) => setSelection(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const toggleSelect   = (id: any) => setSelection(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const clearSelection = () => setSelection(new Set());
-  const selectAll      = () => setSelection(new Set(visibleTasks.map(t => t.id)));
+  const selectAll      = () => setSelection(new Set(visibleTasks.map((t: any) => t.id)));
 
-  const bulkSetStatus = (status) => {
-    onUpdate(project.id, { tasks: (project.tasks||[]).map(t => selection.has(t.id) ? { ...t, status } : t) });
+  const bulkSetStatus = (status: any) => {
+    onUpdate(project.id, { tasks: (project.tasks||[]).map((t: any) => selection.has(t.id) ? { ...t, status } : t) });
     clearSelection();
   };
   const bulkDelete = () => {
-    onUpdate(project.id, { tasks: (project.tasks||[]).filter(t => !selection.has(t.id)) });
+    onUpdate(project.id, { tasks: (project.tasks||[]).filter((t: any) => !selection.has(t.id)) });
     clearSelection();
   };
 
   const projectLabels = project.labels || [];
-  const assignable = users.filter(u => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
+  const assignable = users.filter((u: any) => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
 
-  const updateTask = (taskId, patch) => {
+  const updateTask = (taskId: any, patch: any) => {
     if (patch.status === 'done') {
-      const task = (project.tasks||[]).find(t => t.id === taskId);
+      const task = (project.tasks||[]).find((t: any) => t.id === taskId);
       if (task && task.status !== 'done') {
         onActivity?.({
           type: 'task_done',
@@ -550,10 +549,10 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
         });
       }
     }
-    onUpdate(project.id, { tasks: (project.tasks||[]).map(t => t.id === taskId ? { ...t, ...patch } : t) });
+    onUpdate(project.id, { tasks: (project.tasks||[]).map((t: any) => t.id === taskId ? { ...t, ...patch } : t) });
   };
-  const removeTask = (taskId) => {
-    onUpdate(project.id, { tasks: (project.tasks||[]).filter(t => t.id !== taskId) });
+  const removeTask = (taskId: any) => {
+    onUpdate(project.id, { tasks: (project.tasks||[]).filter((t: any) => t.id !== taskId) });
     if (openTask === taskId) setOpenTask(null);
   };
   const addTask = () => {
@@ -574,29 +573,29 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
 
   const allTasks  = project.tasks || [];
   const visibleTasks = filterLabel
-    ? allTasks.filter(t => (t.labelIds || []).includes(filterLabel))
+    ? allTasks.filter((t: any) => (t.labelIds || []).includes(filterLabel))
     : allTasks;
 
   const total = allTasks.length;
-  const done  = allTasks.filter(t => t.status === 'done' || t.done).length;
+  const done  = allTasks.filter((t: any) => t.status === 'done' || t.done).length;
   const pct   = total > 0 ? Math.round(done / total * 100) : 0;
 
-  const grouped = STATUS_ORDER.reduce((acc, s) => {
-    acc[s] = visibleTasks.filter(t => (t.status || 'not_started') === s);
+  const grouped = STATUS_ORDER.reduce((acc: any, s) => {
+    acc[s] = visibleTasks.filter((t: any) => (t.status || 'not_started') === s);
     return acc;
-  }, {});
+  }, {} as any);
 
   const activeWorkers = (project.tasks||[])
-    .filter(t => t.status === 'in_progress' && t.assignee)
-    .map(t => ({ task: t, user: users.find(u => u.id === t.assignee) }))
-    .filter(x => x.user);
+    .filter((t: any) => t.status === 'in_progress' && t.assignee)
+    .map((t: any) => ({ task: t, user: users.find((u: any) => u.id === t.assignee) }))
+    .filter((x: any) => x.user);
 
   return (
     <div className="anim">
       {activeWorkers.length > 0 && (
         <div style={{ background: C.acd, border: `1px solid ${C.ac}28`, borderRadius: 8, padding: '7px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, color: C.ac, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><IcoPlay size={11} /> Aktiv:</span>
-          {activeWorkers.map(({ task, user }) => (
+          {activeWorkers.map(({ task, user }: any) => (
             <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.sf2, borderRadius: 6, padding: '3px 8px', border: `1px solid ${C.ac}20` }}>
               <div style={{ position: 'relative' }}><Avatar name={user.name} size={18} />
                 <div style={{ position: 'absolute', bottom: -1, right: -1, width: 6, height: 6, borderRadius: '50%', background: C.gr, border: `1px solid ${C.sf2}` }} />
@@ -637,17 +636,17 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
         {showAdd && (
           <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.bd}` }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 145px 105px', gap: 8, marginBottom: 7 }}>
-              <div><label>Aufgabe</label><input autoFocus value={newTask.text} onChange={e => setNewTask(t => ({ ...t, text: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addTask()} placeholder="Aufgabenbeschreibung…" /></div>
+              <div><label>Aufgabe</label><input autoFocus value={newTask.text} onChange={e => setNewTask((t: any) => ({ ...t, text: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addTask()} placeholder="Aufgabenbeschreibung…" /></div>
               <div><label>Status</label>
-                <select value={newTask.status} onChange={e => setNewTask(t => ({ ...t, status: e.target.value }))}>
+                <select value={newTask.status} onChange={e => setNewTask((t: any) => ({ ...t, status: e.target.value }))}>
                   {Object.entries(TASK_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
-              <div><label>Deadline</label><input type="date" value={newTask.deadline} onChange={e => setNewTask(t => ({ ...t, deadline: e.target.value }))} /></div>
+              <div><label>Deadline</label><input type="date" value={newTask.deadline} onChange={e => setNewTask((t: any) => ({ ...t, deadline: e.target.value }))} /></div>
             </div>
             <div style={{ display: 'flex', gap: 5, marginBottom: 7, flexWrap: 'wrap' }}>
-              {assignable.map(u => (
-                <button key={u.id} onClick={() => setNewTask(t => ({ ...t, assignee: t.assignee === u.id ? null : u.id }))}
+              {assignable.map((u: any) => (
+                <button key={u.id} onClick={() => setNewTask((t: any) => ({ ...t, assignee: t.assignee === u.id ? null : u.id }))}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 6, background: newTask.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${newTask.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer' }}>
                   <Avatar name={u.name} size={15} />
                   <span style={{ color: newTask.assignee === u.id ? C.ac : C.tx }}>{u.name.split(' ')[0]}</span>
@@ -668,7 +667,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
             style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `1px solid ${!filterLabel ? C.ac : C.bd2}`, background: !filterLabel ? C.acd : C.sf2, color: !filterLabel ? C.ac : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
             Alle
           </button>
-          {projectLabels.map(lb => (
+          {projectLabels.map((lb: any) => (
             <button key={lb.id} onClick={() => setFilterLabel(filterLabel === lb.id ? null : lb.id)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `2px solid ${filterLabel === lb.id ? lb.color : lb.color + '50'}`, background: filterLabel === lb.id ? lb.color + '22' : C.sf2, color: filterLabel === lb.id ? lb.color : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: lb.color, display: 'inline-block', flexShrink: 0 }} />
@@ -712,13 +711,13 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
               )}
               {STATUS_ORDER.filter(s => s !== 'done').map(s => (
                 <TaskGroup key={s} status={s} tasks={grouped[s]} users={assignable} currentUser={currentUser}
-                  openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
+                  openTask={openTask} onToggleTask={(id: any) => setOpenTask(openTask === id ? null : id)}
                   onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={false}
                   projectMaterials={project.materials || []} projectLabels={projectLabels}
                   selection={selection} onToggleSelect={toggleSelect} />
               ))}
               <TaskGroup status="done" tasks={grouped.done} users={assignable} currentUser={currentUser}
-                openTask={openTask} onToggleTask={id => setOpenTask(openTask === id ? null : id)}
+                openTask={openTask} onToggleTask={(id: any) => setOpenTask(openTask === id ? null : id)}
                 onUpdate={updateTask} onRemove={removeTask} defaultCollapsed={true}
                 projectMaterials={project.materials || []} projectLabels={projectLabels}
                 selection={selection} onToggleSelect={toggleSelect} />
@@ -727,9 +726,9 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }) 
   );
 }
 
-export function MaterialsTab({ project, onUpdate }) {
+export function MaterialsTab({ project, onUpdate }: any) {
   const tasks   = project.tasks || [];
-  const [form, setForm] = useState({ name: '', qty: 1, cost: 0, taskId: '' });
+  const [form, setForm] = useState<any>({ name: '', qty: 1, cost: 0, taskId: '' });
 
   const add = () => {
     if (!form.name.trim()) return;
@@ -745,18 +744,18 @@ export function MaterialsTab({ project, onUpdate }) {
     setForm({ name: '', qty: 1, cost: 0, taskId: '' });
   };
 
-  const remove = id => onUpdate(project.id, { materials: (project.materials||[]).filter(m => m.id !== id) });
-  const total  = (project.materials||[]).reduce((s,m) => s + (m.cost||0)*(m.qty||1), 0);
+  const remove = (id: any) => onUpdate(project.id, { materials: (project.materials||[]).filter((m: any) => m.id !== id) });
+  const total  = (project.materials||[]).reduce((s: number, m: any) => s + (m.cost||0)*(m.qty||1), 0);
 
   // Sortierung: zuerst nach Aufgabe (alphabetisch nach Aufgaben-Text), dann ohne Aufgabe
-  const taskOrder = tasks.reduce((acc, t, i) => { acc[t.id] = i; return acc; }, {});
-  const sorted = [...(project.materials||[])].sort((a, b) => {
+  const taskOrder = tasks.reduce((acc: any, t: any, i: number) => { acc[t.id] = i; return acc; }, {} as any);
+  const sorted = [...(project.materials||[])].sort((a: any, b: any) => {
     const ia = a.taskId != null ? (taskOrder[a.taskId] ?? 9999) : 9999;
     const ib = b.taskId != null ? (taskOrder[b.taskId] ?? 9999) : 9999;
     return ia - ib;
   });
 
-  const taskName = id => tasks.find(t => t.id === id)?.text || '—';
+  const taskName = (id: any) => tasks.find((t: any) => t.id === id)?.text || '—';
 
   const COLS = '2fr 1fr 70px 90px 90px 36px';
 
@@ -764,18 +763,18 @@ export function MaterialsTab({ project, onUpdate }) {
     <div className="anim">
       <div className="card" style={{ marginBottom: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 8 }}>
-          <div><label>Bezeichnung</label><input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="z.B. HDMI-Kabel" /></div>
+          <div><label>Bezeichnung</label><input value={form.name} onChange={e => setForm((f: any)=>({...f,name:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="z.B. HDMI-Kabel" /></div>
           <div>
             <label>Aufgabe</label>
-            <select value={form.taskId} onChange={e => setForm(f=>({...f,taskId:e.target.value}))} style={{ appearance:'auto' }}>
+            <select value={form.taskId} onChange={e => setForm((f: any)=>({...f,taskId:e.target.value}))} style={{ appearance:'auto' }}>
               <option value="">— keine Aufgabe —</option>
-              {tasks.map(t => <option key={t.id} value={t.id}>{t.text || 'Unbenannte Aufgabe'}</option>)}
+              {tasks.map((t: any) => <option key={t.id} value={t.id}>{t.text || 'Unbenannte Aufgabe'}</option>)}
             </select>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '70px 90px auto', gap: 8, alignItems: 'flex-end' }}>
-          <div><label>Menge</label><input type="number" min="1" value={form.qty} onChange={e=>setForm(f=>({...f,qty:e.target.value}))} /></div>
-          <div><label>Kosten €</label><input type="number" min="0" step="0.01" value={form.cost} onChange={e=>setForm(f=>({...f,cost:e.target.value}))} /></div>
+          <div><label>Menge</label><input type="number" min="1" value={form.qty} onChange={e=>setForm((f: any)=>({...f,qty:e.target.value}))} /></div>
+          <div><label>Kosten €</label><input type="number" min="0" step="0.01" value={form.cost} onChange={e=>setForm((f: any)=>({...f,cost:e.target.value}))} /></div>
           <button className="abtn" onClick={add} style={{ alignSelf:'flex-end',padding:'7px 12px' }}>+ Hinzufügen</button>
         </div>
       </div>
@@ -809,12 +808,12 @@ export function MaterialsTab({ project, onUpdate }) {
   );
 }
 
-export function RequirementsTab({ project, onUpdate }) {
+export function RequirementsTab({ project, onUpdate }: any) {
   const [text,setText]=useState('');
   const add    = () => { if(!text.trim())return; onUpdate(project.id,{requirements:[...(project.requirements||[]),{id:uid(),text:text.trim(),done:false}]}); setText(''); };
-  const toggle = id => onUpdate(project.id,{requirements:(project.requirements||[]).map(r=>r.id===id?{...r,done:!r.done}:r)});
-  const remove = id => onUpdate(project.id,{requirements:(project.requirements||[]).filter(r=>r.id!==id)});
-  const done   = (project.requirements||[]).filter(r=>r.done).length;
+  const toggle = (id: any) => onUpdate(project.id,{requirements:(project.requirements||[]).map((r: any)=>r.id===id?{...r,done:!r.done}:r)});
+  const remove = (id: any) => onUpdate(project.id,{requirements:(project.requirements||[]).filter((r: any)=>r.id!==id)});
+  const done   = (project.requirements||[]).filter((r: any)=>r.done).length;
   const pct    = (project.requirements||[]).length ? Math.round(done/(project.requirements||[]).length*100) : 0;
 
   return (
@@ -833,7 +832,7 @@ export function RequirementsTab({ project, onUpdate }) {
           <span style={{fontSize:10,color:C.gr,fontFamily:C.mono,fontWeight:700}}>{pct}%</span>
         </div>
       )}
-      {(project.requirements||[]).map(r => (
+      {(project.requirements||[]).map((r: any) => (
         <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',background:C.sf2,border:`1px solid ${r.done?C.gr+'28':C.bd}`,borderRadius:7,marginBottom:4,transition:'border-color .15s'}}>
           <button onClick={()=>toggle(r.id)} style={{width:18,height:18,borderRadius:4,border:`2px solid ${r.done?C.gr:C.bd2}`,background:r.done?C.gr:'transparent',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .12s'}}>
             {r.done && <IcoCheck size={10} style={{color:'#fff'}} />}
@@ -848,12 +847,12 @@ export function RequirementsTab({ project, onUpdate }) {
   );
 }
 
-export function StepsTab({ project, onUpdate }) {
+export function StepsTab({ project, onUpdate }: any) {
   const [form, setForm] = useState({ title: '', date: today(), note: '' });
-  const [open, setOpen] = useState(null);
+  const [open, setOpen] = useState<any>(null);
   const add    = () => { if(!form.title.trim())return; onUpdate(project.id,{steps:[...(project.steps||[]),{id:uid(),...form}]}); setForm({title:'',date:today(),note:''}); };
-  const remove = id => onUpdate(project.id,{steps:(project.steps||[]).filter(s=>s.id!==id)});
-  const sorted = [...(project.steps||[])].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const remove = (id: any) => onUpdate(project.id,{steps:(project.steps||[]).filter((s: any)=>s.id!==id)});
+  const sorted = [...(project.steps||[])].sort((a: any, b: any)=>+new Date(b.date)-+new Date(a.date));
 
   return (
     <div className="anim">

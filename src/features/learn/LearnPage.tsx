@@ -1,4 +1,3 @@
-// @ts-nocheck -- TODO(sprint14): inkrementelle Typisierung dieses Containers
 import { useState } from "react";
 import { C, uid } from '../../lib/utils.js';
 import { ProgressBar, Modal, Field } from '../../components/UI.jsx';
@@ -6,7 +5,39 @@ import { useAppStore } from '../../lib/store.js';
 import JAVA_QUIZ from '../../data/quiz.json';
 import LernpfadeView from './LernpfadeView.jsx';
 
-const CODING_CHALLENGES = [
+// ── Lokale Blob-Typen (Quiz/Flashcard divergieren vom relationalen Schema) ──
+interface QuizAnswer { id: string; text: string; correct: boolean }
+interface QuizQuestionData {
+  id: string | number;
+  question: string;
+  category: string;
+  difficulty: string;
+  type: string;
+  explanation?: string;
+  answers: QuizAnswer[];
+  custom?: boolean;
+}
+interface CodingChallengeData {
+  id: string;
+  title: string;
+  difficulty: string;
+  category: string;
+  description: string;
+  starterCode: string;
+  solution: string;
+  checks: string[];
+  hint: string;
+}
+interface Sm2State {
+  interval?: number;
+  easiness?: number;
+  repetitions?: number;
+  nextReview?: string;
+  lastGrade?: number;
+}
+interface FlashGrade { qId: string | number; grade: number }
+
+const CODING_CHALLENGES: CodingChallengeData[] = [
   { id: 'c1', title: 'Hello World', difficulty: 'easy', category: 'Grundlagen', description: 'Schreibe ein Java-Programm, das "Hello, World!" auf der Konsole ausgibt.\n\nDie Klasse heißt bereits "HelloWorld". Füge nur die fehlende Ausgabe-Anweisung ein.', starterCode: `public class HelloWorld {\n    public static void main(String[] args) {\n        // Schreibe hier deine Ausgabe\n        \n    }\n}`, solution: `public class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}`, checks: ['System.out.println', '"Hello, World!"'], hint: 'Nutze System.out.println() für die Ausgabe.' },
   { id: 'c2', title: 'Variablen & Ausgabe', difficulty: 'easy', category: 'Datentypen', description: 'Erstelle zwei Variablen:\n- "name" vom Typ String mit dem Wert "Max"\n- "alter" vom Typ int mit dem Wert 17\n\nGib dann aus: "Mein Name ist Max und ich bin 17 Jahre alt."', starterCode: `public class VariablenAufgabe {\n    public static void main(String[] args) {\n        // Erstelle die Variablen hier\n        \n        // Ausgabe\n        \n    }\n}`, solution: `public class VariablenAufgabe {\n    public static void main(String[] args) {\n        String name = "Max";\n        int alter = 17;\n        System.out.println("Mein Name ist " + name + " und ich bin " + alter + " Jahre alt.");\n    }\n}`, checks: ['String name', 'int alter', 'System.out.println'], hint: 'Strings verbindet man mit + zusammen.' },
   { id: 'c3', title: 'If-Else Entscheidung', difficulty: 'easy', category: 'Kontrollstrukturen', description: 'Die Variable "note" hat den Wert 3.\n\nSchreibe eine if-else Bedingung:\n- Wenn die Note kleiner oder gleich 2 ist → "Bestanden mit Auszeichnung"\n- Sonst → "Bestanden"', starterCode: `public class NoteCheck {\n    public static void main(String[] args) {\n        int note = 3;\n        \n        // if-else hier\n        \n    }\n}`, solution: `public class NoteCheck {\n    public static void main(String[] args) {\n        int note = 3;\n        if (note <= 2) {\n            System.out.println("Bestanden mit Auszeichnung");\n        } else {\n            System.out.println("Bestanden");\n        }\n    }\n}`, checks: ['if', 'else', '<='], hint: 'Verwende if (bedingung) { } else { }' },
@@ -14,10 +45,10 @@ const CODING_CHALLENGES = [
   { id: 'c5', title: 'Methode schreiben', difficulty: 'medium', category: 'Methoden', description: 'Schreibe eine Methode "addieren" die zwei int-Parameter a und b erhält und ihre Summe zurückgibt.\n\nRufe sie in main() mit 5 und 3 auf und gib das Ergebnis aus.', starterCode: `public class Methoden {\n    \n    // Methode hier\n    \n    public static void main(String[] args) {\n        // Aufruf hier\n        \n    }\n}`, solution: `public class Methoden {\n    \n    static int addieren(int a, int b) {\n        return a + b;\n    }\n    \n    public static void main(String[] args) {\n        int ergebnis = addieren(5, 3);\n        System.out.println(ergebnis);\n    }\n}`, checks: ['static', 'int addieren', 'return', 'addieren(5, 3)'], hint: 'Eine Methode mit Rückgabewert: static int methodenName(Parameter) { return wert; }' },
 ];
 
-const DIFF = { easy: { l: 'Einfach', c: C.gr }, medium: { l: 'Mittel', c: C.yw }, hard: { l: 'Schwer', c: C.cr } };
+const DIFF: Record<string, { l: string; c: string }> = { easy: { l: 'Einfach', c: C.gr }, medium: { l: 'Mittel', c: C.yw }, hard: { l: 'Schwer', c: C.cr } };
 
 // ── SM-2 Spaced-Repetition Algorithmus ───────────────────────
-function sm2Update(prev, grade) {
+function sm2Update(prev: Sm2State, grade: number): Sm2State {
   let { interval = 0, easiness = 2.5, repetitions = 0 } = prev;
   if (grade >= 3) {
     interval = repetitions === 0 ? 1 : repetitions === 1 ? 6 : Math.round(interval * easiness);
@@ -32,17 +63,21 @@ function sm2Update(prev, grade) {
   return { interval, easiness: Math.round(easiness * 100) / 100, repetitions, nextReview: next.toISOString().split('T')[0], lastGrade: grade };
 }
 
-function FlashcardReview({ cards, onGrade, onFinish }) {
+function FlashcardReview({ cards, onGrade, onFinish }: {
+  cards: QuizQuestionData[];
+  onGrade: (id: string | number, grade: number) => void;
+  onFinish: (results: FlashGrade[]) => void;
+}) {
   const [idx,     setIdx]     = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<FlashGrade[]>([]);
 
   const card = cards[idx];
   if (!card) return null;
   const correctAnswers = card.answers.filter(a => a.correct);
   const pct = Math.round((idx / cards.length) * 100);
 
-  const rate = (grade) => {
+  const rate = (grade: number) => {
     const r = [...results, { qId: card.id, grade }];
     onGrade(card.id, grade);
     if (idx + 1 >= cards.length) { onFinish(r); return; }
@@ -115,7 +150,11 @@ function FlashcardReview({ cards, onGrade, onFinish }) {
   );
 }
 
-function FlashcardDone({ total, grades, onBack }) {
+function FlashcardDone({ total, grades, onBack }: {
+  total: number;
+  grades: FlashGrade[];
+  onBack: () => void;
+}) {
   const good = grades.filter(g => g.grade >= 3).length;
   const pct  = Math.round(good / total * 100);
   return (
@@ -132,7 +171,16 @@ function FlashcardDone({ total, grades, onBack }) {
   );
 }
 
-const EMPTY_FORM = {
+interface QForm {
+  question: string;
+  category: string;
+  difficulty: string;
+  type: string;
+  explanation: string;
+  answers: QuizAnswer[];
+}
+
+const EMPTY_FORM: QForm = {
   question: '', category: '', difficulty: 'easy', type: 'single', explanation: '',
   answers: [
     { id: 'a', text: '', correct: true },
@@ -142,15 +190,20 @@ const EMPTY_FORM = {
   ],
 };
 
-function QuizQuestion({ q, onAnswer, answered, selected }) {
+function QuizQuestion({ q, onAnswer, answered, selected }: {
+  q: QuizQuestionData;
+  onAnswer: (sel: string[]) => void;
+  answered: boolean;
+  selected: string[] | null;
+}) {
   const isMultiple = q.type === 'multiple';
-  const [multi, setMulti] = useState([]);
+  const [multi, setMulti] = useState<string[]>([]);
 
-  const handleSingle = (aid) => { if (answered) return; onAnswer([aid]); };
-  const handleMulti = (aid) => { if (answered) return; setMulti(m => m.includes(aid) ? m.filter(x => x !== aid) : [...m, aid]); };
+  const handleSingle = (aid: string) => { if (answered) return; onAnswer([aid]); };
+  const handleMulti = (aid: string) => { if (answered) return; setMulti(m => m.includes(aid) ? m.filter(x => x !== aid) : [...m, aid]); };
   const submitMulti = () => { if (multi.length > 0) onAnswer(multi); };
 
-  const getAnswerStyle = (a) => {
+  const getAnswerStyle = (a: QuizAnswer) => {
     if (!answered && !isMultiple) return { background: C.sf2, border: `1px solid ${C.bd}` };
     if (!answered && isMultiple) { const sel = multi.includes(a.id); return { background: sel ? C.acd : C.sf2, border: `1px solid ${sel ? C.ac : C.bd}` }; }
     const wasSelected = selected?.includes(a.id);
@@ -193,10 +246,13 @@ function QuizQuestion({ q, onAnswer, answered, selected }) {
   );
 }
 
-function QuizMode({ questions, onFinish }) {
+function QuizMode({ questions, onFinish }: {
+  questions: QuizQuestionData[];
+  onFinish: (score: number, total: number, answers: Record<string, string[]>) => void;
+}) {
   const [idx, setIdx]       = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [selected, setSelected] = useState(null);
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  const [selected, setSelected] = useState<string[] | null>(null);
   const [answered, setAnswered] = useState(false);
 
   const q = questions[idx];
@@ -207,7 +263,7 @@ function QuizMode({ questions, onFinish }) {
     return JSON.stringify([...sel].sort()) === JSON.stringify([...correctIds].sort());
   }).length;
 
-  const handleAnswer = (sel) => { setSelected(sel); setAnswered(true); setAnswers(a => ({ ...a, [q.id]: sel })); };
+  const handleAnswer = (sel: string[]) => { setSelected(sel); setAnswered(true); setAnswers(a => ({ ...a, [q.id]: sel })); };
   const next = () => {
     if (isLast) { onFinish(score, questions.length, answers); return; }
     setIdx(i => i + 1); setSelected(null); setAnswered(false);
@@ -239,7 +295,12 @@ function QuizMode({ questions, onFinish }) {
   );
 }
 
-function QuizResult({ score, total, onRestart, onBack }) {
+function QuizResult({ score, total, onRestart, onBack }: {
+  score: number;
+  total: number;
+  onRestart: () => void;
+  onBack: () => void;
+}) {
   const pct = Math.round(score / total * 100);
   const grade = pct >= 87 ? { l: 'Ausgezeichnet! 🏆', c: C.gr } : pct >= 75 ? { l: 'Gut! 👍', c: C.ac } : pct >= 50 ? { l: 'Bestanden ✓', c: C.yw } : { l: 'Üben erforderlich 📚', c: C.cr };
   return (
@@ -259,9 +320,12 @@ function QuizResult({ score, total, onRestart, onBack }) {
   );
 }
 
-function CodingChallenge({ challenge, onBack }) {
+function CodingChallenge({ challenge, onBack }: {
+  challenge: CodingChallengeData;
+  onBack: () => void;
+}) {
   const [code, setCode]       = useState(challenge.starterCode);
-  const [result, setResult]   = useState(null);
+  const [result, setResult]   = useState<{ passed: boolean; missing: string[] } | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [showSol, setShowSol] = useState(false);
 
@@ -307,7 +371,7 @@ function CodingChallenge({ challenge, onBack }) {
             <div style={{ fontSize: 10, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 8 }}>Java Code Editor</div>
             <textarea value={code} onChange={e => { setCode(e.target.value); setResult(null); }}
               style={{ minHeight: 280, fontFamily: C.mono, fontSize: 13, lineHeight: 1.65, background: '#0d1117', border: `1px solid ${C.bd2}`, borderRadius: 9, color: C.br, padding: 14, resize: 'vertical', width: '100%', tabSize: 4 }}
-              onKeyDown={e => { if (e.key === 'Tab') { e.preventDefault(); const s = e.target.selectionStart; const v = code.substring(0, s) + '    ' + code.substring(s); setCode(v); setTimeout(() => e.target.setSelectionRange(s + 4, s + 4), 0); } }}
+              onKeyDown={e => { if (e.key === 'Tab') { e.preventDefault(); const ta = e.target as HTMLTextAreaElement; const s = ta.selectionStart; const v = code.substring(0, s) + '    ' + code.substring(s); setCode(v); setTimeout(() => ta.setSelectionRange(s + 4, s + 4), 0); } }}
               spellCheck={false} />
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button className="abtn" onClick={checkCode} style={{ flex: 1, padding: '10px' }}>▶ Code prüfen</button>
@@ -332,32 +396,33 @@ function CodingChallenge({ challenge, onBack }) {
   );
 }
 
-export default function LearnPage({ currentUser }) {
+export default function LearnPage({ currentUser }: { currentUser?: any }) {
   const { data, setData }           = useAppStore();
+  const d = data as any;
   const [view, setView]             = useState('home');
-  const [quizQuestions, setQ]       = useState([]);
-  const [quizScore, setScore]       = useState(null);
-  const [quizTotal, setTotal]       = useState(null);
-  const [selChallenge, setChall]    = useState(null);
+  const [quizQuestions, setQ]       = useState<QuizQuestionData[]>([]);
+  const [quizScore, setScore]       = useState<number | null>(null);
+  const [quizTotal, setTotal]       = useState<number | null>(null);
+  const [selChallenge, setChall]    = useState<CodingChallengeData | null>(null);
   const [catFilter, setCat]         = useState('Alle');
   const [diffFilter, setDiff]       = useState('Alle');
   const [showAddQ, setShowAddQ]     = useState(false);
-  const [qForm, setQForm]           = useState(EMPTY_FORM);
-  const [editingQ, setEditingQ]     = useState(null);
+  const [qForm, setQForm]           = useState<QForm>(EMPTY_FORM);
+  const [editingQ, setEditingQ]     = useState<QuizQuestionData | null>(null);
 
-  const [flashGrades, setFlashGrades] = useState([]);
+  const [flashGrades, setFlashGrades] = useState<FlashGrade[]>([]);
 
-  const customQuestions = data?.quizzes || [];
+  const customQuestions: QuizQuestionData[] = d?.quizzes || [];
   const isAusbilder = currentUser?.role === 'ausbilder';
-  const allQuestions = [...JAVA_QUIZ, ...customQuestions];
+  const allQuestions: QuizQuestionData[] = [...(JAVA_QUIZ as QuizQuestionData[]), ...customQuestions];
   const CATS = [...new Set(allQuestions.map(q => q.category))];
 
   const today = new Date().toISOString().split('T')[0];
   const userId = currentUser?.id || 'anon';
-  const flashProgress = data?.flashcards?.[userId] || {};
+  const flashProgress: Record<string, Sm2State> = d?.flashcards?.[userId] || {};
   const dueCards = allQuestions.filter(q => {
     const p = flashProgress[String(q.id)];
-    return !p || p.nextReview <= today;
+    return !p || (p.nextReview as string) <= today;
   });
   const learnedCount = allQuestions.filter(q => (flashProgress[String(q.id)]?.repetitions || 0) > 0).length;
   const reviewCards  = dueCards.slice(0, 20);
@@ -367,10 +432,10 @@ export default function LearnPage({ currentUser }) {
     (diffFilter === 'Alle' || q.difficulty === diffFilter)
   );
 
-  const saveCustom = (next) => setData(prev => ({ ...prev, quizzes: next }));
+  const saveCustom = (next: QuizQuestionData[]) => setData(prev => ({ ...(prev as any), quizzes: next }));
 
   const openAdd = () => { setQForm(EMPTY_FORM); setEditingQ(null); setShowAddQ(true); };
-  const openEdit = (q) => {
+  const openEdit = (q: any) => {
     setQForm({
       question:    q.question,
       category:    q.category,
@@ -378,7 +443,7 @@ export default function LearnPage({ currentUser }) {
       type:        q.type,
       explanation: q.explanation || '',
       answers: ['a', 'b', 'c', 'd'].map(id => {
-        const found = q.answers.find(a => a.id === id);
+        const found = q.answers.find((a: QuizAnswer) => a.id === id);
         return found ?? { id, text: '', correct: false };
       }),
     });
@@ -402,11 +467,11 @@ export default function LearnPage({ currentUser }) {
     closeModal();
   };
 
-  const deleteCustomQ = (id) => saveCustom(customQuestions.filter(q => q.id !== id));
+  const deleteCustomQ = (id: string | number) => saveCustom(customQuestions.filter(q => q.id !== id));
 
-  const updateFlashcard = (qId, grade) => {
+  const updateFlashcard = (qId: string | number, grade: number) => {
     const prev = flashProgress[String(qId)] || {};
-    setData(d => ({
+    setData((d: any) => ({
       ...d,
       flashcards: {
         ...(d.flashcards || {}),
@@ -415,13 +480,13 @@ export default function LearnPage({ currentUser }) {
     }));
   };
 
-  const startQuiz = (questions) => {
+  const startQuiz = (questions: QuizQuestionData[]) => {
     const shuffled = [...questions].sort(() => Math.random() - .5).slice(0, Math.min(10, questions.length));
     setQ(shuffled);
     setView('quiz');
   };
 
-  const onFinish = (score, total) => {
+  const onFinish = (score: number, total: number) => {
     setScore(score); setTotal(total); setView('result');
     try {
       const key = `azubi_quiz_${currentUser?.id || 'anon'}`;
@@ -432,8 +497,8 @@ export default function LearnPage({ currentUser }) {
   };
 
   if (view === 'quiz')      return <QuizMode questions={quizQuestions} onFinish={onFinish} />;
-  if (view === 'result')    return <QuizResult score={quizScore} total={quizTotal} onRestart={() => startQuiz(quizQuestions)} onBack={() => setView('home')} />;
-  if (view === 'coding')    return <CodingChallenge challenge={selChallenge} onBack={() => setView('home')} />;
+  if (view === 'result')    return <QuizResult score={quizScore as number} total={quizTotal as number} onRestart={() => startQuiz(quizQuestions)} onBack={() => setView('home')} />;
+  if (view === 'coding')    return <CodingChallenge challenge={selChallenge as CodingChallengeData} onBack={() => setView('home')} />;
   if (view === 'flashcard') return <FlashcardReview cards={reviewCards} onGrade={updateFlashcard} onFinish={(grades) => { setFlashGrades(grades); setView('flashdone'); }} />;
   if (view === 'flashdone') return <FlashcardDone total={flashGrades.length} grades={flashGrades} onBack={() => { setFlashGrades([]); setView('home'); }} />;
   if (view === 'paths')     return <LernpfadeView currentUser={currentUser} data={data} setData={setData} onBack={() => setView('home')} />;
@@ -447,9 +512,9 @@ export default function LearnPage({ currentUser }) {
       <section style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: C.br, marginBottom: 14 }}>Lernpfade 🗺️</div>
         {(() => {
-          const paths = data?.learningPaths || [];
+          const paths: any[] = d?.learningPaths || [];
           const userId2 = currentUser?.id || 'anon';
-          const prog = data?.pathProgress?.[userId2] || {};
+          const prog = d?.pathProgress?.[userId2] || {};
           if (paths.length === 0) {
             return (
               <div className="card" style={{ cursor: 'pointer', borderStyle: 'dashed', display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px' }}
@@ -465,13 +530,13 @@ export default function LearnPage({ currentUser }) {
             );
           }
           const total  = paths.length;
-          const _done  = paths.filter(p => p.nodes.length > 0 && p.nodes.every(n => prog[n.id]?.completed)).length;
+          const _done  = paths.filter(p => p.nodes.length > 0 && p.nodes.every((n: any) => prog[n.id]?.completed)).length;
           return (
             <div style={{ display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap' }}>
               {paths.slice(0, 3).map(p => {
-                const nodeDone  = p.nodes.filter(n => prog[n.id]?.completed).length;
+                const nodeDone  = p.nodes.filter((n: any) => prog[n.id]?.completed).length;
                 const nodePct   = p.nodes.length ? Math.round(nodeDone / p.nodes.length * 100) : 0;
-                const color     = { 1: C.gr, 2: C.ac, 3: C.yw }[p.lehrjahr] || C.ac;
+                const color     = ({ 1: C.gr, 2: C.ac, 3: C.yw } as Record<number, string>)[p.lehrjahr] || C.ac;
                 return (
                   <div key={p.id} className="card" style={{ flex: '1 1 180px', minWidth: 160, maxWidth: 240, cursor: 'pointer', borderLeft: `3px solid ${color}`, transition: 'all .15s' }}
                     onClick={() => setView('paths')}
