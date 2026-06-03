@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useTranslation } from 'react-i18next';
+import type { User, Project, Report, Task, TimeLogEntry, CalendarEvent, Id } from '../../types';
 import { C, fmtDate, fmtLocalDate } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
@@ -28,13 +29,19 @@ import { MonthReportModal }    from './widgets/MonthReportModal.jsx';
 // Blob-Daten weichen vom Zod-Schema ab (task.assignee, task.timeLog, task.note,
 // p.archived, user.apprenticeship_year etc. sind blob-only). Daher any für die
 // blob-geformten Domain-Werte; getypt werden Props-Struktur und Handler.
+// Task angereichert um Projekt-Kontext (im AzubiDashboard zusammengebaut).
+type DashboardTask = Task & { projectTitle: string; projectId: Id; isOverdue: boolean };
+
+// user/onOpenProject/onUpdateProject bleiben absichtlich permissiv: der Aufrufer
+// (App.tsx) reicht CurrentUser|null bzw. string-Callbacks durch — präzisere
+// Typen hier würden App.tsx brechen (darf nicht editiert werden).
 type DashboardProps = {
   user: any;
-  projects: any[];
-  users: any[];
-  reports: any[];
-  calendarEvents?: any[];
-  activityLog?: any[];
+  projects: Project[];
+  users: User[];
+  reports: Report[];
+  calendarEvents?: CalendarEvent[];
+  activityLog?: unknown[];
   onNewProject?: () => void;
   onOpenProject: (id: any) => void;
   onUpdateProject?: (id: any, patch: any) => void;
@@ -90,25 +97,25 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               ? <div style={{ fontSize: 12, color: C.textSecondary, fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{t('dashboard.noAzubis')}</div>
               : azubis.map(a => {
               const myProjects = active.filter(p => (p.assignees||[]).includes(a.id));
-              const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter((t: any) => t.assignee === a.id && t.status !== 'done'));
-              const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter((t: any) => t.assignee === a.id && t.status === 'in_progress'));
-              const overdue    = myTasks.filter((t: any) => t.deadline && new Date(t.deadline) < now);
-              const doneTotal  = myProjects.flatMap(p => (p.tasks||[]).filter((t: any) => t.status === 'done' || t.done)).length;
+              const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => t.assignee === a.id && t.status !== 'done'));
+              const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => t.assignee === a.id && t.status === 'in_progress'));
+              const overdue    = myTasks.filter((t: Task) => t.deadline && new Date(t.deadline) < now);
+              const doneTotal  = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => t.status === 'done' || t.done)).length;
               const totalTasks = myProjects.flatMap(p => (p.tasks||[])).length;
               const pct        = totalTasks > 0 ? Math.round(doneTotal / totalTasks * 100) : 0;
 
               // Bericht dieser Woche (ISO-Wochenmontag, lokal — DST-sicher)
               const weekMon    = (() => { const d = new Date(now); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return fmtLocalDate(d); })();
-              const myReports  = reports.filter(r => r.user_id === a.id).sort((x,y) => y.week_start.localeCompare(x.week_start));
+              const myReports  = reports.filter(r => r.user_id === a.id).sort((x,y) => (y.week_start||'').localeCompare(x.week_start||''));
               const lastReport = myReports[0] || null;
-              const hasThisWeek = myReports.some(r => r.week_start >= weekMon);
+              const hasThisWeek = myReports.some(r => (r.week_start||'') >= weekMon);
               const REPORT_ST: any  = { draft: { l: 'Entwurf', c: C.mu }, submitted: { l: 'Eingereicht', c: C.ac }, reviewed: { l: 'Geprüft', c: C.yw }, signed: { l: 'Fertig', c: C.gr } };
 
               // Stunden diese Woche
               const weekEnd    = (() => { const d = new Date(weekMon + 'T12:00:00'); d.setDate(d.getDate()+6); return fmtLocalDate(d); })();
-              const weekHours  = active.flatMap(p => (p.tasks||[]).filter((t: any) => t.assignee === a.id))
-                .flatMap((t: any) => (t.timeLog||[]).filter((e: any) => e.date >= weekMon && e.date <= weekEnd))
-                .reduce((s: number, e: any) => s + (Number(e.hours)||0), 0);
+              const weekHours  = active.flatMap(p => (p.tasks||[]).filter((t: Task) => t.assignee === a.id))
+                .flatMap((t: Task) => (t.timeLog||[]).filter((e: TimeLogEntry) => (e.date || '') >= weekMon && (e.date || '') <= weekEnd))
+                .reduce((s: number, e: TimeLogEntry) => s + (Number(e.hours)||0), 0);
 
               // Ampel
               const ampel = overdue.length > 2 ? C.cr
@@ -168,8 +175,8 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
                         <span style={{ fontSize: 10, color: C.textSecondary }}>
                           KW {lastReport.week_number}/{lastReport.year}
                         </span>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: (REPORT_ST[lastReport.status]||REPORT_ST.draft).c, background: (REPORT_ST[lastReport.status]||REPORT_ST.draft).c + '18', borderRadius: 4, padding: '1px 6px' }}>
-                          {(REPORT_ST[lastReport.status]||REPORT_ST.draft).l}
+                        <span style={{ fontSize: 9, fontWeight: 700, color: (REPORT_ST[lastReport.status as string]||REPORT_ST.draft).c, background: (REPORT_ST[lastReport.status as string]||REPORT_ST.draft).c + '18', borderRadius: 4, padding: '1px 6px' }}>
+                          {(REPORT_ST[lastReport.status as string]||REPORT_ST.draft).l}
                         </span>
                         {!hasThisWeek && (
                           <span style={{ fontSize: 9, fontWeight: 700, color: C.yw, background: C.ywd, borderRadius: 4, padding: '1px 6px', marginLeft: 'auto' }}>
@@ -204,7 +211,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
           )}
           <PanelTitle Icon={IcoFolder} count={active.length}>{t('dashboard.allProjects')}</PanelTitle>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {active.map(p => <ProjectCard key={p.id} project={p} users={users} onClick={() => onOpenProject(p.id)} onUpdate={onUpdateProject} />)}
+            {active.map(p => <ProjectCard key={p.id} project={p as any} users={users} onClick={() => onOpenProject(p.id)} onUpdate={onUpdateProject} />)}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', overflowY: 'auto' }}>
@@ -218,9 +225,9 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               <>
                 {pending.slice(0, 4).map(r => (
                   <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: `1px solid var(--c-bd)22` }}>
-                    <Avatar name={r.user_name || '?'} size={22} />
+                    <Avatar name={(r as any).user_name || '?'} size={22} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.user_name}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(r as any).user_name}</div>
                       <div style={{ fontSize: 9, color: C.textSecondary }}>KW {r.week_number} · {fmtDate(r.week_start)}</div>
                     </div>
                     <span className="tag" style={{ background: C.ywd, color: C.yw, border: `1px solid ${C.yw}30`, fontSize: 9 }}>{t('report.statusSubmitted')}</span>
@@ -235,7 +242,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
           </div>
           <div style={{ padding: '16px 20px', borderTop: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoClock}>{t('dashboard.timeTracking')}</PanelTitle>
-            <ZeiterfassungWidget users={users} projects={active} />
+            <ZeiterfassungWidget users={users} projects={active as any} />
           </div>
           <div style={{ padding: '16px 20px', borderTop: `1px solid var(--c-bd)`, flexShrink: 0 }}>
             <PanelTitle Icon={IcoCalendar}>{t('dashboard.nextDeadlines')}</PanelTitle>
@@ -243,7 +250,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
           </div>
           <div style={{ padding: '16px 20px', flexShrink: 0, borderTop: `1px solid var(--c-bd)` }}>
             <PanelTitle Icon={IcoNote}>{t('dashboard.recentActivity')}</PanelTitle>
-            <ActivityFeed activityLog={activityLog} />
+            <ActivityFeed activityLog={activityLog as any} />
           </div>
         </div>
       </div>
@@ -263,17 +270,17 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
     [projects, user.id]
   );
 
-  const allTasks = useMemo(() =>
+  const allTasks = useMemo<DashboardTask[]>(() =>
     projects.flatMap(p =>
       (p.tasks||[])
-        .filter((t: any) => t.assignee === user.id && t.status !== 'done')
-        .map((t: any) => ({
+        .filter((t: Task) => t.assignee === user.id && t.status !== 'done')
+        .map((t: Task): DashboardTask => ({
           ...t,
           projectTitle: p.title,
           projectId:    p.id,
           isOverdue:    !!(t.deadline && new Date(t.deadline) < now),
         }))
-    ).sort((a: any, b: any) => {
+    ).sort((a: DashboardTask, b: DashboardTask) => {
       if (a.isOverdue && !b.isOverdue) return -1;
       if (!a.isOverdue && b.isOverdue) return 1;
       if (a.status === 'in_progress' && b.status !== 'in_progress') return -1;
@@ -282,7 +289,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
       if (!a.deadline && b.deadline) return 1;
       if (a.deadline && b.deadline) return a.deadline < b.deadline ? -1 : 1;
       const prio: any = { high: 0, medium: 1, low: 2 };
-      return (prio[a.priority] ?? 1) - (prio[b.priority] ?? 1);
+      return (prio[a.priority as string] ?? 1) - (prio[b.priority as string] ?? 1);
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [projects, user.id] // now absichtlich ausgelassen — ändert sich nicht sinnvoll innerhalb einer Session
@@ -292,29 +299,29 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
   const queueTasks      = useMemo(() => allTasks.slice(1),       [allTasks]);
   const allProjectTasks = useMemo(() => projects.flatMap(p => (p.tasks||[])), [projects]);
 
-  const toggleTask = useCallback((projectId: any, taskId: any) => {
+  const toggleTask = useCallback((projectId: Id, taskId: Id) => {
     if (!onUpdateProject) return;
     const proj = projects.find(p => p.id === projectId);
     if (!proj) return;
     onUpdateProject(projectId, {
-      tasks: proj.tasks.map((t: any) => t.id === taskId ? { ...t, status: t.status === 'done' ? 'not_started' : 'done' } : t),
+      tasks: proj.tasks.map((t: Task) => t.id === taskId ? { ...t, status: t.status === 'done' ? 'not_started' : 'done' } : t),
     });
   }, [projects, onUpdateProject]);
 
-  const updateTaskNote = useCallback((projectId: any, taskId: any, note: any) => {
+  const updateTaskNote = useCallback((projectId: Id | undefined, taskId: Id, note: string) => {
     if (!onUpdateProject) return;
     const proj = projects.find(p => p.id === projectId);
     if (!proj) return;
     onUpdateProject(projectId, {
-      tasks: proj.tasks.map((t: any) => t.id === taskId ? { ...t, note } : t),
+      tasks: proj.tasks.map((t: Task) => t.id === taskId ? { ...t, note } : t),
     });
   }, [projects, onUpdateProject]);
 
   const hour = now.getHours();
   const greeting = hour < 12 ? t('dashboard.morningGreeting') : hour < 17 ? t('dashboard.afternoonGreeting') : t('dashboard.eveningGreeting');
 
-  const inProgress = useMemo(() => allTasks.filter((t: any) => t.status === 'in_progress').length, [allTasks]);
-  const overdue    = useMemo(() => allTasks.filter((t: any) => t.isOverdue).length,                [allTasks]);
+  const inProgress = useMemo(() => allTasks.filter((t: DashboardTask) => t.status === 'in_progress').length, [allTasks]);
+  const overdue    = useMemo(() => allTasks.filter((t: DashboardTask) => t.isOverdue).length,                [allTasks]);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} className="anim">
@@ -357,7 +364,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
           </div>
           <div style={{ flexShrink: 0, padding: '12px 16px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
             <PanelTitle Icon={IcoTrendUp}>{t('dashboard.weekOverview')}</PanelTitle>
-            <WeekProgress tasks={allProjectTasks} userId={user.id} />
+            <WeekProgress tasks={allProjectTasks as any} userId={user.id} />
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>
@@ -368,14 +375,14 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
                 <EmptyState Icon={IcoFolder} title={t('project.noProjects')} subtitle={t('dashboard.noProjectsSub')} action={'+ ' + t('common.create')} onAction={onNewProject} />
               ) : mine.map(p => (
                 <div key={p.id} style={{ marginBottom: 12 }}>
-                  <ProjectCard project={p} users={users} onClick={() => onOpenProject(p.id)} onUpdate={onUpdateProject} />
+                  <ProjectCard project={p as any} users={users} onClick={() => onOpenProject(p.id)} onUpdate={onUpdateProject} />
                 </div>
               ))}
             </div>
           </div>
           <div style={{ flexShrink: 0, padding: '12px 18px 12px', borderTop: `1px solid var(--c-bd)`, background: 'var(--c-sf)' }}>
             <PanelTitle Icon={IcoNote}>{t('dashboard.recentActivity')}</PanelTitle>
-            <ActivityFeed activityLog={activityLog} />
+            <ActivityFeed activityLog={activityLog as any} />
           </div>
         </div>
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>

@@ -1,21 +1,26 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
+import type { Id, User, LearningPath, LearningPathNode } from '../../types';
 import { C, uid } from '../../lib/utils.js';
 import { Modal, Field, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import AiGoalSuggestions from './AiGoalSuggestions.jsx';
 
+// Ad-hoc Fortschritts-Map (Runtime-Form weicht von pathProgress-Schema ab):
+// pro Node-Id ein { completed } Flag.
+type ProgressMap = Record<string, { completed?: boolean; completedAt?: string } | undefined>;
+
 // ── Topological sort (Kahn's algorithm) ───────────────────────
-function topoSort(nodes: any[]) {
+function topoSort(nodes: LearningPathNode[]) {
   const map = Object.fromEntries(nodes.map(n => [n.id, n]));
   const inDeg: Record<string, number> = Object.fromEntries(nodes.map(n => [n.id, 0]));
-  nodes.forEach(n => n.prereqs.forEach((p: any) => { if (map[p]) inDeg[n.id]++; }));
+  nodes.forEach(n => n.prereqs.forEach((p: Id) => { if (map[p]) inDeg[n.id]++; }));
   const queue = nodes.filter(n => inDeg[n.id] === 0).map(n => n.id);
-  const sorted: any[] = [];
+  const sorted: Id[] = [];
   while (queue.length) {
     const cur = queue.shift();
-    sorted.push(cur);
+    sorted.push(cur!);
     nodes.forEach(n => {
-      if (n.prereqs.includes(cur)) {
+      if (n.prereqs.includes(cur!)) {
         inDeg[n.id]--;
         if (inDeg[n.id] === 0) queue.push(n.id);
       }
@@ -27,15 +32,15 @@ function topoSort(nodes: any[]) {
 }
 
 // ── Fortschritt eines Pfades berechnen ────────────────────────
-function pathStats(path: any, progress: any) {
+function pathStats(path: LearningPath, progress: ProgressMap) {
   const total = path.nodes.length;
-  const done  = path.nodes.filter((n: any) => progress[n.id]?.completed).length;
+  const done  = path.nodes.filter((n: LearningPathNode) => progress[n.id]?.completed).length;
   return { total, done, pct: total ? Math.round(done / total * 100) : 0 };
 }
 
 // ── Ist ein Node freigeschalten? ──────────────────────────────
-function isUnlocked(node: any, progress: any) {
-  return node.prereqs.every((pid: any) => progress[pid]?.completed);
+function isUnlocked(node: LearningPathNode, progress: ProgressMap) {
+  return node.prereqs.every((pid: Id) => progress[pid]?.completed);
 }
 
 const LEHRJAHR_COLOR: Record<number, string> = { 1: C.gr, 2: C.ac, 3: C.yw };
@@ -49,23 +54,23 @@ const EMPTY_NODE: NodeForm = { title: '', description: '', type: 'article', prer
 
 // ── Detail-Ansicht eines Lernpfades ───────────────────────────
 type PathDetailViewProps = {
-  path: any;
-  progress: any;
-  onComplete: (nodeId: string) => void;
+  path: LearningPath;
+  progress: ProgressMap;
+  onComplete: (nodeId: Id) => void;
   onBack: () => void;
   isAusbilder: boolean;
   onEditPath: () => void;
   onAddNode: () => void;
-  onEditNode: (node: any) => void;
-  onDeleteNode: (nodeId: string) => void;
+  onEditNode: (node: LearningPathNode) => void;
+  onDeleteNode: (nodeId: Id) => void;
   onAiSuggest: () => void;
 };
 
 function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEditPath, onAddNode, onEditNode, onDeleteNode, onAiSuggest }: PathDetailViewProps) {
   const sorted   = topoSort(path.nodes);
-  const [selNode, setSelNode] = useState<any>(null);
+  const [selNode, setSelNode] = useState<LearningPathNode | null>(null);
 
-  const color = LEHRJAHR_COLOR[path.lehrjahr] || C.ac;
+  const color = LEHRJAHR_COLOR[path.lehrjahr as number] || C.ac;
   const stats = pathStats(path, progress);
 
   return (
@@ -139,7 +144,7 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
                   onMouseEnter={e => { if (!locked) { e.currentTarget.style.borderColor = color; e.currentTarget.style.transform = 'translateX(3px)'; }}}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = borderColor; e.currentTarget.style.transform = 'none'; }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <span style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>{TYPE_ICON[node.type] || '📋'}</span>
+                    <span style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>{TYPE_ICON[node.type as string] || '📋'}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: textColor, marginBottom: node.description ? 3 : 0 }}>
                         {node.title}
@@ -149,8 +154,8 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
                       {node.description && <div style={{ fontSize: 12, color: C.mu, lineHeight: 1.5 }}>{node.description}</div>}
                       {node.prereqs.length > 0 && (
                         <div style={{ fontSize: 10, color: C.mu, marginTop: 4 }}>
-                          Voraussetzung: {node.prereqs.map((pid: any) => {
-                            const pre = path.nodes.find((n: any) => n.id === pid);
+                          Voraussetzung: {node.prereqs.map((pid: Id) => {
+                            const pre = path.nodes.find((n: LearningPathNode) => n.id === pid);
                             return pre ? (
                               <span key={pid} style={{ marginRight: 6, color: progress[pid]?.completed ? C.gr : C.yw }}>
                                 {progress[pid]?.completed ? '✓' : '○'} {pre.title}
@@ -188,14 +193,14 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
 }
 
 // ── Node-Detail Modal ─────────────────────────────────────────
-type NodeModalProps = { node: any; done: boolean; onComplete: () => void; onClose: () => void };
+type NodeModalProps = { node: LearningPathNode; done: boolean; onComplete: () => void; onClose: () => void };
 
 function NodeModal({ node, done, onComplete, onClose }: NodeModalProps) {
   return (
     <Modal title={node.title} onClose={onClose} width={520}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         <span className="tag" style={{ background: C.sf2, color: C.mu, border: `1px solid ${C.bd}` }}>
-          {TYPE_ICON[node.type]} {node.type === 'article' ? 'Artikel' : node.type === 'link' ? 'Link' : node.type === 'quiz' ? 'Quiz' : 'Aufgabe'}
+          {TYPE_ICON[node.type as string]} {node.type === 'article' ? 'Artikel' : node.type === 'link' ? 'Link' : node.type === 'quiz' ? 'Quiz' : 'Aufgabe'}
         </span>
         {done && <span className="tag" style={{ background: '#07130a', color: C.gr, border: `1px solid ${C.gr}40` }}>✓ Abgeschlossen</span>}
       </div>
@@ -269,7 +274,7 @@ type NodeEditModalProps = {
   onSave: () => void;
   onClose: () => void;
   title: string;
-  allNodes: any[];
+  allNodes: LearningPathNode[];
 };
 
 function NodeEditModal({ form, setForm, onSave, onClose, title, allNodes }: NodeEditModalProps) {
@@ -295,7 +300,7 @@ function NodeEditModal({ form, setForm, onSave, onClose, title, allNodes }: Node
           <select multiple value={form.prereqs}
             onChange={e => setForm(f => ({ ...f, prereqs: [...e.target.selectedOptions].map(o => o.value) }))}
             style={{ height: 72 }}>
-            {allNodes.filter((n: any) => n.id !== form._id).map((n: any) => (
+            {allNodes.filter((n: LearningPathNode) => n.id !== form._id).map((n: LearningPathNode) => (
               <option key={n.id} value={n.id}>{n.title}</option>
             ))}
           </select>
@@ -324,29 +329,29 @@ function NodeEditModal({ form, setForm, onSave, onClose, title, allNodes }: Node
 
 // ── Haupt-Komponente: Liste aller Lernpfade ───────────────────
 type LernpfadeViewProps = {
-  currentUser: any;
+  currentUser: User;
   data: any;
   setData: (updater: (d: any) => any) => void;
   onBack: () => void;
 };
 
 export default function LernpfadeView({ currentUser, data, setData, onBack }: LernpfadeViewProps) {
-  const [selPath,       setSelPath]       = useState<any>(null);
+  const [selPath,       setSelPath]       = useState<LearningPath | null>(null);
   const [showPathModal, setShowPathModal] = useState(false);
   const [pathForm,      setPathForm]      = useState<PathForm>(EMPTY_PATH);
-  const [editingPath,   setEditingPath]   = useState<any>(null);
+  const [editingPath,   setEditingPath]   = useState<LearningPath | null>(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
   const [nodeForm,      setNodeForm]      = useState<NodeForm>(EMPTY_NODE);
-  const [editingNode,   setEditingNode]   = useState<any>(null);
+  const [editingNode,   setEditingNode]   = useState<LearningPathNode | null>(null);
   const [showAiModal,   setShowAiModal]   = useState(false);
 
   const isAusbilder  = currentUser?.role === 'ausbilder';
   const userId       = currentUser?.id || 'anon';
-  const learningPaths = data?.learningPaths || [];
-  const pathProgress  = data?.pathProgress?.[userId] || {};
+  const learningPaths: LearningPath[] = data?.learningPaths || [];
+  const pathProgress: ProgressMap      = data?.pathProgress?.[userId] || {};
 
-  const savePaths = (next: any[]) => setData(d => ({ ...d, learningPaths: next }));
-  const saveProgress = (nodeId: string) => setData(d => ({
+  const savePaths = (next: LearningPath[]) => setData(d => ({ ...d, learningPaths: next }));
+  const saveProgress = (nodeId: Id) => setData(d => ({
     ...d,
     pathProgress: {
       ...(d.pathProgress || {}),
@@ -359,72 +364,72 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
 
   // ── Path CRUD ──
   const openCreatePath = () => { setPathForm(EMPTY_PATH); setEditingPath(null); setShowPathModal(true); };
-  const openEditPath   = (path: any) => { setPathForm({ title: path.title, description: path.description, lehrjahr: path.lehrjahr }); setEditingPath(path); setShowPathModal(true); };
+  const openEditPath   = (path: LearningPath) => { setPathForm({ title: path.title, description: path.description || '', lehrjahr: path.lehrjahr ?? 1 }); setEditingPath(path); setShowPathModal(true); };
   const savePathForm   = () => {
     if (!pathForm.title.trim()) return;
     if (editingPath) {
-      savePaths(learningPaths.map((p: any) => p.id === editingPath.id ? { ...p, ...pathForm } : p));
+      savePaths(learningPaths.map((p: LearningPath) => p.id === editingPath.id ? { ...p, ...pathForm } : p));
     } else {
       savePaths([...learningPaths, { id: uid(), nodes: [], ...pathForm }]);
     }
     setShowPathModal(false);
   };
-  const deletePath = (id: string) => {
-    savePaths(learningPaths.filter((p: any) => p.id !== id));
+  const deletePath = (id: Id) => {
+    savePaths(learningPaths.filter((p: LearningPath) => p.id !== id));
     if (selPath?.id === id) setSelPath(null);
   };
 
   // ── Node CRUD (within selPath) ──
   const openAddNode  = () => { setNodeForm({ ...EMPTY_NODE }); setEditingNode(null); setShowNodeModal(true); };
-  const openEditNode = (node: any) => {
-    setNodeForm({ title: node.title, description: node.description || '', type: node.type, prereqs: node.prereqs || [], content: node.content || '', _id: node.id });
+  const openEditNode = (node: LearningPathNode) => {
+    setNodeForm({ title: node.title, description: node.description || '', type: node.type || 'article', prereqs: (node.prereqs || []).map(String), content: node.content || '', _id: String(node.id) });
     setEditingNode(node);
     setShowNodeModal(true);
   };
   const saveNodeForm = () => {
     if (!nodeForm.title.trim() || !selPath) return;
-    const patch = (nodes: any[]) => {
+    const patch = (nodes: LearningPathNode[]): LearningPathNode[] => {
       if (editingNode) {
-        return nodes.map((n: any) => n.id === editingNode.id
-          ? { ...n, title: nodeForm.title.trim(), description: nodeForm.description, type: nodeForm.type, prereqs: nodeForm.prereqs, content: nodeForm.content }
+        return nodes.map((n: LearningPathNode) => n.id === editingNode.id
+          ? { ...n, title: nodeForm.title.trim(), description: nodeForm.description, type: nodeForm.type, prereqs: nodeForm.prereqs, content: nodeForm.content } as LearningPathNode
           : n);
       }
-      return [...nodes, { id: uid(), title: nodeForm.title.trim(), description: nodeForm.description, type: nodeForm.type, prereqs: nodeForm.prereqs, content: nodeForm.content }];
+      return [...nodes, { id: uid(), title: nodeForm.title.trim(), description: nodeForm.description, type: nodeForm.type, prereqs: nodeForm.prereqs, content: nodeForm.content } as LearningPathNode];
     };
     const updatedPath = { ...selPath, nodes: patch(selPath.nodes) };
-    savePaths(learningPaths.map((p: any) => p.id === selPath.id ? updatedPath : p));
+    savePaths(learningPaths.map((p: LearningPath) => p.id === selPath.id ? updatedPath : p));
     setSelPath(updatedPath);
     setShowNodeModal(false);
   };
-  const deleteNode = (nodeId: string) => {
+  const deleteNode = (nodeId: Id) => {
     const updatedPath = {
-      ...selPath,
-      nodes: selPath.nodes
-        .filter((n: any) => n.id !== nodeId)
-        .map((n: any) => ({ ...n, prereqs: n.prereqs.filter((p: any) => p !== nodeId) })),
+      ...selPath!,
+      nodes: selPath!.nodes
+        .filter((n: LearningPathNode) => n.id !== nodeId)
+        .map((n: LearningPathNode) => ({ ...n, prereqs: n.prereqs.filter((p: Id) => p !== nodeId) })),
     };
-    savePaths(learningPaths.map((p: any) => p.id === selPath.id ? updatedPath : p));
+    savePaths(learningPaths.map((p: LearningPath) => p.id === selPath!.id ? updatedPath : p));
     setSelPath(updatedPath);
   };
 
   // ── AI2: Bulk-Add nodes from KI suggestions ──
-  const addNodesFromAi = (suggestions: any[]) => {
+  const addNodesFromAi = (suggestions: { title: string; description?: string; type?: string }[]) => {
     if (!selPath || suggestions.length === 0) return;
-    const newNodes = suggestions.map((s: any) => ({
+    const newNodes: LearningPathNode[] = suggestions.map(s => ({
       id:          uid(),
       title:       s.title,
       description: s.description || '',
       type:        s.type || 'task',
       prereqs:     [],
       content:     '',
-    }));
+    } as LearningPathNode));
     const updatedPath = { ...selPath, nodes: [...selPath.nodes, ...newNodes] };
-    savePaths(learningPaths.map((p: any) => p.id === selPath.id ? updatedPath : p));
+    savePaths(learningPaths.map((p: LearningPath) => p.id === selPath.id ? updatedPath : p));
     setSelPath(updatedPath);
   };
 
   // Keep selPath in sync with latest data
-  const currentSelPath = selPath ? (learningPaths.find((p: any) => p.id === selPath.id) || selPath) : null;
+  const currentSelPath = selPath ? (learningPaths.find((p: LearningPath) => p.id === selPath.id) || selPath) : null;
 
   if (currentSelPath) {
     return (
@@ -452,8 +457,8 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
         )}
         {showAiModal && (
           <AiGoalSuggestions
-            lehrjahr={currentSelPath.lehrjahr}
-            existingTitles={currentSelPath.nodes.map((n: any) => n.title)}
+            lehrjahr={currentSelPath.lehrjahr as number}
+            existingTitles={currentSelPath.nodes.map((n: LearningPathNode) => n.title)}
             onAdd={addNodesFromAi}
             onClose={() => setShowAiModal(false)}
           />
@@ -463,7 +468,7 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
   }
 
   // ── Path list ──
-  const byYear = [1, 2, 3].map(y => ({ y, paths: learningPaths.filter((p: any) => p.lehrjahr === y) })).filter(g => g.paths.length > 0 || isAusbilder);
+  const byYear = [1, 2, 3].map(y => ({ y, paths: learningPaths.filter((p: LearningPath) => p.lehrjahr === y) })).filter(g => g.paths.length > 0 || isAusbilder);
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }} className="anim">
@@ -487,9 +492,9 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
               {y}. Lehrjahr
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 12 }}>
-              {paths.map((path: any) => {
+              {paths.map((path: LearningPath) => {
                 const stats = pathStats(path, pathProgress);
-                const color = LEHRJAHR_COLOR[path.lehrjahr] || C.ac;
+                const color = LEHRJAHR_COLOR[path.lehrjahr as number] || C.ac;
                 return (
                   <div key={path.id} className="card proj-card" style={{ cursor: 'pointer', transition: 'all .15s', borderLeft: `3px solid ${color}` }}
                     onClick={() => setSelPath(path)}

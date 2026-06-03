@@ -2,6 +2,14 @@ import { useState } from "react";
 import { C, uid } from '../../lib/utils.js';
 import { Avatar, Modal, Field } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
+import type { Project, User, CalendarEvent, Task } from '../../types';
+
+// Kalender-Eintrag wie im allEv-Aggregat: CalendarEvent + abgeleitete Marker-Felder
+type CalEvent = CalendarEvent & { _project?: string; _isTaskDeadline?: boolean };
+// In der UI verwendete Typ-Codes (breiter als das CalendarEvent-Enum)
+type EvForm = { title: string; note: string; projectId: string; type: string };
+// Azubi mit Task-Kontext für Hover/Marker
+type Worker = User & { taskText?: string; taskStatus?: string };
 
 const MONTHS    = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const DAYS_FULL = ['Mo','Di','Mi','Do','Fr'];
@@ -26,9 +34,9 @@ const EV_TYPES: Record<string, { label: string; color: string; bg: string }> = {
 };
 
 type CalendarViewProps = {
-  projects: any[];
-  calendarEvents: any[];
-  users: any[];
+  projects: Project[];
+  calendarEvents: CalendarEvent[];
+  users: User[];
   onUpdate: (id: any, patch: any) => void;
   showToast: (msg: string) => void;
 };
@@ -36,12 +44,12 @@ type CalendarViewProps = {
 export function CalendarView({ projects, calendarEvents, users, onUpdate, showToast }: CalendarViewProps) {
   const [date,      setDate]     = useState<Date>(new Date());
   const [viewMode,  setViewMode] = useState<string>('month');
-  const [newEvDay,  setNewEvDay] = useState<any>(null);
-  const [editEv,    setEditEv]   = useState<any>(null);
-  const [editForm,  setEditForm] = useState<any>(null);
-  const [confirmDel,setConfirmDel]=useState<any>(null);
+  const [newEvDay,  setNewEvDay] = useState<number | { date: string; label: string } | null>(null);
+  const [editEv,    setEditEv]   = useState<CalEvent | null>(null);
+  const [editForm,  setEditForm] = useState<EvForm | null>(null);
+  const [confirmDel,setConfirmDel]=useState<CalEvent | null>(null);
   const [hovDay,    setHovDay]   = useState<number | null>(null);
-  const [form,      setForm]     = useState<{ title: string; note: string; projectId: string; type: string }>({ title: '', note: '', projectId: '', type: 'event' });
+  const [form,      setForm]     = useState<EvForm>({ title: '', note: '', projectId: '', type: 'event' });
 
   const y = date.getFullYear(), m = date.getMonth();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
@@ -67,33 +75,33 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
   }
   const weeks = buildCalendar();
 
-  const openEdit = (ev: any, e: any) => {
+  const openEdit = (ev: CalEvent, e: React.MouseEvent) => {
     e.stopPropagation();
-    const isDerived = ev.id?.startsWith('dl-') || ev.id?.startsWith('tdl-') || ev._project;
-    if (isDerived && (ev.id?.startsWith('dl-') || ev.id?.startsWith('tdl-'))) return;
+    const isDerived = (ev.id as any)?.startsWith('dl-') || (ev.id as any)?.startsWith('tdl-') || ev._project;
+    if (isDerived && ((ev.id as any)?.startsWith('dl-') || (ev.id as any)?.startsWith('tdl-'))) return;
     setEditEv(ev);
-    setEditForm({ title: ev.title, note: ev.note || '', projectId: ev.projectId || '', type: ev.type || 'event' });
+    setEditForm({ title: ev.title, note: ev.note || '', projectId: (ev.projectId as string) || '', type: ev.type || 'event' });
   };
 
   const saveEdit = () => {
-    if (!editForm.title.trim() || !editEv) return;
+    if (!editForm || !editForm.title.trim() || !editEv) return;
     const updated = { ...editEv, ...editForm, title: editForm.title.trim() };
     if (editEv.projectId && !editForm.projectId) {
       const p = projects.find(x => x.id === editEv.projectId);
-      if (p) onUpdate(p.id, { calendarEvents: (p.calendarEvents || []).filter((e: any) => e.id !== editEv.id) });
+      if (p) onUpdate(p.id, { calendarEvents: ((p as any).calendarEvents || []).filter((e: CalEvent) => e.id !== editEv.id) });
       onUpdate('_cal', { ev: { ...updated, projectId: null } });
     } else if (editForm.projectId && editForm.projectId !== editEv.projectId) {
       if (editEv.projectId) {
         const p = projects.find(x => x.id === editEv.projectId);
-        if (p) onUpdate(p.id, { calendarEvents: (p.calendarEvents || []).filter((e: any) => e.id !== editEv.id) });
+        if (p) onUpdate(p.id, { calendarEvents: ((p as any).calendarEvents || []).filter((e: CalEvent) => e.id !== editEv.id) });
       } else {
         onUpdate('_cal_del', { id: editEv.id });
       }
-      const np = projects.find(x => x.id === editForm.projectId);
-      if (np) onUpdate(np.id, { calendarEvents: [...(np.calendarEvents || []), { ...updated, projectId: editForm.projectId }] });
+      const np = projects.find(x => x.id === editForm!.projectId);
+      if (np) onUpdate(np.id, { calendarEvents: [...((np as any).calendarEvents || []), { ...updated, projectId: editForm.projectId }] });
     } else if (editEv.projectId) {
       const p = projects.find(x => x.id === editEv.projectId);
-      if (p) onUpdate(p.id, { calendarEvents: (p.calendarEvents || []).map((e: any) => e.id === editEv.id ? updated : e) });
+      if (p) onUpdate(p.id, { calendarEvents: ((p as any).calendarEvents || []).map((e: CalEvent) => e.id === editEv.id ? updated : e) });
     } else {
       onUpdate('_cal_edit', { ev: updated });
     }
@@ -101,10 +109,10 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
     showToast('✓ Termin gespeichert');
   };
 
-  const deleteEvent = (ev: any) => {
+  const deleteEvent = (ev: CalEvent) => {
     if (ev.projectId) {
       const p = projects.find(x => x.id === ev.projectId);
-      if (p) onUpdate(p.id, { calendarEvents: (p.calendarEvents || []).filter((e: any) => e.id !== ev.id) });
+      if (p) onUpdate(p.id, { calendarEvents: ((p as any).calendarEvents || []).filter((e: CalEvent) => e.id !== ev.id) });
     } else {
       onUpdate('_cal_del', { id: ev.id });
     }
@@ -112,25 +120,25 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
     showToast('Termin gelöscht');
   };
 
-  const allEv: any[] = [
+  const allEv: CalEvent[] = [
     ...(calendarEvents || []),
     ...projects.flatMap(p => [
       p.deadline ? [{ id: `dl-${p.id}`, date: p.deadline, title: `📌 ${p.title}`, projectId: p.id, type: 'deadline', _project: p.title }] : [],
-      ...(p.calendarEvents || []).map((e: any) => ({ ...e, _project: p.title })),
+      ...((p as any).calendarEvents || []).map((e: CalEvent) => ({ ...e, _project: p.title })),
       ...(p.tasks || [])
-        .filter((t: any) => t.deadline && t.status !== 'done' && t.text)
-        .map((t: any) => ({ id: `tdl-${t.id}`, date: t.deadline, title: `⚡ ${t.text}`, projectId: p.id, type: 'deadline', _project: p.title, _isTaskDeadline: true })),
+        .filter((t: Task) => t.deadline && t.status !== 'done' && t.text)
+        .map((t: Task) => ({ id: `tdl-${t.id}`, date: t.deadline, title: `⚡ ${t.text}`, projectId: p.id, type: 'deadline', _project: p.title, _isTaskDeadline: true })),
     ].flat()),
-  ];
+  ] as CalEvent[];
 
   const dayStr       = (d: number) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   const eventsForDay = (d: number) => allEv.filter(e => e.date === dayStr(d));
 
   const activeWorkersOnDay = (d: number) => {
     const ds = dayStr(d);
-    const active: any[] = [];
+    const active: Worker[] = [];
     projects.forEach(p => {
-      p.tasks?.forEach((t: any) => {
+      p.tasks?.forEach((t: Task) => {
         if ((t.status === 'in_progress' || t.deadline === ds) && t.assignee) {
           const u = users?.find(u => u.id === t.assignee);
           if (u && !active.find(a => a.id === u.id)) active.push({ ...u, taskText: t.text, taskStatus: t.status });
@@ -142,11 +150,11 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
 
   function addEvent() {
     if (!form.title.trim()) return;
-    const ds = typeof newEvDay === 'object' ? newEvDay.date : dayStr(newEvDay);
+    const ds = typeof newEvDay === 'object' ? (newEvDay as { date: string; label: string }).date : dayStr(newEvDay);
     const ev = { id: uid(), date: ds, title: form.title.trim(), note: form.note, projectId: form.projectId || null, type: form.type };
     if (form.projectId) {
       const p = projects.find(x => x.id === form.projectId);
-      if (p) onUpdate(p.id, { calendarEvents: [...(p.calendarEvents || []), ev] });
+      if (p) onUpdate(p.id, { calendarEvents: [...((p as any).calendarEvents || []), ev] });
     } else {
       onUpdate('_cal', { ev });
     }
@@ -288,9 +296,9 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
               const ds     = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
               const ev     = allEv.filter(e => e.date === ds);
               const today_ = dt.toDateString() === new Date().toDateString();
-              const workers: any[] = [];
+              const workers: Worker[] = [];
               projects.forEach(p => {
-                p.tasks?.forEach((t: any) => {
+                p.tasks?.forEach((t: Task) => {
                   if ((t.status === 'in_progress' || t.deadline === ds) && t.assignee) {
                     const u = users?.find(u => u.id === t.assignee);
                     if (u && !workers.find(a => a.id === u.id)) workers.push({ ...u, taskText: t.text, taskStatus: t.status });
@@ -308,10 +316,10 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                     {workers.length > 0 && <div style={{ display: 'flex' }}>{workers.slice(0,3).map((w,i) => <div key={w.id} style={{ marginLeft: i>0?-4:0, width:7, height:7, borderRadius:'50%', background: w.taskStatus==='in_progress'?C.gr:C.yw, border:`1px solid ${C.sf2}` }} />)}</div>}
                   </div>
                   {ev.map(e => {
-                    const et = EV_TYPES[e.type] || EV_TYPES.event;
-                    const editable = !e.id?.startsWith('dl-') && !e.id?.startsWith('tdl-');
+                    const et = EV_TYPES[e.type as string] || EV_TYPES.event;
+                    const editable = !(e.id as any)?.startsWith('dl-') && !(e.id as any)?.startsWith('tdl-');
                     return (
-                      <div key={e.id} onClick={editable ? (ev2: any) => openEdit(e, ev2) : undefined}
+                      <div key={e.id} onClick={editable ? (ev2: React.MouseEvent) => openEdit(e, ev2) : undefined}
                         style={{ fontSize: 10, fontWeight: 600, color: et.color, background: et.bg, borderRadius: 4, padding: '3px 6px', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: `1px solid ${et.color}30`, cursor: editable ? 'pointer' : 'default' }}>
                         {e.title}
                       </div>
@@ -358,10 +366,10 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                           )}
                         </div>
                         {ev.slice(0, 3).map(e => {
-                          const et = EV_TYPES[e.type] || EV_TYPES.event;
-                          const editable = !e.id?.startsWith('dl-') && !e.id?.startsWith('tdl-');
+                          const et = EV_TYPES[e.type as string] || EV_TYPES.event;
+                          const editable = !(e.id as any)?.startsWith('dl-') && !(e.id as any)?.startsWith('tdl-');
                           return (
-                            <div key={e.id} onClick={editable ? (ev2: any) => openEdit(e, ev2) : undefined}
+                            <div key={e.id} onClick={editable ? (ev2: React.MouseEvent) => openEdit(e, ev2) : undefined}
                               style={{ fontSize: 9, fontWeight: 600, color: et.color, background: et.bg, borderRadius: 4, padding: '2px 5px', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: `1px solid ${et.color}30`, cursor: editable ? 'pointer' : 'default' }}>
                               {e.title}
                             </div>
@@ -429,7 +437,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
           <Field label="Typ">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
               {Object.entries(EV_TYPES).map(([k, v]) => (
-                <button key={k} onClick={() => setEditForm((f: any) => ({ ...f, type: k }))}
+                <button key={k} onClick={() => setEditForm(f => ({ ...f!, type: k }))}
                   style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, border: `1px solid ${editForm.type === k ? v.color : C.bd2}`, background: editForm.type === k ? v.bg : C.sf2, color: editForm.type === k ? v.color : C.mu, cursor: 'pointer', transition: 'all .15s' }}>
                   {v.label}
                 </button>
@@ -437,16 +445,16 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
             </div>
           </Field>
           <Field label="Titel">
-            <input value={editForm.title} onChange={e => setEditForm((f: any) => ({ ...f, title: e.target.value }))} autoFocus onKeyDown={e => e.key === 'Enter' && saveEdit()} />
+            <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f!, title: e.target.value }))} autoFocus onKeyDown={e => e.key === 'Enter' && saveEdit()} />
           </Field>
           <Field label="Projekt verknüpfen (optional)">
-            <select value={editForm.projectId} onChange={e => setEditForm((f: any) => ({ ...f, projectId: e.target.value }))}>
+            <select value={editForm.projectId} onChange={e => setEditForm(f => ({ ...f!, projectId: e.target.value }))}>
               <option value="">— Kein Projekt —</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
             </select>
           </Field>
           <Field label="Notiz">
-            <textarea value={editForm.note} onChange={e => setEditForm((f: any) => ({ ...f, note: e.target.value }))} placeholder="Weitere Infos…" />
+            <textarea value={editForm.note} onChange={e => setEditForm(f => ({ ...f!, note: e.target.value }))} placeholder="Weitere Infos…" />
           </Field>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button className="abtn" onClick={saveEdit} style={{ flex: 1, padding: 11 }} disabled={!editForm.title.trim()}>Speichern</button>
