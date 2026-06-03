@@ -1,6 +1,16 @@
+import type { MouseEvent } from 'react';
 import { C } from '../lib/utils.js';
 
-export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = 'Löschen', cancelLabel = 'Abbrechen', danger = true }) {
+type ConfirmDialogProps = {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
+};
+
+export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = 'Löschen', cancelLabel = 'Abbrechen', danger = true }: ConfirmDialogProps) {
   return (
     <div
       role="dialog" aria-modal="true"
@@ -8,7 +18,7 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = 'L�
       onClick={onCancel}>
       <div
         style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 12, padding: 24, width: 340, maxWidth: '90vw', boxShadow: '0 16px 60px rgba(0,0,0,.6)', animation: 'fadeUp .15s ease' }}
-        onClick={e => e.stopPropagation()}>
+        onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
         <div style={{ fontSize: 15, fontWeight: 800, color: C.br, marginBottom: 8 }}>Bestätigung erforderlich</div>
         <div style={{ fontSize: 13, color: C.tx, lineHeight: 1.6, marginBottom: 22 }}>{message}</div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
