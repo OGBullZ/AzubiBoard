@@ -10,10 +10,14 @@ import * as S from './lib/schemas';
 
 export type User             = z.infer<typeof S.User>;
 export type Task             = z.infer<typeof S.Task>;
+export type TimeLogEntry     = z.infer<typeof S.TimeLogEntry>;
+export type Label            = z.infer<typeof S.Label>;
 export type Requirement      = z.infer<typeof S.Requirement>;
 export type Material         = z.infer<typeof S.Material>;
 export type Project          = z.infer<typeof S.Project>;
 export type Report           = z.infer<typeof S.Report>;
+export type Goal             = z.infer<typeof S.TrainingGoal>;
+export type GoalProgress     = z.infer<typeof S.TrainingGoalProgress>;
 export type CalendarEvent    = z.infer<typeof S.CalendarEvent>;
 export type QuizAnswer       = z.infer<typeof S.QuizAnswer>;
 export type QuizQuestion     = z.infer<typeof S.QuizQuestion>;

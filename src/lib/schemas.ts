@@ -40,6 +40,27 @@ export const User = z.object({
   profession:          optStr,
   apprenticeship_year: z.number().optional().nullable(),
   training_plan:       z.unknown().optional(),
+  active:              z.boolean().optional(),
+  is_active:           z.boolean().optional(),
+});
+
+// ── Label (Blob: an Projekten, referenziert via task.labelIds) ─
+export const Label = z.object({
+  id:    z.union([z.string(), z.number()]),
+  name:  z.string(),
+  color: optStr,
+});
+
+// ── TimeLog-Eintrag — Union aus relationaler (start/end) und Blob-Form (date/hours) ─
+export const TimeLogEntry = z.object({
+  id:          z.union([z.string(), z.number()]).optional(),
+  start:       optStr,
+  end:         optStr,
+  description: optStr,
+  date:        optStr,
+  hours:       optNum,
+  userId:      z.union([z.string(), z.number()]).optional().nullable(),
+  userName:    optStr,
 });
 
 // ── Task ─────────────────────────────────────────────────────
@@ -49,14 +70,25 @@ export const Task = z.object({
   title:              z.string().optional(),
   description:        optStr,
   note:               optStr,
-  status:             z.enum(['open','in_progress','done','blocked','waiting']).optional(),
+  status:             z.enum(['open','not_started','in_progress','done','blocked','waiting']).optional(),
   priority:           z.enum(['low','medium','high']).optional().nullable(),
   assigned_to:        z.union([z.string(), z.number()]).optional().nullable(),
   due_date:           isoDate,
   estimated_minutes:  optNum,
   completed_at:       isoTs,
   done:               z.boolean().optional(),
-  timeLog:            z.array(z.object({ start: optStr, end: optStr, description: optStr })).optional(),
+  timeLog:            z.array(TimeLogEntry).optional(),
+  // Blob-Felder (localStorage-Form, im relationalen Modell anders/abwesend)
+  assignee:           z.union([z.string(), z.number()]).optional().nullable(),
+  deadline:           isoDate,
+  doc:                optStr,
+  protocol:           optStr,
+  links:              z.array(z.unknown()).optional(),
+  labelIds:           z.array(z.union([z.string(), z.number()])).optional(),
+  estimatedHours:     optNum,
+  created:            optStr,
+  updated_at:         optStr,
+  comments:           z.array(z.unknown()).optional(),
 });
 
 // ── Requirement + Material ────────────────────────────────────
@@ -96,6 +128,12 @@ export const Project = z.object({
   tasks:        z.array(Task).optional().default([]),
   requirements: z.array(Requirement).optional().default([]),
   materials:    z.array(Material).optional().default([]),
+  // Blob-Felder
+  assignees:    z.array(z.union([z.string(), z.number()])).optional(),
+  links:        z.array(z.unknown()).optional(),
+  groupId:      z.union([z.string(), z.number()]).optional().nullable(),
+  netzplan:     z.unknown().optional(),
+  labels:       z.array(Label).optional(),
 });
 
 // ── Report ────────────────────────────────────────────────────
@@ -114,7 +152,11 @@ export const Report = z.object({
   reviewed_at:    isoTs,
   signed_at:      isoTs,
   review_comment: optStr,
-  file:           optStr,
+  reviewer_comment: optStr,
+  // file kann String (Pfad/URL) ODER hochgeladenes Objekt sein
+  file:           z.union([z.string(), z.object({ name: z.string(), size: optNum, type: optStr, data: optStr })]).optional().nullable(),
+  // sectionComments: { activities: Comment[], learnings: Comment[] }
+  sectionComments: z.record(z.string(), z.array(z.unknown())).optional(),
 });
 
 // ── Search Result ─────────────────────────────────────────────
@@ -174,6 +216,23 @@ export const LearningPath = z.object({
   description: optStr,
   lehrjahr:    z.number().optional().nullable(),
   nodes:       z.array(LearningPathNode).optional().default([]),
+});
+
+// ── Trainingsplan-Lernziel (Blob) ─────────────────────────────
+export const TrainingGoalProgress = z.object({
+  status:      z.enum(['open', 'learned', 'confirmed']).optional(),
+  confirmedBy: z.union([z.string(), z.number()]).optional().nullable(),
+  confirmedTs: optStr,
+});
+
+export const TrainingGoal = z.object({
+  id:          z.union([z.string(), z.number()]),
+  title:       z.string(),
+  description: optStr,
+  year:        optNum,
+  quarter:     optNum,
+  category:    optStr,
+  progress:    z.record(z.string(), TrainingGoalProgress).optional().default({}),
 });
 
 // ── App-State (vollständig) ───────────────────────────────────
