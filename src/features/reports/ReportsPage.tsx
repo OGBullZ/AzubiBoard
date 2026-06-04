@@ -376,7 +376,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
           {report?.status && <div style={{ fontSize: 10, color: STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.c, fontWeight: 700 }}>● {STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.l}</div>}
         </div>
         <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, gap: 3 }}>
-          {/* eslint-disable-next-line no-unused-vars */}
+          { }
           {([['text', t('report.tabText'), IcoDoc], ['upload', t('report.tabPdf'), IcoReport]] as [string, string, any][]).map(([k, l, Icon]) => (
             <button key={k} onClick={() => setTab(k)}
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', background: tab === k ? C.ac : 'transparent', color: tab === k ? '#fff' : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
@@ -473,7 +473,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
               {[
                 { key: 'activities', label: t('report.activitySection'), Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200 },
                 { key: 'learnings',  label: t('report.learningSection'),  Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160 },
-              // eslint-disable-next-line no-unused-vars
+               
               ].map(({ key, label, Icon, color, ph, minH }) => {
                 const comments = (form.sectionComments?.[key] || []);
                 const addComment = () => {

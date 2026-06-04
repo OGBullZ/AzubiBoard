@@ -664,7 +664,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '4px 6px', overflowY: 'auto' }}>
-        {/* eslint-disable-next-line no-unused-vars */}
+        { }
         {navItems.map(({ to, label, Icon: NavIcon }) => {
           const active = path === to || (to !== '/dashboard' && path.startsWith(to));
           return (

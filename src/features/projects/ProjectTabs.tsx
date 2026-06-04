@@ -572,7 +572,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
   const [filterLabel,  setFilterLabel]  = useState<Id | null>(null);
   const [selection,    setSelection]    = useState<Set<Id>>(new Set());
 
-  const toggleSelect   = (id: Id) => setSelection(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const toggleSelect   = (id: Id) => setSelection(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
   const clearSelection = () => setSelection(new Set());
   const selectAll      = () => setSelection(new Set(visibleTasks.map((t: Task) => t.id)));
 

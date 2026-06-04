@@ -272,7 +272,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
 }
 
 // ── Icon Button (APPLE-STYLE: 40x40, better feedback) ───────────
-// eslint-disable-next-line no-unused-vars
+ 
 type IconBtnProps = {
   Icon: IconComponent;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
