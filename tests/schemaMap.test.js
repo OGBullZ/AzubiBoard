@@ -11,6 +11,10 @@ import {
   mapProjectRowToBlob,
   mapReportRowToBlob,
   mapTimeEntryRowToBlob,
+  mapQuizzesToBlob,
+  mapLearningPathRowToBlob,
+  extractPathProgress,
+  mapCalendarEventRowToBlob,
 } from '../src/lib/schemaMap.js';
 
 describe('mapTaskRowToBlob', () => {
@@ -108,5 +112,91 @@ describe('mapReportRowToBlob', () => {
 describe('mapTimeEntryRowToBlob', () => {
   it('mappt started_at/ended_at → start/end', () => {
     expect(mapTimeEntryRowToBlob({ started_at: 'a', ended_at: 'b' })).toEqual({ start: 'a', end: 'b' });
+  });
+});
+
+describe('mapQuizzesToBlob', () => {
+  it('flacht quizzes[].questions[] zu Fragenliste, Kategorie aus quiz.title', () => {
+    const out = mapQuizzesToBlob([
+      {
+        id: 1, title: 'PHP',
+        questions: [
+          { id: 10, question_text: 'Was ist $_GET?', question_type: 'single',
+            answers: [{ id: 100, answer_text: 'Superglobal', is_correct: 1 },
+                      { id: 101, answer_text: 'Funktion', is_correct: 0 }] },
+        ],
+      },
+      {
+        id: 2, title: 'SQL',
+        questions: [{ id: 20, question_text: 'JOIN?', question_type: 'multiple', answers: [] }],
+      },
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ id: '10', question: 'Was ist $_GET?', category: 'PHP', type: 'single' });
+    expect(out[0].answers).toEqual([
+      { id: '100', text: 'Superglobal', correct: true },
+      { id: '101', text: 'Funktion', correct: false },
+    ]);
+    // Kategorie aus dem jeweiligen Quiz, type 'multiple' erhalten
+    expect(out[1]).toMatchObject({ id: '20', category: 'SQL', type: 'multiple', answers: [] });
+  });
+
+  it('Quiz ohne questions → leeres Ergebnis', () => {
+    expect(mapQuizzesToBlob([{ id: 1, title: 'X' }])).toEqual([]);
+    expect(mapQuizzesToBlob()).toEqual([]);
+  });
+});
+
+describe('mapLearningPathRowToBlob', () => {
+  it('mappt nodes, leitet prereqs aus edges (from_node → to_node) ab, lehrjahr→Number', () => {
+    const p = mapLearningPathRowToBlob({
+      id: 5, title: 'Grundlagen', lehrjahr: '2',
+      nodes: [{ id: 'n1', title: 'A', type: 'video' }, { id: 'n2', title: 'B' }],
+      edges: [{ from_node: 'n1', to_node: 'n2' }],
+    });
+    expect(p).toMatchObject({ id: '5', title: 'Grundlagen', lehrjahr: 2 });
+    expect(p.nodes).toHaveLength(2);
+    // n2 hat n1 als Voraussetzung; n1 hat keine
+    expect(p.nodes[0]).toMatchObject({ id: 'n1', title: 'A', type: 'video', prereqs: [] });
+    expect(p.nodes[1]).toMatchObject({ id: 'n2', title: 'B', type: 'article', prereqs: ['n1'] });
+  });
+
+  it('leere nodes/edges → leeres nodes-Array, lehrjahr weggelassen', () => {
+    const p = mapLearningPathRowToBlob({ id: 1, title: 'leer' });
+    expect(p.nodes).toEqual([]);
+    expect('lehrjahr' in p).toBe(false);
+  });
+});
+
+describe('extractPathProgress', () => {
+  it('flacht progress je Node zu {completed, completed_at}', () => {
+    const prog = extractPathProgress([
+      { id: 1, progress: { n1: { completed: 1, completed_at: '2026-01-01' }, n2: { completed: 0 } } },
+      { id: 2, progress: { n3: { completed: true } } },
+    ]);
+    expect(prog.n1).toEqual({ completed: true, completed_at: '2026-01-01' });
+    expect(prog.n2.completed).toBe(false);
+    expect(prog.n3.completed).toBe(true);
+  });
+
+  it('Pfade ohne progress → leeres Objekt', () => {
+    expect(extractPathProgress([{ id: 1 }])).toEqual({});
+    expect(extractPathProgress()).toEqual({});
+  });
+});
+
+describe('mapCalendarEventRowToBlob', () => {
+  it('mappt event_date→date, description→note, project_id→String, type-Default', () => {
+    const e = mapCalendarEventRowToBlob({
+      id: 9, event_date: '2026-03-01', title: 'Termin', description: 'Notiz', project_id: 3,
+    });
+    expect(e).toMatchObject({ id: '9', date: '2026-03-01', title: 'Termin', note: 'Notiz', projectId: '3', type: 'event' });
+  });
+
+  it('ohne event_date/project_id → date/projectId weggelassen (kompakt)', () => {
+    const e = mapCalendarEventRowToBlob({ id: 1, title: 'x', type: 'deadline' });
+    expect('date' in e).toBe(false);
+    expect('projectId' in e).toBe(false);
+    expect(e.type).toBe('deadline');
   });
 });

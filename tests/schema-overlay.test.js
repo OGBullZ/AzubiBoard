@@ -86,3 +86,67 @@ describe('overlaySchemaReads', () => {
     expect(out.reports).toEqual([]);
   });
 });
+
+describe('overlaySchemaReads — quizzes / learningPaths / calendar / trainingPlan', () => {
+  it('überlagert quizzes aus /quizzes (zu flacher Fragenliste gemappt)', async () => {
+    const fetchJson = makeFetchJson({
+      '/quizzes': [{ id: 1, title: 'PHP', questions: [
+        { id: 10, question_text: 'Q?', question_type: 'single',
+          answers: [{ id: 100, answer_text: 'A', is_correct: 1 }] },
+      ] }],
+    });
+    const out = await overlaySchemaReads({ quizzes: [{ id: 'alt' }] }, fetchJson);
+    expect(out.quizzes).toHaveLength(1);
+    expect(out.quizzes[0]).toMatchObject({ id: '10', category: 'PHP', question: 'Q?' });
+  });
+
+  it('überlagert learningPaths + extrahiert pathProgress aus /learningPaths', async () => {
+    const fetchJson = makeFetchJson({
+      '/learningPaths': [{
+        id: 5, title: 'Pfad',
+        nodes: [{ id: 'n1', title: 'A' }, { id: 'n2', title: 'B' }],
+        edges: [{ from_node: 'n1', to_node: 'n2' }],
+        progress: { n1: { completed: 1, completed_at: '2026-01-01' } },
+      }],
+    });
+    const out = await overlaySchemaReads({ learningPaths: [{ id: 'alt' }], pathProgress: {} }, fetchJson);
+    expect(out.learningPaths[0]).toMatchObject({ id: '5', title: 'Pfad' });
+    expect(out.learningPaths[0].nodes[1].prereqs).toEqual(['n1']);
+    expect(out.pathProgress.n1).toEqual({ completed: true, completed_at: '2026-01-01' });
+  });
+
+  it('überlagert calendarEvents aus /calendar (event_date→date)', async () => {
+    const fetchJson = makeFetchJson({
+      '/calendar': [{ id: 9, event_date: '2026-03-01', title: 'Termin', project_id: 3 }],
+    });
+    const out = await overlaySchemaReads({ calendarEvents: [{ id: 'alt' }] }, fetchJson);
+    expect(out.calendarEvents[0]).toMatchObject({ id: '9', date: '2026-03-01', projectId: '3' });
+  });
+
+  it('überlagert trainingPlan aus /trainingPlan (Objekt-Passthrough)', async () => {
+    const fetchJson = makeFetchJson({
+      '/trainingPlan': { goals: [{ id: 'g1' }], examDate: '2027-06-01' },
+    });
+    const out = await overlaySchemaReads({ trainingPlan: { goals: [] } }, fetchJson);
+    expect(out.trainingPlan).toEqual({ goals: [{ id: 'g1' }], examDate: '2027-06-01' });
+  });
+
+  it('Route-Fehler je Sektion → jeweiliger Blob-Wert bleibt erhalten', async () => {
+    const blob = {
+      quizzes: [{ id: 'kq' }], learningPaths: [{ id: 'kp' }],
+      pathProgress: { keep: 1 }, calendarEvents: [{ id: 'kc' }], trainingPlan: { keep: true },
+    };
+    const fetchJson = makeFetchJson({
+      '/quizzes': new Error('boom'),
+      '/learningPaths': new Error('boom'),
+      '/calendar': new Error('boom'),
+      '/trainingPlan': new Error('boom'),
+    });
+    const out = await overlaySchemaReads(blob, fetchJson);
+    expect(out.quizzes).toEqual([{ id: 'kq' }]);
+    expect(out.learningPaths).toEqual([{ id: 'kp' }]);
+    expect(out.pathProgress).toEqual({ keep: 1 });
+    expect(out.calendarEvents).toEqual([{ id: 'kc' }]);
+    expect(out.trainingPlan).toEqual({ keep: true });
+  });
+});
