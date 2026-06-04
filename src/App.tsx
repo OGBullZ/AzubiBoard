@@ -270,7 +270,7 @@ function useNotifications(data: AppState | null, currentUser: User | null) {
     });
 
     if (currentUser.role === 'ausbilder' || currentUser.role === 'mentor') {
-      (data.reports || []).filter((r: Report) => r.status === 'submitted').forEach((r: Report & { user_name?: string }) => {
+      (data.reports || []).filter((r: Report) => r.status === 'submitted').forEach((r: Report) => {
         items.push({ id: `report-${r.id}-submitted`, type: 'report', severity: 'info', title: 'Bericht zur Prüfung', message: `${r.user_name || 'Azubi'} · KW ${r.week_number}/${r.year}` });
       });
     } else {

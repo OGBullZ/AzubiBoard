@@ -57,8 +57,7 @@ const TEMPLATES = [
 ];
 
 function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete }: {
-  // user_name wird beim Speichern angehängt (nicht im Report-Schema) → Blob-Cast unten
-  report: Report & { user_name?: string }; currentUser: User;
+  report: Report; currentUser: User;
   onOpen: (r: Report) => void; onSubmit: (id: Id) => void; onSign: (id: Id) => void; onDelete: (id: Id) => void;
 }) {
   const { t } = useTranslation();
@@ -134,8 +133,7 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete }:
 }
 
 function ReportEditor({ report, currentUser, projects, onSave, onClose, showToast }: {
-  // user_name wird beim Speichern angehängt (nicht im Report-Schema)
-  report: (Report & { user_name?: string }) | null; currentUser: User; projects: Project[];
+  report: Report | null; currentUser: User; projects: Project[];
   onSave: (rep: Report) => void; onClose: () => void; showToast: (msg: string, opts?: any) => void;
 }) {
   const { t } = useTranslation();
@@ -236,8 +234,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const handleDrop = (e: any) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFile(file); };
 
   const save = () => {
-    // created_at ist Blob-Feld (nicht im Report-Schema) → Cast für den Read
-    const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year: new Date(form.week_start).getFullYear(), updated_at: new Date().toISOString(), created_at: (report as any)?.created_at || new Date().toISOString() };
+    const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year: new Date(form.week_start).getFullYear(), updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
     onSave(newReport as Report);
     showToast('✓ Berichtsheft gespeichert');
   };
@@ -589,29 +586,26 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   );
 }
 
-// user_name wird beim Speichern angehängt (nicht im Report-Schema)
-type ReportWithUser = Report & { user_name?: string };
-
-function printJahresmappe(reports: ReportWithUser[], year: number, showToast?: (msg: string, opts?: any) => void) {
+function printJahresmappe(reports: Report[], year: number, showToast?: (msg: string, opts?: any) => void) {
   const yearReports = reports
-    .filter((r: ReportWithUser) => {
+    .filter((r: Report) => {
       const iso = getISOWeek(r.week_start);
       const ry  = r.year ?? iso.year ?? new Date(r.week_start as string).getFullYear();
       return ry === year;
     })
-    .sort((a: ReportWithUser, b: ReportWithUser) => +new Date(a.week_start as string) - +new Date(b.week_start as string));
+    .sort((a: Report, b: Report) => +new Date(a.week_start as string) - +new Date(b.week_start as string));
 
   if (!yearReports.length) {
     showToast?.(`⚠ Keine Berichte für ${year} vorhanden`);
     return;
   }
 
-  const byUser = yearReports.reduce((acc: Record<string, { name: string; reports: ReportWithUser[] }>, r: ReportWithUser) => {
+  const byUser = yearReports.reduce((acc: Record<string, { name: string; reports: Report[] }>, r: Report) => {
     const key = String(r.user_id);
     if (!acc[key]) acc[key] = { name: r.user_name || 'Unbekannt', reports: [] };
     acc[key].reports.push(r);
     return acc;
-  }, {} as Record<string, { name: string; reports: ReportWithUser[] }>);
+  }, {} as Record<string, { name: string; reports: Report[] }>);
 
   const w = window.open('', '_blank');
   if (!w) { showToast?.('⚠ Popup blockiert – bitte Pop-ups erlauben'); return; }
@@ -639,7 +633,7 @@ function printJahresmappe(reports: ReportWithUser[], year: number, showToast?: (
   <h1>Ausbildungsnachweis-Mappe ${year}</h1>
   ${Object.values(byUser).map(u => `
     <h2>${u.name}</h2>
-    ${u.reports.map((r: ReportWithUser, i: number) => {
+    ${u.reports.map((r: Report, i: number) => {
       const iso = getISOWeek(r.week_start);
       const kw  = r.week_number ?? iso.week ?? '';
       const yr  = r.year ?? iso.year ?? year;
@@ -665,20 +659,20 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 }) {
   const { t } = useTranslation();
   const STATUS_REPORT_I18N = useStatusReport();
-  const reports: ReportWithUser[] = data.reports || [];
+  const reports: Report[] = data.reports || [];
   const [view,    setView]   = useState('list');
-  const [editing, setEditing]= useState<ReportWithUser | null>(null);
+  const [editing, setEditing]= useState<Report | null>(null);
   const [filter,  setFilter] = useState('alle');
   const [search,  setSearch] = useState('');
   const dSearch = useDebounce(search);
   const [confirmDel, setConfirmDel] = useState<Id | null>(null);
   const [shareOpen,  setShareOpen]  = useState(false);  // J10
 
-  const myReports = currentUser.role === 'azubi' ? reports.filter((r: ReportWithUser) => r.user_id === currentUser.id) : reports;
+  const myReports = currentUser.role === 'azubi' ? reports.filter((r: Report) => r.user_id === currentUser.id) : reports;
   const q = dSearch.trim().toLowerCase();
   const filtered = myReports
-    .filter((r: ReportWithUser) => filter === 'alle' || r.status === filter)
-    .filter((r: ReportWithUser) => !q || (
+    .filter((r: Report) => filter === 'alle' || r.status === filter)
+    .filter((r: Report) => !q || (
       (r.title || '').toLowerCase().includes(q) ||
       (r.activities || '').toLowerCase().includes(q) ||
       (r.learnings || '').toLowerCase().includes(q) ||
@@ -686,9 +680,9 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
       String(r.week_number).includes(q)
     ));
 
-  const saveReport = (rep: ReportWithUser) => {
-    const existing = reports.find((r: ReportWithUser) => r.id === rep.id);
-    const next = { ...data, reports: existing ? reports.map((r: ReportWithUser) => r.id === rep.id ? rep : r) : [...reports, rep] };
+  const saveReport = (rep: Report) => {
+    const existing = reports.find((r: Report) => r.id === rep.id);
+    const next = { ...data, reports: existing ? reports.map((r: Report) => r.id === rep.id ? rep : r) : [...reports, rep] };
     const iso  = getISOWeek(rep.week_start);
     // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
     onUpdateData(addActivity(next as any, {
@@ -708,9 +702,9 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   };
 
   const submitReport = (id: Id) => {
-    const rep = reports.find((r: ReportWithUser) => r.id === id);
+    const rep = reports.find((r: Report) => r.id === id);
     const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
-    const next = { ...data, reports: reports.map((r: ReportWithUser) => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) };
+    const next = { ...data, reports: reports.map((r: Report) => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) };
     // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
     onUpdateData(addActivity(next as any, {
       type:        'report_submitted',
@@ -725,9 +719,9 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   };
 
   const signReport = (id: Id) => {
-    const rep = reports.find((r: ReportWithUser) => r.id === id);
+    const rep = reports.find((r: Report) => r.id === id);
     const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
-    const next = { ...data, reports: reports.map((r: ReportWithUser) => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) };
+    const next = { ...data, reports: reports.map((r: Report) => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) };
     // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
     onUpdateData(addActivity(next as any, {
       type:        'report_signed',
@@ -795,7 +789,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         {Object.entries(STATUS_REPORT_I18N).map(([k, v]) => {
-          const cnt = myReports.filter((r: ReportWithUser) => r.status === k).length;
+          const cnt = myReports.filter((r: Report) => r.status === k).length;
           return (
             <div key={k} onClick={() => setFilter(filter === k ? 'alle' : k)}
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px', background: filter === k ? v.c + '18' : 'var(--c-sf2)', border: `1px solid ${filter === k ? v.c + '50' : 'var(--c-bd)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all .12s' }}>
@@ -818,7 +812,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             onAction={!q && currentUser.role === 'azubi' ? () => { setEditing(null); setView('edit'); } : undefined} />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, alignContent: 'start' }}>
-            {[...filtered].sort((a: ReportWithUser, b: ReportWithUser) => +new Date(b.week_start as string) - +new Date(a.week_start as string)).map((r: ReportWithUser) => (
+            {[...filtered].sort((a: Report, b: Report) => +new Date(b.week_start as string) - +new Date(a.week_start as string)).map((r: Report) => (
               <ReportCard key={r.id} report={r} currentUser={currentUser}
                 onOpen={(rep: Report) => { setEditing(rep); setView('edit'); }}
                 onSubmit={submitReport} onSign={signReport}
@@ -833,12 +827,12 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
           message={t('report.deleteConfirm')}
           onConfirm={() => {
             const snapshot = data;
-            const report   = reports.find((r: ReportWithUser) => r.id === confirmDel);
+            const report   = reports.find((r: Report) => r.id === confirmDel);
             if (report) {
               // softDelete ist JS-Boundary (AppData/TrashBin vs AppState) → Cast
               onUpdateData(softDelete(data as any, 'reports', report, currentUser) as unknown as AppState);
             } else {
-              onUpdateData({ ...data, reports: reports.filter((r: ReportWithUser) => r.id !== confirmDel) });
+              onUpdateData({ ...data, reports: reports.filter((r: Report) => r.id !== confirmDel) });
             }
             showToast(t('report.deletedToast'), { undo: () => onUpdateData(snapshot) });
             setConfirmDel(null);
@@ -851,7 +845,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         <ShareLinkModal
           kind="jahresmappe"
           title={`Jahresmappe ${new Date().getFullYear()}`}
-          data={{ reports: reports.filter((r: ReportWithUser) => {
+          data={{ reports: reports.filter((r: Report) => {
             const iso = getISOWeek(r.week_start);
             const yr  = r.year ?? iso.year ?? new Date(r.week_start as string).getFullYear();
             return yr === new Date().getFullYear();

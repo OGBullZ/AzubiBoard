@@ -328,8 +328,8 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { t
           // task.links: Schema-Typ unknown[] (Blob-Link-Form) → Cast für LinksManager
           <LinksManager links={(task.links || []) as any /* Blob-Link-Form */} onUpdate={links => onUpdate(task.id, { links })} compact />
         ) : active === 'materials' ? (
-          <MaterialRef materials={projectMaterials} taskRef={(task as any).materialRef || []}
-            onUpdate={(refs: any) => onUpdate(task.id, { materialRef: refs } as Partial<Task>)} />
+          <MaterialRef materials={projectMaterials} taskRef={task.materialRef || []}
+            onUpdate={(refs: Id[]) => onUpdate(task.id, { materialRef: refs })} />
         ) : active === 'zeit' ? (
           <ZeitTab task={task} onUpdate={onUpdate} currentUser={currentUser} />
         ) : (
@@ -907,13 +907,13 @@ export function RequirementsTab({ project, onUpdate }: { project: Project; onUpd
   );
 }
 
-// `steps` ist ein Blob-Feld, das es im Project-Schema nicht gibt → über any-Cast lesen/schreiben.
+// `steps` ist ein Project-Blob-Feld (Element bewusst unknown) → Element-Werte lokal als any.
 export function StepsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const [form, setForm] = useState({ title: '', date: today(), note: '' });
   const [open, setOpen] = useState<Id | null>(null);
-  const steps  = (project as any).steps as any[] | undefined;
-  const add    = () => { if(!form.title.trim())return; onUpdate(project.id,{steps:[...(steps||[]),{id:uid(),...form}]} as Partial<Project>); setForm({title:'',date:today(),note:''}); };
-  const remove = (id: Id) => onUpdate(project.id,{steps:(steps||[]).filter((s: any)=>s.id!==id)} as Partial<Project>);
+  const steps  = project.steps as any[] | undefined;
+  const add    = () => { if(!form.title.trim())return; onUpdate(project.id,{steps:[...(steps||[]),{id:uid(),...form}]}); setForm({title:'',date:today(),note:''}); };
+  const remove = (id: Id) => onUpdate(project.id,{steps:(steps||[]).filter((s: any)=>s.id!==id)});
   const sorted = [...(steps||[])].sort((a: any, b: any)=>+new Date(b.date)-+new Date(a.date));
 
   return (

@@ -134,15 +134,16 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
 
   const markLearned = () => {
     const next = myStatus === 'open' ? 'learned' : 'open';
-    // Blob-Divergenz: Schreib-Shape enthält `ts` (Lern-Zeitstempel), das im GoalProgress-Schema fehlt → Cast.
-    const prog = { ...(goal.progress || {}), [currentUser.id]: { status: next, ts: new Date().toISOString() } as GoalProgress };
+    const entry: GoalProgress = { status: next, ts: new Date().toISOString() };
+    const prog = { ...(goal.progress || {}), [currentUser.id]: entry };
     onUpdate({ ...goal, progress: prog }, next === 'learned' ? { learnedFor: currentUser.id } : null);
   };
 
   const confirmUser = (userId: Id) => {
     const cur = goal.progress?.[userId]?.status;
     const next = cur === 'confirmed' ? 'learned' : 'confirmed';
-    const prog = { ...(goal.progress || {}), [userId]: { ...(goal.progress?.[userId] || {}), status: next, confirmedBy: currentUser.id, confirmedTs: new Date().toISOString() } as GoalProgress };
+    const entry: GoalProgress = { ...(goal.progress?.[userId] || {}), status: next, confirmedBy: currentUser.id, confirmedTs: new Date().toISOString() };
+    const prog = { ...(goal.progress || {}), [userId]: entry };
     onUpdate({ ...goal, progress: prog }, next === 'confirmed' ? { confirmedFor: userId } : null);
   };
 

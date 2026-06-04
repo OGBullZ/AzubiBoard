@@ -85,6 +85,7 @@ export const Task = z.object({
   protocol:           optStr,
   links:              z.array(z.unknown()).optional(),
   labelIds:           z.array(z.union([z.string(), z.number()])).optional(),
+  materialRef:        z.array(z.union([z.string(), z.number()])).optional(),
   estimatedHours:     optNum,
   created:            optStr,
   updated_at:         optStr,
@@ -134,6 +135,8 @@ export const Project = z.object({
   groupId:      z.union([z.string(), z.number()]).optional().nullable(),
   netzplan:     z.unknown().optional(),
   labels:       z.array(Label).optional(),
+  steps:        z.array(z.unknown()).optional(),
+  comments:     z.array(z.unknown()).optional(),
 });
 
 // ── Report ────────────────────────────────────────────────────
@@ -153,6 +156,10 @@ export const Report = z.object({
   signed_at:      isoTs,
   review_comment: optStr,
   reviewer_comment: optStr,
+  // Blob-Felder, beim Speichern angehängt (nicht im relationalen Modell)
+  user_name:      optStr,
+  created_at:     isoTs,
+  updated_at:     isoTs,
   // file kann String (Pfad/URL) ODER hochgeladenes Objekt sein
   file:           z.union([z.string(), z.object({ name: z.string(), size: optNum, type: optStr, data: optStr })]).optional().nullable(),
   // sectionComments: { activities: Comment[], learnings: Comment[] }
@@ -221,6 +228,7 @@ export const LearningPath = z.object({
 // ── Trainingsplan-Lernziel (Blob) ─────────────────────────────
 export const TrainingGoalProgress = z.object({
   status:      z.enum(['open', 'learned', 'confirmed']).optional(),
+  ts:          optStr,
   confirmedBy: z.union([z.string(), z.number()]).optional().nullable(),
   confirmedTs: optStr,
 });
