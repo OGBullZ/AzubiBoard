@@ -13,9 +13,10 @@ Deployment-Server: Ubuntu LAMP, IP `10.14.99.10`, App unter `/azubiboard/`
 
 ## Aktueller Stand
 
-**Letzter Commit:** `33a1a05` (18. Mai 2026) — HTTPS/Auto-Deploy + Pre-commit Hook + Slash Commands  
-**Abgeschlossen:** Sprint 11 + Bugfixes + Session 18.05 (OPS1/9/10, DEV1, Backup-Cron, Arbeitsregeln)  
-**Schema-Version:** v5 (`data.learningPaths`, `data.pathProgress`)
+**Letzter Commit:** `a26e779` (4. Juni 2026) — typecheck+lint als CI-Gates  
+**Abgeschlossen:** Sprint 11–14 — u.a. Sprint 12 (L5 MySQL-Refactor: Phasen 0–3, Dual-Write/RLS/Audit, Schema-Read-Layer hinter `VITE_USE_SCHEMA`), Sprint 13 (i18n 227 Keys, TS-Setup), Sprint 14 (AI1/AI2/UX1, **vollständige TS-Migration: src/ 100% .ts/.tsx, strict-clean, 0 @ts-nocheck**, Schema-Schärfung).  
+**Schema-Version:** v5 (`data.learningPaths`, `data.pathProgress`)  
+**Typen:** Zod-Schemas in `src/lib/schemas.ts` → `z.infer` in `src/types.ts`. Boundary-`any` (store/trash/dataService, Blob↔Schema, Consumer-Typen) ist bewusst+dokumentiert; `tsc --noEmit` (strict) ist das Typ-Gate, `no-explicit-any` ist daher aus.
 
 Vollständige Sprint-Historie → `HANDOVER.md`  
 Cloud-Deploy-Anleitung → `DEPLOY.md`
@@ -24,11 +25,15 @@ Cloud-Deploy-Anleitung → `DEPLOY.md`
 
 ```bash
 npm install
-npm run dev       # Vite Dev-Server → http://localhost:5173/azubiboard/
-npm test          # Vitest (44 Tests)
-npm run e2e       # Playwright (6 Tests, braucht Chromium)
-npm run build     # Produktions-Bundle → dist/
+npm run dev        # Vite Dev-Server → http://localhost:5173/azubiboard/
+npm run typecheck  # tsc --noEmit (strict) — CI-Gate
+npm run lint       # eslint . (deckt .js/.jsx UND .ts/.tsx ab) — CI-Gate
+npm test           # Vitest (78 Tests)
+npm run e2e        # Playwright (6 Tests, braucht Chromium)
+npm run build      # Produktions-Bundle → dist/ (vite build, prüft KEINE Typen → typecheck separat!)
 ```
+
+CI (`ci.yml`, unit-Job) fährt: `typecheck → lint → test → build`. PHPUnit/E2E/Lighthouse als eigene Jobs.
 
 ## Wichtige Coding-Patterns
 
@@ -39,9 +44,9 @@ setData({ foo: newValue })           // ❌ löscht projects/users/etc.
 ```
 
 **Neue Routes immer lazy:**
-```js
-const NewPage = lazy(() => import('./features/xyz/NewPage.jsx'))
-// + Suspense-Fallback in App.jsx
+```ts
+const NewPage = lazy(() => import('./features/xyz/NewPage.tsx'))
+// + Suspense-Fallback in App.tsx
 ```
 
 **PHP-Routes:** Reihenfolge spezifisch → allgemein. Spezifischere Patterns (z.B. `/api/data/backups/{day}`) müssen VOR dem allgemeinen (`/api/data/backups`) stehen — `respond()` beendet die Ausführung sofort.
