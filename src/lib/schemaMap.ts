@@ -123,7 +123,8 @@ export function mapReportRowToBlob(row: Row = {}): Blob {
     submitted_at:   row.submitted_at ?? undefined,
     reviewed_at:    row.reviewed_at ?? undefined,
     signed_at:      row.signed_at ?? undefined,
-    review_comment: row.reviewer_comment ?? row.review_comment ?? undefined,
+    // Frontend liest `reviewer_comment` (nicht review_comment) → unter diesem Key emittieren
+    reviewer_comment: row.reviewer_comment ?? row.review_comment ?? undefined,
     file,
   });
 }

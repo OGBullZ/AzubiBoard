@@ -88,7 +88,7 @@ describe('mapProjectRowToBlob', () => {
 });
 
 describe('mapReportRowToBlob', () => {
-  it('mappt file_url→file, reviewer_comment→review_comment, ids→String', () => {
+  it('mappt file_url→file, reviewer_comment (Key wie Frontend liest), ids→String', () => {
     const r = mapReportRowToBlob({
       id: 7, user_id: 1, reviewer_id: 2, week_start: '2026-01-12', status: 'signed',
       reviewer_comment: 'ok', file_url: '/uploads/r.pdf',
@@ -96,7 +96,7 @@ describe('mapReportRowToBlob', () => {
     expect(r.id).toBe('7');
     expect(r.user_id).toBe('1');
     expect(r.reviewer_id).toBe('2');
-    expect(r.review_comment).toBe('ok');
+    expect(r.reviewer_comment).toBe('ok');
     expect(r.file).toBe('/uploads/r.pdf');
     expect(r.status).toBe('signed');
   });

@@ -136,6 +136,7 @@ export const Project = z.object({
   requirements: z.array(Requirement).optional().default([]),
   materials:    z.array(Material).optional().default([]),
   // Blob-Felder
+  startDate:    isoDate,   // Blob-Alias für start_date (NetzplanGantt liest startDate)
   assignees:    z.array(z.union([z.string(), z.number()])).optional(),
   links:        z.array(z.unknown()).optional(),
   groupId:      z.union([z.string(), z.number()]).optional().nullable(),
