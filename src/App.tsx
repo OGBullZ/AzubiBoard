@@ -16,6 +16,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 
+import type { User, Project, Task, Report, CalendarEvent, AppState, Id } from './types';
 import AuthPage from './features/auth/AuthPage';
 import Dashboard from './features/dashboard/Dashboard';   // initial Route — eager
 import ProjectPool from './features/projects/ProjectPool';
@@ -226,20 +227,31 @@ function NotificationPermissionRow() {
 }
 
 // ── Notifications ─────────────────────────────────────────────
-function useNotifications(data: any, currentUser: any) {
+// UI-Konstrukt (kein Domain-Typ) — lokal definiert.
+interface NotificationEntry {
+  id: string;
+  type: string;
+  severity: string;
+  // title kann aus task.text stammen (im Schema optional) → string | undefined.
+  title: string | undefined;
+  message: string;
+  projectId?: Id;
+  projectTitle?: string | null;
+}
+function useNotifications(data: AppState | null, currentUser: User | null) {
   const storageKey = `azubiboard_notif_read_${currentUser?.id || 'anon'}`;
   const [readIds, setReadIds] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
     catch { return new Set(); }
   });
 
-  const notifications = useMemo<any[]>(() => {
+  const notifications = useMemo<NotificationEntry[]>(() => {
     if (!data || !currentUser) return [];
-    const items: any[] = [];
+    const items: NotificationEntry[] = [];
     const now = new Date();
 
-    (data.projects || []).filter((p: any) => !p.archived).forEach((project: any) => {
-      (project.tasks || []).forEach((task: any) => {
+    (data.projects || []).filter((p: Project) => !p.archived).forEach((project: Project) => {
+      (project.tasks || []).forEach((task: Task) => {
         if (task.assignee !== currentUser.id || task.status === 'done' || !task.deadline) return;
         const d = Math.ceil((+new Date(task.deadline) - +now) / 86400000);
         if (d < 0)
@@ -258,11 +270,11 @@ function useNotifications(data: any, currentUser: any) {
     });
 
     if (currentUser.role === 'ausbilder' || currentUser.role === 'mentor') {
-      (data.reports || []).filter((r: any) => r.status === 'submitted').forEach((r: any) => {
+      (data.reports || []).filter((r: Report) => r.status === 'submitted').forEach((r: Report & { user_name?: string }) => {
         items.push({ id: `report-${r.id}-submitted`, type: 'report', severity: 'info', title: 'Bericht zur Prüfung', message: `${r.user_name || 'Azubi'} · KW ${r.week_number}/${r.year}` });
       });
     } else {
-      (data.reports || []).filter((r: any) => r.user_id === currentUser.id && (r.status === 'reviewed' || r.status === 'signed')).forEach((r: any) => {
+      (data.reports || []).filter((r: Report) => r.user_id === currentUser.id && (r.status === 'reviewed' || r.status === 'signed')).forEach((r: Report) => {
         items.push({ id: `report-${r.id}-${r.status}`, type: 'report', severity: 'info', title: r.status === 'signed' ? 'Bericht unterschrieben' : 'Bericht geprüft', message: `KW ${r.week_number}/${r.year} · Feedback verfügbar` });
       });
     }
@@ -279,7 +291,8 @@ function useNotifications(data: any, currentUser: any) {
     const unread = notifications.filter(n => !readIds.has(n.id));
     if (!unread.length) return;
     // Lazy-Import damit Browser ohne Notification-API nicht crashen
-    import('./lib/webPush.js').then(m => m.fireForNewNotifications(currentUser.id, unread));
+    // currentUser.id ist Id (string|number); webPush.js (JS-Boundary) typt param als string → type-only cast.
+    import('./lib/webPush.js').then(m => m.fireForNewNotifications(currentUser.id as string, unread));
   }, [notifications, readIds, currentUser?.id]);
 
   // Garbage-Collect: readIds die nicht mehr in aktuellen Notifications vorkommen entfernen.
@@ -313,7 +326,7 @@ function useNotifications(data: any, currentUser: any) {
 }
 
 function NotificationItem({ n, read, onMarkRead, navigate, onClose }: {
-  n: any; read: boolean; onMarkRead: (id: string) => void; navigate: (to: string) => void; onClose: () => void;
+  n: NotificationEntry; read: boolean; onMarkRead: (id: string) => void; navigate: (to: string) => void; onClose: () => void;
 }) {
   const clr = ({ critical: 'var(--c-cr)', warning: 'var(--c-yw)', info: 'var(--c-ac)' } as Record<string, string>)[n.severity] || 'var(--c-ac)';
   const Icon = n.severity === 'critical' ? IcoAlert : n.type === 'report' ? IcoReport : IcoClock;
@@ -344,7 +357,7 @@ function NotificationItem({ n, read, onMarkRead, navigate, onClose }: {
 function NotificationBell({ collapsed }: { collapsed: boolean }) {
   const { data, currentUser } = useAppStore();
   const navigate = useNavigate();
-  const { notifications, unreadCount, readIds, markRead, markAllRead } = useNotifications(data, currentUser);
+  const { notifications, unreadCount, readIds, markRead, markAllRead } = useNotifications(data as AppState | null, currentUser as User | null);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -449,11 +462,14 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
 // ── Global Search ─────────────────────────────────────────────
 const SEARCH_ICONS: Record<string, string> = { project: '📁', task: '⚡', report: '📝', learn: '📖', default: '🔍' };
 
-function GlobalSearch({ data, onClose }: { data: any; onClose: () => void }) {
+// UI-Trefferform für die globale Suche (lokal + API gemerged). Kein Domain-Typ.
+interface SearchHit { type: string; label: string; sub?: string | null; to: string; icon: string; }
+function GlobalSearch({ data, onClose }: { data: AppState | null; onClose: () => void }) {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const dQ  = useDebounce(q, 300);
   const ref = useRef<HTMLInputElement>(null);
+  // SearchResult vom Server (JS/API-Boundary): icon-Feld ist dort der Key, hier wird gemappt.
   const [apiResults, setApiResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -481,19 +497,19 @@ function GlobalSearch({ data, onClose }: { data: any; onClose: () => void }) {
   const lower = dQ.trim().toLowerCase();
 
   // Lokale Fallback-Ergebnisse (immer verfügbar, auch offline)
-  const localResults: any[] = lower.length >= 2 ? [
-    ...(data?.projects||[]).filter((p: any) => !p.archived && (p.title.toLowerCase().includes(lower) || (p.description||'').toLowerCase().includes(lower)))
-      .slice(0,5).map((p: any) => ({ type: 'Projekt', label: p.title, sub: p.description, to: `/project/${p.id}`, icon: '📁' })),
-    ...(data?.users||[]).filter((u: any) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
-      .slice(0,3).map((u: any) => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' })),
-    ...(data?.reports||[]).filter((r: any) => (r.title||'').toLowerCase().includes(lower))
-      .slice(0,3).map((r: any) => ({ type: 'Bericht', label: r.title || 'Bericht', sub: null, to: '/reports', icon: '📝' })),
+  const localResults: SearchHit[] = lower.length >= 2 ? [
+    ...(data?.projects||[]).filter((p: Project) => !p.archived && (p.title.toLowerCase().includes(lower) || (p.description||'').toLowerCase().includes(lower)))
+      .slice(0,5).map((p: Project) => ({ type: 'Projekt', label: p.title, sub: p.description, to: `/project/${p.id}`, icon: '📁' })),
+    ...(data?.users||[]).filter((u: User) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
+      .slice(0,3).map((u: User) => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' })),
+    ...(data?.reports||[]).filter((r: Report) => (r.title||'').toLowerCase().includes(lower))
+      .slice(0,3).map((r: Report) => ({ type: 'Bericht', label: r.title || 'Bericht', sub: null, to: '/reports', icon: '📝' })),
   ] : [];
 
   // API-Ergebnisse haben Priorität; lokale Nutzer-Suche immer ergänzen
-  const userResults: any[] = lower.length >= 2
-    ? (data?.users||[]).filter((u: any) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
-        .slice(0,3).map((u: any) => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' }))
+  const userResults: SearchHit[] = lower.length >= 2
+    ? (data?.users||[]).filter((u: User) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
+        .slice(0,3).map((u: User) => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' }))
     : [];
 
   const apiMapped = apiResults.map((r: any) => ({
@@ -557,7 +573,7 @@ function GlobalSearch({ data, onClose }: { data: any; onClose: () => void }) {
 
 // ── Sidebar ───────────────────────────────────────────────────
 interface SidebarProps {
-  currentUser: any;
+  currentUser: User | null;
   onLogout: () => void;
   onNewProject: () => void;
   onExport: () => void;
@@ -750,31 +766,36 @@ function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const store = useAppStore();
-  const data = store.data as any;
+  const data = store.data as AppState | null;
   const setData = store.setData;
-  const currentUser = store.currentUser;
-  const project = data?.projects?.find((p: any) => p.id === id);
+  const currentUser = store.currentUser as User | null;
+  const project = data?.projects?.find((p: Project) => p.id === id);
 
+  // updates bleibt any: ProjectDetail liefert heterogene Patches (UpdateFn = (id:any, patch:any)).
   const handleUpdate = useCallback((projectId: string, updates: any) => {
-    setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === projectId ? { ...p, ...updates } : p) });
+    setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
   }, [data, setData]);
 
   const handleArchive = useCallback((projectId: string) => {
-    setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === projectId ? { ...p, archived: true } : p) });
+    setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) });
     showToast('Projekt archiviert');
   }, [data, setData, showToast]);
 
+  // entry/prev: addActivity-Boundary (utils.js liefert Blob-Form) → any belassen.
   const handleActivity = useCallback((entry: any) => {
     setData((prev: any) => addActivity(prev, entry));
   }, [setData]);
 
   if (!project) return <div className="card" style={{ margin: 24 }}>Projekt nicht gefunden</div>;
 
+  // project ist Project (tasks/materials/requirements via zod default vorhanden) — die
+  // Literal-Defaults werden bewusst von project überschrieben; Spread als Record getypt,
+  // damit TS die (gewollten) Schlüssel-Überschreibungen nicht als Fehler meldet.
   const safeProject = {
     tasks: [], steps: [], materials: [], requirements: [],
     links: [], calendarEvents: [], assignees: [],
     netzplan: { nodes: [], edges: [], unit: 'W', nodePositions: {} },
-    ...project,
+    ...(project as Record<string, unknown>),
   };
 
   return (
@@ -795,8 +816,8 @@ function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
 // ── Profil-Seite ──────────────────────────────────────────────
 function ProfilePage({ showToast }: { showToast: ShowToast }) {
   const store = useAppStore();
-  const currentUser = store.currentUser as any;
-  const data = store.data as any;
+  const currentUser = store.currentUser as User | null;
+  const data = store.data as AppState | null;
   const setCurrentUser = store.setCurrentUser;
   const setData = store.setData;
   const [tab, setTab]               = useState('info');
@@ -813,7 +834,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
   if (!currentUser) return null;
 
   const isAzubi = currentUser.role === 'azubi';
-  const myProjects = (data?.projects || []).filter((p: any) => !p.archived && p.assignees?.includes(currentUser.id));
+  const myProjects = (data?.projects || []).filter((p: Project) => !p.archived && p.assignees?.includes(currentUser.id));
   const hue = (currentUser.name?.charCodeAt(0) || 100) * 37 % 360;
 
   // Eingabe-Style wiederverwenden
@@ -837,7 +858,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       if (USE_API) await dataService.updateProfile(changes);
       const updatedUser = { ...currentUser, ...changes };
       setCurrentUser(updatedUser);
-      if (data) setData({ ...data, users: (data.users || []).map((u: any) => u.id === currentUser.id ? { ...u, ...changes } : u) });
+      if (data) setData({ ...data, users: (data.users || []).map((u: User) => u.id === currentUser.id ? { ...u, ...changes } : u) });
       toast('✓ Profil gespeichert');
     } catch (e: any) { toast('⚠ ' + e.message); }
     finally { setSaving(false); }
@@ -870,7 +891,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       const { avatar_url } = await dataService.uploadAvatar(file);
       const updatedUser = { ...currentUser, avatar_url };
       setCurrentUser(updatedUser);
-      if (data) setData({ ...data, users: (data.users || []).map((u: any) => u.id === currentUser.id ? { ...u, avatar_url } : u) });
+      if (data) setData({ ...data, users: (data.users || []).map((u: User) => u.id === currentUser.id ? { ...u, avatar_url } : u) });
       toast('✓ Profilbild gespeichert');
     } catch (err: any) { toast('⚠ ' + err.message); }
     finally { setSaving(false); e.target.value = ''; }
@@ -924,7 +945,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {[
           { label: 'Aktive Projekte',  value: myProjects.length,                                                                                     color: 'var(--c-ac)' },
-          { label: 'Offene Aufgaben',  value: myProjects.flatMap((p: any) => p.tasks||[]).filter((t: any) => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
+          { label: 'Offene Aufgaben',  value: myProjects.flatMap((p: Project) => p.tasks||[]).filter((t: Task) => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ borderLeft: `3px solid ${s.color}`, padding: '10px 14px' }}>
             <div style={{ fontSize: 10, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{s.label}</div>
@@ -1020,17 +1041,18 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
 // ── Seiten-Wrapper ────────────────────────────────────────────
 function CalendarPage({ showToast }: { showToast: ShowToast }) {
   const store = useAppStore();
-  const data = store.data as any;
+  const data = store.data as AppState | null;
   const setData = store.setData;
+  // updates bleibt any: CalendarView onUpdate = (id:any, patch:any), patch heterogen (ev/id/Projekt-Patch).
   const handleUpdate = useCallback((projectId: string, updates: any) => {
     if (projectId === '_cal') {
-      setData({ ...data, calendarEvents: [...(data.calendarEvents || []), updates.ev] });
+      setData({ ...data, calendarEvents: [...(data?.calendarEvents || []), updates.ev] });
     } else if (projectId === '_cal_del') {
-      setData({ ...data, calendarEvents: (data.calendarEvents || []).filter((e: any) => e.id !== updates.id) });
+      setData({ ...data, calendarEvents: (data?.calendarEvents || []).filter((e: CalendarEvent) => e.id !== updates.id) });
     } else if (projectId === '_cal_edit') {
-      setData({ ...data, calendarEvents: (data.calendarEvents || []).map((e: any) => e.id === updates.ev.id ? updates.ev : e) });
+      setData({ ...data, calendarEvents: (data?.calendarEvents || []).map((e: CalendarEvent) => e.id === updates.ev.id ? updates.ev : e) });
     } else {
-      setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === projectId ? { ...p, ...updates } : p) });
+      setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
     }
   }, [data, setData]);
   return <CalendarView projects={data?.projects||[]} calendarEvents={data?.calendarEvents||[]} users={data?.users||[]} onUpdate={handleUpdate} showToast={showToast} />;
@@ -1038,38 +1060,43 @@ function CalendarPage({ showToast }: { showToast: ShowToast }) {
 
 function GroupsPage({ showToast }: { showToast: ShowToast }) {
   const store = useAppStore();
-  const data = store.data as any;
+  const data = store.data as AppState | null;
   const setData = store.setData;
+  // groups: GroupsView-eigener Group-Typ (nicht in types.ts) → any belassen.
   const handleUpdateGroups = useCallback((groups: any) => setData({ ...data, groups }), [data, setData]);
-  return <GroupsView groups={data?.groups||[]} users={data?.users||[]} projects={data?.projects||[]} onUpdateGroups={handleUpdateGroups} showToast={showToast} />;
+  // groups/projects: GroupsView erwartet eigene Group/GroupProject-Typen (enger als AppState-Blob) → cast.
+  return <GroupsView groups={(data?.groups||[]) as any} users={data?.users||[]} projects={(data?.projects||[]) as any} onUpdateGroups={handleUpdateGroups} showToast={showToast} />;
 }
 
 function AzubiProfileWrapper() {
   const { id } = useParams();
   const navigate = useNavigate();
   const store = useAppStore();
-  const data = store.data as any;
-  const currentUser = store.currentUser as any;
-  const azubi = (data?.users || []).find((u: any) => u.id === id);
-  return <AzubiProfilePage azubi={azubi} data={data} currentUser={currentUser} onBack={() => navigate(-1)} />;
+  const data = store.data as AppState | null;
+  const currentUser = store.currentUser as User | null;
+  const azubi = (data?.users || []).find((u: User) => u.id === id);
+  // data-Prop bleibt locker: AzubiProfilePage erwartet eigenen ProfileData-Typ, nicht AppState.
+  return <AzubiProfilePage azubi={azubi} data={data as any} currentUser={currentUser} onBack={() => navigate(-1)} />;
 }
 
 function UsersPage({ showToast }: { showToast: ShowToast }) {
   const store = useAppStore();
-  const data = store.data as any;
+  const data = store.data as AppState | null;
   const setData = store.setData;
+  // users: UsersView-eigener UserWithAuth-Typ (password etc.) → any belassen.
   const handleUpdate = useCallback((users: any) => setData({ ...data, users }), [data, setData]);
-  return <UsersView users={data?.users || []} onUpdateUsers={handleUpdate} showToast={showToast} />;
+  return <UsersView users={(data?.users || []) as any} onUpdateUsers={handleUpdate} showToast={showToast} />;
 }
 
 function DashboardPage({ onNewProject, showToast: _showToast }: { onNewProject: () => void; showToast: ShowToast }) {
   const navigate = useNavigate();
   const store = useAppStore();
-  const data = store.data as any;
+  const data = store.data as AppState | null;
   const currentUser = store.currentUser;
   const setData = store.setData;
+  // updates bleibt any: Dashboard onUpdateProject = (id:any, patch:any).
   const handleUpdate = useCallback((projectId: string, updates: any) => {
-    setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === projectId ? { ...p, ...updates } : p) });
+    setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
   }, [data, setData]);
   return (
     <Dashboard user={currentUser} projects={data?.projects||[]} users={data?.users||[]} reports={data?.reports||[]} calendarEvents={data?.calendarEvents||[]}
@@ -1081,11 +1108,11 @@ function DashboardPage({ onNewProject, showToast: _showToast }: { onNewProject: 
 function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; showToast: ShowToast }) {
   const navigate = useNavigate();
   const store = useAppStore();
-  const data = store.data as any;
-  const currentUser = store.currentUser as any;
+  const data = store.data as AppState | null;
+  const currentUser = store.currentUser as User;
   const setData = store.setData;
-  const duplicate = (id: string | number) => {
-    const src = (data?.projects||[]).find((p: any) => p.id === id);
+  const duplicate = (id: Id) => {
+    const src = (data?.projects||[]).find((p: Project) => p.id === id);
     if (!src) return;
     const copy = {
       ...src,
@@ -1094,30 +1121,32 @@ function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; s
       archived: false,
       comments: [],
       calendarEvents: [],
-      tasks: (src.tasks || []).map((t: any) => ({ ...t, id: `t_${Math.random().toString(36).slice(2)}`, status: 'open', done: false })),
+      tasks: (src.tasks || []).map((t: Task) => ({ ...t, id: `t_${Math.random().toString(36).slice(2)}`, status: 'open', done: false })),
     };
     setData({ ...data, projects: [...(data?.projects||[]), copy] });
     showToast('✓ Projekt dupliziert');
   };
   return (
-    <ProjectPool projects={data?.projects||[]} users={data?.users||[]} groups={data?.groups||[]} currentUser={currentUser}
-      onOpen={(id: string | number) => navigate(`/project/${id}`)} onNew={onNewProject}
-      onDelete={(id: string | number) => {
-        const project  = (data?.projects||[]).find((p: any) => p.id === id);
+    // projects/groups: ProjectPool erwartet eigene PoolProject/Group-Typen (groupId ohne null) → cast.
+    <ProjectPool projects={(data?.projects||[]) as any} users={data?.users||[]} groups={(data?.groups||[]) as any} currentUser={currentUser}
+      onOpen={(id: Id) => navigate(`/project/${id}`)} onNew={onNewProject}
+      onDelete={(id: Id) => {
+        const project  = (data?.projects||[]).find((p: Project) => p.id === id);
         const snapshot = data;
         if (project) {
-          setData(softDelete(data, 'projects', project, currentUser));
+          // softDelete: trash.js (JS-Boundary) → data/currentUser als any.
+          setData(softDelete(data as any, 'projects', project, currentUser));
         } else {
-          setData({ ...data, projects: (data?.projects||[]).filter((p: any) => p.id !== id) });
+          setData({ ...data, projects: (data?.projects||[]).filter((p: Project) => p.id !== id) });
         }
-        showToast('🗑 Projekt → Papierkorb (30 Tage)', { undo: () => setData(snapshot) });
+        showToast('🗑 Projekt → Papierkorb (30 Tage)', { undo: () => setData(snapshot as any) });
       }}
-      onArchive={(id: string | number) => {
+      onArchive={(id: Id) => {
         const snapshot = data;
-        setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === id ? { ...p, archived: true } : p) });
-        showToast('📦 Projekt archiviert', { undo: () => setData(snapshot) });
+        setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: true } : p) });
+        showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });
       }}
-      onUnarchive={(id: string | number) => { setData({ ...data, projects: (data?.projects||[]).map((p: any) => p.id === id ? { ...p, archived: false } : p) }); showToast('Projekt wiederhergestellt'); }}
+      onUnarchive={(id: Id) => { setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: false } : p) }); showToast('Projekt wiederhergestellt'); }}
       onDuplicate={duplicate}
     />
   );
@@ -1125,7 +1154,7 @@ function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; s
 
 // ── AppLayout ─────────────────────────────────────────────────
 interface AppLayoutProps {
-  currentUser: any;
+  currentUser: User | null;
   onLogout: () => void;
   onNewProject: () => void;
   onExport: () => void;
@@ -1209,8 +1238,8 @@ function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, on
 // ── Root App ──────────────────────────────────────────────────
 const App = () => {
   const store = useAppStore();
-  const data = store.data as any;
-  const currentUser = store.currentUser as any;
+  const data = store.data as AppState | null;
+  const currentUser = store.currentUser as User | null;
   const setData = store.setData;
   const setCurrentUser = store.setCurrentUser;
   const [showModal,    setShowModal]    = useState(false);
@@ -1218,7 +1247,7 @@ const App = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const { toast, showToast, dismissToast } = useToast();
   const _importRef = useRef(null);
-  const [conflict, setConflict] = useState<any>(null);  // J2: Konflikt-Payload
+  const [conflict, setConflict] = useState<any>(null);  // J2: Konflikt-Payload (Sync-Event-Detail, JS-Boundary) → any
   const [showBackups,    setShowBackups]    = useState(false); // L4
   const [showOnboarding, setShowOnboarding] = useState(false); // UX1
   const justLoggedInRef = useRef(false); // Verhindert Logout durch Unauthorized-Event direkt nach Login
@@ -1246,6 +1275,7 @@ const App = () => {
   //     Set merkt sich gesendete IDs pro Session — bei Reload starten wir
   //     mit nur den neuesten 30 Einträgen als "schon gesehen", damit
   //     der Audit-Server nicht mit kompletter Historie geflutet wird.
+  // activityLog ist im Schema z.array(z.unknown) (Blob-Form, kein Domain-Typ) → e/Set any belassen.
   const auditSentRef = useRef<Set<any> | null>(null);
   useEffect(() => {
     if (!data?.activityLog?.length || !currentUser) return;
@@ -1321,6 +1351,8 @@ const App = () => {
   // ── Daten laden, Passwörter migrieren, Session prüfen ────
   useEffect(() => {
     (async () => {
+      // JS/Blob-Boundary: dataService.getData() + migrateData/ensureTrash liefern Blob-Form
+      // (nicht zwingend Schema-konform) → loaded/u/finalData bewusst any.
       const loaded = await dataService.getData() as any;
 
       // Passwort-Migration: Klartext → SHA-256 (nur local-mode)
@@ -1372,12 +1404,13 @@ const App = () => {
   }, []); // eslint-disable-line
 
   // Nach Login: MySQL-User laden und in Blob mergen (API-Modus)
-  const handleLogin = useCallback(async (user: any) => {
+  const handleLogin = useCallback(async (user: User) => {
     justLoggedInRef.current = true;
     setCurrentUser(user);
     applyUserTheme(user.theme);  // Theme aus DB nach Login anwenden
     if (USE_API) {
       const apiUsers = await dataService.getUsers();
+      // prev: Store-Blob (Record<string,unknown>) — Boundary, any belassen.
       if (apiUsers) setData((prev: any) => prev ? { ...prev, users: apiUsers } : prev);
     }
     justLoggedInRef.current = false;
@@ -1419,10 +1452,12 @@ const App = () => {
     return () => { document.removeEventListener('keydown', fn); clearTimeout(gTimer); };
   }, [currentUser]);
 
+  // projectData: NewProjectModal-FormState (kein Domain-Typ) → any belassen.
   const handleCreate = useCallback((projectData: any) => {
     const newProject = { ...projectData, id: `proj_${Date.now()}`, tasks: [], steps: [], calendarEvents: [], archived: false };
     const withProject = { ...data, projects: [...(data?.projects || []), newProject] };
-    const withActivity = addActivity(withProject, {
+    // addActivity (utils.ts) erwartet Blob-Typ ActivityEntry[] — AppState.activityLog ist z.unknown → cast.
+    const withActivity = addActivity(withProject as any, {
       type: 'project_created',
       userId: currentUser?.id,
       userName: currentUser?.name,
@@ -1496,9 +1531,10 @@ const App = () => {
         <AuthPage
           onLogin={handleLogin}
           users={data?.users || []}
-          onRegister={async (newUser: any) => {
+          onRegister={async (newUser: User) => {
             const withUser = { ...data, users: [...(data?.users || []), newUser] };
-            const withActivity = addActivity(withUser, {
+            // addActivity (utils.ts) erwartet Blob-Typ ActivityEntry[] — AppState.activityLog ist z.unknown → cast.
+            const withActivity = addActivity(withUser as any, {
               type: 'user_registered',
               userId: newUser.id,
               userName: newUser.name,
@@ -1512,6 +1548,7 @@ const App = () => {
             // In API-Modus: frische Nutzerliste nach Registrierung laden
             if (USE_API) {
               const apiUsers = await dataService.getUsers();
+              // prev: Store-Blob (Record<string,unknown>) — Boundary, any belassen.
               if (apiUsers) setData((prev: any) => prev ? { ...prev, users: apiUsers } : prev);
             }
           }}
@@ -1523,7 +1560,7 @@ const App = () => {
   return (
     <ErrorBoundary>
       <Router>
-        <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport} onShowBackups={USE_API && currentUser?.role === 'ausbilder' ? () => setShowBackups(true) : null} trashCount={countTrash(data)}>
+        <AppLayout currentUser={currentUser} onLogout={handleLogout} onNewProject={handleNewProject} onExport={handleExport} onImport={handleImport} onSearch={() => setShowSearch(true)} onBackup={handleExport} onShowBackups={USE_API && currentUser?.role === 'ausbilder' ? () => setShowBackups(true) : null} trashCount={countTrash(data as any)}>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/dashboard"   element={<ErrorBoundary inline><DashboardPage onNewProject={handleNewProject} showToast={showToast} /></ErrorBoundary>} />
@@ -1545,9 +1582,10 @@ const App = () => {
 
           {showModal && (
             <Suspense fallback={null}>
+              {/* groups: NewProjectModal erwartet eigenen Group-Typ (enger als AppState-Blob) → cast. */}
               <NewProjectModal
                 users={data?.users || []}
-                groups={data?.groups || []}
+                groups={(data?.groups || []) as any}
                 currentUser={currentUser}
                 onClose={() => setShowModal(false)}
                 onCreate={handleCreate}
