@@ -685,7 +685,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
     const next = { ...data, reports: existing ? reports.map((r: Report) => r.id === rep.id ? rep : r) : [...reports, rep] };
     const iso  = getISOWeek(rep.week_start);
     // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
-    onUpdateData(addActivity(next as any, {
+    onUpdateData(addActivity(next, {
       type:        'report_saved',
       userId:      currentUser.id,
       userName:    currentUser.name,
@@ -706,7 +706,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
     const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
     const next = { ...data, reports: reports.map((r: Report) => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) };
     // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
-    onUpdateData(addActivity(next as any, {
+    onUpdateData(addActivity(next, {
       type:        'report_submitted',
       userId:      currentUser.id,
       userName:    currentUser.name,
@@ -723,7 +723,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
     const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
     const next = { ...data, reports: reports.map((r: Report) => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) };
     // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
-    onUpdateData(addActivity(next as any, {
+    onUpdateData(addActivity(next, {
       type:        'report_signed',
       userId:      currentUser.id,
       userName:    currentUser.name,

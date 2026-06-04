@@ -1456,8 +1456,7 @@ const App = () => {
   const handleCreate = useCallback((projectData: any) => {
     const newProject = { ...projectData, id: `proj_${Date.now()}`, tasks: [], steps: [], calendarEvents: [], archived: false };
     const withProject = { ...data, projects: [...(data?.projects || []), newProject] };
-    // addActivity (utils.ts) erwartet Blob-Typ ActivityEntry[] — AppState.activityLog ist z.unknown → cast.
-    const withActivity = addActivity(withProject as any, {
+    const withActivity = addActivity(withProject, {
       type: 'project_created',
       userId: currentUser?.id,
       userName: currentUser?.name,
@@ -1533,8 +1532,7 @@ const App = () => {
           users={data?.users || []}
           onRegister={async (newUser: User) => {
             const withUser = { ...data, users: [...(data?.users || []), newUser] };
-            // addActivity (utils.ts) erwartet Blob-Typ ActivityEntry[] — AppState.activityLog ist z.unknown → cast.
-            const withActivity = addActivity(withUser as any, {
+            const withActivity = addActivity(withUser, {
               type: 'user_registered',
               userId: newUser.id,
               userName: newUser.name,

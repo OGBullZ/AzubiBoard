@@ -268,8 +268,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
 
   const savePlan = (patch: Partial<NonNullable<AppState['trainingPlan']>>, audit?: Record<string, unknown> | null) => {
     let next: AppState = { ...data, trainingPlan: { ...plan, ...patch } };
-    // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
-    if (audit) next = addActivity(next as any, audit) as unknown as AppState;
+    if (audit) next = addActivity(next, audit);
     onUpdateData(next);
   };
 
@@ -291,8 +290,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
   const importGoals = (newGoals: Goal[]) => {
     if (!newGoals?.length) return;
     let next: AppState = { ...data, trainingPlan: { ...plan, goals: [...goals, ...newGoals] } };
-    // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
-    next = addActivity(next as any, {
+    next = addActivity(next, {
       type:        'goals_imported',
       userId:      currentUser.id,
       userName:    currentUser.name,
@@ -300,7 +298,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       projectId:   null,
       projectTitle:null,
       action:      `${newGoals.length} Lernziele importiert`,
-    }) as unknown as AppState;
+    });
     onUpdateData(next);
     setShowImport(false);
     toast(`✓ ${newGoals.length} Lernziel${newGoals.length === 1 ? '' : 'e'} importiert`);
@@ -353,7 +351,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
     // J3: in Papierkorb verschieben (statt hart löschen) + Audit-Log
     // softDelete/addActivity sind JS-Boundary (AppData/TrashBin/ActivityEntry vs Blob unknown[]) → Cast
     let next: AppState = softDelete(data as any, 'goals', goal, currentUser) as unknown as AppState;
-    next = addActivity(next as any, {
+    next = addActivity(next, {
       type:        'goal_deleted',
       userId:      currentUser.id,
       userName:    currentUser.name,
@@ -361,7 +359,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       projectId:   null,
       projectTitle:null,
       action:      'Lernziel gelöscht',
-    }) as unknown as AppState;
+    });
     onUpdateData(next);
     toast(`🗑 Lernziel „${goal.title}" → Papierkorb`, { undo: () => onUpdateData(snapshot) });
   };

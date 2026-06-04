@@ -237,15 +237,17 @@ export function computeLayout<TNode extends GraphNode>(
 // ── Activity Log ─────────────────────────────────────────────
 interface ActivityEntry { id: string; ts: string; [k: string]: unknown; }
 
-export function addActivity(
-  data: { activityLog?: ActivityEntry[]; [k: string]: unknown },
+// Generisch über den konkreten Daten-Typ (z.B. AppState): Rückgabe = Eingabe-Typ,
+// damit Aufrufer keine Casts an der Boundary brauchen.
+export function addActivity<T extends { activityLog?: unknown[] }>(
+  data: T,
   entry: Record<string, unknown>,
-): { activityLog: ActivityEntry[]; [k: string]: unknown } {
+): T {
   // entry = { type, userId, userName, entityTitle, projectId, projectTitle, action }
   const log = data.activityLog || [];
   const newEntry: ActivityEntry = { id: uid(), ts: new Date().toISOString(), ...entry };
   // Max 100 Einträge, neueste zuerst
-  return { ...data, activityLog: [newEntry, ...log].slice(0, 100) };
+  return { ...data, activityLog: [newEntry, ...log].slice(0, 100) } as T;
 }
 
 // ── Session-Management ────────────────────────────────────────
