@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { User, Goal, GoalProgress, AppState, Id } from '../../types';
 import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
 import { softDelete } from '../../lib/trash.js';
 import ImportGoalsModal from './ImportGoalsModal.jsx';
@@ -13,18 +14,21 @@ const YEARS    = [1, 2, 3];
 const QUARTERS = [1, 2, 3, 4];
 const CATS     = ['Fachkompetenz', 'Methodenkompetenz', 'Sozialkompetenz', 'IT & Digital', 'Betrieb', 'Schule', 'Sonstiges'];
 
-const STATUS_CFG = {
+const STATUS_CFG: Record<NonNullable<GoalProgress['status']>, { l: string; c: string; bg: string; dot: string }> = {
   open:      { l: 'Offen',       c: C.mu, bg: 'var(--c-sf2)',  dot: '○' },
   learned:   { l: 'Gelernt',     c: C.ac, bg: C.acd,           dot: '◑' },
   confirmed: { l: 'Bestätigt',   c: C.gr, bg: '#07130a',        dot: '●' },
 };
 
-function mkGoal(overrides: any = {}): any {
+// Audit-Hinweis für onUpdate: welcher Azubi gelernt/bestätigt wurde (steuert Audit-Log-Eintrag).
+type GoalUpdateOpts = { learnedFor?: Id; confirmedFor?: Id } | null;
+
+function mkGoal(overrides: Partial<Goal> = {}): Goal {
   return { id: uid(), title: '', description: '', year: 1, quarter: 1, category: 'Fachkompetenz', progress: {}, ...overrides };
 }
 
 // ── Prüfungs-Countdown Widget (E3) ───────────────────────────
-function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: any; isAusbilder: any; onChange: (v: any) => void }) {
+function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: string | null | undefined; isAusbilder: boolean; onChange: (v: string | null) => void }) {
   const [editing, setEditing] = useState(false);
   const [val,     setVal]     = useState<string>(examDate || '');
 
@@ -74,9 +78,9 @@ function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: any; isA
 }
 
 // ── Goal Form ─────────────────────────────────────────────────
-function GoalForm({ initial, onSave, onCancel }: { initial?: any; onSave: (goal: any) => void; onCancel: () => void }) {
-  const [form, setForm] = useState<any>(initial || mkGoal());
-  const f = (v: any) => setForm((p: any) => ({ ...p, ...v }));
+function GoalForm({ initial, onSave, onCancel }: { initial?: Goal; onSave: (goal: Goal) => void; onCancel: () => void }) {
+  const [form, setForm] = useState<Goal>(initial || mkGoal());
+  const f = (v: Partial<Goal>) => setForm((p: Goal) => ({ ...p, ...v }));
   const valid = form.title.trim().length > 0;
   return (
     <div className="card" style={{ marginBottom: 10, background: C.acd, border: `1px solid ${C.ac}30` }}>
@@ -86,24 +90,24 @@ function GoalForm({ initial, onSave, onCancel }: { initial?: any; onSave: (goal:
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 160px', gap: 8, marginBottom: 8 }}>
         <div><label>Titel *</label><input autoFocus value={form.title} onChange={e => f({ title: e.target.value })} placeholder="Lernziel beschreiben…" /></div>
         <div><label>Lehrjahr</label>
-          <select value={form.year} onChange={e => f({ year: Number(e.target.value) })}>
+          <select value={form.year ?? ''} onChange={e => f({ year: Number(e.target.value) })}>
             {YEARS.map(y => <option key={y} value={y}>{y}. LJ</option>)}
           </select>
         </div>
         <div><label>Quartal</label>
-          <select value={form.quarter} onChange={e => f({ quarter: Number(e.target.value) })}>
+          <select value={form.quarter ?? ''} onChange={e => f({ quarter: Number(e.target.value) })}>
             {QUARTERS.map(q => <option key={q} value={q}>Q{q}</option>)}
           </select>
         </div>
         <div><label>Kategorie</label>
-          <select value={form.category} onChange={e => f({ category: e.target.value })}>
+          <select value={form.category ?? ''} onChange={e => f({ category: e.target.value })}>
             {CATS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>
       <div style={{ marginBottom: 8 }}>
         <label>Beschreibung (optional)</label>
-        <textarea value={form.description} onChange={e => f({ description: e.target.value })} rows={2} placeholder="Details, Ressourcen, Hinweise…" style={{ resize: 'vertical', minHeight: 48 }} />
+        <textarea value={form.description ?? ''} onChange={e => f({ description: e.target.value })} rows={2} placeholder="Details, Ressourcen, Hinweise…" style={{ resize: 'vertical', minHeight: 48 }} />
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         <button className="abtn" onClick={() => valid && onSave(form)} disabled={!valid} style={{ fontSize: 12 }}>
@@ -116,28 +120,29 @@ function GoalForm({ initial, onSave, onCancel }: { initial?: any; onSave: (goal:
 }
 
 // ── Goal Row ──────────────────────────────────────────────────
-function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, onEdit }: { goal: any; currentUser: any; azubis: any[]; isAusbilder: any; onUpdate: (updated: any, opts?: any) => void; onDelete: (id: any) => void; onEdit: (goal: any) => void }) {
+function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, onEdit }: { goal: Goal; currentUser: User; azubis: User[]; isAusbilder: boolean; onUpdate: (updated: Goal, opts?: GoalUpdateOpts) => void; onDelete: (id: Id) => void; onEdit: (goal: Goal) => void }) {
   const [expanded, setExpanded] = useState(false);
 
   const myStatus = goal.progress?.[currentUser.id]?.status || 'open';
-  const myCfg    = (STATUS_CFG as any)[myStatus];
+  const myCfg    = STATUS_CFG[myStatus];
 
   const totalProgress = isAusbilder
-    ? azubis.map((a: any) => ({ user: a, st: goal.progress?.[a.id]?.status || 'open' }))
+    ? azubis.map((a) => ({ user: a, st: goal.progress?.[a.id]?.status || 'open' }))
     : null;
-  const confirmedCount = totalProgress?.filter((p: any) => p.st === 'confirmed').length || 0;
-  const learnedCount   = totalProgress?.filter((p: any) => p.st !== 'open').length || 0;
+  const confirmedCount = totalProgress?.filter((p) => p.st === 'confirmed').length || 0;
+  const learnedCount   = totalProgress?.filter((p) => p.st !== 'open').length || 0;
 
   const markLearned = () => {
     const next = myStatus === 'open' ? 'learned' : 'open';
-    const prog = { ...(goal.progress || {}), [currentUser.id]: { status: next, ts: new Date().toISOString() } };
+    // Blob-Divergenz: Schreib-Shape enthält `ts` (Lern-Zeitstempel), das im GoalProgress-Schema fehlt → Cast.
+    const prog = { ...(goal.progress || {}), [currentUser.id]: { status: next, ts: new Date().toISOString() } as GoalProgress };
     onUpdate({ ...goal, progress: prog }, next === 'learned' ? { learnedFor: currentUser.id } : null);
   };
 
-  const confirmUser = (userId: any) => {
+  const confirmUser = (userId: Id) => {
     const cur = goal.progress?.[userId]?.status;
     const next = cur === 'confirmed' ? 'learned' : 'confirmed';
-    const prog = { ...(goal.progress || {}), [userId]: { ...(goal.progress?.[userId] || {}), status: next, confirmedBy: currentUser.id, confirmedTs: new Date().toISOString() } };
+    const prog = { ...(goal.progress || {}), [userId]: { ...(goal.progress?.[userId] || {}), status: next, confirmedBy: currentUser.id, confirmedTs: new Date().toISOString() } as GoalProgress };
     onUpdate({ ...goal, progress: prog }, next === 'confirmed' ? { confirmedFor: userId } : null);
   };
 
@@ -216,9 +221,9 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
           {/* Ausbilder: per-azubi progress */}
           {isAusbilder && azubis.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {azubis.map((a: any) => {
+              {azubis.map((a) => {
                 const st  = goal.progress?.[a.id]?.status || 'open';
-                const cfg = (STATUS_CFG as any)[st];
+                const cfg = STATUS_CFG[st];
                 return (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Avatar name={a.name} url={a.avatar_url} size={20} />
@@ -246,26 +251,28 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
 }
 
 // ── Main Page ─────────────────────────────────────────────────
-export default function TrainingPlanPage({ currentUser, data, onUpdateData, showToast }: { currentUser: any; data: any; onUpdateData: (data: any) => void; showToast?: (msg: string, opts?: any) => void }) {
+export default function TrainingPlanPage({ currentUser, data, onUpdateData, showToast }: { currentUser: User; data: AppState; onUpdateData: (data: AppState) => void; showToast?: (msg: string, opts?: { undo?: () => void }) => void }) {
   const plan       = data?.trainingPlan || { goals: [], examDate: null };
-  const goals      = plan.goals || [];
-  const azubis     = (data?.users || []).filter((u: any) => u.role === 'azubi');
+  // Blob-Divergenz: AppState.trainingPlan.goals ist im Schema z.array(z.unknown()) → hier auf den echten Goal-Typ casten.
+  const goals      = (plan.goals || []) as Goal[];
+  const azubis     = (data?.users || []).filter((u) => u.role === 'azubi');
   const isAusbilder = currentUser.role === 'ausbilder';
   const toast       = showToast || (() => {});
 
   const [showAdd,    setShowAdd]    = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [editGoal,   setEditGoal]   = useState<any>(null);
+  const [editGoal,   setEditGoal]   = useState<Goal | null>(null);
   const [filterY,    setFilterY]    = useState(isAusbilder ? 'all' : String(currentUser.apprenticeship_year || 1));
   const [filterCat,  setFilterCat]  = useState('all');
 
-  const savePlan = (patch: any, audit?: any) => {
-    let next = { ...data, trainingPlan: { ...plan, ...patch } };
-    if (audit) next = addActivity(next, audit);
+  const savePlan = (patch: Partial<NonNullable<AppState['trainingPlan']>>, audit?: Record<string, unknown> | null) => {
+    let next: AppState = { ...data, trainingPlan: { ...plan, ...patch } };
+    // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
+    if (audit) next = addActivity(next as any, audit) as unknown as AppState;
     onUpdateData(next);
   };
 
-  const addGoal = (goal: any) => {
+  const addGoal = (goal: Goal) => {
     savePlan({ goals: [...goals, goal] }, {
       type:        'goal_added',
       userId:      currentUser.id,
@@ -280,10 +287,11 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
   };
 
   // J16: Bulk-Import — fügt alle Goals auf einmal hinzu mit Audit-Log
-  const importGoals = (newGoals: any[]) => {
+  const importGoals = (newGoals: Goal[]) => {
     if (!newGoals?.length) return;
-    let next = { ...data, trainingPlan: { ...plan, goals: [...goals, ...newGoals] } };
-    next = addActivity(next, {
+    let next: AppState = { ...data, trainingPlan: { ...plan, goals: [...goals, ...newGoals] } };
+    // addActivity ist JS-Boundary (activityLog: ActivityEntry[] vs Blob unknown[]) → Cast
+    next = addActivity(next as any, {
       type:        'goals_imported',
       userId:      currentUser.id,
       userName:    currentUser.name,
@@ -291,18 +299,18 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       projectId:   null,
       projectTitle:null,
       action:      `${newGoals.length} Lernziele importiert`,
-    });
+    }) as unknown as AppState;
     onUpdateData(next);
     setShowImport(false);
     toast(`✓ ${newGoals.length} Lernziel${newGoals.length === 1 ? '' : 'e'} importiert`);
   };
 
-  const updateGoal = (updated: any, opts?: any) => {
-    const before = goals.find((g: any) => g.id === updated.id);
+  const updateGoal = (updated: Goal, opts?: GoalUpdateOpts) => {
+    const before = goals.find((g) => g.id === updated.id);
     let audit = null;
     // Spezialfall: Ausbilder bestätigt Status (confirm) → eigener Audit-Eintrag
     if (opts?.confirmedFor) {
-      const azubi = (data?.users || []).find((u: any) => u.id === opts.confirmedFor);
+      const azubi = (data?.users || []).find((u) => u.id === opts.confirmedFor);
       audit = {
         type:        'goal_confirmed',
         userId:      currentUser.id,
@@ -333,17 +341,18 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
         action:      'Lernziel aktualisiert',
       };
     }
-    savePlan({ goals: goals.map((g: any) => g.id === updated.id ? updated : g) }, audit);
+    savePlan({ goals: goals.map((g) => g.id === updated.id ? updated : g) }, audit);
     setEditGoal(null);
   };
 
-  const deleteGoal = (id: any) => {
+  const deleteGoal = (id: Id) => {
     const snapshot = data;
-    const goal     = goals.find((g: any) => g.id === id);
+    const goal     = goals.find((g) => g.id === id);
     if (!goal) return;
     // J3: in Papierkorb verschieben (statt hart löschen) + Audit-Log
-    let next: any = softDelete(data, 'goals', goal, currentUser);
-    next = addActivity(next, {
+    // softDelete/addActivity sind JS-Boundary (AppData/TrashBin/ActivityEntry vs Blob unknown[]) → Cast
+    let next: AppState = softDelete(data as any, 'goals', goal, currentUser) as unknown as AppState;
+    next = addActivity(next as any, {
       type:        'goal_deleted',
       userId:      currentUser.id,
       userName:    currentUser.name,
@@ -351,20 +360,20 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       projectId:   null,
       projectTitle:null,
       action:      'Lernziel gelöscht',
-    });
+    }) as unknown as AppState;
     onUpdateData(next);
     toast(`🗑 Lernziel „${goal.title}" → Papierkorb`, { undo: () => onUpdateData(snapshot) });
   };
 
   // Filter & group
-  const filtered = goals.filter((g: any) =>
+  const filtered = goals.filter((g) =>
     (filterY   === 'all' || g.year     === Number(filterY))   &&
     (filterCat === 'all' || g.category === filterCat)
   );
 
-  const grouped = YEARS.reduce((acc: any, y) => {
-    acc[y] = QUARTERS.reduce((qa: any, q) => {
-      qa[q] = filtered.filter((g: any) => g.year === y && g.quarter === q);
+  const grouped = YEARS.reduce((acc: Record<number, Record<number, Goal[]>>, y) => {
+    acc[y] = QUARTERS.reduce((qa: Record<number, Goal[]>, q) => {
+      qa[q] = filtered.filter((g) => g.year === y && g.quarter === q);
       return qa;
     }, {});
     return acc;
@@ -372,8 +381,8 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
 
   // My overall progress (azubi)
   const myTotal     = goals.length;
-  const myLearned   = goals.filter((g: any) => ['learned','confirmed'].includes(g.progress?.[currentUser.id]?.status)).length;
-  const myConfirmed = goals.filter((g: any) => g.progress?.[currentUser.id]?.status === 'confirmed').length;
+  const myLearned   = goals.filter((g) => ['learned','confirmed'].includes(g.progress?.[currentUser.id]?.status ?? '')).length;
+  const myConfirmed = goals.filter((g) => g.progress?.[currentUser.id]?.status === 'confirmed').length;
   const myPct       = myTotal > 0 ? Math.round(myConfirmed / myTotal * 100) : 0;
 
   return (
@@ -382,7 +391,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       <ExamCountdown
         examDate={plan.examDate}
         isAusbilder={isAusbilder}
-        onChange={(date: any) => savePlan({ examDate: date })}
+        onChange={(date: string | null) => savePlan({ examDate: date })}
       />
 
       {/* Header */}
@@ -461,7 +470,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
                       <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.ac, display: 'inline-block' }} />
                       Q{q} ({qGoals.length})
                     </div>
-                    {qGoals.map((goal: any) =>
+                    {qGoals.map((goal) =>
                       editGoal?.id === goal.id ? (
                         <GoalForm key={goal.id} initial={editGoal} onSave={updateGoal} onCancel={() => setEditGoal(null)} />
                       ) : (
@@ -482,8 +491,9 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
 
       {showImport && (
         <ImportGoalsModal
-          existingGoals={goals}
-          onImport={importGoals}
+          /* ImportGoalsModal hat eigenen lokalen Goal-Typ (year non-null, abweichendes progress-Shape) → Boundary-Cast */
+          existingGoals={goals as any}
+          onImport={importGoals as any}
           onClose={() => setShowImport(false)}
         />
       )}
