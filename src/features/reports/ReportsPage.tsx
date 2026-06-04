@@ -545,13 +545,13 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                 <div style={{ fontSize: 11, color: C.mu }}>{t('report.pdfTypeHint')}</div>
                 <input ref={fileRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={e => handleFile(e)} />
               </div>
-              {form.file && (
+              {form.file && typeof form.file === 'object' && (
                 <div style={{ marginTop: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8, marginBottom: 10 }}>
                     <IcoDoc size={16} style={{ color: C.ac, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.file.name}</div>
-                      <div style={{ fontSize: 10, color: C.mu }}>{(form.file.size / 1024).toFixed(0)} KB</div>
+                      <div style={{ fontSize: 10, color: C.mu }}>{((form.file.size || 0) / 1024).toFixed(0)} KB</div>
                     </div>
                     {isOwner && !readOnly && (
                       <button onClick={() => setForm((f: any) => ({ ...f, file: null }))} className="del" style={{ fontSize: 14 }}>×</button>
@@ -560,6 +560,17 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                   {form.file.data && (
                     <iframe src={form.file.data} title="PDF Vorschau" style={{ width: '100%', height: 500, border: `1px solid var(--c-bd)`, borderRadius: 8, background: '#fff' }} />
                   )}
+                </div>
+              )}
+              {form.file && typeof form.file === 'string' && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8 }}>
+                    <IcoDoc size={16} style={{ color: C.ac, flexShrink: 0 }} />
+                    <a href={form.file} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.ac, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Hochgeladene Datei öffnen</a>
+                    {isOwner && !readOnly && (
+                      <button onClick={() => setForm((f: any) => ({ ...f, file: null }))} className="del" style={{ fontSize: 14 }}>×</button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
