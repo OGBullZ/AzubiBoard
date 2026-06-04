@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, useDraggable } from '@dnd-kit/core';
+import type { User, Task, TimeLogEntry, Label, Material, Project, Id } from '../../types';
 import { C, uid, today, fmtDate } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import { LinksManager } from './LinksManager.jsx';
@@ -23,25 +24,25 @@ const PRIORITY: Record<string, { l: string; c: string }> = {
   low:    { l: 'Niedrig', c: C.mu },
 };
 
-function mkTask(overrides: any = {}) {
+function mkTask(overrides: Partial<Task> = {}): Task {
   return { id: uid(), text: '', status: 'not_started', priority: 'medium', assignee: null, deadline: '', note: '', doc: '', protocol: '', links: [], labelIds: [], estimatedHours: 0, timeLog: [], created: today(), ...overrides };
 }
 
-function LabelChip({ label, tiny = false }: { label: any; tiny?: boolean }) {
+function LabelChip({ label, tiny = false }: { label: Label; tiny?: boolean }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: tiny ? 9 : 10, fontWeight: 700, color: '#fff', background: label.color, borderRadius: 4, padding: tiny ? '1px 5px' : '2px 7px', lineHeight: 1.3 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: tiny ? 9 : 10, fontWeight: 700, color: '#fff', background: label.color || undefined, borderRadius: 4, padding: tiny ? '1px 5px' : '2px 7px', lineHeight: 1.3 }}>
       {label.name}
     </span>
   );
 }
 
 // ── Zeit-Tab (Stunden-Log) ────────────────────────────────────
-function ZeitTab({ task, onUpdate, currentUser }: { task: any; onUpdate: any; currentUser: any }) {
+function ZeitTab({ task, onUpdate, currentUser }: { task: Task; onUpdate: (id: Id, patch: Partial<Task>) => void; currentUser: User }) {
   const [hours, setHours] = useState('');
   const [desc,  setDesc]  = useState('');
 
   const timeLog     = task.timeLog || [];
-  const totalLogged = timeLog.reduce((s: number, e: any) => s + (Number(e.hours) || 0), 0);
+  const totalLogged = timeLog.reduce((s: number, e: TimeLogEntry) => s + (Number(e.hours) || 0), 0);
   const estimated   = Number(task.estimatedHours) || 0;
   const pct         = estimated > 0 ? Math.min(100, Math.round(totalLogged / estimated * 100)) : 0;
 
@@ -61,8 +62,8 @@ function ZeitTab({ task, onUpdate, currentUser }: { task: any; onUpdate: any; cu
     setDesc('');
   };
 
-  const removeEntry = (entryId: any) =>
-    onUpdate(task.id, { timeLog: timeLog.filter((e: any) => e.id !== entryId) });
+  const removeEntry = (entryId: Id) =>
+    onUpdate(task.id, { timeLog: timeLog.filter((e: TimeLogEntry) => e.id !== entryId) });
 
   return (
     <div>
@@ -116,7 +117,7 @@ function ZeitTab({ task, onUpdate, currentUser }: { task: any; onUpdate: any; cu
                 <span style={{ flex: 1, fontSize: 12, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.description || <span style={{ color: C.mu, fontStyle: 'italic' }}>—</span>}</span>
                 <span style={{ fontSize: 10, color: C.mu, fontFamily: C.mono, flexShrink: 0 }}>{fmtDate(entry.date)}</span>
                 {entry.userName && <span style={{ fontSize: 10, color: C.mu, flexShrink: 0, opacity: .7 }}>{entry.userName.split(' ')[0]}</span>}
-                <IconBtn Icon={IcoTrash} onClick={() => removeEntry(entry.id)} label="Eintrag löschen" danger size={11} />
+                <IconBtn Icon={IcoTrash} onClick={() => removeEntry(entry.id!)} label="Eintrag löschen" danger size={11} />
               </div>
             ))}
           </div>
@@ -125,13 +126,26 @@ function ZeitTab({ task, onUpdate, currentUser }: { task: any; onUpdate: any; cu
   );
 }
 
-function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels, selected, onToggleSelect }: any) {
-  const assignee   = users.find((u: any) => u.id === task.assignee);
-  const st         = TASK_STATUS[task.status] || TASK_STATUS.not_started;
-  const pr         = PRIORITY[task.priority]  || PRIORITY.medium;
+function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onToggle, projectMaterials, projectLabels, selected, onToggleSelect }: {
+  task: Task;
+  users: User[];
+  currentUser: User;
+  onUpdate: (id: Id, patch: Partial<Task>) => void;
+  onRemove: (id: Id) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  // projectMaterials ist Blob-Material (qty/cost/taskId) — weicht vom Material-Schema ab
+  projectMaterials: any[];
+  projectLabels: Label[];
+  selected?: boolean;
+  onToggleSelect?: (id: Id) => void;
+}) {
+  const assignee   = users.find((u: User) => u.id === task.assignee);
+  const st         = TASK_STATUS[task.status ?? 'not_started'] || TASK_STATUS.not_started;
+  const pr         = PRIORITY[task.priority ?? 'medium']  || PRIORITY.medium;
   const over       = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
   const lc         = (task.links || []).length;
-  const taskLabels = (projectLabels || []).filter((lb: any) => (task.labelIds || []).includes(lb.id));
+  const taskLabels = (projectLabels || []).filter((lb: Label) => (task.labelIds || []).includes(lb.id));
 
   return (
     <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? C.ac + '70' : isOpen ? st.color + '50' : C.bd}`, background: selected ? C.acd + '44' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
@@ -173,7 +187,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
               </span>
             )}
             {(task.timeLog || []).length > 0 && (() => {
-              const logged = (task.timeLog || []).reduce((s: number, e: any) => s + (Number(e.hours) || 0), 0);
+              const logged = (task.timeLog || []).reduce((s: number, e: TimeLogEntry) => s + (Number(e.hours) || 0), 0);
               const est    = Number(task.estimatedHours) || 0;
               const over   = est > 0 && logged > est;
               return (
@@ -182,7 +196,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
                 </span>
               );
             })()}
-            {taskLabels.map((lb: any) => <LabelChip key={lb.id} label={lb} tiny />)}
+            {taskLabels.map((lb: Label) => <LabelChip key={lb.id} label={lb} tiny />)}
           </div>
         </div>
 
@@ -203,13 +217,13 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
             <div><label>Aufgabe</label><input value={task.text} onChange={e => onUpdate(task.id, { text: e.target.value })} /></div>
             <div>
               <label>Status</label>
-              <select value={task.status} onChange={e => onUpdate(task.id, { status: e.target.value })}>
+              <select value={task.status} onChange={e => onUpdate(task.id, { status: e.target.value as Task['status'] })}>
                 {Object.entries(TASK_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </div>
             <div>
               <label>Priorität</label>
-              <select value={task.priority} onChange={e => onUpdate(task.id, { priority: e.target.value })}>
+              <select value={task.priority || ''} onChange={e => onUpdate(task.id, { priority: e.target.value as Task['priority'] })}>
                 {Object.entries(PRIORITY).map(([k, v]) => <option key={k} value={k}>{v.l}</option>)}
               </select>
             </div>
@@ -223,7 +237,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
                 style={{ fontSize: 11, padding: '3px 9px', borderRadius: 6, background: !task.assignee ? C.acd : C.sf2, border: `1px solid ${!task.assignee ? C.ac : C.bd2}`, color: !task.assignee ? C.ac : C.mu, cursor: 'pointer' }}>
                 Niemand
               </button>
-              {users.map((u: any) => (
+              {users.map((u: User) => (
                 <button key={u.id} onClick={() => onUpdate(task.id, { assignee: u.id })} aria-pressed={task.assignee === u.id}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 6, background: task.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${task.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer', transition: 'all .12s' }}>
                   <Avatar name={u.name} size={16} />
@@ -237,17 +251,17 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
             <div>
               <label>Labels</label>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
-                {(projectLabels || []).map((lb: any) => {
+                {(projectLabels || []).map((lb: Label) => {
                   const active = (task.labelIds || []).includes(lb.id);
                   return (
                     <button key={lb.id} onClick={() => {
                       const ids = task.labelIds || [];
-                      onUpdate(task.id, { labelIds: active ? ids.filter((x: any) => x !== lb.id) : [...ids, lb.id] });
+                      onUpdate(task.id, { labelIds: active ? ids.filter((x: Id) => x !== lb.id) : [...ids, lb.id] });
                     }}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, border: `2px solid ${active ? lb.color : C.bd2}`, background: active ? lb.color + '22' : C.sf2, color: active ? lb.color : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color, display: 'inline-block', flexShrink: 0 }} />
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, border: `2px solid ${active ? lb.color : C.bd2}`, background: active ? lb.color + '22' : C.sf2, color: active ? (lb.color || undefined) : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color || undefined, display: 'inline-block', flexShrink: 0 }} />
                       {lb.name}
-                      {active && <IcoCheck size={10} style={{ color: lb.color }} />}
+                      {active && <IcoCheck size={10} style={{ color: lb.color || undefined }} />}
                     </button>
                   );
                 })}
@@ -262,10 +276,10 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   );
 }
 
-function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { task: any; onUpdate: any; projectMaterials?: any[]; currentUser: any }) {
+function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { task: Task; onUpdate: (id: Id, patch: Partial<Task>) => void; projectMaterials?: any[]; currentUser: User }) {
   const [active, setActive] = useState('note');
   const lc         = (task.links || []).length;
-  const zeitLogged = (task.timeLog || []).reduce((s: number, e: any) => s + (Number(e.hours) || 0), 0);
+  const zeitLogged = (task.timeLog || []).reduce((s: number, e: TimeLogEntry) => s + (Number(e.hours) || 0), 0);
 
   const TABS = [
     { k: 'note',     l: 'Notiz',     Icon: IcoNote, val: task.note,     ph: 'Kurze Notiz, Hinweis für andere…' },
@@ -311,10 +325,11 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { t
       </div>
       <div style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: '0 6px 6px 6px', padding: 10 }}>
         {active === 'links' ? (
-          <LinksManager links={task.links || []} onUpdate={links => onUpdate(task.id, { links })} compact />
+          // task.links: Schema-Typ unknown[] (Blob-Link-Form) → Cast für LinksManager
+          <LinksManager links={(task.links || []) as any /* Blob-Link-Form */} onUpdate={links => onUpdate(task.id, { links })} compact />
         ) : active === 'materials' ? (
-          <MaterialRef materials={projectMaterials} taskRef={task.materialRef || []}
-            onUpdate={(refs: any) => onUpdate(task.id, { materialRef: refs })} />
+          <MaterialRef materials={projectMaterials} taskRef={(task as any).materialRef || []}
+            onUpdate={(refs: any) => onUpdate(task.id, { materialRef: refs } as Partial<Task>)} />
         ) : active === 'zeit' ? (
           <ZeitTab task={task} onUpdate={onUpdate} currentUser={currentUser} />
         ) : (
@@ -326,9 +341,10 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { t
   );
 }
 
-function MaterialRef({ materials, taskRef, onUpdate }: { materials: any[]; taskRef: any[]; onUpdate: any }) {
-  const toggleRef = (id: any) => {
-    const updated = taskRef.includes(id) ? taskRef.filter((r: any) => r !== id) : [...taskRef, id];
+// materials ist Blob-Material (name/qty/cost) — weicht vom Material-Schema (quantity/unit_cost) ab → any[]
+function MaterialRef({ materials, taskRef, onUpdate }: { materials: any[]; taskRef: Id[]; onUpdate: (refs: Id[]) => void }) {
+  const toggleRef = (id: Id) => {
+    const updated = taskRef.includes(id) ? taskRef.filter((r: Id) => r !== id) : [...taskRef, id];
     onUpdate(updated);
   };
   return (
@@ -351,7 +367,22 @@ function MaterialRef({ materials, taskRef, onUpdate }: { materials: any[]; taskR
   );
 }
 
-function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels, selection, onToggleSelect }: any) {
+function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, onUpdate, onRemove, defaultCollapsed, projectMaterials, projectLabels, selection, onToggleSelect }: {
+  status: string;
+  tasks: Task[];
+  users: User[];
+  currentUser: User;
+  openTask: Id | null;
+  onToggleTask: (id: Id) => void;
+  onUpdate: (id: Id, patch: Partial<Task>) => void;
+  onRemove: (id: Id) => void;
+  defaultCollapsed?: boolean;
+  // projectMaterials ist Blob-Material — weicht vom Material-Schema ab
+  projectMaterials: any[];
+  projectLabels: Label[];
+  selection?: Set<Id>;
+  onToggleSelect?: (id: Id) => void;
+}) {
   const [collapsed, setCollapsed] = useState<boolean>(defaultCollapsed ?? false);
   const st = TASK_STATUS[status];
   if (!tasks.length) return null;
@@ -367,12 +398,12 @@ function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, 
       </button>
       {!collapsed && (
         <div style={{ background: C.sf3, border: `1px solid ${st.color}18`, borderTop: 'none', borderRadius: '0 0 7px 7px', padding: '5px 5px 3px' }}>
-          {[...tasks].sort((a: any, b: any) => {
+          {[...tasks].sort((a: Task, b: Task) => {
             if (!a.deadline && !b.deadline) return 0;
             if (!a.deadline) return 1;
             if (!b.deadline) return -1;
             return +new Date(a.deadline) - +new Date(b.deadline);
-          }).map((t: any) => (
+          }).map((t: Task) => (
             <TaskCard key={t.id} task={t} users={users} currentUser={currentUser}
               isOpen={openTask === t.id} onToggle={() => onToggleTask(t.id)}
               onUpdate={onUpdate} onRemove={onRemove}
@@ -386,10 +417,17 @@ function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, 
 }
 
 // ── Kanban Card ───────────────────────────────────────────────
-function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: any) {
-  const assignee = users.find((u: any) => u.id === task.assignee);
-  const pr  = PRIORITY[task.priority] || PRIORITY.medium;
-  const st  = TASK_STATUS[task.status] || TASK_STATUS.not_started;
+function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: {
+  task: Task;
+  users: User[];
+  statusIdx: number;
+  totalCols: number;
+  onUpdate: (id: Id, patch: Partial<Task>) => void;
+  onRemove: (id: Id) => void;
+}) {
+  const assignee = users.find((u: User) => u.id === task.assignee);
+  const pr  = PRIORITY[task.priority ?? 'medium'] || PRIORITY.medium;
+  const st  = TASK_STATUS[task.status ?? 'not_started'] || TASK_STATUS.not_started;
   const over = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
 
   return (
@@ -409,12 +447,12 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: a
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 3 }}>
           {statusIdx > 0 && (
-            <button onClick={() => onUpdate(task.id, { status: STATUS_ORDER[statusIdx - 1] })}
+            <button onClick={() => onUpdate(task.id, { status: STATUS_ORDER[statusIdx - 1] as Task['status'] })}
               title={`← ${TASK_STATUS[STATUS_ORDER[statusIdx - 1]]?.label}`}
               style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid ${C.bd2}`, background: 'transparent', color: C.mu, cursor: 'pointer' }}>←</button>
           )}
           {statusIdx < totalCols - 1 && (
-            <button onClick={() => onUpdate(task.id, { status: STATUS_ORDER[statusIdx + 1] })}
+            <button onClick={() => onUpdate(task.id, { status: STATUS_ORDER[statusIdx + 1] as Task['status'] })}
               title={`→ ${TASK_STATUS[STATUS_ORDER[statusIdx + 1]]?.label}`}
               style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid ${st.color}50`, background: st.bg, color: st.color, cursor: 'pointer', fontWeight: 700 }}>→</button>
           )}
@@ -427,7 +465,14 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: a
 }
 
 // ── Kanban DnD ────────────────────────────────────────────────
-function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: any) {
+function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: {
+  task: Task;
+  users: User[];
+  statusIdx: number;
+  totalCols: number;
+  onUpdate: (id: Id, patch: Partial<Task>) => void;
+  onRemove: (id: Id) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
@@ -449,8 +494,13 @@ function DroppableColumn({ status, children }: { status: string; children: any }
 }
 
 // ── Kanban Board ──────────────────────────────────────────────
-function KanbanBoard({ tasks, users, onUpdate, onRemove }: any) {
-  const [activeId, setActiveId] = useState<any>(null);
+function KanbanBoard({ tasks, users, onUpdate, onRemove }: {
+  tasks: Task[];
+  users: User[];
+  onUpdate: (id: Id, patch: Partial<Task>) => void;
+  onRemove: (id: Id) => void;
+}) {
+  const [activeId, setActiveId] = useState<Id | null>(null);
   // PointerSensor: Maus/Stift (8 px Toleranz für Klick-vs-Drag).
   // TouchSensor: 200 ms Press + 5 px Toleranz für mobile Geräte (verhindert Scroll-Konflikt).
   // KeyboardSensor: Tab + Space + Pfeiltasten für a11y.
@@ -459,12 +509,12 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: any) {
     useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor),
   );
-  const activeTask = activeId ? tasks.find((t: any) => t.id === activeId) : null;
+  const activeTask = activeId ? tasks.find((t: Task) => t.id === activeId) : null;
   const activeIdx  = activeTask ? STATUS_ORDER.indexOf(activeTask.status || 'not_started') : 0;
 
   const handleDragEnd = ({ active, over }: any) => {
     if (!over) { setActiveId(null); return; }
-    const fromStatus = tasks.find((t: any) => t.id === active.id)?.status || 'not_started';
+    const fromStatus = tasks.find((t: Task) => t.id === active.id)?.status || 'not_started';
     if (over.id !== fromStatus) {
       onUpdate(active.id, { status: over.id });
     }
@@ -479,7 +529,7 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: any) {
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
         {STATUS_ORDER.map((status, idx) => {
           const st   = TASK_STATUS[status];
-          const cols = tasks.filter((t: any) => (t.status || 'not_started') === status);
+          const cols = tasks.filter((t: Task) => (t.status || 'not_started') === status);
           return (
             <div key={status} style={{ minWidth: 200, flex: '0 0 200px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: st.bg, border: `1px solid ${st.color}28`, borderRadius: '8px 8px 0 0' }}>
@@ -488,7 +538,7 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: any) {
                 <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `${st.color}18`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
               </div>
               <DroppableColumn status={status}>
-                {cols.map((task: any) => (
+                {cols.map((task: Task) => (
                   <DraggableCard key={task.id} task={task} users={users} statusIdx={idx} totalCols={STATUS_ORDER.length} onUpdate={onUpdate} onRemove={onRemove} />
                 ))}
                 {cols.length === 0 && !activeId && (
@@ -510,33 +560,40 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: any) {
   );
 }
 
-export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: any) {
-  const [openTask,     setOpenTask]     = useState<any>(null);
+export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: {
+  project: Project;
+  users: User[];
+  currentUser: User;
+  onUpdate: (id: Id, patch: Partial<Project>) => void;
+  // onActivity reicht ein Activity-Log-Objekt durch (kein Domain-Schema) → any
+  onActivity?: (entry: any) => void;
+}) {
+  const [openTask,     setOpenTask]     = useState<Id | null>(null);
   const [showAdd,      setShowAdd]      = useState(false);
-  const [newTask,      setNewTask]      = useState<any>(mkTask({ assignee: currentUser.id }));
+  const [newTask,      setNewTask]      = useState<Task>(mkTask({ assignee: currentUser.id }));
   const [viewMode,     setViewMode]     = useState('list');
-  const [filterLabel,  setFilterLabel]  = useState<any>(null);
-  const [selection,    setSelection]    = useState<Set<any>>(new Set());
+  const [filterLabel,  setFilterLabel]  = useState<Id | null>(null);
+  const [selection,    setSelection]    = useState<Set<Id>>(new Set());
 
-  const toggleSelect   = (id: any) => setSelection(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const toggleSelect   = (id: Id) => setSelection(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const clearSelection = () => setSelection(new Set());
-  const selectAll      = () => setSelection(new Set(visibleTasks.map((t: any) => t.id)));
+  const selectAll      = () => setSelection(new Set(visibleTasks.map((t: Task) => t.id)));
 
-  const bulkSetStatus = (status: any) => {
-    onUpdate(project.id, { tasks: (project.tasks||[]).map((t: any) => selection.has(t.id) ? { ...t, status } : t) });
+  const bulkSetStatus = (status: Task['status']) => {
+    onUpdate(project.id, { tasks: (project.tasks||[]).map((t: Task) => selection.has(t.id) ? { ...t, status } : t) });
     clearSelection();
   };
   const bulkDelete = () => {
-    onUpdate(project.id, { tasks: (project.tasks||[]).filter((t: any) => !selection.has(t.id)) });
+    onUpdate(project.id, { tasks: (project.tasks||[]).filter((t: Task) => !selection.has(t.id)) });
     clearSelection();
   };
 
   const projectLabels = project.labels || [];
-  const assignable = users.filter((u: any) => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
+  const assignable = users.filter((u: User) => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
 
-  const updateTask = (taskId: any, patch: any) => {
+  const updateTask = (taskId: Id, patch: Partial<Task>) => {
     if (patch.status === 'done') {
-      const task = (project.tasks||[]).find((t: any) => t.id === taskId);
+      const task = (project.tasks||[]).find((t: Task) => t.id === taskId);
       if (task && task.status !== 'done') {
         onActivity?.({
           type: 'task_done',
@@ -549,14 +606,14 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
         });
       }
     }
-    onUpdate(project.id, { tasks: (project.tasks||[]).map((t: any) => t.id === taskId ? { ...t, ...patch } : t) });
+    onUpdate(project.id, { tasks: (project.tasks||[]).map((t: Task) => t.id === taskId ? { ...t, ...patch } : t) });
   };
-  const removeTask = (taskId: any) => {
-    onUpdate(project.id, { tasks: (project.tasks||[]).filter((t: any) => t.id !== taskId) });
+  const removeTask = (taskId: Id) => {
+    onUpdate(project.id, { tasks: (project.tasks||[]).filter((t: Task) => t.id !== taskId) });
     if (openTask === taskId) setOpenTask(null);
   };
   const addTask = () => {
-    if (!newTask.text.trim()) return;
+    if (!newTask.text?.trim()) return;
     onUpdate(project.id, { tasks: [...(project.tasks||[]), { ...newTask, links: newTask.links || [], labelIds: newTask.labelIds || [] }] });
     onActivity?.({
       type: 'task_created',
@@ -573,34 +630,34 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
 
   const allTasks  = project.tasks || [];
   const visibleTasks = filterLabel
-    ? allTasks.filter((t: any) => (t.labelIds || []).includes(filterLabel))
+    ? allTasks.filter((t: Task) => (t.labelIds || []).includes(filterLabel))
     : allTasks;
 
   const total = allTasks.length;
-  const done  = allTasks.filter((t: any) => t.status === 'done' || t.done).length;
+  const done  = allTasks.filter((t: Task) => t.status === 'done' || t.done).length;
   const pct   = total > 0 ? Math.round(done / total * 100) : 0;
 
-  const grouped = STATUS_ORDER.reduce((acc: any, s) => {
-    acc[s] = visibleTasks.filter((t: any) => (t.status || 'not_started') === s);
+  const grouped = STATUS_ORDER.reduce((acc: Record<string, Task[]>, s) => {
+    acc[s] = visibleTasks.filter((t: Task) => (t.status || 'not_started') === s);
     return acc;
-  }, {} as any);
+  }, {} as Record<string, Task[]>);
 
   const activeWorkers = (project.tasks||[])
-    .filter((t: any) => t.status === 'in_progress' && t.assignee)
-    .map((t: any) => ({ task: t, user: users.find((u: any) => u.id === t.assignee) }))
-    .filter((x: any) => x.user);
+    .filter((t: Task) => t.status === 'in_progress' && t.assignee)
+    .map((t: Task) => ({ task: t, user: users.find((u: User) => u.id === t.assignee) }))
+    .filter((x: { task: Task; user?: User }) => x.user);
 
   return (
     <div className="anim">
       {activeWorkers.length > 0 && (
         <div style={{ background: C.acd, border: `1px solid ${C.ac}28`, borderRadius: 8, padding: '7px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, color: C.ac, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><IcoPlay size={11} /> Aktiv:</span>
-          {activeWorkers.map(({ task, user }: any) => (
+          {activeWorkers.map(({ task, user }: { task: Task; user?: User }) => (
             <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.sf2, borderRadius: 6, padding: '3px 8px', border: `1px solid ${C.ac}20` }}>
-              <div style={{ position: 'relative' }}><Avatar name={user.name} size={18} />
+              <div style={{ position: 'relative' }}><Avatar name={user!.name} size={18} />
                 <div style={{ position: 'absolute', bottom: -1, right: -1, width: 6, height: 6, borderRadius: '50%', background: C.gr, border: `1px solid ${C.sf2}` }} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: C.br }}>{user.name.split(' ')[0]}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: C.br }}>{user!.name.split(' ')[0]}</span>
               <span style={{ fontSize: 10, color: C.mu, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {task.text}</span>
             </div>
           ))}
@@ -636,17 +693,17 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
         {showAdd && (
           <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.bd}` }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 145px 105px', gap: 8, marginBottom: 7 }}>
-              <div><label>Aufgabe</label><input autoFocus value={newTask.text} onChange={e => setNewTask((t: any) => ({ ...t, text: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addTask()} placeholder="Aufgabenbeschreibung…" /></div>
+              <div><label>Aufgabe</label><input autoFocus value={newTask.text} onChange={e => setNewTask((t: Task) => ({ ...t, text: e.target.value }))} onKeyDown={e => e.key === 'Enter' && addTask()} placeholder="Aufgabenbeschreibung…" /></div>
               <div><label>Status</label>
-                <select value={newTask.status} onChange={e => setNewTask((t: any) => ({ ...t, status: e.target.value }))}>
+                <select value={newTask.status} onChange={e => setNewTask((t: Task) => ({ ...t, status: e.target.value as Task['status'] }))}>
                   {Object.entries(TASK_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
-              <div><label>Deadline</label><input type="date" value={newTask.deadline} onChange={e => setNewTask((t: any) => ({ ...t, deadline: e.target.value }))} /></div>
+              <div><label>Deadline</label><input type="date" value={newTask.deadline || ''} onChange={e => setNewTask((t: Task) => ({ ...t, deadline: e.target.value }))} /></div>
             </div>
             <div style={{ display: 'flex', gap: 5, marginBottom: 7, flexWrap: 'wrap' }}>
-              {assignable.map((u: any) => (
-                <button key={u.id} onClick={() => setNewTask((t: any) => ({ ...t, assignee: t.assignee === u.id ? null : u.id }))}
+              {assignable.map((u: User) => (
+                <button key={u.id} onClick={() => setNewTask((t: Task) => ({ ...t, assignee: t.assignee === u.id ? null : u.id }))}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 6, background: newTask.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${newTask.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer' }}>
                   <Avatar name={u.name} size={15} />
                   <span style={{ color: newTask.assignee === u.id ? C.ac : C.tx }}>{u.name.split(' ')[0]}</span>
@@ -667,10 +724,10 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
             style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `1px solid ${!filterLabel ? C.ac : C.bd2}`, background: !filterLabel ? C.acd : C.sf2, color: !filterLabel ? C.ac : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
             Alle
           </button>
-          {projectLabels.map((lb: any) => (
+          {projectLabels.map((lb: Label) => (
             <button key={lb.id} onClick={() => setFilterLabel(filterLabel === lb.id ? null : lb.id)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `2px solid ${filterLabel === lb.id ? lb.color : lb.color + '50'}`, background: filterLabel === lb.id ? lb.color + '22' : C.sf2, color: filterLabel === lb.id ? lb.color : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: lb.color, display: 'inline-block', flexShrink: 0 }} />
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `2px solid ${filterLabel === lb.id ? lb.color : lb.color + '50'}`, background: filterLabel === lb.id ? lb.color + '22' : C.sf2, color: filterLabel === lb.id ? (lb.color || undefined) : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: lb.color || undefined, display: 'inline-block', flexShrink: 0 }} />
               {lb.name}
             </button>
           ))}
@@ -688,7 +745,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
                   {STATUS_ORDER.map(s => {
                     const st = TASK_STATUS[s];
                     return (
-                      <button key={s} onClick={() => bulkSetStatus(s)}
+                      <button key={s} onClick={() => bulkSetStatus(s as Task['status'])}
                         style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${st.color}50`, background: st.bg, color: st.color, cursor: 'pointer' }}>
                         <st.Icon size={10} /> → {st.label}
                       </button>
@@ -726,9 +783,11 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
   );
 }
 
-export function MaterialsTab({ project, onUpdate }: any) {
+// Blob-Material (name/qty/cost/taskId) weicht vom Material-Schema (quantity/unit_cost) ab.
+// Daher project: Project, aber Material-Werte werden lokal als any behandelt.
+export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const tasks   = project.tasks || [];
-  const [form, setForm] = useState<any>({ name: '', qty: 1, cost: 0, taskId: '' });
+  const [form, setForm] = useState<{ name: string; qty: number | string; cost: number | string; taskId: string }>({ name: '', qty: 1, cost: 0, taskId: '' });
 
   const add = () => {
     if (!form.name.trim()) return;
@@ -739,23 +798,23 @@ export function MaterialsTab({ project, onUpdate }: any) {
         qty: Number(form.qty)||1,
         cost: Number(form.cost)||0,
         taskId: form.taskId || null,
-      }],
+      } as any],
     });
     setForm({ name: '', qty: 1, cost: 0, taskId: '' });
   };
 
-  const remove = (id: any) => onUpdate(project.id, { materials: (project.materials||[]).filter((m: any) => m.id !== id) });
+  const remove = (id: Id) => onUpdate(project.id, { materials: (project.materials||[]).filter((m: any) => m.id !== id) });
   const total  = (project.materials||[]).reduce((s: number, m: any) => s + (m.cost||0)*(m.qty||1), 0);
 
   // Sortierung: zuerst nach Aufgabe (alphabetisch nach Aufgaben-Text), dann ohne Aufgabe
-  const taskOrder = tasks.reduce((acc: any, t: any, i: number) => { acc[t.id] = i; return acc; }, {} as any);
+  const taskOrder = tasks.reduce((acc: Record<string, number>, t: Task, i: number) => { acc[t.id] = i; return acc; }, {} as Record<string, number>);
   const sorted = [...(project.materials||[])].sort((a: any, b: any) => {
     const ia = a.taskId != null ? (taskOrder[a.taskId] ?? 9999) : 9999;
     const ib = b.taskId != null ? (taskOrder[b.taskId] ?? 9999) : 9999;
     return ia - ib;
   });
 
-  const taskName = (id: any) => tasks.find((t: any) => t.id === id)?.text || '—';
+  const taskName = (id: Id) => tasks.find((t: Task) => t.id === id)?.text || '—';
 
   const COLS = '2fr 1fr 70px 90px 90px 36px';
 
@@ -763,18 +822,18 @@ export function MaterialsTab({ project, onUpdate }: any) {
     <div className="anim">
       <div className="card" style={{ marginBottom: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 8 }}>
-          <div><label>Bezeichnung</label><input value={form.name} onChange={e => setForm((f: any)=>({...f,name:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="z.B. HDMI-Kabel" /></div>
+          <div><label>Bezeichnung</label><input value={form.name} onChange={e => setForm((f)=>({...f,name:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="z.B. HDMI-Kabel" /></div>
           <div>
             <label>Aufgabe</label>
-            <select value={form.taskId} onChange={e => setForm((f: any)=>({...f,taskId:e.target.value}))} style={{ appearance:'auto' }}>
+            <select value={form.taskId} onChange={e => setForm((f)=>({...f,taskId:e.target.value}))} style={{ appearance:'auto' }}>
               <option value="">— keine Aufgabe —</option>
-              {tasks.map((t: any) => <option key={t.id} value={t.id}>{t.text || 'Unbenannte Aufgabe'}</option>)}
+              {tasks.map((t: Task) => <option key={t.id} value={t.id}>{t.text || 'Unbenannte Aufgabe'}</option>)}
             </select>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '70px 90px auto', gap: 8, alignItems: 'flex-end' }}>
-          <div><label>Menge</label><input type="number" min="1" value={form.qty} onChange={e=>setForm((f: any)=>({...f,qty:e.target.value}))} /></div>
-          <div><label>Kosten €</label><input type="number" min="0" step="0.01" value={form.cost} onChange={e=>setForm((f: any)=>({...f,cost:e.target.value}))} /></div>
+          <div><label>Menge</label><input type="number" min="1" value={form.qty} onChange={e=>setForm((f)=>({...f,qty:e.target.value}))} /></div>
+          <div><label>Kosten €</label><input type="number" min="0" step="0.01" value={form.cost} onChange={e=>setForm((f)=>({...f,cost:e.target.value}))} /></div>
           <button className="abtn" onClick={add} style={{ alignSelf:'flex-end',padding:'7px 12px' }}>+ Hinzufügen</button>
         </div>
       </div>
@@ -784,7 +843,7 @@ export function MaterialsTab({ project, onUpdate }: any) {
         </div>
         {sorted.length === 0
           ? <div style={{padding:'20px',textAlign:'center',color:C.mu,fontSize:12}}>Noch kein Material</div>
-          : sorted.map(m => (
+          : sorted.map((m: any) => (
             <div key={m.id} style={{ display:'grid', gridTemplateColumns:COLS, padding:'9px 14px', borderBottom:`1px solid ${C.bd}22`, alignItems:'center' }}>
               <div style={{fontSize:13,color:C.br,fontWeight:600}}>{m.name}</div>
               <div style={{fontSize:11,color:m.taskId?C.ac:C.mu,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={m.taskId?taskName(m.taskId):''}>
@@ -808,11 +867,12 @@ export function MaterialsTab({ project, onUpdate }: any) {
   );
 }
 
-export function RequirementsTab({ project, onUpdate }: any) {
+// Blob-Requirement nutzt `text` statt Schema-Feld `title` → Requirement-Werte lokal als any.
+export function RequirementsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const [text,setText]=useState('');
-  const add    = () => { if(!text.trim())return; onUpdate(project.id,{requirements:[...(project.requirements||[]),{id:uid(),text:text.trim(),done:false}]}); setText(''); };
-  const toggle = (id: any) => onUpdate(project.id,{requirements:(project.requirements||[]).map((r: any)=>r.id===id?{...r,done:!r.done}:r)});
-  const remove = (id: any) => onUpdate(project.id,{requirements:(project.requirements||[]).filter((r: any)=>r.id!==id)});
+  const add    = () => { if(!text.trim())return; onUpdate(project.id,{requirements:[...(project.requirements||[]),{id:uid(),text:text.trim(),done:false} as any]}); setText(''); };
+  const toggle = (id: Id) => onUpdate(project.id,{requirements:(project.requirements||[]).map((r: any)=>r.id===id?{...r,done:!r.done}:r)});
+  const remove = (id: Id) => onUpdate(project.id,{requirements:(project.requirements||[]).filter((r: any)=>r.id!==id)});
   const done   = (project.requirements||[]).filter((r: any)=>r.done).length;
   const pct    = (project.requirements||[]).length ? Math.round(done/(project.requirements||[]).length*100) : 0;
 
@@ -847,12 +907,14 @@ export function RequirementsTab({ project, onUpdate }: any) {
   );
 }
 
-export function StepsTab({ project, onUpdate }: any) {
+// `steps` ist ein Blob-Feld, das es im Project-Schema nicht gibt → über any-Cast lesen/schreiben.
+export function StepsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const [form, setForm] = useState({ title: '', date: today(), note: '' });
-  const [open, setOpen] = useState<any>(null);
-  const add    = () => { if(!form.title.trim())return; onUpdate(project.id,{steps:[...(project.steps||[]),{id:uid(),...form}]}); setForm({title:'',date:today(),note:''}); };
-  const remove = (id: any) => onUpdate(project.id,{steps:(project.steps||[]).filter((s: any)=>s.id!==id)});
-  const sorted = [...(project.steps||[])].sort((a: any, b: any)=>+new Date(b.date)-+new Date(a.date));
+  const [open, setOpen] = useState<Id | null>(null);
+  const steps  = (project as any).steps as any[] | undefined;
+  const add    = () => { if(!form.title.trim())return; onUpdate(project.id,{steps:[...(steps||[]),{id:uid(),...form}]} as Partial<Project>); setForm({title:'',date:today(),note:''}); };
+  const remove = (id: Id) => onUpdate(project.id,{steps:(steps||[]).filter((s: any)=>s.id!==id)} as Partial<Project>);
+  const sorted = [...(steps||[])].sort((a: any, b: any)=>+new Date(b.date)-+new Date(a.date));
 
   return (
     <div className="anim">
@@ -867,7 +929,7 @@ export function StepsTab({ project, onUpdate }: any) {
       </div>
       <div style={{position:'relative',paddingLeft:16}}>
         <div style={{position:'absolute',left:5,top:0,bottom:0,width:2,background:`linear-gradient(to bottom,${C.ac},${C.bd})`}} />
-        {sorted.map(s => (
+        {sorted.map((s: any) => (
           <div key={s.id} style={{marginBottom:9,position:'relative'}}>
             <div style={{position:'absolute',left:-14,top:12,width:8,height:8,borderRadius:'50%',background:C.ac,border:`2px solid ${C.sf}`}} />
             <div style={{background:C.sf2,border:`1px solid ${C.bd}`,borderRadius:8,overflow:'hidden'}}>
@@ -886,7 +948,7 @@ export function StepsTab({ project, onUpdate }: any) {
             </div>
           </div>
         ))}
-        {(project.steps||[]).length===0 && <EmptyState Icon={IcoDoc} title="Noch keine Schritte" subtitle="Dokumentiere den Fortschritt" />}
+        {(steps||[]).length===0 && <EmptyState Icon={IcoDoc} title="Noch keine Schritte" subtitle="Dokumentiere den Fortschritt" />}
       </div>
     </div>
   );
