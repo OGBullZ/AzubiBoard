@@ -343,8 +343,8 @@ function MaterialsPopup({ project, onUpdate, onClose }: { project: any; onUpdate
           <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 28px', padding: '8px 12px', borderBottom: `1px solid var(--c-bd)22`, alignItems: 'center', fontSize: 12 }}>
             <span style={{ fontWeight: 600, color: C.br }}>{m.name}</span>
             <span style={{ fontFamily: C.mono, color: C.mu }}>{m.qty}×</span>
-            <span style={{ fontFamily: C.mono, color: C.mu }}>{Number(m.cost).toFixed(2)} €</span>
-            <span style={{ fontFamily: C.mono, color: C.ac, fontWeight: 700 }}>{(Number(m.qty) * Number(m.cost)).toFixed(2)} €</span>
+            <span style={{ fontFamily: C.mono, color: C.mu }}>{(m.cost || 0).toFixed(2)} €</span>
+            <span style={{ fontFamily: C.mono, color: C.ac, fontWeight: 700 }}>{((m.qty || 1) * (m.cost || 0)).toFixed(2)} €</span>
             <button className="del" onClick={() => remove(m.id)} style={{ fontSize: 13 }}>×</button>
           </div>
         ))}

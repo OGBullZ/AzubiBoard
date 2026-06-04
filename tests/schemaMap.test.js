@@ -48,15 +48,21 @@ describe('mapTaskRowToBlob', () => {
 });
 
 describe('mapRequirementRowToBlob / mapMaterialRowToBlob', () => {
-  it('requirement done als bool aus 0/1', () => {
+  it('requirement done als bool aus 0/1, text als Blob-Alias von title', () => {
     expect(mapRequirementRowToBlob({ id: 1, title: 'r', done: 1 }).done).toBe(true);
     expect(mapRequirementRowToBlob({ id: 2, title: 'r', done: 0 }).done).toBe(false);
+    // Komponenten lesen `text`, nicht `title`
+    expect(mapRequirementRowToBlob({ id: 3, title: 'Anforderung', done: 0 }).text).toBe('Anforderung');
   });
 
-  it('material ordered bool + Zahlen', () => {
-    const m = mapMaterialRowToBlob({ id: 3, name: 'Mat', quantity: '5', unit_cost: '12.5', ordered: 1 });
+  it('material ordered bool + Zahlen, qty/cost/taskId als Blob-Aliase', () => {
+    const m = mapMaterialRowToBlob({ id: 3, name: 'Mat', quantity: '5', unit_cost: '12.5', ordered: 1, task_id: 9 });
     expect(m.ordered).toBe(true);
     expect(m.quantity).toBe(5);
+    // Komponenten lesen qty/cost/taskId
+    expect(m.qty).toBe(5);
+    expect(m.cost).toBe(12.5);
+    expect(m.taskId).toBe(9);
     expect(m.unit_cost).toBe(12.5);
     expect(m.id).toBe('3');
   });

@@ -63,6 +63,7 @@ export function mapRequirementRowToBlob(row: Row = {}): Blob {
   return compact({
     id:           idStr(row.id),
     title:        row.title ?? '',
+    text:         row.title ?? undefined,   // Blob-Alias, Komponenten lesen `text`
     description:  row.description ?? undefined,
     done:         bool(row.done),
     priority:     row.priority ?? undefined,
@@ -72,15 +73,21 @@ export function mapRequirementRowToBlob(row: Row = {}): Blob {
 
 // Material --------------------------------------------------------------
 export function mapMaterialRowToBlob(row: Row = {}): Blob {
+  const quantity  = row.quantity  !== undefined && row.quantity  !== null ? Number(row.quantity)  : undefined;
+  const unit_cost = row.unit_cost !== undefined && row.unit_cost !== null ? Number(row.unit_cost) : undefined;
   return compact({
     id:          idStr(row.id),
     name:        row.name ?? '',
     description: row.description ?? undefined,
-    quantity:    row.quantity !== undefined && row.quantity !== null ? Number(row.quantity) : undefined,
+    quantity,
     unit:        row.unit ?? undefined,
-    unit_cost:   row.unit_cost !== undefined && row.unit_cost !== null ? Number(row.unit_cost) : undefined,
+    unit_cost,
     supplier:    row.supplier ?? undefined,
     ordered:     bool(row.ordered),
+    // Blob-Aliase, die die Komponenten tatsächlich lesen (qty/cost/taskId)
+    qty:         quantity,
+    cost:        unit_cost,
+    taskId:      row.task_id ?? undefined,
   });
 }
 

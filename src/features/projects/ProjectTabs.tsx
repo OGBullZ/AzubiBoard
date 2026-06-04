@@ -357,7 +357,7 @@ function MaterialRef({ materials, taskRef, onUpdate }: { materials: Material[]; 
               {sel && <IcoCheck size={8} style={{ color: '#fff' }} />}
             </div>
             <span style={{ fontSize: 12, color: sel ? C.br : C.tx, flex: 1 }}>{m.name}</span>
-            <span style={{ fontSize: 10, fontFamily: C.mono, color: C.mu }}>{m.qty}× · {((m.cost as number) * (m.qty as number)).toFixed(0)} €</span>
+            <span style={{ fontSize: 10, fontFamily: C.mono, color: C.mu }}>{m.qty}× · {((m.cost || 0) * (m.qty || 1)).toFixed(0)} €</span>
           </div>
         );
       })}
@@ -846,8 +846,8 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
                 {m.taskId ? taskName(m.taskId) : <span style={{color:C.bd2}}>—</span>}
               </div>
               <div style={{fontSize:12,fontFamily:C.mono}}>{m.qty}×</div>
-              <div style={{fontSize:12,fontFamily:C.mono}}>{Number(m.cost).toFixed(2)} €</div>
-              <div style={{fontSize:12,fontFamily:C.mono,color:C.ac,fontWeight:700}}>{((m.qty as number)*(m.cost as number)).toFixed(2)} €</div>
+              <div style={{fontSize:12,fontFamily:C.mono}}>{(m.cost || 0).toFixed(2)} €</div>
+              <div style={{fontSize:12,fontFamily:C.mono,color:C.ac,fontWeight:700}}>{((m.qty || 1)*(m.cost || 0)).toFixed(2)} €</div>
               <IconBtn Icon={IcoTrash} onClick={()=>remove(m.id)} label={`${m.name} löschen`} danger size={12} />
             </div>
           ))
