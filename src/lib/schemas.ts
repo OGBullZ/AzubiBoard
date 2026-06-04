@@ -95,11 +95,13 @@ export const Task = z.object({
 // ── Requirement + Material ────────────────────────────────────
 export const Requirement = z.object({
   id:           z.union([z.string(), z.number()]),
-  title:        z.string(),
+  title:        z.string().optional(),   // relationale Form; Blob nutzt `text`
   description:  optStr,
   done:         z.boolean().optional(),
   priority:     z.string().optional().nullable(),
   completed_at: isoTs,
+  // Blob-Form-Alias (localStorage)
+  text:         z.string().optional(),
 });
 
 export const Material = z.object({
@@ -111,6 +113,10 @@ export const Material = z.object({
   unit_cost:   optNum,
   supplier:    optStr,
   ordered:     z.boolean().optional(),
+  // Blob-Form-Aliase (localStorage): qty/cost statt quantity/unit_cost, taskId-Zuordnung
+  qty:         optNum,
+  cost:        optNum,
+  taskId:      z.union([z.string(), z.number()]).optional().nullable(),
 });
 
 // ── Project ───────────────────────────────────────────────────

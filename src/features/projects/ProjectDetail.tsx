@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { CSSProperties, ComponentType, ReactNode } from "react";
-import type { User, Task, Label, Project, Id } from '../../types';
+import type { User, Task, Label, Project, Id, Material, Requirement } from '../../types';
 import { C, uid, fmtDate } from '../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar, Modal, Field, IconBtn } from '../../components/UI.jsx';
 import { TasksTab, MaterialsTab, RequirementsTab, StepsTab } from './ProjectTabs.jsx';
@@ -325,8 +325,8 @@ function MaterialsPopup({ project, onUpdate, onClose }: { project: any; onUpdate
     onUpdate(project.id, { materials: [...project.materials, { id: uid(), name: form.name.trim(), qty: Number(form.qty) || 1, cost: Number(form.cost) || 0 }] });
     setForm({ name: '', qty: 1, cost: 0 });
   };
-  const remove = (id: Id) => onUpdate(project.id, { materials: project.materials.filter((m: any) => m.id !== id) });
-  const total = project.materials.reduce((s: number, m: any) => s + (m.cost || 0) * (m.qty || 1), 0);
+  const remove = (id: Id) => onUpdate(project.id, { materials: project.materials.filter((m: Material) => m.id !== id) });
+  const total = project.materials.reduce((s: number, m: Material) => s + (m.cost || 0) * (m.qty || 1), 0);
 
   return (
     <Modal title="Materialkosten" onClose={onClose} width={500}>
@@ -339,12 +339,12 @@ function MaterialsPopup({ project, onUpdate, onClose }: { project: any; onUpdate
       <div style={{ background: 'var(--c-sf3)', borderRadius: 8, overflow: 'hidden', border: `1px solid var(--c-bd)` }}>
         {project.materials.length === 0 ? (
           <div style={{ padding: '16px', textAlign: 'center', color: C.mu, fontSize: 12 }}>Noch kein Material</div>
-        ) : project.materials.map((m: any) => (
+        ) : project.materials.map((m: Material) => (
           <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 28px', padding: '8px 12px', borderBottom: `1px solid var(--c-bd)22`, alignItems: 'center', fontSize: 12 }}>
             <span style={{ fontWeight: 600, color: C.br }}>{m.name}</span>
             <span style={{ fontFamily: C.mono, color: C.mu }}>{m.qty}×</span>
             <span style={{ fontFamily: C.mono, color: C.mu }}>{Number(m.cost).toFixed(2)} €</span>
-            <span style={{ fontFamily: C.mono, color: C.ac, fontWeight: 700 }}>{(m.qty * m.cost).toFixed(2)} €</span>
+            <span style={{ fontFamily: C.mono, color: C.ac, fontWeight: 700 }}>{(Number(m.qty) * Number(m.cost)).toFixed(2)} €</span>
             <button className="del" onClick={() => remove(m.id)} style={{ fontSize: 13 }}>×</button>
           </div>
         ))}
@@ -385,9 +385,9 @@ function ZeitraumPopup({ project, onUpdate, onClose }: { project: any; onUpdate:
 function RequirementsPopup({ project, onUpdate, onClose }: { project: any; onUpdate: UpdateFn; onClose: () => void }) {
   const [text, setText] = useState('');
   const add    = () => { if (!text.trim()) return; onUpdate(project.id, { requirements: [...project.requirements, { id: uid(), text: text.trim(), done: false }] }); setText(''); };
-  const toggle = (id: Id) => onUpdate(project.id, { requirements: project.requirements.map((r: any) => r.id === id ? { ...r, done: !r.done } : r) });
-  const remove = (id: Id) => onUpdate(project.id, { requirements: project.requirements.filter((r: any) => r.id !== id) });
-  const done  = project.requirements.filter((r: any) => r.done).length;
+  const toggle = (id: Id) => onUpdate(project.id, { requirements: project.requirements.map((r: Requirement) => r.id === id ? { ...r, done: !r.done } : r) });
+  const remove = (id: Id) => onUpdate(project.id, { requirements: project.requirements.filter((r: Requirement) => r.id !== id) });
+  const done  = project.requirements.filter((r: Requirement) => r.done).length;
   const pct   = project.requirements.length ? Math.round(done / project.requirements.length * 100) : 0;
   return (
     <Modal title="Anforderungen" onClose={onClose} width={480}>
@@ -401,7 +401,7 @@ function RequirementsPopup({ project, onUpdate, onClose }: { project: any; onUpd
           <div style={{ fontSize: 10, color: C.mu, marginTop: 3 }}>{done}/{project.requirements.length} erfüllt</div>
         </div>
       )}
-      {project.requirements.map((r: any) => (
+      {project.requirements.map((r: Requirement) => (
         <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--c-sf3)', border: `1px solid ${r.done ? C.gr + '30' : 'var(--c-bd)'}`, borderRadius: 7, marginBottom: 5 }}>
           <button onClick={() => toggle(r.id)} style={{ width: 17, height: 17, borderRadius: 4, border: `2px solid ${r.done ? C.gr : 'var(--c-bd2)'}`, background: r.done ? C.gr : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .12s' }}>
             {r.done && <IcoCheck size={9} style={{ color: '#fff' }} />}
@@ -453,9 +453,9 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
   };
   const cancel = () => { setForm({ ...project }); setEditMode(false); };
 
-  // Material-Werte (qty/cost) sind Blob → m bleibt `any`. Requirement (done aus Blob) → r `any`.
-  const totalCost    = project.materials.reduce((s: number, m: any) => s + (m.cost || 0) * (m.qty || 1), 0);
-  const doneReq      = project.requirements.filter((r: any) => r.done).length;
+  // Material qty/cost + Requirement done sind jetzt schema-konforme Optional-Felder.
+  const totalCost    = project.materials.reduce((s: number, m: Material) => s + (m.cost || 0) * (m.qty || 1), 0);
+  const doneReq      = project.requirements.filter((r: Requirement) => r.done).length;
   const doneTasks    = project.tasks.filter((t: Task) => t.status === 'done' || t.done).length;
   const taskPct      = project.tasks.length > 0 ? Math.round(doneTasks / project.tasks.length * 100) : 0;
   const group        = groups.find((g: any) => g.id === project.groupId);

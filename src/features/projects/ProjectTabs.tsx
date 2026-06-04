@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, useDraggable } from '@dnd-kit/core';
-import type { User, Task, TimeLogEntry, Label, Material, Project, Id } from '../../types';
+import type { User, Task, TimeLogEntry, Label, Material, Requirement, Project, Id } from '../../types';
 import { C, uid, today, fmtDate } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import { LinksManager } from './LinksManager.jsx';
@@ -134,8 +134,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   onRemove: (id: Id) => void;
   isOpen: boolean;
   onToggle: () => void;
-  // projectMaterials ist Blob-Material (qty/cost/taskId) — weicht vom Material-Schema ab
-  projectMaterials: any[];
+  projectMaterials: Material[];
   projectLabels: Label[];
   selected?: boolean;
   onToggleSelect?: (id: Id) => void;
@@ -276,7 +275,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   );
 }
 
-function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { task: Task; onUpdate: (id: Id, patch: Partial<Task>) => void; projectMaterials?: any[]; currentUser: User }) {
+function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { task: Task; onUpdate: (id: Id, patch: Partial<Task>) => void; projectMaterials?: Material[]; currentUser: User }) {
   const [active, setActive] = useState('note');
   const lc         = (task.links || []).length;
   const zeitLogged = (task.timeLog || []).reduce((s: number, e: TimeLogEntry) => s + (Number(e.hours) || 0), 0);
@@ -341,8 +340,7 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { t
   );
 }
 
-// materials ist Blob-Material (name/qty/cost) — weicht vom Material-Schema (quantity/unit_cost) ab → any[]
-function MaterialRef({ materials, taskRef, onUpdate }: { materials: any[]; taskRef: Id[]; onUpdate: (refs: Id[]) => void }) {
+function MaterialRef({ materials, taskRef, onUpdate }: { materials: Material[]; taskRef: Id[]; onUpdate: (refs: Id[]) => void }) {
   const toggleRef = (id: Id) => {
     const updated = taskRef.includes(id) ? taskRef.filter((r: Id) => r !== id) : [...taskRef, id];
     onUpdate(updated);
@@ -350,7 +348,7 @@ function MaterialRef({ materials, taskRef, onUpdate }: { materials: any[]; taskR
   return (
     <div>
       <div style={{ fontSize: 10, color: C.mu, marginBottom: 7 }}>Materialien die für diese Aufgabe benötigt werden:</div>
-      {materials.map((m: any) => {
+      {materials.map((m: Material) => {
         const sel = taskRef.includes(m.id);
         return (
           <div key={m.id} onClick={() => toggleRef(m.id)}
@@ -359,7 +357,7 @@ function MaterialRef({ materials, taskRef, onUpdate }: { materials: any[]; taskR
               {sel && <IcoCheck size={8} style={{ color: '#fff' }} />}
             </div>
             <span style={{ fontSize: 12, color: sel ? C.br : C.tx, flex: 1 }}>{m.name}</span>
-            <span style={{ fontSize: 10, fontFamily: C.mono, color: C.mu }}>{m.qty}× · {(m.cost * m.qty).toFixed(0)} €</span>
+            <span style={{ fontSize: 10, fontFamily: C.mono, color: C.mu }}>{m.qty}× · {((m.cost as number) * (m.qty as number)).toFixed(0)} €</span>
           </div>
         );
       })}
@@ -377,8 +375,7 @@ function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, 
   onUpdate: (id: Id, patch: Partial<Task>) => void;
   onRemove: (id: Id) => void;
   defaultCollapsed?: boolean;
-  // projectMaterials ist Blob-Material — weicht vom Material-Schema ab
-  projectMaterials: any[];
+  projectMaterials: Material[];
   projectLabels: Label[];
   selection?: Set<Id>;
   onToggleSelect?: (id: Id) => void;
@@ -783,8 +780,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
   );
 }
 
-// Blob-Material (name/qty/cost/taskId) weicht vom Material-Schema (quantity/unit_cost) ab.
-// Daher project: Project, aber Material-Werte werden lokal als any behandelt.
+// Material nutzt die Blob-Aliase qty/cost/taskId (jetzt im Material-Schema als optional vorhanden).
 export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const tasks   = project.tasks || [];
   const [form, setForm] = useState<{ name: string; qty: number | string; cost: number | string; taskId: string }>({ name: '', qty: 1, cost: 0, taskId: '' });
@@ -798,17 +794,17 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
         qty: Number(form.qty)||1,
         cost: Number(form.cost)||0,
         taskId: form.taskId || null,
-      } as any],
+      }],
     });
     setForm({ name: '', qty: 1, cost: 0, taskId: '' });
   };
 
-  const remove = (id: Id) => onUpdate(project.id, { materials: (project.materials||[]).filter((m: any) => m.id !== id) });
-  const total  = (project.materials||[]).reduce((s: number, m: any) => s + (m.cost||0)*(m.qty||1), 0);
+  const remove = (id: Id) => onUpdate(project.id, { materials: (project.materials||[]).filter((m: Material) => m.id !== id) });
+  const total  = (project.materials||[]).reduce((s: number, m: Material) => s + (m.cost||0)*(m.qty||1), 0);
 
   // Sortierung: zuerst nach Aufgabe (alphabetisch nach Aufgaben-Text), dann ohne Aufgabe
   const taskOrder = tasks.reduce((acc: Record<string, number>, t: Task, i: number) => { acc[t.id] = i; return acc; }, {} as Record<string, number>);
-  const sorted = [...(project.materials||[])].sort((a: any, b: any) => {
+  const sorted = [...(project.materials||[])].sort((a: Material, b: Material) => {
     const ia = a.taskId != null ? (taskOrder[a.taskId] ?? 9999) : 9999;
     const ib = b.taskId != null ? (taskOrder[b.taskId] ?? 9999) : 9999;
     return ia - ib;
@@ -843,7 +839,7 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
         </div>
         {sorted.length === 0
           ? <div style={{padding:'20px',textAlign:'center',color:C.mu,fontSize:12}}>Noch kein Material</div>
-          : sorted.map((m: any) => (
+          : sorted.map((m: Material) => (
             <div key={m.id} style={{ display:'grid', gridTemplateColumns:COLS, padding:'9px 14px', borderBottom:`1px solid ${C.bd}22`, alignItems:'center' }}>
               <div style={{fontSize:13,color:C.br,fontWeight:600}}>{m.name}</div>
               <div style={{fontSize:11,color:m.taskId?C.ac:C.mu,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={m.taskId?taskName(m.taskId):''}>
@@ -851,7 +847,7 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
               </div>
               <div style={{fontSize:12,fontFamily:C.mono}}>{m.qty}×</div>
               <div style={{fontSize:12,fontFamily:C.mono}}>{Number(m.cost).toFixed(2)} €</div>
-              <div style={{fontSize:12,fontFamily:C.mono,color:C.ac,fontWeight:700}}>{(m.qty*m.cost).toFixed(2)} €</div>
+              <div style={{fontSize:12,fontFamily:C.mono,color:C.ac,fontWeight:700}}>{((m.qty as number)*(m.cost as number)).toFixed(2)} €</div>
               <IconBtn Icon={IcoTrash} onClick={()=>remove(m.id)} label={`${m.name} löschen`} danger size={12} />
             </div>
           ))
@@ -867,13 +863,13 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
   );
 }
 
-// Blob-Requirement nutzt `text` statt Schema-Feld `title` → Requirement-Werte lokal als any.
+// Requirement nutzt den Blob-Alias `text` (jetzt im Requirement-Schema als optional vorhanden, title optional).
 export function RequirementsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const [text,setText]=useState('');
-  const add    = () => { if(!text.trim())return; onUpdate(project.id,{requirements:[...(project.requirements||[]),{id:uid(),text:text.trim(),done:false} as any]}); setText(''); };
-  const toggle = (id: Id) => onUpdate(project.id,{requirements:(project.requirements||[]).map((r: any)=>r.id===id?{...r,done:!r.done}:r)});
-  const remove = (id: Id) => onUpdate(project.id,{requirements:(project.requirements||[]).filter((r: any)=>r.id!==id)});
-  const done   = (project.requirements||[]).filter((r: any)=>r.done).length;
+  const add    = () => { if(!text.trim())return; onUpdate(project.id,{requirements:[...(project.requirements||[]),{id:uid(),text:text.trim(),done:false}]}); setText(''); };
+  const toggle = (id: Id) => onUpdate(project.id,{requirements:(project.requirements||[]).map((r: Requirement)=>r.id===id?{...r,done:!r.done}:r)});
+  const remove = (id: Id) => onUpdate(project.id,{requirements:(project.requirements||[]).filter((r: Requirement)=>r.id!==id)});
+  const done   = (project.requirements||[]).filter((r: Requirement)=>r.done).length;
   const pct    = (project.requirements||[]).length ? Math.round(done/(project.requirements||[]).length*100) : 0;
 
   return (
@@ -892,7 +888,7 @@ export function RequirementsTab({ project, onUpdate }: { project: Project; onUpd
           <span style={{fontSize:10,color:C.gr,fontFamily:C.mono,fontWeight:700}}>{pct}%</span>
         </div>
       )}
-      {(project.requirements||[]).map((r: any) => (
+      {(project.requirements||[]).map((r: Requirement) => (
         <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',background:C.sf2,border:`1px solid ${r.done?C.gr+'28':C.bd}`,borderRadius:7,marginBottom:4,transition:'border-color .15s'}}>
           <button onClick={()=>toggle(r.id)} style={{width:18,height:18,borderRadius:4,border:`2px solid ${r.done?C.gr:C.bd2}`,background:r.done?C.gr:'transparent',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .12s'}}>
             {r.done && <IcoCheck size={10} style={{color:'#fff'}} />}
