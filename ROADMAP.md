@@ -1,7 +1,7 @@
 # AzubiBoard — Roadmap
 
-> Stand: 18. Mai 2026 (Session 2) · Letzter Commit: `5aa9707` · Schema v5
-> Vollständige Sprint-Historie → `HANDOVER.md`
+> Stand: 5. Juni 2026 · Letzter Commit: `d848aab` · Schema v5
+> Vollständige Sprint-Historie → `HANDOVER.md` · Restliste bis v1.0 → `ZIELE-v1.md`
 
 ---
 
@@ -120,21 +120,21 @@ Pro Commit: Browser-Test der gold-Pfade, Vitest-Update auf neue API.
 
 ---
 
-## 📦 Sprint 13 — Qualität + DevOps · M–L · ~1 Woche
+## 📦 Sprint 13 — Qualität + DevOps · M–L · ~weitgehend erledigt
 
 > Nach L5 erledigen — manche Items setzen relationale Tabellen voraus.
 
-| ID | Item | Aufwand | Abhängigkeit |
-|---|---|---|---|
-| **L5-7** | FULLTEXT-Suche | M · halber Tag | L5 · Index auf `reports.content`+`tasks.title`, `/api/search?q=` Endpoint, Ctrl+K nutzt ihn (war in S12 geplant, verschoben) |
-| **I1** | i18n Vollmigration (DE/EN) | M · 1 Tag | — · ~300 verbleibende Strings |
-| **T1** | TypeScript: schrittweise `.jsx → .tsx` | XL · 3+ Tage | — · Zod-Schemas für API-Boundaries zuerst |
-| **OPS3** | Deploy-Key + Auto-Deploy auf Server | M · halber Tag | — · `git fetch` + Cron statt manuellem Upload |
-| ~~**Q1**~~ | PHPUnit | — | **In Sprint 12 Phase 0 vorgezogen** |
-| **Q2** | Lighthouse-Schwellen verschärfen | S · 2h | — · aktuell warn-only |
-| **SEC1** | Fail2ban + UFW auf Server | S · 1h | OPS9 |
-| **N1** | E-Mail-Benachrichtigungen via SMTP | M · 1 Tag | — · `weekly_digest.php` nutzt native `mail()`, braucht PHPMailer |
-| **LINT** | react-hooks Warnings beheben (NetzplanGantt refs-during-render, exhaustive-deps in mehreren useEffect) | S · 2h | — · 4 Warnings + ~30 silent-catches sind potentielle Latent-Bugs |
+| ID | Item | Status |
+|---|---|---|
+| **L5-7** | FULLTEXT-Suche (`api/routes/search.php`, Ctrl+K) | ✅ erledigt |
+| **I1** | i18n Vollmigration (DE/EN, 227 Keys) | ✅ erledigt |
+| **T1** | TypeScript: `.jsx → .tsx` (src/ 100% .ts/.tsx, strict-clean, 0 @ts-nocheck) | ✅ erledigt |
+| **OPS3** | Deploy-Key + Auto-Deploy auf Server | ✅ via `install_ubuntu.sh` Cron (OPS10) |
+| ~~**Q1**~~ | PHPUnit | ✅ In Sprint 12 Phase 0 vorgezogen |
+| **Q2** | Lighthouse-Schwellen | ✅ a11y/best-practices/seo als `error`-Gate; Performance bewusst `warn` (CI-Runner-abhängig) |
+| **LINT** | react-hooks Warnings + ESLint-Coverage für .ts/.tsx | ✅ erledigt (`742d26a`, hooks-sauber) |
+| **N1** | E-Mail via SMTP/PHPMailer | ⏳ offen — `weekly_digest.php` nutzt noch native `mail()` (→ `ZIELE-v1.md` #5) |
+| **SEC1** | Fail2ban + UFW auf Server | ⏳ offen — Server-Hardening (→ `ZIELE-v1.md` #6) |
 
 ---
 
@@ -142,15 +142,15 @@ Pro Commit: Browser-Test der gold-Pfade, Vitest-Update auf neue API.
 
 > Große Features, die L5 + Sprint 13 voraussetzen.
 
-| ID | Item | Aufwand | Voraussetzung |
-|---|---|---|---|
-| **M4** | Multi-Tenant | XL | L5 + Row-Level-Security |
-| **M5** | IHK-Direktanbindung | XL | Öffentliche API muss existieren |
-| **AI1** | Auto-Fill Berichte aus Aufgaben (KI) | L | L5 — braucht Volltextindex |
-| **AI2** | Lernziel-Vorschläge via Claude API | M | L5 |
-| **MOB1** | Progressive-Web-App verbessern (Offline-Modus) | M | — |
-| **UX1** | Onboarding-Flow (erster Login → Setup-Wizard) | M | — |
-| **SEC2** | RBAC-Granularität (Permissions per Feature) | L | L5 |
+| ID | Item | Status / Aufwand |
+|---|---|---|
+| **AI1** | Auto-Fill Berichte aus Aufgaben (KI) | ✅ erledigt (Sprint 14) |
+| **AI2** | Lernziel-Vorschläge via Claude API | ✅ erledigt (Sprint 14) |
+| **UX1** | Onboarding-Flow (erster Login → Setup-Wizard) | ✅ erledigt (Sprint 14) |
+| **M4** | Multi-Tenant | XL · L5 + Row-Level-Security |
+| **M5** | IHK-Direktanbindung | XL · öffentliche API muss existieren |
+| **MOB1** | Progressive-Web-App verbessern (Offline-Modus) | M |
+| **SEC2** | RBAC-Granularität (Permissions per Feature) | L · L5 |
 
 ---
 
@@ -188,8 +188,10 @@ Sprint 14+: Vision
 Erledigt:     OPS1 + DEV1 + OPS9 + OPS10 (alle in install_ubuntu.sh)
 Erledigt:     Pre-Release-Hygiene (Test-Fix v5, ESLint-Config, gh-cli)
 Erledigt:     Sprint 12 (L5 Refactor) — Phase 0–4 komplett (2026-06-01)
-Aktuell:      Sprint 13 (Quality + L5-7 FULLTEXT + LINT) ~1 Woche
-Offen:        Sprint 14+ nach Bedarf
+Erledigt:     Sprint 13 (L5-7 Suche, i18n, TypeScript-Migration, LINT, Lighthouse-Gates)
+Erledigt:     Sprint 14 — AI1/AI2/UX1 + vollständige TS-Typisierung + Schema-Schärfung
+Aktuell:      v1.0-Restliste → ZIELE-v1.md (Tier 1 braucht Live-Server, N1/SEC1 offen)
+Offen:        Sprint 14+ Vision (M4/M5/SEC2/MOB1) nach Bedarf
 ```
 
 ---
