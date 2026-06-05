@@ -1303,7 +1303,7 @@ const App = () => {
 
   // I12: Smart-Polling — wenn ein anderer Tab/User auf dem Server speichert,
   //      holen wir die neue Version. Pausiert in Background-Tab + bei Save-Queue.
-  useDataSync(setData, currentUser, () => data);
+  useDataSync(setData, currentUser);
 
   // J2: Conflict-Event vom dataService abfangen → Dialog anzeigen
   useEffect(() => {

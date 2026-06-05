@@ -17,7 +17,6 @@ type CurrentUser = Record<string, unknown> | null;
 export function useDataSync(
   setData: (data: AppData) => void,
   currentUser: CurrentUser,
-  getCurrentData: () => AppData | null,
 ): void {
   const lastVersion = useRef(0);
   // Beim ersten Erfolgreichen GET die "Server-Version" einbürgern,
@@ -90,5 +89,5 @@ export function useDataSync(
       document.removeEventListener('visibilitychange', onFocus);
       window.removeEventListener('azubiboard:sync', onSyncSuccess);
     };
-  }, [currentUser, setData, getCurrentData]);
+  }, [currentUser, setData]);
 }

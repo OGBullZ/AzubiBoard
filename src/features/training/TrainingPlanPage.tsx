@@ -140,9 +140,16 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
   };
 
   const confirmUser = (userId: Id) => {
-    const cur = goal.progress?.[userId]?.status;
-    const next = cur === 'confirmed' ? 'learned' : 'confirmed';
-    const entry: GoalProgress = { ...(goal.progress?.[userId] || {}), status: next, confirmedBy: currentUser.id, confirmedTs: new Date().toISOString() };
+    const prev = goal.progress?.[userId] || {};
+    const next = prev.status === 'confirmed' ? 'learned' : 'confirmed';
+    let entry: GoalProgress;
+    if (next === 'confirmed') {
+      entry = { ...prev, status: next, confirmedBy: currentUser.id, confirmedTs: new Date().toISOString() };
+    } else {
+      // Bestätigung zurückgenommen → confirmedBy/confirmedTs entfernen statt neu setzen
+      const { confirmedBy: _cb, confirmedTs: _ct, ...rest } = prev;
+      entry = { ...rest, status: next };
+    }
     const prog = { ...(goal.progress || {}), [userId]: entry };
     onUpdate({ ...goal, progress: prog }, next === 'confirmed' ? { confirmedFor: userId } : null);
   };

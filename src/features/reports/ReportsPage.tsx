@@ -234,7 +234,10 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const handleDrop = (e: any) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFile(file); };
 
   const save = () => {
-    const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year: new Date(form.week_start).getFullYear(), updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
+    // week_start kann leer sein (Date-Input gecleart) → getFullYear() wäre NaN
+    const ws = new Date(form.week_start);
+    const year = Number.isNaN(ws.getTime()) ? new Date().getFullYear() : ws.getFullYear();
+    const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year, updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
     onSave(newReport as Report);
     showToast('✓ Berichtsheft gespeichert');
   };
