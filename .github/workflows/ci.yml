@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Action-Runtime jetzt schon auf Node 24 (ab 2026-06-16 vom Runner erzwungen).
+# Alle Actions hier sind First-Party (checkout/setup-node/cache/upload-artifact) →
+# Node-24-kompatibel. Bei Problemen temporär ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   phpunit:
     name: PHP Tests (PHPUnit)
