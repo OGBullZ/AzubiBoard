@@ -4,6 +4,9 @@
 > Scope: **v1.0 production-done** — die großen Vision-Features (Multi-Tenant, IHK-API,
 > RBAC, Offline-PWA) gehören bewusst NICHT dazu (siehe unten).
 
+> **🔴 Aktuelle Priorität 1 = `UX-ROADMAP.md`** (Design-/Bedienbarkeits-Review).
+> Geht den Tier-2–4-Punkten hier vor; Tier 1 (Server-Verifikation) läuft parallel.
+
 **Kernlage:** Code-seitig ist nahezu alles fertig. Was „fertig" noch blockt, ist
 überwiegend **Live-Verifikation gegen den echten Ubuntu-Server** (`10.14.99.10`) —
 keine MariaDB / kein MTA / kein lauffähiges lokales Playwright in der Dev-Umgebung.

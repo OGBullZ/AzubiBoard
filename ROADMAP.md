@@ -2,6 +2,7 @@
 
 > Stand: 5. Juni 2026 · Letzter Commit: `d848aab` · Schema v5
 > Vollständige Sprint-Historie → `HANDOVER.md` · Restliste bis v1.0 → `ZIELE-v1.md`
+> **🔴 PRIORITÄT 1 aktuell → `UX-ROADMAP.md`** (Design-/Bedienbarkeits-Review, geht vor v1.0-Tier-2–4)
 
 ---
 
