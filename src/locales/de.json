@@ -82,7 +82,8 @@
     "saved":    "Gespeichert",
     "error":    "Verbindungsfehler – wird wiederholt",
     "fatal":    "Nicht eingeloggt – Änderungen nur lokal",
-    "offline":  "Offline – Änderungen werden gequeued"
+    "offline":  "Offline – Änderungen werden gequeued",
+    "retry":    "Erneut"
   },
   "backup": {
     "neverDone":   "Du hast noch nie ein Backup deiner Daten erstellt.",

@@ -82,7 +82,8 @@
     "saved":    "Saved",
     "error":    "Connection error – retrying",
     "fatal":    "Not signed in – changes are local only",
-    "offline":  "Offline – changes are queued"
+    "offline":  "Offline – changes are queued",
+    "retry":    "Retry"
   },
   "backup": {
     "neverDone":   "You haven't created a backup yet.",

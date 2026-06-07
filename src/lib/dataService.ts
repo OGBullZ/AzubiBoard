@@ -190,6 +190,7 @@ const saveQueue = (() => {
 
   return {
     enqueue,
+    retry: () => { backoff = 1000; flush(); },   // Phase 4: manueller Retry (Backoff zurücksetzen, sofort flushen)
     setVersion,
     getVersion,
     getEntityVersions,
@@ -323,6 +324,11 @@ export const dataService = {
   // Status der Save-Queue für UI-Indikator (Online/Offline/Syncing)
   getSaveStatus() {
     return saveQueue.status();
+  },
+
+  // Phase 4: manueller Sync-Retry (SyncIndicator-Button)
+  retry() {
+    saveQueue.retry();
   },
 
   // J2: Force-Save (überschreibt If-Match-Check serverseitig)
