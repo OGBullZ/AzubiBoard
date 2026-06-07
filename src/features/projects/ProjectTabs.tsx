@@ -290,7 +290,7 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { t
   const tabBtn = (key: string, icon: any, label: any, accentColor = C.ac, accentBg = C.acd) => {
     const isActive = active === key;
     return (
-      <button onClick={() => setActive(key)}
+      <button onClick={() => setActive(key)} role="tab" aria-selected={isActive}
         style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: isActive ? `2px solid ${accentColor}` : '2px solid transparent', background: isActive ? accentBg : 'transparent', color: isActive ? accentColor : C.mu, transition: 'all .12s' }}>
         {icon}{label}
       </button>
@@ -299,14 +299,14 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { t
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 2, marginBottom: 0, flexWrap: 'wrap' }}>
+      <div role="tablist" style={{ display: 'flex', gap: 2, marginBottom: 0, flexWrap: 'wrap' }}>
         {TABS.map(t => (
-          <button key={t.k} onClick={() => setActive(t.k)}
+          <button key={t.k} onClick={() => setActive(t.k)} role="tab" aria-selected={active === t.k}
             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === t.k ? `2px solid ${C.ac}` : '2px solid transparent', background: active === t.k ? C.acd : 'transparent', color: active === t.k ? C.ac : C.mu, transition: 'all .12s' }}>
             <t.Icon size={10} />{t.l}{t.val ? ' •' : ''}
           </button>
         ))}
-        <button onClick={() => setActive('links')}
+        <button onClick={() => setActive('links')} role="tab" aria-selected={active === 'links'}
           style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === 'links' ? `2px solid ${C.ac}` : '2px solid transparent', background: active === 'links' ? C.acd : 'transparent', color: active === 'links' ? C.ac : C.mu, transition: 'all .12s' }}>
           <IcoLink size={10} />Links{lc > 0 ? ` (${lc})` : ''}
         </button>
