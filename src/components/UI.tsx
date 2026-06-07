@@ -236,17 +236,32 @@ type SectionHeaderProps = {
   Icon?: IconComponent;
   action?: ReactNode;
   onAction?: () => void;
+  size?: 'sm' | 'md';
+  badge?: { text: ReactNode; bg?: string; c?: string } | null | false;
 };
 
-export function SectionHeader({ title, count, Icon, action, onAction }: SectionHeaderProps) {
+// Eine Section-Titel-Komponente, zwei Größen: 'sm' (kompakt, Default) und
+// 'md' (größer, für Dashboard-Panels — via PanelTitle-Wrapper). Phase 1.
+const SH_SIZES = {
+  sm: { gap: 7, mb: 10, icon: 13, font: 11, ls: .8, color: C.tx, actFont: 11, actWeight: 700 as const,        actPad: undefined,  shrink: undefined as number | undefined },
+  md: { gap: 6, mb: 11, icon: 12, font: 13, ls: 1,  color: C.mu, actFont: 10, actWeight: undefined as undefined, actPad: '1px 5px', shrink: 0 as number | undefined },
+};
+
+export function SectionHeader({ title, count, Icon, action, onAction, size = 'sm', badge }: SectionHeaderProps) {
+  const z = SH_SIZES[size];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-      {Icon && <span style={{ color: C.mu, display: 'flex' }}><Icon size={13} /></span>}
-      <div style={{ flex: 1, fontSize: 11, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: z.gap, marginBottom: z.mb, flexShrink: z.shrink }}>
+      {Icon && <span style={{ color: C.mu, display: 'flex' }}><Icon size={z.icon} /></span>}
+      <div style={{ flex: 1, fontSize: z.font, fontWeight: 700, color: z.color, textTransform: 'uppercase', letterSpacing: z.ls }}>
         {title}{count !== undefined && <span style={{ color: C.mu, fontWeight: 400, marginLeft: 5 }}>({count})</span>}
       </div>
-      {action && onAction && (
-        <button className="icn" onClick={onAction} style={{ fontSize: 11, fontWeight: 700 }}>{action}</button>
+      {badge && (
+        <span style={{ fontSize: 9, background: badge.bg || C.acd, color: badge.c || C.ac, borderRadius: 5, padding: '1px 6px', fontFamily: C.mono, fontWeight: 700 }}>
+          {badge.text}
+        </span>
+      )}
+      {action && (
+        <button className="icn" onClick={onAction} style={{ fontSize: z.actFont, fontWeight: z.actWeight, padding: z.actPad }}>{action}</button>
       )}
     </div>
   );
