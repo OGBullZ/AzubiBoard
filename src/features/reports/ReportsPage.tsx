@@ -466,7 +466,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                     <IcoCheck size={12} /> {t('report.markReviewed')}
                   </button>
                 )}
-                {['reviewed'].includes(report?.status as string) && (
+                {/* Phase 2: Direkt-Unterschreiben auch bei 'submitted' (wie auf der Karte) — Geprüft-Zwischenschritt optional */}
+                {['submitted','reviewed'].includes(report?.status as string) && (
                   <button className="abtn"
                     onClick={() => { onSave({ ...report, ...form, status: 'signed', signed_at: new Date().toISOString() }); showToast('✓ Unterschrieben'); }}
                     style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, background: C.gr }}>
