@@ -597,16 +597,21 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
   const handleNav = (to: string) => { navigate(to); if (isMobile) onCloseDrawer?.(); };
 
-  const navItems = [
-    { to: '/dashboard', label: 'Dashboard',      Icon: IcoDashboard },
-    { to: '/projects',  label: 'Projekte',       Icon: IcoFolder    },
-    { to: '/calendar',  label: 'Kalender',       Icon: IcoCalendar  },
-    { to: '/groups',    label: 'Gruppen',        Icon: IcoUsers     },
-    { to: '/reports',   label: 'Berichtshefte',  Icon: IcoReport    },
-    { to: '/training',  label: 'Ausbildungsplan', Icon: IcoRequire   },
-    { to: '/learn',     label: 'Lernbereich',    Icon: IcoLearn     },
-    ...(isAusbilder ? [{ to: '/users', label: 'Nutzer', Icon: IcoUserEdit }] : []),
-    { to: '/trash',     label: 'Papierkorb',     Icon: IcoTrash, trashCount: true },
+  // Phase 2: Navigation in „Arbeiten" / „Verwalten" gruppiert
+  const navGroups = [
+    { label: 'Arbeiten', items: [
+      { to: '/dashboard', label: 'Dashboard',       Icon: IcoDashboard },
+      { to: '/projects',  label: 'Projekte',        Icon: IcoFolder    },
+      { to: '/calendar',  label: 'Kalender',        Icon: IcoCalendar  },
+      { to: '/reports',   label: 'Berichtshefte',   Icon: IcoReport    },
+      { to: '/training',  label: 'Ausbildungsplan', Icon: IcoRequire   },
+      { to: '/learn',     label: 'Lernbereich',     Icon: IcoLearn     },
+    ] },
+    { label: 'Verwalten', items: [
+      { to: '/groups',    label: 'Gruppen',         Icon: IcoUsers     },
+      ...(isAusbilder ? [{ to: '/users', label: 'Nutzer', Icon: IcoUserEdit }] : []),
+      { to: '/trash',     label: 'Papierkorb',      Icon: IcoTrash     },
+    ] },
   ];
 
   const hue = (currentUser?.name?.charCodeAt(0) || 100) * 37 % 360;
@@ -664,19 +669,25 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '4px 6px', overflowY: 'auto' }}>
-        { }
-        {navItems.map(({ to, label, Icon: NavIcon }) => {
-          const active = path === to || (to !== '/dashboard' && path.startsWith(to));
-          return (
-            <button key={to} onClick={() => handleNav(to)} title={collapsed ? label : undefined}
-              style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '9px' : '8px 10px', borderRadius: 8, border: 'none', background: active ? 'var(--c-acd)' : 'transparent', color: active ? 'var(--c-ac)' : 'var(--c-mu)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', marginBottom: 1, transition: 'all .12s', borderLeft: active ? '2px solid var(--c-ac)' : '2px solid transparent' }}
-              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--c-sf2)'; e.currentTarget.style.color = 'var(--c-br)'; }}}
-              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-mu)'; }}}>
-              <NavIcon size={14} />
-              {!collapsed && label}
-            </button>
-          );
-        })}
+        {navGroups.map((group, gi) => (
+          <div key={group.label} style={{ marginTop: gi === 0 ? 0 : 8 }}>
+            {!collapsed && (
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: 1, padding: '6px 10px 4px', opacity: .7 }}>{group.label}</div>
+            )}
+            {group.items.map(({ to, label, Icon: NavIcon }) => {
+              const active = path === to || (to !== '/dashboard' && path.startsWith(to));
+              return (
+                <button key={to} onClick={() => handleNav(to)} title={collapsed ? label : undefined}
+                  style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '9px' : '8px 10px', borderRadius: 8, border: 'none', background: active ? 'var(--c-acd)' : 'transparent', color: active ? 'var(--c-ac)' : 'var(--c-mu)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', marginBottom: 1, transition: 'all .12s', borderLeft: active ? '2px solid var(--c-ac)' : '2px solid transparent' }}
+                  onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--c-sf2)'; e.currentTarget.style.color = 'var(--c-br)'; }}}
+                  onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-mu)'; }}}>
+                  <NavIcon size={14} />
+                  {!collapsed && label}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Bottom */}
@@ -708,9 +719,9 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
             {/* User → klickbar → Profil-Seite */}
             <button onClick={() => handleNav('/profile')} title="Mein Profil"
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--c-sf2)', marginBottom: 5, border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background .1s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--c-sf3)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--c-sf2)'}>
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: path === '/profile' ? 'var(--c-acd)' : 'var(--c-sf2)', marginBottom: 5, border: 'none', borderLeft: path === '/profile' ? '2px solid var(--c-ac)' : '2px solid transparent', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background .1s' }}
+              onMouseEnter={e => { if (path !== '/profile') e.currentTarget.style.background = 'var(--c-sf3)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = path === '/profile' ? 'var(--c-acd)' : 'var(--c-sf2)'; }}>
               {currentUser?.avatar_url
                 ? <img src={currentUser.avatar_url} alt={currentUser.name} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.1)' }} />
                 : <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
@@ -1592,8 +1603,9 @@ const App = () => {
               <Route path="/users"       element={<ErrorBoundary inline><UsersPage showToast={showToast} /></ErrorBoundary>} />
               <Route path="/azubi/:id"   element={<ErrorBoundary inline><AzubiProfileWrapper /></ErrorBoundary>} />
               <Route path="/trash"       element={<ErrorBoundary inline><TrashPage data={data} currentUser={currentUser} onUpdateData={setData} showToast={showToast} /></ErrorBoundary>} />
-              <Route path="/"  element={<Navigate to="/dashboard" replace />} />
-              <Route path="*"  element={<Navigate to="/dashboard" replace />} />
+              {/* Phase 2: Ausbilder startet bei „Berichte prüfen" (Filter=submitted via 0.5), sonst Dashboard */}
+              <Route path="/"  element={<Navigate to={currentUser?.role === 'ausbilder' ? '/reports' : '/dashboard'} replace />} />
+              <Route path="*"  element={<Navigate to={currentUser?.role === 'ausbilder' ? '/reports' : '/dashboard'} replace />} />
             </Routes>
           </Suspense>
 
