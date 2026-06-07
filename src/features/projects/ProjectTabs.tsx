@@ -840,7 +840,7 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
         {sorted.length === 0
           ? <div style={{padding:'20px',textAlign:'center',color:C.mu,fontSize:12}}>Noch kein Material</div>
           : sorted.map((m: Material) => (
-            <div key={m.id} style={{ display:'grid', gridTemplateColumns:COLS, padding:'9px 14px', borderBottom:`1px solid ${C.bd}22`, alignItems:'center' }}>
+            <div key={m.id} style={{ display:'grid', gridTemplateColumns:COLS, padding:'9px 14px', borderBottom:`1px solid var(--c-bd-soft)`, alignItems:'center' }}>
               <div style={{fontSize:13,color:C.br,fontWeight:600}}>{m.name}</div>
               <div style={{fontSize:11,color:m.taskId?C.ac:C.mu,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={m.taskId?taskName(m.taskId):''}>
                 {m.taskId ? taskName(m.taskId) : <span style={{color:C.bd2}}>—</span>}

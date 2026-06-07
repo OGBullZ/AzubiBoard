@@ -57,6 +57,8 @@ body {
   --c-mu:   #8b949e;
   --c-bd:   #21262d;
   --c-bd2:  #30363d;
+  /* faint border (ersetzt das frühere ${C.bd}22-Idiom) — themt über --c-bd */
+  --c-bd-soft: color-mix(in srgb, var(--c-bd) 13%, transparent);
   --c-ac:   #0071E3;
   --c-acd:  rgba(0, 113, 227, 0.1);
   --c-gr:   #34C759;
@@ -135,6 +137,12 @@ input:focus, textarea:focus, select:focus {
   border-color: var(--c-ac);
   box-shadow: 0 0 0 3px rgba(0,113,227,.15);
 }
+/* a11y (0.1): globaler Tastatur-Fokus-Ring — Formularfelder behalten ihren Box-Shadow */
+:focus-visible {
+  outline: 2px solid var(--c-ac);
+  outline-offset: 2px;
+}
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
 input::placeholder, textarea::placeholder { color: var(--c-mu); opacity: .7; }
 textarea { resize: vertical; min-height: 80px; line-height: 1.65; }
 select {

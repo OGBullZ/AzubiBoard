@@ -7,7 +7,7 @@ import {
   IcoFolder, IcoPlay, IcoChevron,
   IcoTrendUp,
   IcoLearn, IcoReport, IcoCalendar,
-  IcoAlert, IcoNote, IcoUsers, IcoClock, IcoPlus
+  IcoAlert, IcoNote, IcoUsers, IcoClock
 } from '../../components/Icons.jsx';
 
 // Sprint-9-quality H3: Dashboard wurde aufgeteilt in widgets/*.jsx.
@@ -343,9 +343,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
           {inProgress > 0 && <Chip value={inProgress} label={t('dashboard.chipActive')}   color={C.yw} animated />}
           {overdue > 0    && <Chip value={overdue}     label={t('dashboard.chipOverdue')}  color={C.cr} />}
         </div>
-        <button className="abtn" onClick={onNewProject} style={{ fontSize: 12, flexShrink: 0 }}>
-          <IcoPlus size={13} /> {t('dashboard.newProject')}
-        </button>
+        {/* 0.6: kein „Neues Projekt" für Azubi — Projekte werden vom Ausbilder zugewiesen */}
       </div>
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(320px, 1.4fr) minmax(300px, 360px)', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>

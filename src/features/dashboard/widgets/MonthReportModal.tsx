@@ -125,7 +125,7 @@ export function MonthReportModal({ projects, users, reports, onClose }: MonthRep
                 <div>Azubi</div><div>Stunden</div><div>Aufg. ✓</div><div>Berichte</div>
               </div>
               {rows.map(r => (
-                <div key={r.azubi.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px', padding: '9px 14px', borderBottom: `1px solid ${C.bd}22`, alignItems: 'center' }}>
+                <div key={r.azubi.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px', padding: '9px 14px', borderBottom: `1px solid var(--c-bd-soft)`, alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Avatar name={r.azubi.name} url={r.azubi.avatar_url} size={22} />
                     <span style={{ fontSize: 13, fontWeight: 600, color: C.br }}>{r.azubi.name}</span>

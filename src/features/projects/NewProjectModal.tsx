@@ -134,7 +134,7 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createDeadline')}</label>
-              <input type="date" value={form.deadline} onChange={e => u('deadline', e.target.value)} style={{ fontSize: 13 }} />
+              <input type="date" value={form.deadline} min={form.startDate || undefined} onChange={e => u('deadline', e.target.value)} style={{ fontSize: 13 }} />
             </div>
           </div>
 

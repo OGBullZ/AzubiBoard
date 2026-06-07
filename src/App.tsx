@@ -683,10 +683,12 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
       <div style={{ padding: collapsed ? '8px 6px 12px' : '8px 8px 12px', borderTop: '1px solid var(--c-bd)', flexShrink: 0 }}>
         {!collapsed && (
           <>
-            {/* Neues Projekt */}
-            <button className="abtn" onClick={onNewProject} style={{ width: '100%', justifyContent: 'center', marginBottom: 6, fontSize: 12 }}>
-              <IcoPlus size={12} /> Neues Projekt
-            </button>
+            {/* Neues Projekt (0.6: nur Ausbilder — Azubi/Mentor bekommen Projekte zugewiesen) */}
+            {isAusbilder && (
+              <button className="abtn" onClick={onNewProject} style={{ width: '100%', justifyContent: 'center', marginBottom: 6, fontSize: 12 }}>
+                <IcoPlus size={12} /> Neues Projekt
+              </button>
+            )}
 
             {/* Export / Import */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
@@ -727,9 +729,11 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
         {collapsed && (
           <>
-            <button onClick={onNewProject} title="Neues Projekt" className="abtn" style={{ width: '100%', padding: '8px', justifyContent: 'center', marginBottom: 4, fontSize: 14 }}>
-              <IcoPlus size={14} />
-            </button>
+            {isAusbilder && (
+              <button onClick={onNewProject} title="Neues Projekt" className="abtn" style={{ width: '100%', padding: '8px', justifyContent: 'center', marginBottom: 4, fontSize: 14 }}>
+                <IcoPlus size={14} />
+              </button>
+            )}
             <button onClick={() => handleNav('/profile')} title="Mein Profil"
               style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: 'var(--c-sf2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
               {currentUser?.avatar_url
@@ -1319,7 +1323,7 @@ const App = () => {
   }, [showToast]);
 
   // J2: Konflikt-Handler — Server-Version übernehmen
-  const _acceptServer = useCallback(() => {
+  const acceptServer = useCallback(() => {
     if (!conflict?.serverData) { setConflict(null); return; }
     setData(conflict.serverData);
     dataService.setKnownVersion(conflict.serverVersion || 0);
@@ -1328,12 +1332,15 @@ const App = () => {
   }, [conflict, setData, showToast]);
 
   // J2: Konflikt-Handler — eigene Version forcieren
-  const _forceMine = useCallback(async () => {
+  const forceMine = useCallback(async () => {
     if (!conflict?.clientSnapshot) { setConflict(null); return; }
     await dataService.forceSave(conflict.clientSnapshot);
     setConflict(null);
     showToast('⚡ Deine Version wurde gespeichert');
   }, [conflict, showToast]);
+
+  // J2: Konflikt-Handler — frischen Server-Stand laden (eigene Änderungen verwerfen)
+  const reloadServer = useCallback(() => { window.location.reload(); }, []);
 
   // ── 401-Handler: Token abgelaufen → sauber ausloggen ─────
   // justLoggedInRef schützt vor sofortigem Logout wenn kurz nach Login
@@ -1593,6 +1600,15 @@ const App = () => {
         </AppLayout>
 
         {toast && <Toast payload={toast as any} onDismiss={dismissToast} />}
+        {conflict && (
+          <ConflictDialog
+            payload={conflict}
+            onAcceptServer={acceptServer}
+            onForceMine={forceMine}
+            onReload={reloadServer}
+            onClose={acceptServer}
+          />
+        )}
         {showSearch    && <GlobalSearch   data={data} onClose={() => setShowSearch(false)} />}
         {showShortcuts && <ShortcutsHelp  onClose={() => setShowShortcuts(false)} />}
         {showBackups   && (

@@ -151,6 +151,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     sectionComments:  report?.sectionComments  || { activities: [], learnings: [] },
   });
   const [newComment,  setNewComment]  = useState<Record<string, string>>({ activities: '', learnings: '' });
+  const [wsError,     setWsError]     = useState('');  // 0.8: leeres week_start = Inline-Fehler statt stillem Default
   const [tab,         setTab]         = useState<string>('text');
   const [copied,      setCopied]      = useState('');
   const [showOcr,     setShowOcr]     = useState(false);
@@ -234,9 +235,15 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const handleDrop = (e: any) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFile(file); };
 
   const save = () => {
-    // week_start kann leer sein (Date-Input gecleart) → getFullYear() wäre NaN
+    // 0.8: leeres/ungültiges week_start nicht still defaulten, sondern als Inline-Fehler melden
     const ws = new Date(form.week_start);
-    const year = Number.isNaN(ws.getTime()) ? new Date().getFullYear() : ws.getFullYear();
+    if (!form.week_start || Number.isNaN(ws.getTime())) {
+      setWsError('Bitte eine gültige Berichtswoche wählen.');
+      setTab('text');
+      return;
+    }
+    setWsError('');
+    const year = ws.getFullYear();
     const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year, updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
     onSave(newReport as Report);
     showToast('✓ Berichtsheft gespeichert');
@@ -410,7 +417,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
           <div className="card">
             <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.metadataLabel')}</div>
             <Field label={t('report.weekStart')}>
-              <input type="date" value={form.week_start} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, week_start: e.target.value }))} />
+              <input type="date" value={form.week_start} max={new Date().toISOString().split('T')[0]} disabled={!isOwner || readOnly} onChange={e => { setWsError(''); setForm((f: any) => ({ ...f, week_start: e.target.value })); }} />
+              {wsError && <div role="alert" style={{ fontSize: 11, color: C.cr, marginTop: 4 }}>{wsError}</div>}
             </Field>
             <Field label={t('report.weekTitle')}>
               <input value={form.title} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="z.B. Projektarbeit Woche 3" />
@@ -676,7 +684,8 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   const reports: Report[] = data.reports || [];
   const [view,    setView]   = useState('list');
   const [editing, setEditing]= useState<Report | null>(null);
-  const [filter,  setFilter] = useState('alle');
+  // 0.5: Ausbilder steigen direkt bei den zu prüfenden (eingereichten) Berichten ein
+  const [filter,  setFilter] = useState(() => isAusbilder(currentUser) ? 'submitted' : 'alle');
   const [search,  setSearch] = useState('');
   const dSearch = useDebounce(search);
   const [confirmDel, setConfirmDel] = useState<Id | null>(null);
