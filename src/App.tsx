@@ -1610,9 +1610,8 @@ const App = () => {
               <Route path="/users"       element={<ErrorBoundary inline><UsersPage showToast={showToast} /></ErrorBoundary>} />
               <Route path="/azubi/:id"   element={<ErrorBoundary inline><AzubiProfileWrapper /></ErrorBoundary>} />
               <Route path="/trash"       element={<ErrorBoundary inline><TrashPage data={data} currentUser={currentUser} onUpdateData={setData} showToast={showToast} /></ErrorBoundary>} />
-              {/* Phase 2: Ausbilder startet bei „Berichte prüfen" (Filter=submitted via 0.5), sonst Dashboard */}
-              <Route path="/"  element={<Navigate to={currentUser?.role === 'ausbilder' ? '/reports' : '/dashboard'} replace />} />
-              <Route path="*"  element={<Navigate to={currentUser?.role === 'ausbilder' ? '/reports' : '/dashboard'} replace />} />
+              <Route path="/"  element={<Navigate to="/dashboard" replace />} />
+              <Route path="*"  element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Suspense>
 
