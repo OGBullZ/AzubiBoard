@@ -1342,6 +1342,8 @@ const App = () => {
   // J2: Konflikt-Handler — frischen Server-Stand laden (eigene Änderungen verwerfen)
   const reloadServer = useCallback(() => { window.location.reload(); }, []);
 
+  const navigate = useNavigate();
+
   // ── 401-Handler: Token abgelaufen → sauber ausloggen ─────
   // justLoggedInRef schützt vor sofortigem Logout wenn kurz nach Login
   // ein API-Call (z.B. getUsers) 401 liefert (Apache-Header-Konfiguration).
@@ -1631,6 +1633,7 @@ const App = () => {
               currentUser={currentUser}
               onDone={doneOnboarding}
               onNewProject={() => { doneOnboarding(); handleNewProject(); }}
+              onFirstReport={() => { doneOnboarding(); navigate('/reports'); }}
             />
           </Suspense>
         )}

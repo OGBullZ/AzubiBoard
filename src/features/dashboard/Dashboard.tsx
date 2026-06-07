@@ -261,7 +261,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
 // ─────────────────────────────────────────────────────────────
 //  AZUBI-DASHBOARD
 // ─────────────────────────────────────────────────────────────
-function AzubiDashboard({ user, projects, users, reports, calendarEvents, activityLog, onNewProject, onOpenProject, onUpdateProject, onNavigate }: DashboardProps) {
+function AzubiDashboard({ user, projects, users, reports, calendarEvents, activityLog, onOpenProject, onUpdateProject, onNavigate }: DashboardProps) {
   const { t } = useTranslation();
   const now  = new Date();
 
@@ -350,6 +350,8 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 16px 10px' }}>
             <PanelTitle Icon={IcoPlay} count={allTasks.length}>{t('dashboard.myTasks')}</PanelTitle>
             <HeroTask task={heroTask}
+              emptyAccount={mine.length === 0}
+              onFirstReport={() => onNavigate?.('reports')}
               onToggle={() => heroTask && toggleTask(heroTask.projectId, heroTask.id)}
               onOpen={onOpenProject}
               onUpdateNote={updateTaskNote} />
@@ -370,7 +372,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
             <PanelTitle Icon={IcoFolder} count={mine.length}>{t('dashboard.activeProjects')}</PanelTitle>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {mine.length === 0 ? (
-                <EmptyState Icon={IcoFolder} title={t('project.noProjects')} subtitle={t('dashboard.noProjectsSub')} action={'+ ' + t('common.create')} onAction={onNewProject} />
+                <EmptyState Icon={IcoFolder} title={t('project.noProjects')} subtitle="Dein Ausbilder weist dir Projekte zu — sie erscheinen dann hier." />
               ) : mine.map(p => (
                 <div key={p.id} style={{ marginBottom: 12 }}>
                   <ProjectCard project={p as any} users={users} onClick={() => onOpenProject(p.id)} onUpdate={onUpdateProject} />

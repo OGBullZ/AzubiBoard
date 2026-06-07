@@ -15,11 +15,23 @@ type HeroTaskProps = {
   onToggle: () => void;
   onOpen: (projectId?: Id) => void;
   onUpdateNote?: (projectId: Id | undefined, taskId: Id, note: string) => void;
+  emptyAccount?: boolean;            // Phase 2: kein zugewiesenes Projekt → Startanleitung statt "Alles erledigt"
+  onFirstReport?: () => void;
 };
 
-function HeroTaskImpl({ task, onToggle, onOpen, onUpdateNote }: HeroTaskProps) {
+function HeroTaskImpl({ task, onToggle, onOpen, onUpdateNote, emptyAccount, onFirstReport }: HeroTaskProps) {
   const [showNote, setShowNote] = useState(false);
   const [note,     setNote]     = useState(task?.note || '');
+
+  // Leeres Azubi-Konto: noch nichts zugewiesen → Willkommen + Startanleitung (nicht "alles erledigt")
+  if (!task && emptyAccount) return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9, padding: '20px 16px', borderRadius: 10, border: `1px solid ${C.ac}25`, background: C.acd }}>
+      <div style={{ fontSize: 28 }} aria-hidden="true">👋</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: C.br }}>Willkommen bei AzubiBoard!</div>
+      <div style={{ fontSize: 13, color: C.textSecondary, textAlign: 'center', lineHeight: 1.6 }}>Dein Ausbilder weist dir Projekte und Aufgaben zu. Bis dahin kannst du deinen ersten Berichtsheft-Eintrag anlegen.</div>
+      {onFirstReport && <button className="abtn" onClick={onFirstReport} style={{ fontSize: 12, marginTop: 2 }}>Ersten Bericht anlegen</button>}
+    </div>
+  );
 
   if (!task) return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '20px 16px', borderRadius: 10, border: `1px solid ${C.gr}25`, background: C.gr + '08' }}>
