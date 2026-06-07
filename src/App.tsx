@@ -423,8 +423,8 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   const groups = [
-    { title: 'Navigation', items: [['G dann D', 'Dashboard'],['G dann P', 'Projekte'],['G dann K', 'Kalender'],['G dann R', 'Berichte'],['G dann U', 'Nutzer (Ausbilder)']] },
-    { title: 'Aktionen', items: [['N', 'Neues Projekt'],['Ctrl+K', 'Suche öffnen'],['?', 'Shortcuts anzeigen']] },
+    { title: 'Navigation', items: [['G dann D', 'Dashboard'],['G dann P', 'Projekte'],['G dann K', 'Kalender'],['G dann R', 'Berichte'],['G dann T', 'Ausbildungsplan'],['G dann L', 'Lernbereich'],['G dann U', 'Nutzer (Ausbilder)']] },
+    { title: 'Aktionen', items: [['N', 'Neues Projekt (Ausbilder)'],['Ctrl+K', 'Suche öffnen'],['?', 'Shortcuts anzeigen']] },
     { title: 'Allgemein', items: [['Esc', 'Dialog schließen'],['←→', 'Kanban: Status verschieben']] },
   ];
 
@@ -502,8 +502,16 @@ function GlobalSearch({ data, onClose }: { data: AppState | null; onClose: () =>
       .slice(0,5).map((p: Project) => ({ type: 'Projekt', label: p.title, sub: p.description, to: `/project/${p.id}`, icon: '📁' })),
     ...(data?.users||[]).filter((u: User) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
       .slice(0,3).map((u: User) => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' })),
-    ...(data?.reports||[]).filter((r: Report) => (r.title||'').toLowerCase().includes(lower))
-      .slice(0,3).map((r: Report) => ({ type: 'Bericht', label: r.title || 'Bericht', sub: null, to: '/reports', icon: '📝' })),
+    ...(data?.reports||[]).filter((r: Report) =>
+        (r.title||'').toLowerCase().includes(lower) ||
+        (r.user_name||'').toLowerCase().includes(lower) ||
+        `kw ${r.week_number}/${r.year}`.includes(lower) ||
+        String(r.week_number ?? '').includes(lower))
+      .slice(0,4).map((r: Report) => ({ type: 'Bericht', label: r.title || `KW ${r.week_number}/${r.year}`, sub: `${r.user_name ? r.user_name + ' · ' : ''}KW ${r.week_number}/${r.year}`, to: '/reports', icon: '📝' })),
+    ...(data?.calendarEvents||[]).filter((e: any) => (e.title||'').toLowerCase().includes(lower))
+      .slice(0,3).map((e: any) => ({ type: 'Termin', label: e.title, sub: e.date || null, to: '/calendar', icon: '📅' })),
+    ...(data?.learningPaths||[]).filter((lp: any) => (lp.title||'').toLowerCase().includes(lower) || (lp.nodes||[]).some((n: any) => (n.title||'').toLowerCase().includes(lower)))
+      .slice(0,3).map((lp: any) => ({ type: 'Lernpfad', label: lp.title, sub: (lp.nodes||[]).find((n: any) => (n.title||'').toLowerCase().includes(lower))?.title || null, to: '/learn', icon: '📖' })),
   ] : [];
 
   // API-Ergebnisse haben Priorität; lokale Nutzer-Suche immer ergänzen
@@ -529,7 +537,7 @@ function GlobalSearch({ data, onClose }: { data: AppState | null; onClose: () =>
       <div style={{ background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 14, width: '100%', maxWidth: 560, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--c-bd)' }}>
           <IcoSearch size={16} style={{ color: 'var(--c-mu)', flexShrink: 0 }} />
-          <input ref={ref} value={q} onChange={e => setQ(e.target.value)} placeholder="Projekte, Nutzer, Berichte durchsuchen…"
+          <input ref={ref} value={q} onChange={e => setQ(e.target.value)} placeholder="Projekte, Nutzer, Berichte, Termine, Lernpfade…"
             style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 15, color: 'var(--c-br)', outline: 'none', padding: 0 }} />
           <kbd style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--c-sf3)', border: '1px solid var(--c-bd2)', color: 'var(--c-mu)', flexShrink: 0 }}>Esc</kbd>
         </div>
@@ -1463,13 +1471,14 @@ const App = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); if (currentUser) setShowSearch(s => !s); return; }
       if (inInput) return;
       if (e.key === '?') { if (currentUser) setShowShortcuts(s => !s); return; }
-      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && currentUser) { setShowModal(true); return; }
+      // Neues Projekt nur für Ausbilder (konsistent mit 0.6: Azubi/Mentor bekommen Projekte zugewiesen)
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && currentUser?.role === 'ausbilder') { setShowModal(true); return; }
       // G + letter navigation prefix
       if (e.key === 'g' && !e.ctrlKey && !e.metaKey) { gPrefix = true; clearTimeout(gTimer); gTimer = setTimeout(() => { gPrefix = false; }, 1200); return; }
       if (gPrefix) {
         gPrefix = false; clearTimeout(gTimer);
-        // Navigation dispatched via custom event (AppLayout handles it inside Router)
-        const map: Record<string, string> = { d: '/dashboard', p: '/projects', k: '/calendar', r: '/reports', u: '/users' };
+        // Navigation dispatched via custom event (AppLayout handles it inside Router) — rollenabhängig: /users nur Ausbilder
+        const map: Record<string, string> = { d: '/dashboard', p: '/projects', k: '/calendar', r: '/reports', t: '/training', l: '/learn', ...(currentUser?.role === 'ausbilder' ? { u: '/users' } : {}) };
         if (map[e.key]) window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: map[e.key] }));
       }
     };
