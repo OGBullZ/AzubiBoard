@@ -33,9 +33,10 @@ type GroupsViewProps = {
   projects: GroupProject[];
   onUpdateGroups: (groups: Group[]) => void;
   showToast: (msg: string) => void;
+  canManage?: boolean;   // Phase 2: nur Ausbilder darf Gruppen/Codes verwalten
 };
 
-export function GroupsView({ groups, users, projects, onUpdateGroups, showToast }: GroupsViewProps) {
+export function GroupsView({ groups, users, projects, onUpdateGroups, showToast, canManage = false }: GroupsViewProps) {
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState<GroupForm>({ name: '', type: 'team', members: [] });
   const [confirmDel, setConfirmDel] = useState<Id | null>(null);
@@ -59,11 +60,11 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast 
     <main style={{ padding: 22, overflow: 'auto', flex: 1 }} className="anim">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>Gruppen</h1>
-        <button className="abtn" onClick={() => setShowNew(true)}>+ Neue Gruppe</button>
+        {canManage && <button className="abtn" onClick={() => setShowNew(true)}>+ Neue Gruppe</button>}
       </div>
 
       {groups.length === 0 ? (
-        <EmptyState icon="👥" title="Noch keine Gruppen" subtitle="Erstelle Teams oder Abteilungen" action="+ Gruppe erstellen" onAction={() => setShowNew(true)} />
+        <EmptyState icon="👥" title="Noch keine Gruppen" subtitle={canManage ? 'Erstelle Teams oder Abteilungen' : 'Dein Ausbilder legt Gruppen an'} action={canManage ? '+ Gruppe erstellen' : undefined} onAction={canManage ? () => setShowNew(true) : undefined} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: 14 }}>
           {groups.map(g => {
@@ -78,22 +79,24 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast 
                       {g.type === 'team' ? '👥 Team' : '🏢 Abteilung'}
                     </span>
                   </div>
-                  <button className="del" onClick={() => remove(g.id)} aria-label={`Gruppe ${g.name} löschen`}>×</button>
+                  {canManage && <button className="del" onClick={() => remove(g.id)} aria-label={`Gruppe ${g.name} löschen`}>×</button>}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-                  <span style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700 }}>Beitritts-Code</span>
-                  {g.code ? (
-                    <button onClick={() => { navigator.clipboard?.writeText(g.code!); showToast('✓ Code kopiert'); }}
-                      title="Code kopieren — Azubis nutzen ihn bei der Registrierung"
-                      style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: 1, color: C.ac, background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>
-                      {g.code}
-                    </button>
-                  ) : (
-                    <button className="btn" onClick={() => onUpdateGroups(groups.map(x => x.id === g.id ? { ...x, code: genGroupCode() } : x))}
-                      style={{ fontSize: 10, padding: '2px 8px' }}>Code erzeugen</button>
-                  )}
-                </div>
+                {canManage && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+                    <span style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700 }}>Beitritts-Code</span>
+                    {g.code ? (
+                      <button onClick={() => { navigator.clipboard?.writeText(g.code!); showToast('✓ Code kopiert'); }}
+                        title="Code kopieren — Azubis nutzen ihn bei der Registrierung"
+                        style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: 1, color: C.ac, background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>
+                        {g.code}
+                      </button>
+                    ) : (
+                      <button className="btn" onClick={() => onUpdateGroups(groups.map(x => x.id === g.id ? { ...x, code: genGroupCode() } : x))}
+                        style={{ fontSize: 10, padding: '2px 8px' }}>Code erzeugen</button>
+                    )}
+                  </div>
+                )}
 
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 8, fontWeight: 700 }}>

@@ -1067,11 +1067,12 @@ function CalendarPage({ showToast }: { showToast: ShowToast }) {
 function GroupsPage({ showToast }: { showToast: ShowToast }) {
   const store = useAppStore();
   const data = store.data as AppState | null;
+  const currentUser = store.currentUser as User | null;
   const setData = store.setData;
   // groups: GroupsView-eigener Group-Typ (nicht in types.ts) → any belassen.
   const handleUpdateGroups = useCallback((groups: any) => setData({ ...data, groups }), [data, setData]);
   // groups/projects: GroupsView erwartet eigene Group/GroupProject-Typen (enger als AppState-Blob) → cast.
-  return <GroupsView groups={(data?.groups||[]) as any} users={data?.users||[]} projects={(data?.projects||[]) as any} onUpdateGroups={handleUpdateGroups} showToast={showToast} />;
+  return <GroupsView groups={(data?.groups||[]) as any} users={data?.users||[]} projects={(data?.projects||[]) as any} onUpdateGroups={handleUpdateGroups} showToast={showToast} canManage={currentUser?.role === 'ausbilder'} />;
 }
 
 function AzubiProfileWrapper() {
