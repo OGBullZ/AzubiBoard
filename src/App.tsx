@@ -794,8 +794,9 @@ function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
   }, [data, setData, currentUser, showToast]);
 
   const handleArchive = useCallback((projectId: string) => {
+    const snapshot = data;
     setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) });
-    showToast('Projekt archiviert');
+    showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });  // Phase 4: Undo konsistent zur Listen-Archivierung
   }, [data, setData, showToast]);
 
   // entry/prev: addActivity-Boundary (utils.js liefert Blob-Form) → any belassen.
@@ -915,7 +916,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
   };
 
   const tabBtn = (key: string, label: string) => (
-    <button key={key} onClick={() => setTab(key)}
+    <button key={key} onClick={() => setTab(key)} role="tab" aria-selected={tab === key}
       style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none',
         background: tab === key ? 'var(--c-ac)' : 'transparent',
         color: tab === key ? '#fff' : 'var(--c-mu)', transition: 'all .15s' }}>

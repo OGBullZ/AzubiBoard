@@ -152,6 +152,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   });
   const [newComment,  setNewComment]  = useState<Record<string, string>>({ activities: '', learnings: '' });
   const [wsError,     setWsError]     = useState('');  // 0.8: leeres week_start = Inline-Fehler statt stillem Default
+  const [pendingTpl,  setPendingTpl]  = useState<{ label: string; activities: string; learnings: string } | null>(null);  // Phase 4: Vorlage bei nicht-leerem Text bestätigen
   const [tab,         setTab]         = useState<string>('text');
   const [copied,      setCopied]      = useState('');
   const [showOcr,     setShowOcr]     = useState(false);
@@ -164,7 +165,12 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const readOnly = (report?.status !== 'draft' && !isReview) || (!isOwner && isStaff(currentUser) && !isReview);
   const kw       = getKW(form.week_start);
 
-  const applyTemplate = (tmpl: { label: string; activities: string; learnings: string }) => { setForm((f: any) => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
+  const insertTemplate = (tmpl: { label: string; activities: string; learnings: string }) => { setForm((f: any) => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
+  // Phase 4: bei vorhandenem Text erst bestätigen (Datenverlust vermeiden)
+  const applyTemplate = (tmpl: { label: string; activities: string; learnings: string }) => {
+    if (form.activities?.trim() || form.learnings?.trim()) { setPendingTpl(tmpl); return; }
+    insertTemplate(tmpl);
+  };
 
   const autoFillFromTasks = () => {
     const ws  = form.week_start;
@@ -448,6 +454,14 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                   </button>
                 ))}
               </div>
+              {pendingTpl && (
+                <ConfirmDialog
+                  message={`Vorlage „${pendingTpl.label}" einfügen? Der vorhandene Text in Tätigkeiten/Lerninhalt wird überschrieben.`}
+                  confirmLabel="Überschreiben" danger
+                  onConfirm={() => { insertTemplate(pendingTpl); setPendingTpl(null); }}
+                  onCancel={() => setPendingTpl(null)}
+                />
+              )}
             </div>
           )}
 
