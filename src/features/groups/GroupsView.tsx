@@ -9,7 +9,11 @@ type Group = {
   name: string;
   type: string;
   members: Id[];
+  code?: string;   // Phase 2: Beitritts-Code für Selbst-Registrierung
 };
+
+// 6-stelliger, gut teilbarer Beitritts-Code (ohne leicht verwechselbare 0/O/1/I)
+const genGroupCode = () => Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
 
 // Projects in this view carry group-assignment fields not present in the shared schema.
 type GroupProject = Project & {
@@ -38,7 +42,7 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast 
 
   const add = () => {
     if (!form.name.trim()) return;
-    onUpdateGroups([...groups, { id: uid(), name: form.name.trim(), type: form.type, members: form.members }]);
+    onUpdateGroups([...groups, { id: uid(), name: form.name.trim(), type: form.type, members: form.members, code: genGroupCode() }]);
     setShowNew(false);
     setForm({ name: '', type: 'team', members: [] });
     showToast('✓ Gruppe erstellt');
@@ -75,6 +79,20 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast 
                     </span>
                   </div>
                   <button className="del" onClick={() => remove(g.id)} aria-label={`Gruppe ${g.name} löschen`}>×</button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+                  <span style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700 }}>Beitritts-Code</span>
+                  {g.code ? (
+                    <button onClick={() => { navigator.clipboard?.writeText(g.code!); showToast('✓ Code kopiert'); }}
+                      title="Code kopieren — Azubis nutzen ihn bei der Registrierung"
+                      style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: 1, color: C.ac, background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>
+                      {g.code}
+                    </button>
+                  ) : (
+                    <button className="btn" onClick={() => onUpdateGroups(groups.map(x => x.id === g.id ? { ...x, code: genGroupCode() } : x))}
+                      style={{ fontSize: 10, padding: '2px 8px' }}>Code erzeugen</button>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: 12 }}>

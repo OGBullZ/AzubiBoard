@@ -4,19 +4,22 @@ import { C, uid, saveSession } from '../../lib/utils.js';
 import { hashPassword, isHashed } from '../../lib/crypto.js';
 import { dataService } from '../../lib/dataService.js';
 import { setToken } from '../../lib/auth.js';
-import type { User } from '../../types';
+import type { User, Id } from '../../types';
 
 const USE_API = import.meta.env.VITE_USE_API === 'true';
+
+type AuthGroup = { id: Id; name: string; code?: string };
 
 type AuthPageProps = {
   onLogin: (user: User) => void;
   users: User[];
-  onRegister: (user: User) => void;
+  onRegister: (user: User, groupId?: Id) => void;
+  groups?: AuthGroup[];
 };
 
 type TwoFactorState = { partial_token: string };
 
-export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) {
+export default function AuthPage({ onLogin, users, onRegister, groups = [] }: AuthPageProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -25,6 +28,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
   // Registrierung Minimal-Setup (Azubi): Beruf + Lehrjahr (Phase 2)
   const [profession, setProfession] = useState('');
   const [apprenticeshipYear, setApprenticeshipYear] = useState('');
+  const [groupCode, setGroupCode] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   // K1: 2FA-Stufe nach Passwort-Eingabe
@@ -91,6 +95,13 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
     if (!name.trim()) { setErr(t('auth.enterName')); return; }
     if (!email.trim()) { setErr(t('auth.enterEmail')); return; }
     if (!pw.trim() || pw.length < 8) { setErr(t('auth.passwordTooShort')); return; }
+    // Optionaler Gruppencode: wenn angegeben, muss er zu einer Gruppe passen
+    let resolvedGroupId: Id | undefined;
+    if (groupCode.trim()) {
+      const g = groups.find(x => (x.code || '').toUpperCase() === groupCode.trim().toUpperCase());
+      if (!g) { setErr('Ungültiger Gruppencode'); return; }
+      resolvedGroupId = g.id;
+    }
     setLoading(true);
     try {
       if (USE_API) {
@@ -99,7 +110,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
         setToken(token);
         // onRegister statt onLogin: fügt Nutzer auch zum Blob hinzu
         // (wichtig für Aufgabenzuweisungen etc.)
-        onRegister({ ...user, id: String(user.id), profession: profession.trim() || undefined, apprenticeship_year: apprenticeshipYear ? Number(apprenticeshipYear) : undefined });
+        onRegister({ ...user, id: String(user.id), profession: profession.trim() || undefined, apprenticeship_year: apprenticeshipYear ? Number(apprenticeshipYear) : undefined }, resolvedGroupId);
       } else {
         // ── Lokaler Modus ────────────────────────────────────
         if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
@@ -108,7 +119,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
         const hashed = await hashPassword(pw);
         const newUser = { id: uid(), name: name.trim(), email: email.trim(), password: hashed, role: 'azubi' as const, profession: profession.trim() || undefined, apprenticeship_year: apprenticeshipYear ? Number(apprenticeshipYear) : undefined };
         saveSession(newUser.id);
-        onRegister(newUser);
+        onRegister(newUser, resolvedGroupId);
       }
     } catch (err) {
       setErr((err as Error).message || t('auth.registerFailed'));
@@ -202,6 +213,13 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
                     <option value="4">4. Lehrjahr</option>
                   </select>
                 </div>
+              </div>
+            )}
+            {mode === 'register' && (
+              <div style={{ marginBottom: 16 }}>
+                <label htmlFor="reg-gcode" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>Gruppencode <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></label>
+                <input id="reg-gcode" type="text" value={groupCode} onChange={e => setGroupCode(e.target.value.toUpperCase())} placeholder="z.B. ABC123" autoComplete="off" maxLength={6} style={{ width: '100%', padding: '12px 16px', fontSize: 13, letterSpacing: 1, fontFamily: C.mono, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.tx, transition: 'border .2s', boxSizing: 'border-box' }} onFocus={e => e.target.style.borderColor = C.ac} onBlur={e => e.target.style.borderColor = C.bd2} />
+                <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>Von deinem Ausbilder erhalten — tritt direkt der Gruppe bei.</div>
               </div>
             )}
             <div style={{ marginBottom: 16 }}>

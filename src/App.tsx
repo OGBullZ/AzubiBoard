@@ -1543,9 +1543,14 @@ const App = () => {
         <AuthPage
           onLogin={handleLogin}
           users={data?.users || []}
-          onRegister={async (newUser: User) => {
+          groups={(data?.groups || []) as any}
+          onRegister={async (newUser: User, groupId?: Id) => {
             const withUser = { ...data, users: [...(data?.users || []), newUser] };
-            const withActivity = addActivity(withUser, {
+            // Gruppencode: neuen Azubi direkt in die Gruppe aufnehmen
+            const withGroup = groupId
+              ? { ...withUser, groups: ((data?.groups || []) as any[]).map((g: any) => g.id === groupId ? { ...g, members: [...(g.members || []), newUser.id] } : g) }
+              : withUser;
+            const withActivity = addActivity(withGroup, {
               type: 'user_registered',
               userId: newUser.id,
               userName: newUser.name,
