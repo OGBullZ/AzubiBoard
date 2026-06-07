@@ -4,35 +4,39 @@
 // ============================================================
 
 // ── Farb-System ───────────────────────────────────────────────
+// Themebare Werte zeigen auf die CSS-Vars aus index.css (Dark + [data-theme=light]).
+// Inline-Styles lösen var() auf → Light-Mode greift überall. (0.3 / Phase 1)
+// Akzentfarben bleiben Hex: nicht themebar + werden mit Hex-Alpha (z.B. C.gr+'45') verkettet.
 export const C = {
   // Hintergründe
-  bg:   '#0a0e14',
-  sf:   '#161b22',
-  sf2:  '#13181f',
-  sf3:  '#0d1117',
+  bg:   'var(--c-bg)',
+  sf:   'var(--c-sf)',
+  sf2:  'var(--c-sf2)',
+  sf3:  'var(--c-sf3)',
 
   // Text
-  tx:   '#c9d1d9',
-  br:   '#f0f6fc',
-  mu:   '#8b949e',
+  tx:   'var(--c-tx)',
+  br:   'var(--c-br)',
+  mu:   'var(--c-mu)',
 
   // Borders
-  bd:   '#21262d',
-  bd2:  '#30363d',
+  bd:   'var(--c-bd)',
+  bd2:  'var(--c-bd2)',
 
-  // Akzentfarben
+  // Akzent-Vollton: Hex — nicht themebar (index.css überschreibt nur die *d-Tints) + in Alpha-Arithmetik
   ac:   '#0071E3',
-  acd:  'rgba(0, 113, 227, 0.1)',
   gr:   '#34C759',
-  grd:  'rgba(52, 199, 89, 0.1)',
   cr:   '#FF3B30',
-  crd:  'rgba(255, 59, 48, 0.1)',
   yw:   '#FF9500',
-  ywd:  'rgba(255, 149, 0, 0.1)',
+  // Akzent-Tints: themebar → var(--c-*d) (index.css [data-theme=light] passt die Deckkraft an)
+  acd:  'var(--c-acd)',
+  grd:  'var(--c-grd)',
+  crd:  'var(--c-crd)',
+  ywd:  'var(--c-ywd)',
 
   // Aliase für Kompatibilität
-  textPrimary:   '#f0f6fc',
-  textSecondary: '#8b949e',
+  textPrimary:   'var(--c-br)',
+  textSecondary: 'var(--c-mu)',
   primary:       '#0071E3',
   critical:      '#FF3B30',
 
@@ -43,7 +47,7 @@ export const C = {
 
 // ── Status-Konfiguration ─────────────────────────────────────
 export const ST = {
-  green:  { label: 'Abgeschlossen',   bg: '#07130a',               c: C.gr },
+  green:  { label: 'Abgeschlossen',   bg: 'var(--st-green-bg)',    c: C.gr },
   yellow: { label: 'In Bearbeitung', bg: 'rgba(255,149,0,0.1)',   c: C.yw },
   red:    { label: 'Problem',        bg: 'rgba(255,59,48,0.1)',   c: C.cr },
 };

@@ -344,7 +344,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                 const isHov   = hovDay === day;
                 return (
                   <div key={di} role="gridcell" tabIndex={day ? 0 : -1}
-                    style={{ background: !day ? C.sf + '60' : today_ ? '#0b1624' : C.sf2, minHeight: 92, padding: 7, cursor: day ? 'pointer' : 'default', transition: 'background .12s', position: 'relative', borderLeft: today_ ? `2px solid ${C.ac}` : 'none', outline: 'none' }}
+                    style={{ background: !day ? 'var(--c-sf3)' : today_ ? 'var(--c-acd)' : C.sf2, minHeight: 92, padding: 7, cursor: day ? 'pointer' : 'default', transition: 'background .12s', position: 'relative', borderLeft: today_ ? `2px solid ${C.ac}` : 'none', outline: 'none' }}
                     onClick={() => { if (day) { setNewEvDay(day); setForm({ title: '', note: '', projectId: '', type: 'event' }); } }}
                     onMouseEnter={() => { if (day) setHovDay(day); }}
                     onMouseLeave={() => setHovDay(null)}

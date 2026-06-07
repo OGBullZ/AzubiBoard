@@ -153,9 +153,10 @@ type OnboardingWizardProps = {
   currentUser: User;
   onDone: () => void;
   onNewProject?: () => void;
+  onFirstReport?: () => void;
 };
 
-export default function OnboardingWizard({ currentUser, onDone, onNewProject }: OnboardingWizardProps) {
+export default function OnboardingWizard({ currentUser, onDone, onNewProject, onFirstReport }: OnboardingWizardProps) {
   const [step, setStep] = useState(0);
   const steps = [
     { label: 'Willkommen',   component: <StepWelcome    currentUser={currentUser} /> },
@@ -223,6 +224,12 @@ export default function OnboardingWizard({ currentUser, onDone, onNewProject }: 
             <button className="btn" onClick={() => { onDone(); onNewProject?.(); }}
               style={{ padding: '10px 18px', color: C.ac, borderColor: C.ac + '60', fontSize: 13 }}>
               + Erstes Projekt
+            </button>
+          )}
+          {isLast && currentUser?.role === 'azubi' && onFirstReport && (
+            <button className="btn" onClick={() => { onDone(); onFirstReport(); }}
+              style={{ padding: '10px 18px', color: C.ac, borderColor: C.ac + '60', fontSize: 13 }}>
+              + Erster Bericht
             </button>
           )}
           <button className="abtn" onClick={isLast ? onDone : () => setStep(s => s + 1)}

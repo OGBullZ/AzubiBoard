@@ -147,7 +147,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   const taskLabels = (projectLabels || []).filter((lb: Label) => (task.labelIds || []).includes(lb.id));
 
   return (
-    <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? C.ac + '70' : isOpen ? st.color + '50' : C.bd}`, background: selected ? C.acd + '44' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
+    <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? C.ac + '70' : isOpen ? st.color + '50' : C.bd}`, background: selected ? 'var(--c-acd)' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer' }}
         onClick={onToggle} role="button" tabIndex={0} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onToggle()}>
@@ -840,7 +840,7 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
         {sorted.length === 0
           ? <div style={{padding:'20px',textAlign:'center',color:C.mu,fontSize:12}}>Noch kein Material</div>
           : sorted.map((m: Material) => (
-            <div key={m.id} style={{ display:'grid', gridTemplateColumns:COLS, padding:'9px 14px', borderBottom:`1px solid ${C.bd}22`, alignItems:'center' }}>
+            <div key={m.id} style={{ display:'grid', gridTemplateColumns:COLS, padding:'9px 14px', borderBottom:`1px solid var(--c-bd-soft)`, alignItems:'center' }}>
               <div style={{fontSize:13,color:C.br,fontWeight:600}}>{m.name}</div>
               <div style={{fontSize:11,color:m.taskId?C.ac:C.mu,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={m.taskId?taskName(m.taskId):''}>
                 {m.taskId ? taskName(m.taskId) : <span style={{color:C.bd2}}>—</span>}

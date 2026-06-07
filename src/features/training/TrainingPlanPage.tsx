@@ -133,6 +133,8 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
   const learnedCount   = totalProgress?.filter((p) => p.st !== 'open').length || 0;
 
   const markLearned = () => {
+    // 0.9: bestätigte Ziele sind gesperrt — der Azubi darf die Ausbilder-Bestätigung nicht per Toggle aufheben
+    if (myStatus === 'confirmed') return;
     const next = myStatus === 'open' ? 'learned' : 'open';
     const entry: GoalProgress = { status: next, ts: new Date().toISOString() };
     const prog = { ...(goal.progress || {}), [currentUser.id]: entry };
@@ -162,8 +164,9 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
         {/* Status dot / toggle for azubi */}
         {!isAusbilder ? (
           <button onClick={e => { e.stopPropagation(); markLearned(); }}
-            title={myStatus === 'open' ? 'Als gelernt markieren' : 'Rückgängig'}
-            style={{ width: 26, height: 26, borderRadius: '50%', border: `2px solid ${myCfg.c}`, background: myCfg.bg, color: myCfg.c, fontSize: 14, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+            disabled={myStatus === 'confirmed'}
+            title={myStatus === 'confirmed' ? 'Vom Ausbilder bestätigt — gesperrt' : myStatus === 'open' ? 'Als gelernt markieren' : 'Rückgängig'}
+            style={{ width: 26, height: 26, borderRadius: '50%', border: `2px solid ${myCfg.c}`, background: myCfg.bg, color: myCfg.c, fontSize: 14, cursor: myStatus === 'confirmed' ? 'default' : 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
             {myStatus === 'confirmed' ? '✓' : myStatus === 'learned' ? '◑' : '○'}
           </button>
         ) : (

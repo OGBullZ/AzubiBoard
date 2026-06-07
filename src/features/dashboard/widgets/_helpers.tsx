@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import type { ComponentType, CSSProperties, ReactNode, SVGProps } from "react";
 import { C } from '../../../lib/utils.js';
 import { IcoPlay, IcoCheck, IcoPause, IcoBlock } from '../../../components/Icons.jsx';
+import { SectionHeader } from '../../../components/UI.jsx';
 
 type IconComponent = ComponentType<{ size?: number; style?: CSSProperties } & SVGProps<SVGSVGElement>>;
 
@@ -68,7 +69,7 @@ export function Chip({ value, label, color, animated = false }: ChipProps) {
   const n = animated && typeof value === 'number' ? counted : value;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 13px', background: color + '12', border: `1px solid ${color}25`, borderRadius: 8 }}>
-      <span style={{ fontSize: 18, fontWeight: 800, color, fontFamily: "'Syne',system-ui,sans-serif", lineHeight: 1, letterSpacing: -0.5 }}>
+      <span style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1, letterSpacing: -0.5 }}>
         {animated ? n : value}
       </span>
       <span style={{ fontSize: 10, color: C.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: .7, lineHeight: 1.3 }}>
@@ -116,17 +117,8 @@ type PanelTitleProps = {
   onAction?: () => void;
 };
 
+// Dünner Wrapper über SectionHeader (size="md") — eine Implementierung, gleiche Optik.
+// `count` bleibt absichtlich unverdrahtet (PanelTitle hat es nie gerendert).
 export function PanelTitle({ Icon, children, badge, action, onAction }: PanelTitleProps) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 11, flexShrink: 0 }}>
-      {Icon && <Icon size={12} style={{ color: C.textSecondary }} />}
-      <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 1 }}>{children}</span>
-      {badge && (
-        <span style={{ fontSize: 9, background: badge.bg || C.acd, color: badge.c || C.ac, borderRadius: 5, padding: '1px 6px', fontFamily: C.mono, fontWeight: 700 }}>
-          {badge.text}
-        </span>
-      )}
-      {action && <button className="icn" onClick={onAction} style={{ fontSize: 10, padding: '1px 5px' }}>{action}</button>}
-    </div>
-  );
+  return <SectionHeader size="md" Icon={Icon} title={children} badge={badge} action={action} onAction={onAction} />;
 }

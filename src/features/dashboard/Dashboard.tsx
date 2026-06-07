@@ -7,7 +7,7 @@ import {
   IcoFolder, IcoPlay, IcoChevron,
   IcoTrendUp,
   IcoLearn, IcoReport, IcoCalendar,
-  IcoAlert, IcoNote, IcoUsers, IcoClock, IcoPlus
+  IcoAlert, IcoNote, IcoUsers, IcoClock
 } from '../../components/Icons.jsx';
 
 // Sprint-9-quality H3: Dashboard wurde aufgeteilt in widgets/*.jsx.
@@ -261,7 +261,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
 // ─────────────────────────────────────────────────────────────
 //  AZUBI-DASHBOARD
 // ─────────────────────────────────────────────────────────────
-function AzubiDashboard({ user, projects, users, reports, calendarEvents, activityLog, onNewProject, onOpenProject, onUpdateProject, onNavigate }: DashboardProps) {
+function AzubiDashboard({ user, projects, users, reports, calendarEvents, activityLog, onOpenProject, onUpdateProject, onNavigate }: DashboardProps) {
   const { t } = useTranslation();
   const now  = new Date();
 
@@ -343,15 +343,15 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
           {inProgress > 0 && <Chip value={inProgress} label={t('dashboard.chipActive')}   color={C.yw} animated />}
           {overdue > 0    && <Chip value={overdue}     label={t('dashboard.chipOverdue')}  color={C.cr} />}
         </div>
-        <button className="abtn" onClick={onNewProject} style={{ fontSize: 12, flexShrink: 0 }}>
-          <IcoPlus size={13} /> {t('dashboard.newProject')}
-        </button>
+        {/* 0.6: kein „Neues Projekt" für Azubi — Projekte werden vom Ausbilder zugewiesen */}
       </div>
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(320px, 1.4fr) minmax(300px, 360px)', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: `1px solid var(--c-bd)` }}>
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 16px 10px' }}>
             <PanelTitle Icon={IcoPlay} count={allTasks.length}>{t('dashboard.myTasks')}</PanelTitle>
             <HeroTask task={heroTask}
+              emptyAccount={mine.length === 0}
+              onFirstReport={() => onNavigate?.('reports')}
               onToggle={() => heroTask && toggleTask(heroTask.projectId, heroTask.id)}
               onOpen={onOpenProject}
               onUpdateNote={updateTaskNote} />
@@ -372,7 +372,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
             <PanelTitle Icon={IcoFolder} count={mine.length}>{t('dashboard.activeProjects')}</PanelTitle>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {mine.length === 0 ? (
-                <EmptyState Icon={IcoFolder} title={t('project.noProjects')} subtitle={t('dashboard.noProjectsSub')} action={'+ ' + t('common.create')} onAction={onNewProject} />
+                <EmptyState Icon={IcoFolder} title={t('project.noProjects')} subtitle="Dein Ausbilder weist dir Projekte zu — sie erscheinen dann hier." />
               ) : mine.map(p => (
                 <div key={p.id} style={{ marginBottom: 12 }}>
                   <ProjectCard project={p as any} users={users} onClick={() => onOpenProject(p.id)} onUpdate={onUpdateProject} />

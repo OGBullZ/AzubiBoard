@@ -104,7 +104,7 @@ function ActivityFeedImpl({ activityLog = [] }: ActivityFeedProps) {
       ) : entries.map(entry => {
         const cfg = ACTIVITY_CONFIG[entry.type] || { icon: '📋', color: C.mu };
         return (
-          <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 2px', borderBottom: `1px solid ${C.bd}22` }}>
+          <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 2px', borderBottom: `1px solid var(--c-bd-soft)` }}>
             <div style={{ width: 24, height: 24, borderRadius: 6, background: cfg.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12 }}>
               {cfg.icon}
             </div>

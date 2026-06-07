@@ -158,7 +158,7 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
           {np.edges.map(e => {
             const ic = critSet.has(e.from) && critSet.has(e.to);
             return (
-              <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: `1px solid ${C.bd}22`, fontSize: 11, fontFamily: C.mono }}>
+              <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: `1px solid var(--c-bd-soft)`, fontSize: 11, fontFamily: C.mono }}>
                 <span style={{ color: ic ? C.cr : C.ac }}>{e.from} → {e.to}</span>
                 <button className="del" onClick={() => removeEdge(e.id)} aria-label={`Verbindung ${e.from} → ${e.to} löschen`} style={{ fontSize: 11 }}>×</button>
               </div>
@@ -443,7 +443,7 @@ export function GanttTab({ project }: GanttTabProps) {
                   onDragOver={e  => onDragOver(e, n.id)}
                   onDrop={e      => onDrop(e, n.id)}
                   onDragEnd={onDragEnd}
-                  style={{ height: RH, borderBottom: `1px solid ${C.bd}22`, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 7, borderLeft: `3px solid ${bc}`, cursor: 'grab', opacity: isDragged ? .4 : 1, background: isDrop ? C.acd : 'transparent', transition: 'background .1s' }}>
+                  style={{ height: RH, borderBottom: `1px solid var(--c-bd-soft)`, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 7, borderLeft: `3px solid ${bc}`, cursor: 'grab', opacity: isDragged ? .4 : 1, background: isDrop ? C.acd : 'transparent', transition: 'background .1s' }}>
                   <span aria-hidden="true" style={{ fontSize: 11, color: C.mu, opacity: .4, flexShrink: 0, lineHeight: 1 }}>⠿</span>
                   <div aria-hidden="true" style={{ width: 15, height: 15, borderRadius: 3, background: bc + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: bc, fontFamily: C.mono, flexShrink: 0 }}>{n.id}</div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.name}</div>
@@ -460,7 +460,7 @@ export function GanttTab({ project }: GanttTabProps) {
                 const d   = addDays(project.startDate, i * ud);
                 const isT = todayOff === i;
                 return (
-                  <div key={i} style={{ width: CW, flexShrink: 0, borderRight: `1px solid ${C.bd}22`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isT ? C.acd : 'transparent', transition: 'background .15s' }}>
+                  <div key={i} style={{ width: CW, flexShrink: 0, borderRight: `1px solid var(--c-bd-soft)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isT ? C.acd : 'transparent', transition: 'background .15s' }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: isT ? C.ac : C.ac + '80', fontFamily: C.mono }}>{np.unit}{i}</div>
                     <div style={{ fontSize: 8, color: isT ? C.ac + 'cc' : C.mu, fontFamily: C.mono, marginTop: 1 }}>
                       {d ? d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '–'}
@@ -489,8 +489,8 @@ export function GanttTab({ project }: GanttTabProps) {
                   onDragOver={e  => onDragOver(e, n.id)}
                   onDrop={e      => onDrop(e, n.id)}
                   onDragEnd={onDragEnd}
-                  style={{ height: RH, borderBottom: `1px solid ${C.bd}22`, position: 'relative', display: 'flex', opacity: dragId.current === n.id ? .4 : 1, background: isDrop ? C.acd : 'transparent', transition: 'background .1s', cursor: 'grab' }}>
-                  {cols.map(i => <div key={i} style={{ width: CW, flexShrink: 0, borderRight: `1px solid ${C.bd}22`, background: todayOff === i ? C.acd : 'transparent' }} />)}
+                  style={{ height: RH, borderBottom: `1px solid var(--c-bd-soft)`, position: 'relative', display: 'flex', opacity: dragId.current === n.id ? .4 : 1, background: isDrop ? C.acd : 'transparent', transition: 'background .1s', cursor: 'grab' }}>
+                  {cols.map(i => <div key={i} style={{ width: CW, flexShrink: 0, borderRight: `1px solid var(--c-bd-soft)`, background: todayOff === i ? C.acd : 'transparent' }} />)}
                   <div title={`${n.name}\n${startD?.toLocaleDateString('de-DE')} → ${endD?.toLocaleDateString('de-DE')}\nDauer: ${n.d} ${np.unit} · Puffer: ${n.gp} ${np.unit}`}
                     style={{ position: 'absolute', left: barLeft, top: '50%', transform: 'translateY(-50%)', width: barW, height: 22, background: ic ? `${bc}35` : `${bc}22`, border: `1.5px solid ${bc}`, borderRadius: 5, display: 'flex', alignItems: 'center', paddingLeft: 7, overflow: 'hidden', boxShadow: ic ? `0 0 8px ${bc}25` : 'none' }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: bc, whiteSpace: 'nowrap', fontFamily: C.mono }}>{n.d}{np.unit}</span>

@@ -1,6 +1,6 @@
 import { memo, useState, useRef } from "react";
 import type { Project, Task, User } from '../../../types';
-import { C, fmtDate } from '../../../lib/utils.js';
+import { C, ST, fmtDate } from '../../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar } from '../../../components/UI.jsx';
 import { IcoCheck, IcoChevron, IcoChevronD, IcoPlus } from '../../../components/Icons.jsx';
 import { Ring, urgencyColor, urgencyLabel } from './_helpers.jsx';
@@ -42,7 +42,7 @@ function ProjectCardImpl({ project, users, onClick, onUpdate }: ProjectCardProps
   const pct    = total > 0 ? Math.round(done / total * 100) : 0;
   const active = project.tasks.filter(t => t.status === 'in_progress').length;
   const au     = users.filter(u => project.assignees.includes(u.id));
-  const sc     = project.status === 'green' ? C.gr : project.status === 'red' ? C.cr : C.yw;
+  const sc     = (ST[project.status as keyof typeof ST] || ST.yellow).c;
 
   const openTasks = project.tasks
     .filter(t => t.status !== 'done' && !t.done)
@@ -146,7 +146,7 @@ function ProjectCardImpl({ project, users, onClick, onUpdate }: ProjectCardProps
             <div style={{ marginBottom: 9 }}>
               <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .7, fontWeight: 700, marginBottom: 5 }}>Offene Aufgaben</div>
               {openTasks.map(t => (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0', borderBottom: `1px solid ${C.bd}22` }}>
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0', borderBottom: `1px solid var(--c-bd-soft)` }}>
                   <button onClick={e => toggleTask(e, t.id)}
                     style={{ width: 15, height: 15, borderRadius: 4, border: `2px solid ${t.status === 'in_progress' ? C.ac : C.bd2}`, background: 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .12s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = C.gr; e.currentTarget.style.borderColor = C.gr; }}

@@ -6,6 +6,7 @@ import { StatusBadge, Avatar, ProgressBar, Modal, Field, IconBtn } from '../../c
 import { TasksTab, MaterialsTab, RequirementsTab, StepsTab } from './ProjectTabs.jsx';
 import { NetzplanTab, GanttTab } from './NetzplanGantt.jsx';
 import { LinksManager } from './LinksManager.jsx';
+import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
   IcoBack, IcoEdit, IcoCheck,
   IcoFolder, IcoMaterial, IcoRequire, IcoDoc,
@@ -26,6 +27,7 @@ type UpdateFn = (id: any, patch: any) => void;
 function LabelsManager({ project, onUpdate }: { project: Project; onUpdate: UpdateFn }) {
   const [name,  setName]  = useState('');
   const [color, setColor] = useState(LABEL_PRESETS[0]);
+  const [delLabel, setDelLabel] = useState<Label | null>(null);  // 0.7: window.confirm → ConfirmDialog
   const labels = project.labels || [];
 
   const addLabel = () => {
@@ -73,15 +75,22 @@ function LabelsManager({ project, onUpdate }: { project: Project; onUpdate: Upda
             <div key={lb.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 5, background: lb.color + '22', border: `1.5px solid ${lb.color}60` }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color || undefined, display: 'inline-block', flexShrink: 0 }} />
               <span style={{ fontSize: 11, fontWeight: 700, color: lb.color || undefined }}>{lb.name}</span>
-              <button onClick={() => {
-                if (window.confirm(`Label "${lb.name}" löschen?`)) removeLabel(lb.id);
-              }}
+              <button onClick={() => setDelLabel(lb)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: lb.color || undefined, fontSize: 13, lineHeight: 1, padding: '0 1px', opacity: .7, fontWeight: 700 }} title="Löschen">×</button>
             </div>
           ))}
         </div>
       ) : (
         <div style={{ fontSize: 11, color: C.mu, fontStyle: 'italic' }}>Noch keine Labels — erstelle das erste oben.</div>
+      )}
+
+      {delLabel && (
+        <ConfirmDialog
+          message={`Label "${delLabel.name}" löschen?`}
+          danger
+          onConfirm={() => { removeLabel(delLabel.id); setDelLabel(null); }}
+          onCancel={() => setDelLabel(null)}
+        />
       )}
     </section>
   );
@@ -474,6 +483,13 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
       {popup === 'requirements' && <RequirementsPopup project={project} onUpdate={onUpdate} onClose={() => setPopup(null)} />}
       {popup === 'links'        && <LinksPopup        project={project} onUpdate={onUpdate} onClose={() => setPopup(null)} />}
 
+      {/* Phase 2: Mentor = nur lesend (Schreibpfade sind am onUpdate-choke-point gesperrt) */}
+      {currentUser?.role === 'mentor' && (
+        <div style={{ background: 'var(--c-ywd)', color: C.yw, borderBottom: `1px solid ${C.yw}35`, padding: '6px 18px', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+          🔒 Mentor-Ansicht — nur lesend
+        </div>
+      )}
+
       <div style={{ background: 'var(--c-sf)', borderBottom: `1px solid var(--c-bd)`, padding: '10px 18px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: editMode ? 10 : 6, flexWrap: 'wrap' }}>
           <button className="btn" onClick={onBack} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -490,9 +506,11 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
             {activeCount > 0 && <span style={{ fontSize: 9, color: C.ac, background: C.acd, borderRadius: 4, padding: '2px 7px', fontFamily: C.mono, fontWeight: 800 }}>▶ {activeCount} aktiv</span>}
             {!editMode ? (
               <>
-                <button className="btn" onClick={() => { setForm({ ...project }); setEditMode(true); }} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IcoEdit size={12} /> Bearbeiten
-                </button>
+                {currentUser?.role !== 'mentor' && (
+                  <button className="btn" onClick={() => { setForm({ ...project }); setEditMode(true); }} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <IcoEdit size={12} /> Bearbeiten
+                  </button>
+                )}
                 {onArchive && currentUser.role === 'ausbilder' && !project.archived && (
                   <button className="btn" onClick={() => onArchive(project.id)} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, color: C.mu }}>
                     <IcoArchive size={12} /> Archivieren

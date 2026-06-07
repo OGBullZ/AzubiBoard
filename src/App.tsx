@@ -423,8 +423,8 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   const groups = [
-    { title: 'Navigation', items: [['G dann D', 'Dashboard'],['G dann P', 'Projekte'],['G dann K', 'Kalender'],['G dann R', 'Berichte'],['G dann U', 'Nutzer (Ausbilder)']] },
-    { title: 'Aktionen', items: [['N', 'Neues Projekt'],['Ctrl+K', 'Suche öffnen'],['?', 'Shortcuts anzeigen']] },
+    { title: 'Navigation', items: [['G dann D', 'Dashboard'],['G dann P', 'Projekte'],['G dann K', 'Kalender'],['G dann R', 'Berichte'],['G dann T', 'Ausbildungsplan'],['G dann L', 'Lernbereich'],['G dann U', 'Nutzer (Ausbilder)']] },
+    { title: 'Aktionen', items: [['N', 'Neues Projekt (Ausbilder)'],['Ctrl+K', 'Suche öffnen'],['?', 'Shortcuts anzeigen']] },
     { title: 'Allgemein', items: [['Esc', 'Dialog schließen'],['←→', 'Kanban: Status verschieben']] },
   ];
 
@@ -502,8 +502,16 @@ function GlobalSearch({ data, onClose }: { data: AppState | null; onClose: () =>
       .slice(0,5).map((p: Project) => ({ type: 'Projekt', label: p.title, sub: p.description, to: `/project/${p.id}`, icon: '📁' })),
     ...(data?.users||[]).filter((u: User) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower))
       .slice(0,3).map((u: User) => ({ type: 'Nutzer', label: u.name, sub: u.email, to: '/users', icon: '👤' })),
-    ...(data?.reports||[]).filter((r: Report) => (r.title||'').toLowerCase().includes(lower))
-      .slice(0,3).map((r: Report) => ({ type: 'Bericht', label: r.title || 'Bericht', sub: null, to: '/reports', icon: '📝' })),
+    ...(data?.reports||[]).filter((r: Report) =>
+        (r.title||'').toLowerCase().includes(lower) ||
+        (r.user_name||'').toLowerCase().includes(lower) ||
+        `kw ${r.week_number}/${r.year}`.includes(lower) ||
+        String(r.week_number ?? '').includes(lower))
+      .slice(0,4).map((r: Report) => ({ type: 'Bericht', label: r.title || `KW ${r.week_number}/${r.year}`, sub: `${r.user_name ? r.user_name + ' · ' : ''}KW ${r.week_number}/${r.year}`, to: '/reports', icon: '📝' })),
+    ...(data?.calendarEvents||[]).filter((e: any) => (e.title||'').toLowerCase().includes(lower))
+      .slice(0,3).map((e: any) => ({ type: 'Termin', label: e.title, sub: e.date || null, to: '/calendar', icon: '📅' })),
+    ...(data?.learningPaths||[]).filter((lp: any) => (lp.title||'').toLowerCase().includes(lower) || (lp.nodes||[]).some((n: any) => (n.title||'').toLowerCase().includes(lower)))
+      .slice(0,3).map((lp: any) => ({ type: 'Lernpfad', label: lp.title, sub: (lp.nodes||[]).find((n: any) => (n.title||'').toLowerCase().includes(lower))?.title || null, to: '/learn', icon: '📖' })),
   ] : [];
 
   // API-Ergebnisse haben Priorität; lokale Nutzer-Suche immer ergänzen
@@ -529,7 +537,7 @@ function GlobalSearch({ data, onClose }: { data: AppState | null; onClose: () =>
       <div style={{ background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 14, width: '100%', maxWidth: 560, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--c-bd)' }}>
           <IcoSearch size={16} style={{ color: 'var(--c-mu)', flexShrink: 0 }} />
-          <input ref={ref} value={q} onChange={e => setQ(e.target.value)} placeholder="Projekte, Nutzer, Berichte durchsuchen…"
+          <input ref={ref} value={q} onChange={e => setQ(e.target.value)} placeholder="Projekte, Nutzer, Berichte, Termine, Lernpfade…"
             style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 15, color: 'var(--c-br)', outline: 'none', padding: 0 }} />
           <kbd style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--c-sf3)', border: '1px solid var(--c-bd2)', color: 'var(--c-mu)', flexShrink: 0 }}>Esc</kbd>
         </div>
@@ -597,16 +605,21 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
   const handleNav = (to: string) => { navigate(to); if (isMobile) onCloseDrawer?.(); };
 
-  const navItems = [
-    { to: '/dashboard', label: 'Dashboard',      Icon: IcoDashboard },
-    { to: '/projects',  label: 'Projekte',       Icon: IcoFolder    },
-    { to: '/calendar',  label: 'Kalender',       Icon: IcoCalendar  },
-    { to: '/groups',    label: 'Gruppen',        Icon: IcoUsers     },
-    { to: '/reports',   label: 'Berichtshefte',  Icon: IcoReport    },
-    { to: '/training',  label: 'Ausbildungsplan', Icon: IcoRequire   },
-    { to: '/learn',     label: 'Lernbereich',    Icon: IcoLearn     },
-    ...(isAusbilder ? [{ to: '/users', label: 'Nutzer', Icon: IcoUserEdit }] : []),
-    { to: '/trash',     label: 'Papierkorb',     Icon: IcoTrash, trashCount: true },
+  // Phase 2: Navigation in „Arbeiten" / „Verwalten" gruppiert
+  const navGroups = [
+    { label: 'Arbeiten', items: [
+      { to: '/dashboard', label: 'Dashboard',       Icon: IcoDashboard },
+      { to: '/projects',  label: 'Projekte',        Icon: IcoFolder    },
+      { to: '/calendar',  label: 'Kalender',        Icon: IcoCalendar  },
+      { to: '/reports',   label: 'Berichtshefte',   Icon: IcoReport    },
+      { to: '/training',  label: 'Ausbildungsplan', Icon: IcoRequire   },
+      { to: '/learn',     label: 'Lernbereich',     Icon: IcoLearn     },
+    ] },
+    { label: 'Verwalten', items: [
+      { to: '/groups',    label: 'Gruppen',         Icon: IcoUsers     },
+      ...(isAusbilder ? [{ to: '/users', label: 'Nutzer', Icon: IcoUserEdit }] : []),
+      { to: '/trash',     label: 'Papierkorb',      Icon: IcoTrash     },
+    ] },
   ];
 
   const hue = (currentUser?.name?.charCodeAt(0) || 100) * 37 % 360;
@@ -664,29 +677,37 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '4px 6px', overflowY: 'auto' }}>
-        { }
-        {navItems.map(({ to, label, Icon: NavIcon }) => {
-          const active = path === to || (to !== '/dashboard' && path.startsWith(to));
-          return (
-            <button key={to} onClick={() => handleNav(to)} title={collapsed ? label : undefined}
-              style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '9px' : '8px 10px', borderRadius: 8, border: 'none', background: active ? 'var(--c-acd)' : 'transparent', color: active ? 'var(--c-ac)' : 'var(--c-mu)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', marginBottom: 1, transition: 'all .12s', borderLeft: active ? '2px solid var(--c-ac)' : '2px solid transparent' }}
-              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--c-sf2)'; e.currentTarget.style.color = 'var(--c-br)'; }}}
-              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-mu)'; }}}>
-              <NavIcon size={14} />
-              {!collapsed && label}
-            </button>
-          );
-        })}
+        {navGroups.map((group, gi) => (
+          <div key={group.label} style={{ marginTop: gi === 0 ? 0 : 8 }}>
+            {!collapsed && (
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: 1, padding: '6px 10px 4px', opacity: .7 }}>{group.label}</div>
+            )}
+            {group.items.map(({ to, label, Icon: NavIcon }) => {
+              const active = path === to || (to !== '/dashboard' && path.startsWith(to));
+              return (
+                <button key={to} onClick={() => handleNav(to)} title={collapsed ? label : undefined}
+                  style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '9px' : '8px 10px', borderRadius: 8, border: 'none', background: active ? 'var(--c-acd)' : 'transparent', color: active ? 'var(--c-ac)' : 'var(--c-mu)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', marginBottom: 1, transition: 'all .12s', borderLeft: active ? '2px solid var(--c-ac)' : '2px solid transparent' }}
+                  onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--c-sf2)'; e.currentTarget.style.color = 'var(--c-br)'; }}}
+                  onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-mu)'; }}}>
+                  <NavIcon size={14} />
+                  {!collapsed && label}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Bottom */}
       <div style={{ padding: collapsed ? '8px 6px 12px' : '8px 8px 12px', borderTop: '1px solid var(--c-bd)', flexShrink: 0 }}>
         {!collapsed && (
           <>
-            {/* Neues Projekt */}
-            <button className="abtn" onClick={onNewProject} style={{ width: '100%', justifyContent: 'center', marginBottom: 6, fontSize: 12 }}>
-              <IcoPlus size={12} /> Neues Projekt
-            </button>
+            {/* Neues Projekt (0.6: nur Ausbilder — Azubi/Mentor bekommen Projekte zugewiesen) */}
+            {isAusbilder && (
+              <button className="abtn" onClick={onNewProject} style={{ width: '100%', justifyContent: 'center', marginBottom: 6, fontSize: 12 }}>
+                <IcoPlus size={12} /> Neues Projekt
+              </button>
+            )}
 
             {/* Export / Import */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
@@ -706,9 +727,9 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
             {/* User → klickbar → Profil-Seite */}
             <button onClick={() => handleNav('/profile')} title="Mein Profil"
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--c-sf2)', marginBottom: 5, border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background .1s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--c-sf3)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--c-sf2)'}>
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: path === '/profile' ? 'var(--c-acd)' : 'var(--c-sf2)', marginBottom: 5, border: 'none', borderLeft: path === '/profile' ? '2px solid var(--c-ac)' : '2px solid transparent', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background .1s' }}
+              onMouseEnter={e => { if (path !== '/profile') e.currentTarget.style.background = 'var(--c-sf3)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = path === '/profile' ? 'var(--c-acd)' : 'var(--c-sf2)'; }}>
               {currentUser?.avatar_url
                 ? <img src={currentUser.avatar_url} alt={currentUser.name} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.1)' }} />
                 : <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: `hsl(${hue},45%,22%)`, border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: `hsl(${hue},65%,75%)` }}>
@@ -727,9 +748,11 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
 
         {collapsed && (
           <>
-            <button onClick={onNewProject} title="Neues Projekt" className="abtn" style={{ width: '100%', padding: '8px', justifyContent: 'center', marginBottom: 4, fontSize: 14 }}>
-              <IcoPlus size={14} />
-            </button>
+            {isAusbilder && (
+              <button onClick={onNewProject} title="Neues Projekt" className="abtn" style={{ width: '100%', padding: '8px', justifyContent: 'center', marginBottom: 4, fontSize: 14 }}>
+                <IcoPlus size={14} />
+              </button>
+            )}
             <button onClick={() => handleNav('/profile')} title="Mein Profil"
               style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: 'var(--c-sf2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
               {currentUser?.avatar_url
@@ -772,9 +795,11 @@ function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
   const project = data?.projects?.find((p: Project) => p.id === id);
 
   // updates bleibt any: ProjectDetail liefert heterogene Patches (UpdateFn = (id:any, patch:any)).
+  // Phase 2: Mentor = nur lesend. Alle Projekt-Schreibpfade laufen durch diesen choke point.
   const handleUpdate = useCallback((projectId: string, updates: any) => {
+    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
     setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
-  }, [data, setData]);
+  }, [data, setData, currentUser, showToast]);
 
   const handleArchive = useCallback((projectId: string) => {
     setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) });
@@ -1061,11 +1086,12 @@ function CalendarPage({ showToast }: { showToast: ShowToast }) {
 function GroupsPage({ showToast }: { showToast: ShowToast }) {
   const store = useAppStore();
   const data = store.data as AppState | null;
+  const currentUser = store.currentUser as User | null;
   const setData = store.setData;
   // groups: GroupsView-eigener Group-Typ (nicht in types.ts) → any belassen.
   const handleUpdateGroups = useCallback((groups: any) => setData({ ...data, groups }), [data, setData]);
   // groups/projects: GroupsView erwartet eigene Group/GroupProject-Typen (enger als AppState-Blob) → cast.
-  return <GroupsView groups={(data?.groups||[]) as any} users={data?.users||[]} projects={(data?.projects||[]) as any} onUpdateGroups={handleUpdateGroups} showToast={showToast} />;
+  return <GroupsView groups={(data?.groups||[]) as any} users={data?.users||[]} projects={(data?.projects||[]) as any} onUpdateGroups={handleUpdateGroups} showToast={showToast} canManage={currentUser?.role === 'ausbilder'} />;
 }
 
 function AzubiProfileWrapper() {
@@ -1088,16 +1114,18 @@ function UsersPage({ showToast }: { showToast: ShowToast }) {
   return <UsersView users={(data?.users || []) as any} onUpdateUsers={handleUpdate} showToast={showToast} />;
 }
 
-function DashboardPage({ onNewProject, showToast: _showToast }: { onNewProject: () => void; showToast: ShowToast }) {
+function DashboardPage({ onNewProject, showToast }: { onNewProject: () => void; showToast: ShowToast }) {
   const navigate = useNavigate();
   const store = useAppStore();
   const data = store.data as AppState | null;
-  const currentUser = store.currentUser;
+  const currentUser = store.currentUser as User | null;
   const setData = store.setData;
   // updates bleibt any: Dashboard onUpdateProject = (id:any, patch:any).
+  // Phase 2: Mentor = nur lesend (z.B. Task-Toggle in ProjectCard).
   const handleUpdate = useCallback((projectId: string, updates: any) => {
+    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
     setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
-  }, [data, setData]);
+  }, [data, setData, currentUser, showToast]);
   return (
     <Dashboard user={currentUser} projects={data?.projects||[]} users={data?.users||[]} reports={data?.reports||[]} calendarEvents={data?.calendarEvents||[]}
       activityLog={data?.activityLog||[]}
@@ -1319,7 +1347,7 @@ const App = () => {
   }, [showToast]);
 
   // J2: Konflikt-Handler — Server-Version übernehmen
-  const _acceptServer = useCallback(() => {
+  const acceptServer = useCallback(() => {
     if (!conflict?.serverData) { setConflict(null); return; }
     setData(conflict.serverData);
     dataService.setKnownVersion(conflict.serverVersion || 0);
@@ -1328,12 +1356,15 @@ const App = () => {
   }, [conflict, setData, showToast]);
 
   // J2: Konflikt-Handler — eigene Version forcieren
-  const _forceMine = useCallback(async () => {
+  const forceMine = useCallback(async () => {
     if (!conflict?.clientSnapshot) { setConflict(null); return; }
     await dataService.forceSave(conflict.clientSnapshot);
     setConflict(null);
     showToast('⚡ Deine Version wurde gespeichert');
   }, [conflict, showToast]);
+
+  // J2: Konflikt-Handler — frischen Server-Stand laden (eigene Änderungen verwerfen)
+  const reloadServer = useCallback(() => { window.location.reload(); }, []);
 
   // ── 401-Handler: Token abgelaufen → sauber ausloggen ─────
   // justLoggedInRef schützt vor sofortigem Logout wenn kurz nach Login
@@ -1438,13 +1469,14 @@ const App = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); if (currentUser) setShowSearch(s => !s); return; }
       if (inInput) return;
       if (e.key === '?') { if (currentUser) setShowShortcuts(s => !s); return; }
-      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && currentUser) { setShowModal(true); return; }
+      // Neues Projekt nur für Ausbilder (konsistent mit 0.6: Azubi/Mentor bekommen Projekte zugewiesen)
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && currentUser?.role === 'ausbilder') { setShowModal(true); return; }
       // G + letter navigation prefix
       if (e.key === 'g' && !e.ctrlKey && !e.metaKey) { gPrefix = true; clearTimeout(gTimer); gTimer = setTimeout(() => { gPrefix = false; }, 1200); return; }
       if (gPrefix) {
         gPrefix = false; clearTimeout(gTimer);
-        // Navigation dispatched via custom event (AppLayout handles it inside Router)
-        const map: Record<string, string> = { d: '/dashboard', p: '/projects', k: '/calendar', r: '/reports', u: '/users' };
+        // Navigation dispatched via custom event (AppLayout handles it inside Router) — rollenabhängig: /users nur Ausbilder
+        const map: Record<string, string> = { d: '/dashboard', p: '/projects', k: '/calendar', r: '/reports', t: '/training', l: '/learn', ...(currentUser?.role === 'ausbilder' ? { u: '/users' } : {}) };
         if (map[e.key]) window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: map[e.key] }));
       }
     };
@@ -1530,9 +1562,14 @@ const App = () => {
         <AuthPage
           onLogin={handleLogin}
           users={data?.users || []}
-          onRegister={async (newUser: User) => {
+          groups={(data?.groups || []) as any}
+          onRegister={async (newUser: User, groupId?: Id) => {
             const withUser = { ...data, users: [...(data?.users || []), newUser] };
-            const withActivity = addActivity(withUser, {
+            // Gruppencode: neuen Azubi direkt in die Gruppe aufnehmen
+            const withGroup = groupId
+              ? { ...withUser, groups: ((data?.groups || []) as any[]).map((g: any) => g.id === groupId ? { ...g, members: [...(g.members || []), newUser.id] } : g) }
+              : withUser;
+            const withActivity = addActivity(withGroup, {
               type: 'user_registered',
               userId: newUser.id,
               userName: newUser.name,
@@ -1593,6 +1630,15 @@ const App = () => {
         </AppLayout>
 
         {toast && <Toast payload={toast as any} onDismiss={dismissToast} />}
+        {conflict && (
+          <ConflictDialog
+            payload={conflict}
+            onAcceptServer={acceptServer}
+            onForceMine={forceMine}
+            onReload={reloadServer}
+            onClose={acceptServer}
+          />
+        )}
         {showSearch    && <GlobalSearch   data={data} onClose={() => setShowSearch(false)} />}
         {showShortcuts && <ShortcutsHelp  onClose={() => setShowShortcuts(false)} />}
         {showBackups   && (
@@ -1615,6 +1661,7 @@ const App = () => {
               currentUser={currentUser}
               onDone={doneOnboarding}
               onNewProject={() => { doneOnboarding(); handleNewProject(); }}
+              onFirstReport={() => { doneOnboarding(); window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: '/reports' })); }}
             />
           </Suspense>
         )}

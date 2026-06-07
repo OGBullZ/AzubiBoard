@@ -22,7 +22,7 @@ const STATUS_REPORT_META = {
   draft:     { c: C.mu,  bg: 'var(--c-sf2)' },
   submitted: { c: C.ac,  bg: C.acd          },
   reviewed:  { c: C.yw,  bg: C.ywd          },
-  signed:    { c: C.gr,  bg: '#07130a'      },
+  signed:    { c: C.gr,  bg: 'var(--st-green-bg)'      },
 };
 
 function useStatusReport() {
@@ -39,7 +39,7 @@ const STATUS_REPORT = {
   draft:     { l: 'Entwurf',        c: C.mu,  bg: 'var(--c-sf2)' },
   submitted: { l: 'Eingereicht',    c: C.ac,  bg: C.acd          },
   reviewed:  { l: 'Geprüft',        c: C.yw,  bg: C.ywd          },
-  signed:    { l: 'Unterschrieben', c: C.gr,  bg: '#07130a'      },
+  signed:    { l: 'Unterschrieben', c: C.gr,  bg: 'var(--st-green-bg)'      },
 };
 
 function getMonday(d = new Date()) {
@@ -151,6 +151,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     sectionComments:  report?.sectionComments  || { activities: [], learnings: [] },
   });
   const [newComment,  setNewComment]  = useState<Record<string, string>>({ activities: '', learnings: '' });
+  const [wsError,     setWsError]     = useState('');  // 0.8: leeres week_start = Inline-Fehler statt stillem Default
   const [tab,         setTab]         = useState<string>('text');
   const [copied,      setCopied]      = useState('');
   const [showOcr,     setShowOcr]     = useState(false);
@@ -234,9 +235,15 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const handleDrop = (e: any) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFile(file); };
 
   const save = () => {
-    // week_start kann leer sein (Date-Input gecleart) → getFullYear() wäre NaN
+    // 0.8: leeres/ungültiges week_start nicht still defaulten, sondern als Inline-Fehler melden
     const ws = new Date(form.week_start);
-    const year = Number.isNaN(ws.getTime()) ? new Date().getFullYear() : ws.getFullYear();
+    if (!form.week_start || Number.isNaN(ws.getTime())) {
+      setWsError('Bitte eine gültige Berichtswoche wählen.');
+      setTab('text');
+      return;
+    }
+    setWsError('');
+    const year = ws.getFullYear();
     const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year, updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
     onSave(newReport as Report);
     showToast('✓ Berichtsheft gespeichert');
@@ -410,7 +417,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
           <div className="card">
             <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.metadataLabel')}</div>
             <Field label={t('report.weekStart')}>
-              <input type="date" value={form.week_start} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, week_start: e.target.value }))} />
+              <input type="date" value={form.week_start} max={new Date().toISOString().split('T')[0]} disabled={!isOwner || readOnly} onChange={e => { setWsError(''); setForm((f: any) => ({ ...f, week_start: e.target.value })); }} />
+              {wsError && <div role="alert" style={{ fontSize: 11, color: C.cr, marginTop: 4 }}>{wsError}</div>}
             </Field>
             <Field label={t('report.weekTitle')}>
               <input value={form.title} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="z.B. Projektarbeit Woche 3" />
@@ -458,7 +466,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                     <IcoCheck size={12} /> {t('report.markReviewed')}
                   </button>
                 )}
-                {['reviewed'].includes(report?.status as string) && (
+                {/* Phase 2: Direkt-Unterschreiben auch bei 'submitted' (wie auf der Karte) — Geprüft-Zwischenschritt optional */}
+                {['submitted','reviewed'].includes(report?.status as string) && (
                   <button className="abtn"
                     onClick={() => { onSave({ ...report, ...form, status: 'signed', signed_at: new Date().toISOString() }); showToast('✓ Unterschrieben'); }}
                     style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, background: C.gr }}>
@@ -676,7 +685,8 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   const reports: Report[] = data.reports || [];
   const [view,    setView]   = useState('list');
   const [editing, setEditing]= useState<Report | null>(null);
-  const [filter,  setFilter] = useState('alle');
+  // 0.5: Ausbilder steigen direkt bei den zu prüfenden (eingereichten) Berichten ein
+  const [filter,  setFilter] = useState(() => isAusbilder(currentUser) ? 'submitted' : 'alle');
   const [search,  setSearch] = useState('');
   const dSearch = useDebounce(search);
   const [confirmDel, setConfirmDel] = useState<Id | null>(null);
@@ -807,7 +817,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
           return (
             <div key={k} onClick={() => setFilter(filter === k ? 'alle' : k)}
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px', background: filter === k ? v.c + '18' : 'var(--c-sf2)', border: `1px solid ${filter === k ? v.c + '50' : 'var(--c-bd)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all .12s' }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: v.c, fontFamily: "'Syne',sans-serif", lineHeight: 1 }}>{cnt}</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: v.c, lineHeight: 1 }}>{cnt}</span>
               <span style={{ fontSize: 10, color: C.mu, fontWeight: 600, textTransform: 'uppercase', letterSpacing: .7 }}>{v.l}</span>
             </div>
           );

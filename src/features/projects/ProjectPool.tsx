@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from 'react-i18next';
-import { C, fmtDate } from '../../lib/utils.js';
+import { C, ST, fmtDate } from '../../lib/utils.js';
 import { useDebounce } from '../../lib/hooks.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
@@ -154,7 +154,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                 const au   = users.filter(u => (p.assignees||[]).includes(u.id));
                 const done = (p.tasks||[]).filter(t => t.status === 'done' || t.done).length;
                 const pct  = (p.tasks||[]).length > 0 ? Math.round(done / (p.tasks||[]).length * 100) : 0;
-                const sc   = p.status === 'green' ? C.gr : p.status === 'red' ? C.cr : C.yw;
+                const sc   = (ST[p.status as keyof typeof ST] || ST.yellow).c;
                 const over = p.deadline && new Date(p.deadline) < new Date();
                 return (
                   <tr key={p.id}
@@ -213,7 +213,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
               const grp   = groups.find(g => g.id === p.groupId);
               const done  = (p.tasks||[]).filter(t => t.status === 'done' || t.done).length;
               const pct   = (p.tasks||[]).length > 0 ? Math.round(done / (p.tasks||[]).length * 100) : null;
-              const sc    = p.status === 'green' ? C.gr : p.status === 'red' ? C.cr : C.yw;
+              const sc    = (ST[p.status as keyof typeof ST] || ST.yellow).c;
               const activ = (p.tasks||[]).filter(t => t.status === 'in_progress').length;
               const lc    = (p.links || []).length;
               return (
