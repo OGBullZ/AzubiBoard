@@ -483,6 +483,13 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
       {popup === 'requirements' && <RequirementsPopup project={project} onUpdate={onUpdate} onClose={() => setPopup(null)} />}
       {popup === 'links'        && <LinksPopup        project={project} onUpdate={onUpdate} onClose={() => setPopup(null)} />}
 
+      {/* Phase 2: Mentor = nur lesend (Schreibpfade sind am onUpdate-choke-point gesperrt) */}
+      {currentUser?.role === 'mentor' && (
+        <div style={{ background: 'var(--c-ywd)', color: C.yw, borderBottom: `1px solid ${C.yw}35`, padding: '6px 18px', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+          🔒 Mentor-Ansicht — nur lesend
+        </div>
+      )}
+
       <div style={{ background: 'var(--c-sf)', borderBottom: `1px solid var(--c-bd)`, padding: '10px 18px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: editMode ? 10 : 6, flexWrap: 'wrap' }}>
           <button className="btn" onClick={onBack} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -499,9 +506,11 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
             {activeCount > 0 && <span style={{ fontSize: 9, color: C.ac, background: C.acd, borderRadius: 4, padding: '2px 7px', fontFamily: C.mono, fontWeight: 800 }}>▶ {activeCount} aktiv</span>}
             {!editMode ? (
               <>
-                <button className="btn" onClick={() => { setForm({ ...project }); setEditMode(true); }} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IcoEdit size={12} /> Bearbeiten
-                </button>
+                {currentUser?.role !== 'mentor' && (
+                  <button className="btn" onClick={() => { setForm({ ...project }); setEditMode(true); }} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <IcoEdit size={12} /> Bearbeiten
+                  </button>
+                )}
                 {onArchive && currentUser.role === 'ausbilder' && !project.archived && (
                   <button className="btn" onClick={() => onArchive(project.id)} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, color: C.mu }}>
                     <IcoArchive size={12} /> Archivieren

@@ -776,9 +776,11 @@ function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
   const project = data?.projects?.find((p: Project) => p.id === id);
 
   // updates bleibt any: ProjectDetail liefert heterogene Patches (UpdateFn = (id:any, patch:any)).
+  // Phase 2: Mentor = nur lesend. Alle Projekt-Schreibpfade laufen durch diesen choke point.
   const handleUpdate = useCallback((projectId: string, updates: any) => {
+    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
     setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
-  }, [data, setData]);
+  }, [data, setData, currentUser, showToast]);
 
   const handleArchive = useCallback((projectId: string) => {
     setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) });
@@ -1092,16 +1094,18 @@ function UsersPage({ showToast }: { showToast: ShowToast }) {
   return <UsersView users={(data?.users || []) as any} onUpdateUsers={handleUpdate} showToast={showToast} />;
 }
 
-function DashboardPage({ onNewProject, showToast: _showToast }: { onNewProject: () => void; showToast: ShowToast }) {
+function DashboardPage({ onNewProject, showToast }: { onNewProject: () => void; showToast: ShowToast }) {
   const navigate = useNavigate();
   const store = useAppStore();
   const data = store.data as AppState | null;
-  const currentUser = store.currentUser;
+  const currentUser = store.currentUser as User | null;
   const setData = store.setData;
   // updates bleibt any: Dashboard onUpdateProject = (id:any, patch:any).
+  // Phase 2: Mentor = nur lesend (z.B. Task-Toggle in ProjectCard).
   const handleUpdate = useCallback((projectId: string, updates: any) => {
+    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
     setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
-  }, [data, setData]);
+  }, [data, setData, currentUser, showToast]);
   return (
     <Dashboard user={currentUser} projects={data?.projects||[]} users={data?.users||[]} reports={data?.reports||[]} calendarEvents={data?.calendarEvents||[]}
       activityLog={data?.activityLog||[]}
