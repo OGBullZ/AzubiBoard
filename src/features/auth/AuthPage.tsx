@@ -22,6 +22,9 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [name, setName] = useState('');
+  // Registrierung Minimal-Setup (Azubi): Beruf + Lehrjahr (Phase 2)
+  const [profession, setProfession] = useState('');
+  const [apprenticeshipYear, setApprenticeshipYear] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   // K1: 2FA-Stufe nach Passwort-Eingabe
@@ -96,14 +99,14 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
         setToken(token);
         // onRegister statt onLogin: fügt Nutzer auch zum Blob hinzu
         // (wichtig für Aufgabenzuweisungen etc.)
-        onRegister({ ...user, id: String(user.id) });
+        onRegister({ ...user, id: String(user.id), profession: profession.trim() || undefined, apprenticeship_year: apprenticeshipYear ? Number(apprenticeshipYear) : undefined });
       } else {
         // ── Lokaler Modus ────────────────────────────────────
         if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
           setErr(t('auth.alreadyRegistered')); setLoading(false); return;
         }
         const hashed = await hashPassword(pw);
-        const newUser = { id: uid(), name: name.trim(), email: email.trim(), password: hashed, role: 'azubi' as const };
+        const newUser = { id: uid(), name: name.trim(), email: email.trim(), password: hashed, role: 'azubi' as const, profession: profession.trim() || undefined, apprenticeship_year: apprenticeshipYear ? Number(apprenticeshipYear) : undefined };
         saveSession(newUser.id);
         onRegister(newUser);
       }
@@ -181,6 +184,24 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
               <div style={{ marginBottom: 16 }}>
                 <label htmlFor="reg-name" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>{t('auth.fullName')}</label>
                 <input id="reg-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Max Mustermann" autoComplete="name" autoFocus style={{ width: '100%', padding: '12px 16px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.tx, fontFamily: 'inherit', transition: 'border .2s', boxSizing: 'border-box' }} onFocus={e => e.target.style.borderColor = C.ac} onBlur={e => e.target.style.borderColor = C.bd2} />
+              </div>
+            )}
+            {mode === 'register' && (
+              <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
+                <div style={{ flex: 2, minWidth: 0 }}>
+                  <label htmlFor="reg-prof" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>Beruf <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></label>
+                  <input id="reg-prof" type="text" value={profession} onChange={e => setProfession(e.target.value)} placeholder="z.B. Fachinformatiker/in" style={{ width: '100%', padding: '12px 16px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.tx, fontFamily: 'inherit', transition: 'border .2s', boxSizing: 'border-box' }} onFocus={e => e.target.style.borderColor = C.ac} onBlur={e => e.target.style.borderColor = C.bd2} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <label htmlFor="reg-year" style={{ fontSize: 12, fontWeight: 600, color: C.mu, textTransform: 'uppercase', letterSpacing: 0.3, display: 'block', marginBottom: 8 }}>Lehrjahr</label>
+                  <select id="reg-year" value={apprenticeshipYear} onChange={e => setApprenticeshipYear(e.target.value)} style={{ width: '100%', padding: '12px 16px', fontSize: 13, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.tx, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                    <option value="">–</option>
+                    <option value="1">1. Lehrjahr</option>
+                    <option value="2">2. Lehrjahr</option>
+                    <option value="3">3. Lehrjahr</option>
+                    <option value="4">4. Lehrjahr</option>
+                  </select>
+                </div>
               </div>
             )}
             <div style={{ marginBottom: 16 }}>
