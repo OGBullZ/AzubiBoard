@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { CSSProperties, ReactNode, ComponentType } from 'react';
+import type { CSSProperties, ReactNode, ComponentType, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { C, ST } from '../lib/utils.js';
 import { IcoMoon, IcoSun } from './Icons.jsx';
@@ -196,8 +196,15 @@ type StatCardProps = {
 };
 
 export function StatCard({ label, value, color, sub, Icon, onClick }: StatCardProps) {
+  // Phase 4: bei onClick echte Button-Semantik (Tastatur: Enter/Space)
+  const interactive = !!onClick;
   return (
-    <div className="card" style={{ borderLeft: `3px solid ${color}`, padding: '12px 16px', position: 'relative', overflow: 'hidden', cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
+    <div className="card"
+      {...(interactive ? {
+        role: 'button', tabIndex: 0,
+        onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(); } },
+      } : {})}
+      style={{ borderLeft: `3px solid ${color}`, padding: '12px 16px', position: 'relative', overflow: 'hidden', cursor: interactive ? 'pointer' : 'default' }} onClick={onClick}>
       {Icon && <div style={{ position: 'absolute', right: 10, bottom: 8, opacity: .06, color }} aria-hidden="true"><Icon size={36} /></div>}
       <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .9, fontWeight: 700, marginBottom: 5 }}>{label}</div>
       <div style={{ fontSize: 32, fontWeight: 800, color, lineHeight: 1, fontFamily: C.sans, fontVariantNumeric: 'tabular-nums', letterSpacing: -1 }}>{value}</div>

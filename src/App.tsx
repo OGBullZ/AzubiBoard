@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData, addActivity } from './lib/utils';
-import { useDebounce } from './lib/hooks';
+import { useDebounce, useDialog } from './lib/hooks';
 import { clearToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
@@ -416,11 +416,7 @@ function NotificationBell({ collapsed }: { collapsed: boolean }) {
 
 // ── Keyboard Shortcuts Help ───────────────────────────────────
 function ShortcutsHelp({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === '?') onClose(); };
-    document.addEventListener('keydown', fn);
-    return () => document.removeEventListener('keydown', fn);
-  }, [onClose]);
+  const ref = useDialog<HTMLDivElement>(onClose);  // Phase 4: Escape + Fokus-Trap + Body-Lock ('?' schließt via globalem Handler)
 
   const groups = [
     { title: 'Navigation', items: [['G dann D', 'Dashboard'],['G dann P', 'Projekte'],['G dann K', 'Kalender'],['G dann R', 'Berichte'],['G dann T', 'Ausbildungsplan'],['G dann L', 'Lernbereich'],['G dann U', 'Nutzer (Ausbilder)']] },
@@ -431,7 +427,7 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 910, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 14, width: 480, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label="Tastaturkürzel" tabIndex={-1} style={{ background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 14, width: 480, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.6)', outline: 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--c-bd)' }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--c-br)' }}>⌨️ Tastaturkürzel</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--c-mu)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
@@ -474,11 +470,7 @@ function GlobalSearch({ data, onClose }: { data: AppState | null; onClose: () =>
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { ref.current?.focus(); }, []);
-  useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', fn);
-    return () => document.removeEventListener('keydown', fn);
-  }, [onClose]);
+  const dialogRef = useDialog<HTMLDivElement>(onClose);  // Phase 4: Escape + Fokus-Trap + Body-Lock
 
   // Server-FULLTEXT wenn API aktiv und mind. 2 Zeichen
   useEffect(() => {
@@ -534,7 +526,7 @@ function GlobalSearch({ data, onClose }: { data: AppState | null; onClose: () =>
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 900, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '15vh' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 14, width: '100%', maxWidth: 560, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Suche" style={{ background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 14, width: '100%', maxWidth: 560, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--c-bd)' }}>
           <IcoSearch size={16} style={{ color: 'var(--c-mu)', flexShrink: 0 }} />
           <input ref={ref} value={q} onChange={e => setQ(e.target.value)} placeholder="Projekte, Nutzer, Berichte, Termine, Lernpfade…"
@@ -802,8 +794,9 @@ function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
   }, [data, setData, currentUser, showToast]);
 
   const handleArchive = useCallback((projectId: string) => {
+    const snapshot = data;
     setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) });
-    showToast('Projekt archiviert');
+    showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });  // Phase 4: Undo konsistent zur Listen-Archivierung
   }, [data, setData, showToast]);
 
   // entry/prev: addActivity-Boundary (utils.js liefert Blob-Form) → any belassen.
@@ -923,7 +916,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
   };
 
   const tabBtn = (key: string, label: string) => (
-    <button key={key} onClick={() => setTab(key)}
+    <button key={key} onClick={() => setTab(key)} role="tab" aria-selected={tab === key}
       style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none',
         background: tab === key ? 'var(--c-ac)' : 'transparent',
         color: tab === key ? '#fff' : 'var(--c-mu)', transition: 'all .15s' }}>
@@ -1532,7 +1525,16 @@ const App = () => {
     e.target.value = '';
   }, [setData, showToast]);
 
-  if (!data) return null;
+  // Bootstrap-Ladezustand (Phase 4): voller Splash statt leerem Screen (wirkte wie Absturz)
+  if (!data) return (
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, background: 'var(--c-bg)' }}>
+      <div style={{ width: 44, height: 44, borderRadius: 11, background: 'linear-gradient(135deg, var(--c-ac), #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: '#fff', boxShadow: '0 4px 16px rgba(0,113,227,0.35)' }}>A</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'var(--c-mu)', fontSize: 13 }}>
+        <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid var(--c-bd2)', borderTopColor: 'var(--c-ac)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        AzubiBoard lädt …
+      </div>
+    </div>
+  );
 
   // J10: Public Share-Route — bypassed Auth & AppLayout (kein Login nötig)
   // BrowserRouter + Path: /azubiboard/share/:token funktioniert auch ohne

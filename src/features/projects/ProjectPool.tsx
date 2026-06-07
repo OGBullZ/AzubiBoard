@@ -135,11 +135,16 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
       </div>
 
       <div style={{ flex: 1, overflow: 'auto' }}>
-        {visible.length === 0 ? (
-          <EmptyState Icon={IcoSearch} title={t('project.noProjects')}
-            subtitle={dSearch ? `Nichts für "${dSearch}"` : t('project.noProjectsCategory')}
-            action={!dSearch ? '+ ' + t('project.newProject') : undefined} onAction={!dSearch ? onNew : undefined} />
-        ) : viewMode === 'table' ? (
+        {visible.length === 0 ? (() => {
+          // Phase 4: bei aktivem Filter/Suche „Filter zurücksetzen" statt „Neu anlegen"
+          const isFiltered = filter !== 'all' || !!dSearch;
+          return (
+            <EmptyState Icon={IcoSearch} title={t('project.noProjects')}
+              subtitle={dSearch ? `Nichts für "${dSearch}"` : t('project.noProjectsCategory')}
+              action={isFiltered ? 'Filter zurücksetzen' : '+ ' + t('project.newProject')}
+              onAction={isFiltered ? () => { setFilter('all'); setSearch(''); } : onNew} />
+          );
+        })() : viewMode === 'table' ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid var(--c-bd)`, textAlign: 'left' }}>

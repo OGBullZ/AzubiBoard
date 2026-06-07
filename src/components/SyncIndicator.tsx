@@ -4,6 +4,7 @@
 // ============================================================
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { dataService } from '../lib/dataService.js';
 
 type SyncStateKind = 'syncing' | 'success' | 'error' | 'fatal' | 'offline';
 
@@ -80,6 +81,21 @@ export default function SyncIndicator() {
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {cfg.label}
       </span>
+      {(state.kind === 'error' || state.kind === 'fatal') && (
+        <>
+          {state.error && (
+            <span title={state.error} style={{ color: 'var(--c-mu)', fontWeight: 400, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              · {state.error}
+            </span>
+          )}
+          <button onClick={() => { dataService.retry(); setState({ kind: 'syncing' }); }}
+            style={{ border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-tx)', borderRadius: 6, fontSize: 11, fontWeight: 700, padding: '2px 8px', cursor: 'pointer' }}>
+            {t('sync.retry')}
+          </button>
+          <button onClick={() => setState(null)} aria-label={t('ui.closeDialog')}
+            style={{ border: 'none', background: 'transparent', color: 'var(--c-mu)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px' }}>×</button>
+        </>
+      )}
       <style>{`
         @keyframes syncSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
         @keyframes syncPop  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

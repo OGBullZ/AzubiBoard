@@ -152,6 +152,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   });
   const [newComment,  setNewComment]  = useState<Record<string, string>>({ activities: '', learnings: '' });
   const [wsError,     setWsError]     = useState('');  // 0.8: leeres week_start = Inline-Fehler statt stillem Default
+  const [pendingTpl,  setPendingTpl]  = useState<{ label: string; activities: string; learnings: string } | null>(null);  // Phase 4: Vorlage bei nicht-leerem Text bestätigen
   const [tab,         setTab]         = useState<string>('text');
   const [copied,      setCopied]      = useState('');
   const [showOcr,     setShowOcr]     = useState(false);
@@ -164,7 +165,12 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const readOnly = (report?.status !== 'draft' && !isReview) || (!isOwner && isStaff(currentUser) && !isReview);
   const kw       = getKW(form.week_start);
 
-  const applyTemplate = (tmpl: { label: string; activities: string; learnings: string }) => { setForm((f: any) => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
+  const insertTemplate = (tmpl: { label: string; activities: string; learnings: string }) => { setForm((f: any) => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
+  // Phase 4: bei vorhandenem Text erst bestätigen (Datenverlust vermeiden)
+  const applyTemplate = (tmpl: { label: string; activities: string; learnings: string }) => {
+    if (form.activities?.trim() || form.learnings?.trim()) { setPendingTpl(tmpl); return; }
+    insertTemplate(tmpl);
+  };
 
   const autoFillFromTasks = () => {
     const ws  = form.week_start;
@@ -385,10 +391,9 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
           <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>{report ? t('report.editTitle', { kw }) : t('report.newTitle')}</div>
           {report?.status && <div style={{ fontSize: 10, color: STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.c, fontWeight: 700 }}>● {STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.l}</div>}
         </div>
-        <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, gap: 3 }}>
-          { }
+        <div role="tablist" style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, gap: 3 }}>
           {([['text', t('report.tabText'), IcoDoc], ['upload', t('report.tabPdf'), IcoReport]] as [string, string, any][]).map(([k, l, Icon]) => (
-            <button key={k} onClick={() => setTab(k)}
+            <button key={k} onClick={() => setTab(k)} role="tab" aria-selected={tab === k}
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', background: tab === k ? C.ac : 'transparent', color: tab === k ? '#fff' : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
               <Icon size={12} />{l}
             </button>
@@ -449,6 +454,14 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                   </button>
                 ))}
               </div>
+              {pendingTpl && (
+                <ConfirmDialog
+                  message={`Vorlage „${pendingTpl.label}" einfügen? Der vorhandene Text in Tätigkeiten/Lerninhalt wird überschrieben.`}
+                  confirmLabel="Überschreiben" danger
+                  onConfirm={() => { insertTemplate(pendingTpl); setPendingTpl(null); }}
+                  onCancel={() => setPendingTpl(null)}
+                />
+              )}
             </div>
           )}
 
@@ -815,11 +828,11 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         {Object.entries(STATUS_REPORT_I18N).map(([k, v]) => {
           const cnt = myReports.filter((r: Report) => r.status === k).length;
           return (
-            <div key={k} onClick={() => setFilter(filter === k ? 'alle' : k)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px', background: filter === k ? v.c + '18' : 'var(--c-sf2)', border: `1px solid ${filter === k ? v.c + '50' : 'var(--c-bd)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all .12s' }}>
+            <button key={k} type="button" onClick={() => setFilter(filter === k ? 'alle' : k)} aria-pressed={filter === k} title={`Filter: ${v.l}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px', background: filter === k ? v.c + '18' : 'var(--c-sf2)', border: `1px solid ${filter === k ? v.c + '50' : 'var(--c-bd)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all .12s', font: 'inherit' }}>
               <span style={{ fontSize: 18, fontWeight: 800, color: v.c, lineHeight: 1 }}>{cnt}</span>
               <span style={{ fontSize: 10, color: C.mu, fontWeight: 600, textTransform: 'uppercase', letterSpacing: .7 }}>{v.l}</span>
-            </div>
+            </button>
           );
         })}
         {filter !== 'alle' && (
