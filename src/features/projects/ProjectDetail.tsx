@@ -657,13 +657,15 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 onClick={() => setPopup('materials')}
                 hint="Bearbeiten" />
 
-              <div className="card" style={{ borderLeft: `3px solid var(--c-bd2)`, cursor: 'pointer', transition: 'box-shadow .15s' }}
-                onClick={() => setPopup('zeitraum')}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+              {/* Phase 4: eine Speicher-Semantik pro Feld — im Edit-Mode editiert man Start/Deadline im Formular oben;
+                  die Kachel ist dann nur Anzeige (sonst zwei widersprüchliche Pfade: Formular vs. Popup). */}
+              <div className="card" style={{ borderLeft: `3px solid var(--c-bd2)`, cursor: editMode ? 'default' : 'pointer', transition: 'box-shadow .15s' }}
+                onClick={editMode ? undefined : () => setPopup('zeitraum')}
+                onMouseEnter={e => { if (!editMode) e.currentTarget.style.boxShadow = 'var(--shadow)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}>
                 <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   Zeitraum
-                  <span style={{ fontSize: 9, color: C.ac, fontWeight: 700 }}>Bearbeiten →</span>
+                  {!editMode && <span style={{ fontSize: 9, color: C.ac, fontWeight: 700 }}>Bearbeiten →</span>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 11, color: C.mu }}>Start</span>
