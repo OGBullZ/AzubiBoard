@@ -68,7 +68,7 @@ export function Chip({ value, label, color, animated = false }: ChipProps) {
   const n = animated && typeof value === 'number' ? counted : value;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 13px', background: color + '12', border: `1px solid ${color}25`, borderRadius: 8 }}>
-      <span style={{ fontSize: 18, fontWeight: 800, color, fontFamily: "'Syne',system-ui,sans-serif", lineHeight: 1, letterSpacing: -0.5 }}>
+      <span style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1, letterSpacing: -0.5 }}>
         {animated ? n : value}
       </span>
       <span style={{ fontSize: 10, color: C.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: .7, lineHeight: 1.3 }}>

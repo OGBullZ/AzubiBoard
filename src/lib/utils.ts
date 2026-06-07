@@ -23,15 +23,16 @@ export const C = {
   bd:   'var(--c-bd)',
   bd2:  'var(--c-bd2)',
 
-  // Akzentfarben (Hex — siehe Hinweis oben)
+  // Akzent-Vollton: Hex — nicht themebar (index.css überschreibt nur die *d-Tints) + in Alpha-Arithmetik
   ac:   '#0071E3',
-  acd:  'rgba(0, 113, 227, 0.1)',
   gr:   '#34C759',
-  grd:  'rgba(52, 199, 89, 0.1)',
   cr:   '#FF3B30',
-  crd:  'rgba(255, 59, 48, 0.1)',
   yw:   '#FF9500',
-  ywd:  'rgba(255, 149, 0, 0.1)',
+  // Akzent-Tints: themebar → var(--c-*d) (index.css [data-theme=light] passt die Deckkraft an)
+  acd:  'var(--c-acd)',
+  grd:  'var(--c-grd)',
+  crd:  'var(--c-crd)',
+  ywd:  'var(--c-ywd)',
 
   // Aliase für Kompatibilität
   textPrimary:   'var(--c-br)',

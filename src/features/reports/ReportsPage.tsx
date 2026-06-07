@@ -22,7 +22,7 @@ const STATUS_REPORT_META = {
   draft:     { c: C.mu,  bg: 'var(--c-sf2)' },
   submitted: { c: C.ac,  bg: C.acd          },
   reviewed:  { c: C.yw,  bg: C.ywd          },
-  signed:    { c: C.gr,  bg: '#07130a'      },
+  signed:    { c: C.gr,  bg: 'var(--st-green-bg)'      },
 };
 
 function useStatusReport() {
@@ -39,7 +39,7 @@ const STATUS_REPORT = {
   draft:     { l: 'Entwurf',        c: C.mu,  bg: 'var(--c-sf2)' },
   submitted: { l: 'Eingereicht',    c: C.ac,  bg: C.acd          },
   reviewed:  { l: 'Geprüft',        c: C.yw,  bg: C.ywd          },
-  signed:    { l: 'Unterschrieben', c: C.gr,  bg: '#07130a'      },
+  signed:    { l: 'Unterschrieben', c: C.gr,  bg: 'var(--st-green-bg)'      },
 };
 
 function getMonday(d = new Date()) {
@@ -816,7 +816,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
           return (
             <div key={k} onClick={() => setFilter(filter === k ? 'alle' : k)}
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px', background: filter === k ? v.c + '18' : 'var(--c-sf2)', border: `1px solid ${filter === k ? v.c + '50' : 'var(--c-bd)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all .12s' }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: v.c, fontFamily: "'Syne',sans-serif", lineHeight: 1 }}>{cnt}</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: v.c, lineHeight: 1 }}>{cnt}</span>
               <span style={{ fontSize: 10, color: C.mu, fontWeight: 600, textTransform: 'uppercase', letterSpacing: .7 }}>{v.l}</span>
             </div>
           );

@@ -315,7 +315,7 @@ export function IconBtn({ Icon, onClick, label, danger = false, active = false, 
         ...s,
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.background = danger ? 'rgba(255, 59, 48, 0.2)' : active ? 'rgba(0, 113, 227, 0.2)' : 'rgba(0, 0, 0, 0.05)';
+        e.currentTarget.style.background = danger ? 'rgba(255, 59, 48, 0.2)' : active ? 'rgba(0, 113, 227, 0.2)' : 'var(--c-sf2)';
         e.currentTarget.style.color = danger ? C.critical : active ? C.primary : C.textPrimary;
         e.currentTarget.style.transform = 'scale(1.1)';
         e.currentTarget.style.boxShadow = danger ? 'var(--shadow-sm)' : active ? 'var(--shadow-sm)' : 'var(--shadow-xs)';

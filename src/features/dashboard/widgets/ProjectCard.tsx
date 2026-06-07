@@ -1,6 +1,6 @@
 import { memo, useState, useRef } from "react";
 import type { Project, Task, User } from '../../../types';
-import { C, fmtDate } from '../../../lib/utils.js';
+import { C, ST, fmtDate } from '../../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar } from '../../../components/UI.jsx';
 import { IcoCheck, IcoChevron, IcoChevronD, IcoPlus } from '../../../components/Icons.jsx';
 import { Ring, urgencyColor, urgencyLabel } from './_helpers.jsx';
@@ -42,7 +42,7 @@ function ProjectCardImpl({ project, users, onClick, onUpdate }: ProjectCardProps
   const pct    = total > 0 ? Math.round(done / total * 100) : 0;
   const active = project.tasks.filter(t => t.status === 'in_progress').length;
   const au     = users.filter(u => project.assignees.includes(u.id));
-  const sc     = project.status === 'green' ? C.gr : project.status === 'red' ? C.cr : C.yw;
+  const sc     = (ST[project.status as keyof typeof ST] || ST.yellow).c;
 
   const openTasks = project.tasks
     .filter(t => t.status !== 'done' && !t.done)
