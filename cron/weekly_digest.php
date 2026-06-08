@@ -11,12 +11,14 @@
 //    - Überfällige Tasks
 //    - Azubis ohne Aktivität ≥ 7 Tage
 //
-//  SMTP-Konfig: nutzt PHP-native mail() — auf einem Linux-Server
-//  mit konfiguriertem Postfix/Sendmail funktioniert das out-of-the-box.
-//  Für externe SMTP-Server (Mailgun/SendGrid/Office365) bitte PHPMailer
-//  installieren und in send_digest_mail() austauschen.
+//  Versand via api/mailer.php → send_mail(): nutzt PHPMailer/SMTP wenn
+//  SMTP_HOST gesetzt ist (config.php / .env), sonst Fallback auf native
+//  mail(). Für externe Provider (Mailgun/SendGrid/Office365) nur die
+//  SMTP_*-Env-Vars setzen — kein Code-Eingriff nötig.
 //
-//  Nicht-Live-getestet — braucht echten MTA auf dem Zielserver.
+//  Inhalts-Logik (Metriken/Betreff/Body) liegt in digest_lib.php (unit-
+//  getestet: tests/php/DigestTest.php). Der SMTP-Versand selbst ist nur
+//  gegen einen echten MTA verifizierbar ([Server]).
 // ============================================================
 
 declare(strict_types=1);
@@ -24,6 +26,7 @@ declare(strict_types=1);
 // Skript läuft unabhängig von cors() etc. — eigene minimale Bootstrap
 require_once __DIR__ . '/../api/config.php';
 require_once __DIR__ . '/../api/mailer.php';
+require_once __DIR__ . '/digest_lib.php';   // reine, testbare Digest-Helfer
 
 if (PHP_SAPI !== 'cli' && !getenv('FORCE_RUN')) {
     http_response_code(403);
@@ -57,19 +60,11 @@ $reports = $data['reports']  ?? [];
 $projects = $data['projects'] ?? [];
 $users    = $data['users']    ?? [];
 
-// ── Metriken berechnen ───────────────────────────────────────
-$submittedReports = array_values(array_filter($reports, fn($r) => ($r['status'] ?? '') === 'submitted'));
+// ── Metriken berechnen (reine Helfer aus digest_lib.php) ─────
+$submittedReports = digest_submitted_reports($reports);
 
 $today = strtotime('today');
-$overdueTasks = [];
-foreach ($projects as $p) {
-    foreach ($p['tasks'] ?? [] as $t) {
-        $dl = $t['deadline'] ?? null;
-        if (!$dl) continue;
-        if (($t['status'] ?? '') === 'done' || !empty($t['done'])) continue;
-        if (strtotime($dl) < $today) $overdueTasks[] = ['project' => $p['title'] ?? '?', 'task' => $t['text'] ?? '?', 'deadline' => $dl];
-    }
-}
+$overdueTasks = digest_overdue_tasks($projects, $today);
 
 // Azubis ohne Aktivität (letzter Login älter als 7 Tage)
 $sevenDaysAgo = $today - 7 * 86400;
@@ -98,67 +93,17 @@ if (empty($recipients)) {
     exit(0);
 }
 
-// ── Mail bauen + versenden ───────────────────────────────────
-function build_subject(int $reports, int $tasks, int $inactive): string {
-    $bits = [];
-    if ($reports > 0)  $bits[] = "$reports Berichte zu prüfen";
-    if ($tasks > 0)    $bits[] = "$tasks überfällige Aufgaben";
-    if ($inactive > 0) $bits[] = "$inactive inaktive Azubis";
-    return 'AzubiBoard Wochenrückblick' . (empty($bits) ? ' — alles im grünen Bereich' : ': ' . implode(', ', $bits));
-}
-
-function build_body(array $recipient, array $reports, array $tasks, array $inactive): string {
-    $name = $recipient['name'] ?? 'Ausbilder';
-    $out  = "Hallo $name,\n\nhier ist dein wöchentlicher AzubiBoard-Rückblick.\n\n";
-
-    if (!empty($reports)) {
-        $out .= "── Berichte zur Prüfung (" . count($reports) . ") ──\n";
-        foreach (array_slice($reports, 0, 10) as $r) {
-            $kw  = $r['week_number'] ?? '?';
-            $yr  = $r['year']        ?? '?';
-            $who = $r['user_name']   ?? 'Azubi';
-            $out .= " · KW $kw/$yr — $who\n";
-        }
-        if (count($reports) > 10) $out .= " · … und " . (count($reports) - 10) . " weitere\n";
-        $out .= "\n";
-    }
-
-    if (!empty($tasks)) {
-        $out .= "── Überfällige Aufgaben (" . count($tasks) . ") ──\n";
-        foreach (array_slice($tasks, 0, 10) as $t) {
-            $out .= " · [{$t['project']}] {$t['task']} — fällig {$t['deadline']}\n";
-        }
-        if (count($tasks) > 10) $out .= " · … und " . (count($tasks) - 10) . " weitere\n";
-        $out .= "\n";
-    }
-
-    if (!empty($inactive)) {
-        $out .= "── Azubis ohne Aktivität ≥ 7 Tage (" . count($inactive) . ") ──\n";
-        foreach ($inactive as $a) {
-            $last = $a['last_login'] ? "zuletzt {$a['last_login']}" : 'nie eingeloggt';
-            $out .= " · {$a['name']} ($last)\n";
-        }
-        $out .= "\n";
-    }
-
-    if (empty($reports) && empty($tasks) && empty($inactive)) {
-        $out .= "Alles im grünen Bereich — keine offenen Punkte.\n\n";
-    }
-
-    $out .= "Direkt zur App: " . (env('APP_URL', 'https://azubiboard.local')) . "\n";
-    $out .= "\nDeaktivieren: Profil → Benachrichtigungen ausschalten\n";
-    return $out;
-}
-
+// ── Mail bauen + versenden (Inhalt aus digest_lib.php) ───────
 function send_digest_mail(string $to, string $subject, string $body): bool {
     return send_mail($to, $subject, $body);
 }
 
 $sent = 0; $failed = 0;
-$subject = build_subject(count($submittedReports), count($overdueTasks), count($inactiveAzubis));
+$appUrl  = (string) env('APP_URL', 'https://azubiboard.local');
+$subject = digest_subject(count($submittedReports), count($overdueTasks), count($inactiveAzubis));
 
 foreach ($recipients as $r) {
-    $body = build_body($r, $submittedReports, $overdueTasks, $inactiveAzubis);
+    $body = digest_body($r, $submittedReports, $overdueTasks, $inactiveAzubis, $appUrl);
     if (send_digest_mail($r['email'], $subject, $body)) {
         $sent++;
     } else {

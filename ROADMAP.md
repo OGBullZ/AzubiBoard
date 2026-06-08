@@ -48,7 +48,7 @@ Multi-Agent-Review → 5 Phasen. **Phase 0 (Quick-Wins/Bugs), 1 (Theming eine Qu
 | Tier | Item | Wo |
 |---|---|---|
 | **1** | Live-Verifikation: Schema-Reads / Migration / RLS / Dual-Write gegen echte MariaDB (4 Punkte, 1 Sitzung sobald Deployment steht) | **[Server]** |
-| **2** | N1 — E-Mail via PHPMailer/SMTP statt native `mail()` (macht `weekly_digest.php` produktionsfähig) | [hier] bauen, [Server] testen |
+| **2** | N1 — ✅ code-complete (`api/mailer.php` PHPMailer/SMTP + Fallback, `weekly_digest.php` nutzt es, Inhalt in `digest_lib.php` unit-getestet). Nur noch SMTP-Versand live gegen echten MTA verifizieren | [Server] |
 | **3** | SEC1 — Fail2ban + UFW | **[Server]** |
 | **4** | Housekeeping: ~30 silent-catches durchgehen · `nwtgck/actions-netlify@v3` vor **16.06** Node-24-fähig bumpen · S12-Akzeptanzkriterien final abhaken nach Tier 1 | [hier] |
 

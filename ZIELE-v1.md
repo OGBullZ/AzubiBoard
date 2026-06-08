@@ -29,7 +29,7 @@ Legende: **[Server]** = braucht echtes Deployment · **[hier]** = ohne Server ma
 
 | # | Ziel | Verify | Wo | Status |
 |---|---|---|---|---|
-| 5 | **N1** — E-Mail via PHPMailer/SMTP statt native `mail()` (macht `cron/weekly_digest.php` produktionsfähig) | Mail kommt an / PHPUnit-Mock auf SMTP-Transport | [hier] bauen, [Server] testen | offen |
+| 5 | **N1** — E-Mail via PHPMailer/SMTP statt native `mail()` | ✅ code-complete: `api/mailer.php` (PHPMailer/SMTP wenn `SMTP_HOST`, sonst mail()-Fallback), `cron/weekly_digest.php` nutzt `send_mail()`, reine Digest-Logik in `cron/digest_lib.php` + `tests/php/DigestTest.php` (7 Tests). **Offen: nur Live-Versand gegen echten MTA** | [Server] | ⏳ nur Live-Test |
 
 ## Tier 3 — Server-Hardening
 
