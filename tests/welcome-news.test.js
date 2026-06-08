@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNewsCards } from '../src/features/onboarding/WelcomeNews.tsx';
+import { buildNewsCards } from '../src/features/onboarding/welcomeNewsData.ts';
 
 // Datum N Tage von heute als ISO (YYYY-MM-DD)
 const isoDay = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
