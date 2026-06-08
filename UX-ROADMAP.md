@@ -1,8 +1,13 @@
-# AzubiBoard — UX-/Design-Roadmap · **PRIORITÄT 1**
+# AzubiBoard — UX-/Design-Roadmap · ✅ ABGESCHLOSSEN
 
-> Stand: 5. Juni 2026 · Quelle: Multi-Agent Design-/Bedienbarkeits-Review (8 UX-Dimensionen + Synthese)
-> Scope: Design & Bedienbarkeit. **Vorrang vor `ZIELE-v1.md`-Tier 2–4.** (Tier 1 = Server-Verifikation bleibt parallel.)
-> Status: reine Planung — noch **nichts umgesetzt, nichts live**.
+> Stand: 5. Juni 2026 (erstellt) · ✅ abgearbeitet 07.06.2026 · Quelle: Multi-Agent Design-/Bedienbarkeits-Review (8 UX-Dimensionen + Synthese)
+> Scope: Design & Bedienbarkeit.
+> **Status: Phase 0, 1, 2, 4 umgesetzt + live auf `main`. Phase 3 (Mobile/Touch) out-of-scope (App ist PC-only).**
+> Dieses Dokument ist Historie/Referenz — die aktuelle Roadmap steht in `ROADMAP.md`.
+
+> **Erledigt:** Phase 0 (`38faa9d`) → Phase 1+2 (`843185c`) → Phase 4 (`9266fe7`), alle gemergt+live, CI+Netlify grün.
+> Die beiden Verifikations-Bug-Behauptungen unten wurden geprüft (beide WAHR) und in Phase 0 gefixt
+> (ConflictDialog eingehängt, Light-Mode-Farbquelle vereinheitlicht).
 
 **Roter Faden des Reviews:** Die App ist funktional dicht, aber **ohne verbindliche Konvention** — Farben,
 Status-Mappings, Nav-Pfade, Speicher-Semantiken, Dialog-/Tastatur-Verhalten existieren je in 2–4 Varianten.

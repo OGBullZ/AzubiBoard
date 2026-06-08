@@ -1,11 +1,12 @@
 # AzubiBoard — Ziele bis „v1.0 / quasi fertig"
 
-> Stand: 5. Juni 2026 · `main = d848aab` · Schema v5
+> Stand: 8. Juni 2026 · `main = 9d4a000` · Schema v5
 > Scope: **v1.0 production-done** — die großen Vision-Features (Multi-Tenant, IHK-API,
 > RBAC, Offline-PWA) gehören bewusst NICHT dazu (siehe unten).
 
-> **🔴 Aktuelle Priorität 1 = `UX-ROADMAP.md`** (Design-/Bedienbarkeits-Review).
-> Geht den Tier-2–4-Punkten hier vor; Tier 1 (Server-Verifikation) läuft parallel.
+> **UX-/Design-Roadmap (war Prio 1) ist ✅ abgeschlossen** (Phase 0,1,2,4 live; Phase 3 Mobile out-of-scope).
+> **Aktueller Arbeitsstrang = Willkommens-/News-Fenster** (`WELCOME-FENSTER-DESIGN.md`, Phase 0+1 auf Branch
+> `welcome-news`). Tier 1 (Server-Verifikation) bleibt parallel und braucht das Deployment.
 
 **Kernlage:** Code-seitig ist nahezu alles fertig. Was „fertig" noch blockt, ist
 überwiegend **Live-Verifikation gegen den echten Ubuntu-Server** (`10.14.99.10`) —
@@ -41,7 +42,7 @@ Legende: **[Server]** = braucht echtes Deployment · **[hier]** = ohne Server ma
 | # | Ziel | Wo | Status |
 |---|---|---|---|
 | 7 | `ROADMAP.md` aktualisieren (war auf 18.05/`5aa9707`) | [hier] | ✅ erledigt 05.06 |
-| 8 | CI Node-Bump: `node-version 20→22` (alle JS-Jobs, beide Workflows); CI-Workflow auf Node-24-Action-Runtime opt-in (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`). **Watch:** `nwtgck/actions-netlify@v3` läuft noch auf Node-20-Runtime → vor **16.06.2026** auf Node-24-fähige Version prüfen/bumpen, sonst bricht der Auto-Deploy beim erzwungenen Cutover | [hier] | ✅ Bump erledigt 05.06; Netlify-Action-Bump offen |
+| 8 | CI Node-Bump 20→22 erledigt. **⏳ Offen + zeitkritisch:** `nwtgck/actions-netlify@v3` (Node-20-Runtime) vor **16.06.2026** auf Node-24-fähige Version bumpen, sonst bricht der Auto-Deploy beim erzwungenen Cutover | [hier] | ⏳ Netlify-Action-Bump offen (Frist 16.06) |
 | 9 | ~30 silent-catches durchgehen (latente Bugs, niedrige Prio) | [hier] | offen |
 | 10 | Sprint-12-Akzeptanzkriterien-Checkboxen final abhaken (nach Tier 1) | [hier] | offen |
 

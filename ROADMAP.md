@@ -1,208 +1,73 @@
 # AzubiBoard — Roadmap
 
-> Stand: 5. Juni 2026 · Letzter Commit: `d848aab` · Schema v5
-> Vollständige Sprint-Historie → `HANDOVER.md` · Restliste bis v1.0 → `ZIELE-v1.md`
-> **🔴 PRIORITÄT 1 aktuell → `UX-ROADMAP.md`** (Design-/Bedienbarkeits-Review, geht vor v1.0-Tier-2–4)
+> Stand: 8. Juni 2026 · `main = 9d4a000` · Schema v5
+> Sprint-Historie (Details) → `HANDOVER.md` · Restliste bis v1.0 → `ZIELE-v1.md`
+> Aktive Design-Spec → `WELCOME-FENSTER-DESIGN.md` · abgeschlossene UX-Arbeit → `UX-ROADMAP.md`
+
+**Lage in einem Satz:** Code-seitig ist v1.0 nahezu fertig; die UX-/Design-Roadmap ist abgearbeitet, der aktuelle Arbeitsstrang ist das **Willkommens-/News-Fenster**, und die letzten v1.0-Lücken sind überwiegend **Live-Verifikation am Ubuntu-Server** (kein Dev-Env dafür).
 
 ---
 
-## ✅ Abgeschlossen (alle Sprints bis Session 18.05.2)
+## 🎯 Aktiv jetzt — Willkommens-/News-Fenster beim Login
+
+> Design-Spec: `WELCOME-FENSTER-DESIGN.md` (Multi-Agent Design-Workflow). Umsetzung **branch-only bis Freigabe** (harte Regel: keine UI live ohne User-OK).
+
+| Phase | Inhalt | Status |
+|---|---|---|
+| **0** | `useNotifications`-Hook aus App.tsx extrahieren (geteilte Aggregation, Fundament gg. Drift) | ✅ Branch `welcome-news` (`efcb183`) |
+| **1** | News-Fenster MVP: Login-Marker (1×/Tag, nicht bei Reload), `WelcomeNews.tsx` + `NewsCard.tsx`, Rollen-Switch Azubi/Staff, „Alles gut"-Leerzustand | ✅ Branch `welcome-news` (`efcb183`) |
+| **2** | Neue Item-Typen: Berichtsheft-offen, Lernziele learned/confirmed (Delta), Prüfungs-Countdown, kritische Azubis, Azubis-ohne-Bericht, Projekte-rot, Gruppen-Deadlines | ⏳ offen |
+| **3** | Onboarding-Ausbau rollenspezifisch (Profil/Gruppe/Setup-Schritte + News-Vorschau im Wizard) | ⏳ offen · ⚠️ Blocker Q4 (Azubi-Self-Join + Ausbilder-„Azubi anlegen" existiert?) |
+
+**Cadence = 1×/Tag, Leerzustand zeigen** (User-Entscheid 08.06). Offene Spec-Fragen: Q3 Delta-Persistenz, Q5 manuelles Wiederöffnen.
+**Nächster Schritt:** Phase 0+1 im Browser reviewen (`git checkout welcome-news && npm run dev`) → Freigabe → Merge+Push → Phase 2.
+
+---
+
+## ✅ Abgeschlossen
+
+### UX-/Design-Roadmap (`UX-ROADMAP.md`) — abgeschlossen 07.06
+Multi-Agent-Review → 5 Phasen. **Phase 0 (Quick-Wins/Bugs), 1 (Theming eine Quelle), 2 (Rollen-IA), 4 (Interaktions-Primitive) live auf `main`.** Phase 3 (Mobile/Touch) **out-of-scope** — App nur PC/Laptop.
+
+### Sprints (Details → `HANDOVER.md`)
 
 | Sprint | Commit | Highlights |
 |---|---|---|
-| Session 18.05.2 | `5aa9707` | Test-Fix `migrations.test.js` auf v5 (CI war 18 Commits lang rot!), ESLint-Config Node+Vitest-Globals + ignoreRestSiblings, unused-imports cleanup; Lint 76→57 Errors |
-| Session 18.05b | `33a1a05` | OPS9 HTTPS/Let's Encrypt + OPS10 Auto-Deploy-Cron in install_ubuntu.sh; OPS1 Pre-commit Hook (.githooks/); DEV1 Slash Commands (/review /rot /tests /doc-update) |
-| Session 18.05 | `07adee0` | Backup-Cron (mysqldump, tägl. 03:00), Download-aktuell-Button, Projekt-Liste-Default, CLAUDE.md 12 Arbeitsregeln |
-| 11.5 M1 | `ded875a` | PDF-OCR (Tesseract.js + pdfjs-dist, lazy) |
-| 11 | `8945b72` | Lernpfade (DAG, Schema v5), SM-2 Karteikarten, Quiz-Editor, a11y Pass 2 |
-| 10 | `56b69d7` | Mentor-Rolle, Field-Level Permissions server-side, ClamAV-Hook, Weekly-Digest-Cron |
-| 9.5 | `b15e94f` | Partial-Token Single-Use DB, 2FA-Disable mit TOTP, JWT-jti Logout-Blocklist |
-| 9-Q | `2187b9c` | ErrorBoundary pro Route, Dashboard-Refactor (11 Widgets), Perf-Fixes |
-| 8 | `8b07bbd` | 2FA TOTP + Recovery, Audit-Log Server, CSP-Härtung |
-| 1–7 | div. | Backend-Hardening, Rate-Limit, Backups, Migrations, Conflict-Detection, Papierkorb, CI |
+| **14** | div. | AI1 (KI-Bericht), AI2 (KI-Lernziele), UX1 (Onboarding-Wizard); **TS-Migration src/ 100% .ts/.tsx strict-clean, 0 @ts-nocheck**; Schema-Schärfung; typecheck+lint als CI-Gates |
+| **13** | div. | L5-7 FULLTEXT-Suche (`search.php`), i18n 227 Keys, TS-Setup, Lighthouse-Gates, LINT-Cleanup |
+| **12 (L5)** | bis `2b1c325` | MySQL-Schema-Refactor — Phase 0–4: PHPUnit-Setup, Read-Routes, Dual-Write, RLS, Audit, Schema-Read-Layer (`VITE_USE_SCHEMA`), 410-Deprecation. 96 PHPUnit-Tests |
+| **11 / 11.5** | `8945b72` / `ded875a` | Lernpfade (DAG, Schema v5), SM-2 Karteikarten, Quiz-Editor, a11y Pass 2, PDF-OCR (lazy) |
+| **8–10** | div. | 2FA TOTP+Recovery, Audit-Log, CSP-Härtung, Mentor-Rolle, Field-Level-Permissions, JWT-Blocklist |
+| **1–7** | div. | Backend-Hardening, Rate-Limit, Backups, Migrations, Conflict-Detection, Papierkorb, CI, Web-Push |
+| **OPS** | div. | HTTPS/Let's Encrypt + Auto-Deploy-Cron (`install_ubuntu.sh`), Pre-commit-Hook, Slash-Commands |
 
 ---
 
-## ✅ Sofort-Maßnahmen — alle erledigt
+## 📋 Offen bis v1.0 (Details + Verify → `ZIELE-v1.md`)
 
-| ID | Item | Status |
+| Tier | Item | Wo |
 |---|---|---|
-| **OPS1** | Pre-commit Hook: OneDrive-Clash-Files | ✅ `.githooks/pre-commit` + `package.json prepare` |
-| **DEV1** | Slash Commands | ✅ `.claude/commands/` — `/review` `/rot` `/tests` `/doc-update` |
-| **OPS9** | HTTPS + Let's Encrypt auf Server | ✅ `install_ubuntu.sh` Schritt 8/9 (optional, mit Domain) |
-| **OPS10** | Auto-Deploy-Script | ✅ `install_ubuntu.sh` Schritt 8/9 — Cron alle 10 min, Log |
+| **1** | Live-Verifikation: Schema-Reads / Migration / RLS / Dual-Write gegen echte MariaDB (4 Punkte, 1 Sitzung sobald Deployment steht) | **[Server]** |
+| **2** | N1 — E-Mail via PHPMailer/SMTP statt native `mail()` (macht `weekly_digest.php` produktionsfähig) | [hier] bauen, [Server] testen |
+| **3** | SEC1 — Fail2ban + UFW | **[Server]** |
+| **4** | Housekeeping: ~30 silent-catches durchgehen · `nwtgck/actions-netlify@v3` vor **16.06** Node-24-fähig bumpen · S12-Akzeptanzkriterien final abhaken nach Tier 1 | [hier] |
+
+**Engpass:** Tier 1 + SEC1 brauchen den echten Ubuntu-Server (`10.14.99.10`). Vom Dev-PC bewegbar: Welcome-News, N1, Housekeeping.
 
 ---
 
-## ✅ Sprint 12 — MySQL-Schema-Refactor (L5) · XL · abgeschlossen 2026-06-01
+## 🔮 Vision — explizit NICHT „v1.0"
 
-> **Kernproblem:** Alles lebt in `app_data.content` als ein JSON-Blob.
-> Das blockiert: Row-Level-Security, Volltextsuche, Audit pro Entität, Multi-Tenant.
-> **Abhängigkeit:** Alle künftigen Backend-Features hängen daran. Zuerst erledigen.
-> **Entscheidung 18.05:** Vollständige Migration in einem Sprint (alle 6 Feature-Bereiche). PHPUnit wird in Phase 0 mit-aufgesetzt (Q1 aus S13 vorgezogen). FULLTEXT-Suche wandert nach Sprint 13.
-
-### Strategie: Feature-Flag + Dual-Write in 5 Phasen
-
-```
-Phase 0: Vorbereitung (PHPUnit, Cross-Check, Test-Fixture, Backup-Sanity)
-Phase 1: Read-only Routes mit PHPUnit-Tests (kein Frontend-Eingriff)
-Phase 2: Dual-Write Backend + Row-Level-Security
-Phase 3: Frontend Migration aller 6 Features (Feature-Flag VITE_USE_SCHEMA)
-Phase 4: Cleanup — Blob-Endpoint mit 410 Gone deprecaten
-```
-
-### Phase 0 — Vorbereitung (~3-4 Std)
-
-| ID | Item | Details |
-|---|---|---|
-| **P0-1** | PHPUnit installieren | `composer require --dev phpunit/phpunit` (oder zip-Bundle wenn kein Composer), `phpunit.xml` aufsetzen, smoke-test gegen `api/config.php` |
-| **P0-2** | Cross-Check Blob ↔ Schema | Walk-through: welche Frontend-Felder existieren nur im Blob (z.B. `learningPaths`, `pathProgress` v5), welche nur im SQL-Schema (z.B. `quiz_attempt_answers`). Lücken in `docs/Sprint12-Migration.md` dokumentieren |
-| **P0-3** | Realistic Test-Fixture | `tests/fixtures/blob_realistic.json`: 5 Projekte mit ~20 Tasks/Requirements/Materials, 10 Reports, 30 Goals, 1 Quiz mit 5 Fragen, 2 Lernpfade |
-| **P0-4** | Backup-Sanity | Manuell `mysqldump`-Cron ausführen, Restore in Sandbox-DB verifizieren |
-
-### Phase 1 — Backend Read-Only (~1 Tag, ~5 Commits)
-
-Neue Routes existieren, lesen aus Tabellen via JOIN, schreiben noch nicht. Frontend unverändert.
-
-| Commit | Item | Tests (PHPUnit) |
-|---|---|---|
-| **L5-1** | `database/migrate_blob_to_schema.php` (idempotent, dry-run-Flag, count-verification, transaktional pro Entitäten-Block) | happy / empty-blob / partial-data / re-run idempotency |
-| **L5-2** | `api/routes/projects.php` GET-only (mit tasks + requirements + materials + assignments JOIN) | happy / not-found / permission-deny |
-| **L5-3** | `api/routes/reports.php` GET-only (mit entries + files JOIN) | happy / not-own-azubi / status-filter |
-| **L5-4** | `api/routes/goals.php` GET-only (requirements + materials) | happy / project-not-found |
-| **L5-Q1** | PHPUnit-Run in `.github/workflows/ci.yml` integrieren | (CI grün) |
-
-### Phase 2 — Dual-Write Backend + Row-Level-Security (~1 Tag, ~4 Commits)
-
-| Commit | Item | Tests |
-|---|---|---|
-| **L5-5** | `data.php` Dual-Write-Switch (Env: `BACKEND_DUAL_WRITE=true`) → POST schreibt in Blob UND Tabellen, atomar via Transaktion | PHPUnit: blob+tables konsistent nach Save |
-| **L5-5b** | `dataService.js`: zusätzliche ETags pro Entität, ohne Verhalten zu ändern (forward-compat) | Vitest |
-| **L5-6a** | `with_group_filter($sql, $user)` Helper + Refactor aller Ausbilder-Queries in `data.php`/`users.php` | PHPUnit: User aus Gruppe A sieht keine Daten von B |
-| **L5-6b** | Audit-Log Eintrag pro Entitäts-Mutation (statt nur Blob-Mutation) | PHPUnit: Audit-Row pro Save |
-
-### Phase 3 — Frontend Migration (~1.5 Tage, ~6 Commits)
-
-`VITE_USE_SCHEMA=true` → Frontend liest aus neuen Endpoints. Reihenfolge nach Risiko (geringstes zuerst):
-
-| Commit | Feature | Touchpoints (geschätzt) |
-|---|---|---|
-| **L5-FE1** | groups + departments | GroupsView, UsersView, AzubiProfilePage |
-| **L5-FE2** | calendar_events | CalendarView, iCal-Export, Task-Deadline-Sync |
-| **L5-FE3** | projects + tasks + requirements + materials (Hauptlast) | ProjectPool, ProjectDetail (alle Tabs), Dashboard-Widgets |
-| **L5-FE4** | reports + entries + files (Hauptlast) | ReportsPage, IHK-PDF, Share-Links, PDF-OCR-Import |
-| **L5-FE5** | netzplan_nodes + edges | NetzplanGantt |
-| **L5-FE6** | quizzes + learningPaths + flashcards | LearnPage, LernpfadeView, Quiz-Editor |
-
-Pro Commit: Browser-Test der gold-Pfade, Vitest-Update auf neue API.
-
-### Phase 4 — Cleanup (~0.3 Tag, ~2 Commits) ✅ DONE
-
-| Commit | Item | Status |
-|---|---|---|
-| **L5-DEP** | `2b1c325` — FORCE_SCHEMA=true → POST /api/data 410 Gone + Deprecation-Header bei GET | ✅ |
-| **L5-DOC** | HANDOVER.md (neue Routes, 3-Modi-Architektur, Sprint-12-Historie) + ROADMAP.md | ✅ |
-
-### Rollback je Phase
-
-- **Phase 1**: Routes löschen — keine Auswirkung
-- **Phase 2**: `BACKEND_DUAL_WRITE=false` — Blob bleibt Source-of-Truth, Tabellen stale
-- **Phase 3**: `VITE_USE_SCHEMA=false` — Frontend nutzt wieder Blob
-- **Phase 4**: 410-Logik revert
-
-### Akzeptanzkriterien
-
-- [ ] Alle bestehenden Vitest-Tests grün (aktuell 44)
-- [ ] Mind. 25 neue PHPUnit-Tests grün (5+ pro Route)
-- [ ] Alle 6 Playwright E2E grün + 1 neue "Schema-Migration"-Spec
-- [ ] Ausbilder sieht nur Azubis seiner eigenen Gruppe (Row-Level-Security verifiziert)
-- [ ] Migration-Script: Count-Check vor/nach (Projects, Tasks, Reports, Goals) → identisch
-- [ ] CI + Netlify-Deploy grün auf jedem einzelnen Commit (gh-cli prüft automatisch)
-
----
-
-## 📦 Sprint 13 — Qualität + DevOps · M–L · ~weitgehend erledigt
-
-> Nach L5 erledigen — manche Items setzen relationale Tabellen voraus.
-
-| ID | Item | Status |
-|---|---|---|
-| **L5-7** | FULLTEXT-Suche (`api/routes/search.php`, Ctrl+K) | ✅ erledigt |
-| **I1** | i18n Vollmigration (DE/EN, 227 Keys) | ✅ erledigt |
-| **T1** | TypeScript: `.jsx → .tsx` (src/ 100% .ts/.tsx, strict-clean, 0 @ts-nocheck) | ✅ erledigt |
-| **OPS3** | Deploy-Key + Auto-Deploy auf Server | ✅ via `install_ubuntu.sh` Cron (OPS10) |
-| ~~**Q1**~~ | PHPUnit | ✅ In Sprint 12 Phase 0 vorgezogen |
-| **Q2** | Lighthouse-Schwellen | ✅ a11y/best-practices/seo als `error`-Gate; Performance bewusst `warn` (CI-Runner-abhängig) |
-| **LINT** | react-hooks Warnings + ESLint-Coverage für .ts/.tsx | ✅ erledigt (`742d26a`, hooks-sauber) |
-| **N1** | E-Mail via SMTP/PHPMailer | ⏳ offen — `weekly_digest.php` nutzt noch native `mail()` (→ `ZIELE-v1.md` #5) |
-| **SEC1** | Fail2ban + UFW auf Server | ⏳ offen — Server-Hardening (→ `ZIELE-v1.md` #6) |
-
----
-
-## 🔮 Sprint 14+ — Vision & Skalierung
-
-> Große Features, die L5 + Sprint 13 voraussetzen.
-
-| ID | Item | Status / Aufwand |
-|---|---|---|
-| **AI1** | Auto-Fill Berichte aus Aufgaben (KI) | ✅ erledigt (Sprint 14) |
-| **AI2** | Lernziel-Vorschläge via Claude API | ✅ erledigt (Sprint 14) |
-| **UX1** | Onboarding-Flow (erster Login → Setup-Wizard) | ✅ erledigt (Sprint 14) |
-| **M4** | Multi-Tenant | XL · L5 + Row-Level-Security |
-| **M5** | IHK-Direktanbindung | XL · öffentliche API muss existieren |
-| **MOB1** | Progressive-Web-App verbessern (Offline-Modus) | M |
-| **SEC2** | RBAC-Granularität (Permissions per Feature) | L · L5 |
-
----
-
-## 📊 Abhängigkeits-Übersicht
-
-```
-Sofort-Maßnahmen (OPS1, DEV1, OPS9, OPS10)  ← jetzt, unabhängig
-        │
-        ▼
-Sprint 12: L5 MySQL-Refactor  ← BLOCKER für alles darunter
-        │
-        ├──► Row-Level-Security (L5-6)
-        ├──► Volltextsuche (L5-7)
-        │
-        ▼
-Sprint 13: Quality + DevOps
-        │
-        ├──► i18n (I1)
-        ├──► TypeScript (T1)
-        ├──► PHP-Tests (Q1)
-        │
-        ▼
-Sprint 14+: Vision
-        │
-        ├──► Multi-Tenant (M4)
-        ├──► IHK-API (M5)
-        └──► KI-Features (AI1, AI2)
-```
-
----
-
-## ⚡ Empfohlene Reihenfolge
-
-```
-Erledigt:     OPS1 + DEV1 + OPS9 + OPS10 (alle in install_ubuntu.sh)
-Erledigt:     Pre-Release-Hygiene (Test-Fix v5, ESLint-Config, gh-cli)
-Erledigt:     Sprint 12 (L5 Refactor) — Phase 0–4 komplett (2026-06-01)
-Erledigt:     Sprint 13 (L5-7 Suche, i18n, TypeScript-Migration, LINT, Lighthouse-Gates)
-Erledigt:     Sprint 14 — AI1/AI2/UX1 + vollständige TS-Typisierung + Schema-Schärfung
-Aktuell:      v1.0-Restliste → ZIELE-v1.md (Tier 1 braucht Live-Server, N1/SEC1 offen)
-Offen:        Sprint 14+ Vision (M4/M5/SEC2/MOB1) nach Bedarf
-```
+| ID | Item |
+|---|---|
+| **M4** | Multi-Tenant |
+| **M5** | IHK-Direktanbindung (öffentliche API) |
+| **SEC2** | RBAC-Granularität (Permissions per Feature) |
+| **MOB1** | Offline-PWA / Mobile (App ist PC-only → kein Mobile-Scope) |
 
 ---
 
 ## 📏 Aufwands-Legende
 
-| Symbol | Bedeutung |
-|---|---|
-| XS | < 1 Stunde |
-| S | 1–3 Stunden |
-| M | halber bis 1 ganzer Tag |
-| L | 1–2 Tage |
-| XL | 3–5 Tage |
+| XS < 1 Std · S 1–3 Std · M ½–1 Tag · L 1–2 Tage · XL 3–5 Tage |
+|---|
