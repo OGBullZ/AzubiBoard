@@ -51,7 +51,7 @@ jobs:
           VITE_SENTRY_DSN:   ${{ secrets.VITE_SENTRY_DSN }}
 
       - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v3
+        uses: nwtgck/actions-netlify@v4
         with:
           publish-dir:        './dist'
           production-branch:  main

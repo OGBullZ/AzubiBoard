@@ -42,7 +42,7 @@ Legende: **[Server]** = braucht echtes Deployment · **[hier]** = ohne Server ma
 | # | Ziel | Wo | Status |
 |---|---|---|---|
 | 7 | `ROADMAP.md` aktualisieren (war auf 18.05/`5aa9707`) | [hier] | ✅ erledigt 05.06 |
-| 8 | CI Node-Bump 20→22 erledigt. **⏳ Offen + zeitkritisch:** `nwtgck/actions-netlify@v3` (Node-20-Runtime) vor **16.06.2026** auf Node-24-fähige Version bumpen, sonst bricht der Auto-Deploy beim erzwungenen Cutover | [hier] | ⏳ Netlify-Action-Bump offen (Frist 16.06) |
+| 8 | CI Node-Bump 20→22 erledigt; `nwtgck/actions-netlify@v3`→`@v4` (node24-Runtime) gebumpt → erzwungener Cutover 16.06.2026 bricht den Auto-Deploy nicht mehr | [hier] | ✅ erledigt 08.06 |
 | 9 | ~30 silent-catches durchgehen (latente Bugs, niedrige Prio) | [hier] | offen |
 | 10 | Sprint-12-Akzeptanzkriterien-Checkboxen final abhaken (nach Tier 1) | [hier] | offen |
 
