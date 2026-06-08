@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, uid, genGroupCode } from '../../lib/utils.js';
+import { C, uid } from '../../lib/utils.js';
 import { Avatar, Modal, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import type { User, Project, Id } from '../../types';
@@ -9,7 +9,7 @@ type Group = {
   name: string;
   type: string;
   members: Id[];
-  code?: string;   // Phase 2: Beitritts-Code für Selbst-Registrierung
+  requests?: Id[];   // Beitritts-Anfragen von Azubis (warten auf Bestätigung)
 };
 
 // Projects in this view carry group-assignment fields not present in the shared schema.
@@ -40,13 +40,23 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
 
   const add = () => {
     if (!form.name.trim()) return;
-    onUpdateGroups([...groups, { id: uid(), name: form.name.trim(), type: form.type, members: form.members, code: genGroupCode() }]);
+    onUpdateGroups([...groups, { id: uid(), name: form.name.trim(), type: form.type, members: form.members, requests: [] }]);
     setShowNew(false);
     setForm({ name: '', type: 'team', members: [] });
     showToast('✓ Gruppe erstellt');
   };
 
   const remove = (id: Id) => setConfirmDel(id);
+
+  // Beitritts-Anfrage bestätigen (→ Mitglied) bzw. ablehnen (aus requests entfernen).
+  const resolveRequest = (groupId: Id, userId: Id, accept: boolean) => {
+    onUpdateGroups(groups.map(g => g.id === groupId ? {
+      ...g,
+      requests: (g.requests || []).filter(r => r !== userId),
+      members: accept && !g.members.includes(userId) ? [...g.members, userId] : g.members,
+    } : g));
+    showToast(accept ? '✓ Azubi aufgenommen' : 'Anfrage abgelehnt');
+  };
 
   const toggleMember = (uid2: Id) => {
     const m = form.members.includes(uid2) ? form.members.filter(x => x !== uid2) : [...form.members, uid2];
@@ -79,19 +89,26 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
                   {canManage && <button className="del" onClick={() => remove(g.id)} aria-label={`Gruppe ${g.name} löschen`}>×</button>}
                 </div>
 
-                {canManage && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-                    <span style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700 }}>Beitritts-Code</span>
-                    {g.code ? (
-                      <button onClick={() => { navigator.clipboard?.writeText(g.code!); showToast('✓ Code kopiert'); }}
-                        title="Code kopieren — Azubis nutzen ihn bei der Registrierung"
-                        style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: 1, color: C.ac, background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>
-                        {g.code}
-                      </button>
-                    ) : (
-                      <button className="btn" onClick={() => onUpdateGroups(groups.map(x => x.id === g.id ? { ...x, code: genGroupCode() } : x))}
-                        style={{ fontSize: 10, padding: '2px 8px' }}>Code erzeugen</button>
-                    )}
+                {canManage && (g.requests || []).length > 0 && (
+                  <div style={{ marginBottom: 12, padding: '9px 10px', background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8 }}>
+                    <div style={{ fontSize: 10, color: C.ac, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 800, marginBottom: 7 }}>
+                      Offene Beitritts-Anfragen ({(g.requests || []).length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {(g.requests || []).map(rid => {
+                        const u = users.find(x => x.id === rid);
+                        return (
+                          <div key={String(rid)} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Avatar name={u?.name || '?'} size={24} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u?.name || 'Unbekannt'}</div>
+                            </div>
+                            <button className="abtn" onClick={() => resolveRequest(g.id, rid, true)} style={{ fontSize: 10, padding: '3px 9px' }} aria-label={`${u?.name || 'Azubi'} aufnehmen`}>Annehmen</button>
+                            <button className="btn" onClick={() => resolveRequest(g.id, rid, false)} style={{ fontSize: 10, padding: '3px 8px' }} aria-label={`Anfrage von ${u?.name || 'Azubi'} ablehnen`}>Ablehnen</button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { C } from '../../lib/utils.js';
 import { buildNewsCards } from './welcomeNewsData';
 import NewsCard from './NewsCard';
-import type { User, AppState } from '../../types';
+import type { User, AppState, Id } from '../../types';
 
 // ── Feature-Karten Konfiguration ──────────────────────────────
 const FEATURES = [
@@ -128,70 +128,71 @@ function StepProfile({ currentUser, onUpdateProfile }: { currentUser: User; onUp
   );
 }
 
-// ── Azubi: Gruppe beitreten ───────────────────────────────────
-function StepJoinGroup({ onJoinGroup }: { onJoinGroup: (code: string) => { ok: boolean; groupName?: string } }) {
-  const [code,   setCode]   = useState('');
-  const [result, setResult] = useState<{ ok: boolean; groupName?: string } | null>(null);
+// ── Azubi: Gruppe beitreten (per Anfrage) ─────────────────────
+function StepRequestGroup({ currentUser, data, onRequestGroup }: { currentUser: User; data: AppState | null; onRequestGroup: (groupId: Id) => void }) {
+  const groups = ((data?.groups || []) as { id: Id; name: string; type?: string; members?: Id[]; requests?: Id[] }[]);
+  const [requested, setRequested] = useState<Set<Id>>(new Set());
 
-  const join = () => {
-    if (!code.trim()) return;
-    setResult(onJoinGroup(code));
-  };
+  const send = (id: Id) => { onRequestGroup(id); setRequested(prev => new Set(prev).add(id)); };
 
   return (
     <div style={{ padding: '4px 0 12px' }}>
-      <StepHeading icon="🔑" title="Gruppe beitreten" sub="Dein Ausbilder hat dir vielleicht einen 6-stelligen Beitritts-Code gegeben." />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input style={{ ...inputStyle, fontFamily: C.mono, letterSpacing: 2, textTransform: 'uppercase', fontWeight: 700 }}
-          value={code} maxLength={6}
-          onChange={e => { setCode(e.target.value.toUpperCase()); setResult(null); }}
-          onKeyDown={e => { if (e.key === 'Enter') join(); }}
-          placeholder="ABC234" aria-label="Beitritts-Code" />
-        <button className="abtn" onClick={join} disabled={!code.trim()} style={{ padding: '9px 18px', flexShrink: 0 }}>Beitreten</button>
-      </div>
-      {result && (result.ok
-        ? <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, background: C.gr + '14', border: `1px solid ${C.gr}40`, fontSize: 13, color: C.br }}>
-            ✓ Du gehörst jetzt zu: <strong>{result.groupName}</strong>
-          </div>
-        : <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, background: C.crd, border: `1px solid ${C.cr}40`, fontSize: 13, color: C.cr }}>
-            Dieser Code passt zu keiner Gruppe. Tippfehler? Sonst geht es auch ohne — dein Ausbilder weist dich zu.
-          </div>
+      <StepHeading icon="🙋" title="Gruppe beitreten" sub="Schick deinem Ausbilder eine Beitritts-Anfrage — er bestätigt sie dann." />
+      {groups.length === 0 ? (
+        <div style={{ fontSize: 13, color: C.mu, textAlign: 'center', padding: '16px 0' }}>
+          Es gibt noch keine Gruppen. Dein Ausbilder legt sie an und fügt dich hinzu.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {groups.map(g => {
+            const isMember  = (g.members || []).includes(currentUser.id);
+            const isPending = requested.has(g.id) || (g.requests || []).includes(currentUser.id);
+            return (
+              <div key={String(g.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: C.sf2, border: `1px solid ${C.bd}` }}>
+                <span style={{ fontSize: 16 }} aria-hidden="true">{g.type === 'department' ? '🏢' : '👥'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.br }}>{g.name}</div>
+                  <div style={{ fontSize: 11, color: C.mu }}>{(g.members || []).length} Mitglied(er)</div>
+                </div>
+                {isMember
+                  ? <span style={{ fontSize: 11, fontWeight: 700, color: C.gr }}>✓ Mitglied</span>
+                  : isPending
+                    ? <span style={{ fontSize: 11, fontWeight: 700, color: C.ac }}>Anfrage gesendet</span>
+                    : <button className="btn" onClick={() => send(g.id)} style={{ fontSize: 11, padding: '6px 12px' }}>Beitritt anfragen</button>}
+              </div>
+            );
+          })}
+        </div>
       )}
-      <div style={{ fontSize: 11, color: C.mu, marginTop: 14 }}>Kein Code? Kein Problem — du kannst auch später beitreten.</div>
+      <div style={{ fontSize: 11, color: C.mu, marginTop: 14 }}>Kein Treffer? Kein Problem — dein Ausbilder kann dich auch direkt hinzufügen.</div>
     </div>
   );
 }
 
-// ── Ausbilder: Erste Gruppe anlegen + Code teilen ─────────────
-function CopyCode({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button onClick={() => { navigator.clipboard?.writeText(code); setCopied(true); }}
-      title="Code kopieren" aria-label={`Code ${code} kopieren`}
-      style={{ fontFamily: C.mono, fontSize: 18, fontWeight: 800, letterSpacing: 3, color: C.ac, background: C.acd, border: `1px solid ${C.ac}40`, borderRadius: 9, padding: '10px 18px', cursor: 'pointer' }}>
-      {code} {copied ? '✓' : '⧉'}
-    </button>
-  );
-}
-
-function StepCreateGroup({ onCreateGroup, createdCode, setCreatedCode }: { onCreateGroup: (name: string, type: string) => { code: string }; createdCode: string; setCreatedCode: (c: string) => void }) {
-  const [name, setName] = useState('');
-  const [type, setType] = useState('team');
+// ── Ausbilder: Erste Gruppe anlegen ───────────────────────────
+function StepCreateGroup({ onCreateGroup }: { onCreateGroup: (name: string, type: string) => void }) {
+  const [name, setName]   = useState('');
+  const [type, setType]   = useState('team');
+  const [created, setCreated] = useState<string | null>(null);
 
   const create = () => {
     if (!name.trim()) return;
-    const { code } = onCreateGroup(name, type);
-    setCreatedCode(code);
+    onCreateGroup(name, type);
+    setCreated(name.trim());
+    setName('');
   };
 
   return (
     <div style={{ padding: '4px 0 12px' }}>
-      <StepHeading icon="👥" title="Erste Gruppe anlegen" sub="Gruppen bündeln deine Azubis. Der Beitritts-Code lädt sie selbstständig ein." />
-      {createdCode ? (
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-          <div style={{ fontSize: 13, color: C.br, fontWeight: 600 }}>✓ Gruppe angelegt. Teile diesen Code mit deinen Azubis:</div>
-          <CopyCode code={createdCode} />
-          <div style={{ fontSize: 11, color: C.mu }}>Azubis geben ihn bei der Registrierung oder im Willkommen-Fenster ein.</div>
+      <StepHeading icon="👥" title="Erste Gruppe anlegen" sub="Gruppen bündeln deine Azubis. Sie können der Gruppe danach selbst per Anfrage beitreten." />
+      {created ? (
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '12px 0' }}>
+          <div style={{ fontSize: 28 }} aria-hidden="true">✓</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.br }}>Gruppe „{created}" angelegt</div>
+          <div style={{ fontSize: 12, color: C.mu, lineHeight: 1.5, maxWidth: 360 }}>
+            Deine Azubis sehen die Gruppe beim Login und können Beitritt anfragen — du bestätigst die Anfragen unter „Gruppen".
+          </div>
+          <button className="btn" onClick={() => setCreated(null)} style={{ fontSize: 12, padding: '6px 12px' }}>Weitere Gruppe anlegen</button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -214,22 +215,17 @@ function StepCreateGroup({ onCreateGroup, createdCode, setCreatedCode }: { onCre
   );
 }
 
-// ── Ausbilder: Ersten Azubi anlegen/einladen ──────────────────
-function StepInviteAzubi({ createdCode, navigate, onDone }: { createdCode: string; navigate: (to: string) => void; onDone: () => void }) {
+// ── Ausbilder: Azubis dazu holen ──────────────────────────────
+function StepInviteAzubi({ navigate, onDone }: { navigate: (to: string) => void; onDone: () => void }) {
   return (
     <div style={{ padding: '4px 0 12px' }}>
-      <StepHeading icon="📨" title="Azubis dazu holen" sub="Zwei Wege — wähle, was dir lieber ist. Beides geht auch später." />
+      <StepHeading icon="📨" title="Azubis dazu holen" sub="Zwei Wege — beides geht auch später." />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ padding: '14px 16px', borderRadius: 10, background: C.sf2, border: `1px solid ${C.bd}` }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.br, marginBottom: 6 }}>🔑 Per Code einladen</div>
-          {createdCode ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: C.mu }}>Azubis tragen diesen Code bei der Registrierung ein:</span>
-              <CopyCode code={createdCode} />
-            </div>
-          ) : (
-            <div style={{ fontSize: 12, color: C.mu }}>Lege im vorigen Schritt eine Gruppe an — dann erscheint hier der Code zum Teilen.</div>
-          )}
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.br, marginBottom: 6 }}>🙋 Per Anfrage</div>
+          <div style={{ fontSize: 12, color: C.mu, lineHeight: 1.5 }}>
+            Azubis registrieren sich selbst und schicken eine Beitritts-Anfrage an deine Gruppe. Du bestätigst sie unter „Gruppen" → offene Anfragen.
+          </div>
         </div>
         <div style={{ padding: '14px 16px', borderRadius: 10, background: C.sf2, border: `1px solid ${C.bd}` }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.br, marginBottom: 6 }}>✍️ Manuell anlegen</div>
@@ -296,30 +292,29 @@ type OnboardingWizardProps = {
   onNewProject?: () => void;
   onFirstReport?: () => void;
   onUpdateProfile: (changes: Partial<User>) => void;
-  onJoinGroup: (code: string) => { ok: boolean; groupName?: string };
-  onCreateGroup: (name: string, type: string) => { code: string };
+  onRequestGroup: (groupId: Id) => void;
+  onCreateGroup: (name: string, type: string) => void;
   navigate: (to: string) => void;
 };
 
 export default function OnboardingWizard({
   currentUser, data, onDone, onNewProject, onFirstReport,
-  onUpdateProfile, onJoinGroup, onCreateGroup, navigate,
+  onUpdateProfile, onRequestGroup, onCreateGroup, navigate,
 }: OnboardingWizardProps) {
   const [step, setStep] = useState(0);
-  const [createdCode, setCreatedCode] = useState('');
 
   const role = currentUser.role;
   const steps: { label: string; node: React.ReactNode }[] =
     role === 'azubi' ? [
       { label: 'Willkommen', node: <StepWelcome currentUser={currentUser} /> },
       { label: 'Profil',     node: <StepProfile currentUser={currentUser} onUpdateProfile={onUpdateProfile} /> },
-      { label: 'Gruppe',     node: <StepJoinGroup onJoinGroup={onJoinGroup} /> },
+      { label: 'Gruppe',     node: <StepRequestGroup currentUser={currentUser} data={data} onRequestGroup={onRequestGroup} /> },
       { label: 'Features',   node: <StepFeatures /> },
       { label: 'Start',      node: <StepNewsPreview currentUser={currentUser} data={data} kind="azubi" /> },
     ] : role === 'ausbilder' ? [
       { label: 'Willkommen', node: <StepWelcome currentUser={currentUser} /> },
-      { label: 'Gruppe',     node: <StepCreateGroup onCreateGroup={onCreateGroup} createdCode={createdCode} setCreatedCode={setCreatedCode} /> },
-      { label: 'Azubis',     node: <StepInviteAzubi createdCode={createdCode} navigate={navigate} onDone={onDone} /> },
+      { label: 'Gruppe',     node: <StepCreateGroup onCreateGroup={onCreateGroup} /> },
+      { label: 'Azubis',     node: <StepInviteAzubi navigate={navigate} onDone={onDone} /> },
       { label: 'Features',   node: <StepFeatures /> },
       { label: 'Überblick',  node: <StepNewsPreview currentUser={currentUser} data={data} kind="staff" /> },
     ] : [

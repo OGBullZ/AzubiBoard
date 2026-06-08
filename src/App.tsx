@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState, useRef, lazy, Suspense } from 
 import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
-import { today, loadSession, clearSession, persistData, addActivity, genGroupCode, uid } from './lib/utils';
+import { today, loadSession, clearSession, persistData, addActivity, uid } from './lib/utils';
 import { useDebounce, useDialog } from './lib/hooks';
 import { clearToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
@@ -1391,23 +1391,19 @@ const App = () => {
     setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => u.id === currentUser.id ? { ...u, ...changes } : u) } : prev);
   }, [currentUser, setCurrentUser, setData]);
 
-  // Gruppe per Code beitreten (Azubi-Schritt 3): validiert gegen data.groups, schreibt Mitgliedschaft.
-  const handleJoinGroup = useCallback((code: string): { ok: boolean; groupName?: string } => {
-    const norm = code.trim().toUpperCase();
-    if (!norm || !currentUser?.id) return { ok: false };
-    const g = ((data?.groups || []) as any[]).find(x => (x.code || '').toUpperCase() === norm);
-    if (!g) return { ok: false };
-    setData((prev: any) => prev ? { ...prev, groups: (prev.groups || []).map((x: any) =>
-      x.id === g.id && !(x.members || []).includes(currentUser.id) ? { ...x, members: [...(x.members || []), currentUser.id] } : x) } : prev);
-    return { ok: true, groupName: g.name };
-  }, [data, currentUser, setData]);
+  // Beitritts-Anfrage an eine Gruppe (Azubi-Schritt 3): schreibt currentUser.id in group.requests.
+  // Der Ausbilder bestätigt sie später in der Gruppen-Verwaltung.
+  const handleRequestGroup = useCallback((groupId: Id) => {
+    if (!currentUser?.id) return;
+    setData((prev: any) => prev ? { ...prev, groups: (prev.groups || []).map((g: any) =>
+      g.id === groupId && !(g.members || []).includes(currentUser.id) && !(g.requests || []).includes(currentUser.id)
+        ? { ...g, requests: [...(g.requests || []), currentUser.id] } : g) } : prev);
+  }, [currentUser, setData]);
 
-  // Erste Gruppe anlegen (Ausbilder-Schritt 2): erzeugt Gruppe + Beitritts-Code.
-  const handleCreateGroup = useCallback((name: string, type: string): { code: string } => {
-    const code = genGroupCode();
-    const newGroup = { id: uid(), name: name.trim(), type, members: [], code };
+  // Erste Gruppe anlegen (Ausbilder-Schritt 2): Gruppe ohne Code, Azubis treten per Anfrage bei.
+  const handleCreateGroup = useCallback((name: string, type: string) => {
+    const newGroup = { id: uid(), name: name.trim(), type, members: [], requests: [] };
     setData((prev: any) => prev ? { ...prev, groups: [...(prev.groups || []), newGroup] } : prev);
-    return { code };
   }, [setData]);
 
   const handleNewProject = useCallback(() => setShowModal(true), []);
@@ -1523,14 +1519,10 @@ const App = () => {
         <AuthPage
           onLogin={handleLogin}
           users={data?.users || []}
-          groups={(data?.groups || []) as any}
-          onRegister={async (newUser: User, groupId?: Id) => {
+          onRegister={async (newUser: User) => {
             const withUser = { ...data, users: [...(data?.users || []), newUser] };
-            // Gruppencode: neuen Azubi direkt in die Gruppe aufnehmen
-            const withGroup = groupId
-              ? { ...withUser, groups: ((data?.groups || []) as any[]).map((g: any) => g.id === groupId ? { ...g, members: [...(g.members || []), newUser.id] } : g) }
-              : withUser;
-            const withActivity = addActivity(withGroup, {
+            // Gruppen-Beitritt läuft nach dem Login per Anfrage (Onboarding-Wizard) → hier keine Gruppe.
+            const withActivity = addActivity(withUser, {
               type: 'user_registered',
               userId: newUser.id,
               userName: newUser.name,
@@ -1625,7 +1617,7 @@ const App = () => {
               onNewProject={() => { doneOnboarding(); handleNewProject(); }}
               onFirstReport={() => { doneOnboarding(); window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: '/reports' })); }}
               onUpdateProfile={handleUpdateProfile}
-              onJoinGroup={handleJoinGroup}
+              onRequestGroup={handleRequestGroup}
               onCreateGroup={handleCreateGroup}
               navigate={(to) => window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: to }))}
             />
