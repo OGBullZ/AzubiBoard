@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState, useRef, lazy, Suspense } from 
 import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
-import { today, loadSession, clearSession, persistData, addActivity } from './lib/utils';
+import { today, loadSession, clearSession, persistData, addActivity, genGroupCode, uid } from './lib/utils';
 import { useDebounce, useDialog } from './lib/hooks';
 import { clearToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
@@ -1381,6 +1381,35 @@ const App = () => {
     setShowNews(false);
   }, [currentUser?.id]);
 
+  // ── Onboarding-Wizard-Handler (Phase 3: rollenspezifische Setup-Schritte) ──
+  // Profil aktualisieren (Azubi-Schritt 2): wie AzubiProfilePage — API + Blob + currentUser.
+  const handleUpdateProfile = useCallback((changes: Partial<User>) => {
+    if (!currentUser?.id) return;
+    if (USE_API) dataService.updateProfile(changes).catch(() => { /* noop */ });
+    setCurrentUser({ ...currentUser, ...changes });
+    // prev: Store-Blob (Boundary) → any.
+    setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => u.id === currentUser.id ? { ...u, ...changes } : u) } : prev);
+  }, [currentUser, setCurrentUser, setData]);
+
+  // Gruppe per Code beitreten (Azubi-Schritt 3): validiert gegen data.groups, schreibt Mitgliedschaft.
+  const handleJoinGroup = useCallback((code: string): { ok: boolean; groupName?: string } => {
+    const norm = code.trim().toUpperCase();
+    if (!norm || !currentUser?.id) return { ok: false };
+    const g = ((data?.groups || []) as any[]).find(x => (x.code || '').toUpperCase() === norm);
+    if (!g) return { ok: false };
+    setData((prev: any) => prev ? { ...prev, groups: (prev.groups || []).map((x: any) =>
+      x.id === g.id && !(x.members || []).includes(currentUser.id) ? { ...x, members: [...(x.members || []), currentUser.id] } : x) } : prev);
+    return { ok: true, groupName: g.name };
+  }, [data, currentUser, setData]);
+
+  // Erste Gruppe anlegen (Ausbilder-Schritt 2): erzeugt Gruppe + Beitritts-Code.
+  const handleCreateGroup = useCallback((name: string, type: string): { code: string } => {
+    const code = genGroupCode();
+    const newGroup = { id: uid(), name: name.trim(), type, members: [], code };
+    setData((prev: any) => prev ? { ...prev, groups: [...(prev.groups || []), newGroup] } : prev);
+    return { code };
+  }, [setData]);
+
   const handleNewProject = useCallback(() => setShowModal(true), []);
 
   useEffect(() => {
@@ -1591,9 +1620,14 @@ const App = () => {
           <Suspense fallback={null}>
             <OnboardingWizard
               currentUser={currentUser}
+              data={data as AppState | null}
               onDone={doneOnboarding}
               onNewProject={() => { doneOnboarding(); handleNewProject(); }}
               onFirstReport={() => { doneOnboarding(); window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: '/reports' })); }}
+              onUpdateProfile={handleUpdateProfile}
+              onJoinGroup={handleJoinGroup}
+              onCreateGroup={handleCreateGroup}
+              navigate={(to) => window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: to }))}
             />
           </Suspense>
         )}

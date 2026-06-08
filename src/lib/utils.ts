@@ -70,6 +70,11 @@ export const UDAYS = { W: 7, T: 1, M: 30 };
 export const uid = (): string =>
   Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-4);
 
+// 6-stelliger, gut teilbarer Gruppen-Beitritts-Code (ohne leicht verwechselbare 0/O/1/I).
+// Geteilt zwischen GroupsView (Verwaltung) und OnboardingWizard (Ausbilder-Setup).
+export const genGroupCode = (): string =>
+  Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+
 // ── Datums-Helfer ────────────────────────────────────────────
 export const today = (): string => new Date().toISOString().split('T')[0];
 

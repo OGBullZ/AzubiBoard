@@ -3,8 +3,18 @@
 import { describe, it, expect } from 'vitest';
 import {
   getISOWeek, getKW, getISOWeekMonday, fmtLocalDate, fmtDate,
-  getDeadlineDaysLeft, addActivity, uid,
+  getDeadlineDaysLeft, addActivity, uid, genGroupCode,
 } from '../src/lib/utils.js';
+
+describe('genGroupCode', () => {
+  it('erzeugt 6 Zeichen ohne verwechselbare 0/O/1/I (gut diktierbar)', () => {
+    for (let i = 0; i < 50; i++) {
+      const code = genGroupCode();
+      expect(code).toHaveLength(6);
+      expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
+    }
+  });
+});
 
 describe('getISOWeek', () => {
   // Ankerpunkte aus ISO 8601 — manuell verifiziert

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, uid } from '../../lib/utils.js';
+import { C, uid, genGroupCode } from '../../lib/utils.js';
 import { Avatar, Modal, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import type { User, Project, Id } from '../../types';
@@ -11,9 +11,6 @@ type Group = {
   members: Id[];
   code?: string;   // Phase 2: Beitritts-Code für Selbst-Registrierung
 };
-
-// 6-stelliger, gut teilbarer Beitritts-Code (ohne leicht verwechselbare 0/O/1/I)
-const genGroupCode = () => Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
 
 // Projects in this view carry group-assignment fields not present in the shared schema.
 type GroupProject = Project & {
