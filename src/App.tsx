@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useEffect, useCallback, useState, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
@@ -52,6 +52,8 @@ const TwoFactorSettings = lazy(() => import('./features/auth/TwoFactorSettings.j
 import { ensureTrash, autoCleanTrash, trashCount as countTrash, softDelete } from './lib/trash.js';
 import { migrateData } from './lib/migrations.js';
 const OnboardingWizard = lazy(() => import('./features/onboarding/OnboardingWizard.jsx'));
+const WelcomeNews = lazy(() => import('./features/onboarding/WelcomeNews'));
+import { useNotifications, type NotificationEntry } from './features/notifications/useNotifications';
 
 // ── App-Mode (einmalig auf Modulebene) ───────────────────────
 const USE_API = import.meta.env.VITE_USE_API === 'true';
@@ -224,105 +226,6 @@ function NotificationPermissionRow() {
       <span style={{ fontSize: 9, color: 'var(--c-gr)' }}>● {enabled ? 'AN' : 'AUS'}</span>
     </label>
   );
-}
-
-// ── Notifications ─────────────────────────────────────────────
-// UI-Konstrukt (kein Domain-Typ) — lokal definiert.
-interface NotificationEntry {
-  id: string;
-  type: string;
-  severity: string;
-  // title kann aus task.text stammen (im Schema optional) → string | undefined.
-  title: string | undefined;
-  message: string;
-  projectId?: Id;
-  projectTitle?: string | null;
-}
-function useNotifications(data: AppState | null, currentUser: User | null) {
-  const storageKey = `azubiboard_notif_read_${currentUser?.id || 'anon'}`;
-  const [readIds, setReadIds] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
-    catch { return new Set(); }
-  });
-
-  const notifications = useMemo<NotificationEntry[]>(() => {
-    if (!data || !currentUser) return [];
-    const items: NotificationEntry[] = [];
-    const now = new Date();
-
-    (data.projects || []).filter((p: Project) => !p.archived).forEach((project: Project) => {
-      (project.tasks || []).forEach((task: Task) => {
-        if (task.assignee !== currentUser.id || task.status === 'done' || !task.deadline) return;
-        const d = Math.ceil((+new Date(task.deadline) - +now) / 86400000);
-        if (d < 0)
-          items.push({ id: `task-${task.id}-overdue`, type: 'deadline', severity: 'critical', title: task.text, message: `Überfällig seit ${Math.abs(d)} Tag${Math.abs(d) !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
-        else if (d <= 3)
-          items.push({ id: `task-${task.id}-soon`, type: 'deadline', severity: 'warning', title: task.text, message: d === 0 ? 'Heute fällig' : `Fällig in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
-      });
-
-      if (project.assignees?.includes(currentUser.id) && project.deadline) {
-        const d = Math.ceil((+new Date(project.deadline) - +now) / 86400000);
-        if (d < 0)
-          items.push({ id: `project-${project.id}-overdue`, type: 'project', severity: 'critical', title: project.title, message: 'Projektdeadline überschritten', projectId: project.id });
-        else if (d <= 3)
-          items.push({ id: `project-${project.id}-soon`, type: 'project', severity: 'warning', title: project.title, message: d === 0 ? 'Projektdeadline heute' : `Projektdeadline in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id });
-      }
-    });
-
-    if (currentUser.role === 'ausbilder' || currentUser.role === 'mentor') {
-      (data.reports || []).filter((r: Report) => r.status === 'submitted').forEach((r: Report) => {
-        items.push({ id: `report-${r.id}-submitted`, type: 'report', severity: 'info', title: 'Bericht zur Prüfung', message: `${r.user_name || 'Azubi'} · KW ${r.week_number}/${r.year}` });
-      });
-    } else {
-      (data.reports || []).filter((r: Report) => r.user_id === currentUser.id && (r.status === 'reviewed' || r.status === 'signed')).forEach((r: Report) => {
-        items.push({ id: `report-${r.id}-${r.status}`, type: 'report', severity: 'info', title: r.status === 'signed' ? 'Bericht unterschrieben' : 'Bericht geprüft', message: `KW ${r.week_number}/${r.year} · Feedback verfügbar` });
-      });
-    }
-
-    const order: Record<string, number> = { critical: 0, warning: 1, info: 2 };
-    return items.sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
-  }, [data, currentUser]);
-
-  const unreadCount = useMemo(() => notifications.filter(n => !readIds.has(n.id)).length, [notifications, readIds]);
-
-  // J7: bei neuen ungelesenen Notifications → Browser-Push feuern (nur wenn Tab im Hintergrund)
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    const unread = notifications.filter(n => !readIds.has(n.id));
-    if (!unread.length) return;
-    // Lazy-Import damit Browser ohne Notification-API nicht crashen
-    // currentUser.id ist Id (string|number); webPush.js (JS-Boundary) typt param als string → type-only cast.
-    import('./lib/webPush.js').then(m => m.fireForNewNotifications(currentUser.id as string, unread));
-  }, [notifications, readIds, currentUser?.id]);
-
-  // Garbage-Collect: readIds die nicht mehr in aktuellen Notifications vorkommen entfernen.
-  // Verhindert unbegrenztes Wachstum von localStorage über Wochen/Monate.
-  useEffect(() => {
-    if (!notifications.length || !readIds.size) return;
-    const liveIds = new Set(notifications.map(n => n.id));
-    const next = new Set([...readIds].filter(id => liveIds.has(id)));
-    if (next.size !== readIds.size) {
-      setReadIds(next);
-      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch { /* noop */ }
-    }
-  }, [notifications, readIds, storageKey]);
-
-  const markRead = useCallback((id: string) => {
-    setReadIds(prev => {
-      const next = new Set([...prev, id]);
-      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch { /* noop */ }
-      return next;
-    });
-  }, [storageKey]);
-
-  const markAllRead = useCallback(() => {
-    const ids = notifications.map(n => n.id);
-    const next = new Set(ids);
-    setReadIds(next);
-    try { localStorage.setItem(storageKey, JSON.stringify(ids)); } catch { /* noop */ }
-  }, [notifications, storageKey]);
-
-  return { notifications, unreadCount, readIds, markRead, markAllRead };
 }
 
 function NotificationItem({ n, read, onMarkRead, navigate, onClose }: {
@@ -1271,6 +1174,7 @@ const App = () => {
   const [conflict, setConflict] = useState<any>(null);  // J2: Konflikt-Payload (Sync-Event-Detail, JS-Boundary) → any
   const [showBackups,    setShowBackups]    = useState(false); // L4
   const [showOnboarding, setShowOnboarding] = useState(false); // UX1
+  const [showNews, setShowNews] = useState(false); // Willkommens-/News-Fenster (1×/Tag bei echtem Login)
   const justLoggedInRef = useRef(false); // Verhindert Logout durch Unauthorized-Event direkt nach Login
 
   // L3: Sentry-User-Kontext bei Login/Logout aktuell halten (no-op ohne DSN)
@@ -1284,6 +1188,23 @@ const App = () => {
     if (!currentUser?.id) return;
     const key = `azubiboard_onboarded_${currentUser.id}`;
     if (!localStorage.getItem(key)) setShowOnboarding(true);
+  }, [currentUser?.id]);
+
+  // Willkommens-/News-Fenster: max. 1×/Tag, NUR bei echtem Login (nicht bei Reload).
+  // Entscheidungsbaum (WELCOME-FENSTER-DESIGN.md §2.2):
+  // fresh-Login-Marker (sessionStorage, nur von handleLogin gesetzt) trennt Login von Reload.
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const id = String(currentUser.id);
+    let fresh: string | null = null;
+    try { fresh = sessionStorage.getItem('azubiboard_fresh_login'); } catch { /* noop */ }
+    if (fresh !== id) return;                                      // Reload/Restore → nichts zeigen
+    try { sessionStorage.removeItem('azubiboard_fresh_login'); } catch { /* noop */ }  // Marker konsumieren
+    if (!localStorage.getItem(`azubiboard_onboarded_${id}`)) return; // erster Login → Onboarding hat Vorrang
+    try {
+      if (localStorage.getItem(`azubiboard_news_seen_${id}`) === today()) return;       // heute schon gesehen
+    } catch { /* noop */ }
+    setShowNews(true);
   }, [currentUser?.id]);
   // UX1: Custom-Event aus ProfilePage erlaubt "Onboarding erneut anzeigen"
   useEffect(() => {
@@ -1430,6 +1351,8 @@ const App = () => {
   // Nach Login: MySQL-User laden und in Blob mergen (API-Modus)
   const handleLogin = useCallback(async (user: User) => {
     justLoggedInRef.current = true;
+    // Marker für echten Login (vs. Reload) — vom News-Effect konsumiert (§2.1).
+    try { sessionStorage.setItem('azubiboard_fresh_login', String(user.id)); } catch { /* noop */ }
     setCurrentUser(user);
     applyUserTheme(user.theme);  // Theme aus DB nach Login anwenden
     if (USE_API) {
@@ -1449,6 +1372,13 @@ const App = () => {
   const doneOnboarding = useCallback(() => {
     if (currentUser?.id) localStorage.setItem(`azubiboard_onboarded_${currentUser.id}`, '1');
     setShowOnboarding(false);
+  }, [currentUser?.id]);
+
+  const closeNews = useCallback(() => {
+    if (currentUser?.id) {
+      try { localStorage.setItem(`azubiboard_news_seen_${currentUser.id}`, today()); } catch { /* noop */ }
+    }
+    setShowNews(false);
   }, [currentUser?.id]);
 
   const handleNewProject = useCallback(() => setShowModal(true), []);
@@ -1664,6 +1594,18 @@ const App = () => {
               onDone={doneOnboarding}
               onNewProject={() => { doneOnboarding(); handleNewProject(); }}
               onFirstReport={() => { doneOnboarding(); window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: '/reports' })); }}
+            />
+          </Suspense>
+        )}
+
+        {/* Willkommens-/News-Fenster beim Login (Onboarding hat Vorrang) */}
+        {showNews && !showOnboarding && currentUser && (
+          <Suspense fallback={null}>
+            <WelcomeNews
+              data={data as AppState | null}
+              currentUser={currentUser}
+              onClose={closeNews}
+              navigate={(to) => window.dispatchEvent(new CustomEvent('azubiboard:navigate', { detail: to }))}
             />
           </Suspense>
         )}
