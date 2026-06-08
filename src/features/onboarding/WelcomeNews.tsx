@@ -1,10 +1,10 @@
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { C, getISOWeek, today } from '../../lib/utils.js';
+import { C, getISOWeek, today, fmtLocalDate } from '../../lib/utils.js';
 import { isMentor } from '../../lib/roles.js';
 import { useDialog } from '../../lib/hooks.js';
-import { useNotifications, type NotificationEntry } from '../notifications/useNotifications';
 import NewsCard from './NewsCard';
-import type { User, AppState, Id } from '../../types';
+import type { User, AppState, Id, Project, Task, Report, Goal } from '../../types';
 
 type WelcomeNewsProps = {
   data: AppState | null;
@@ -18,75 +18,158 @@ function greetingByHour(): string {
   return h < 12 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend';
 }
 
-// Eine aggregierte News-Karte als Datenobjekt (Phase 1: aus den bestehenden
-// Notification-Item-Typen — Tasks, Projektdeadlines, Reports — verdichtet).
-type Card = { key: string; accent: string; accentBg: string; icon: string; label: string; title: string; sub?: string; to?: string };
-
-function routeFor(items: NotificationEntry[], fallback: string): string {
-  if (items.length === 1 && items[0].projectId) return `/project/${items[0].projectId}`;
-  return fallback;
+// ISO-Wochenmontag lokal (DST-sicher, identisch zu Dashboard.tsx Z.108)
+function isoMonday(now: Date): string {
+  const d = new Date(now); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return fmtLocalDate(d);
 }
 
-function azubiCards(notifications: NotificationEntry[]): Card[] {
-  const overdue = notifications.filter(n => n.severity === 'critical');
-  const soon    = notifications.filter(n => n.severity === 'warning');
-  const feedback = notifications.filter(n => n.type === 'report' && n.severity === 'info');
-  const cards: Card[] = [];
+const firstNameOf = (name?: string | null) => (name || '').split(' ')[0] || name || '';
 
-  if (overdue.length) cards.push({
-    key: 'overdue', accent: C.cr, accentBg: C.crd, icon: '⚠', label: 'Überfällig',
-    title: overdue.length === 1 ? (overdue[0].title || 'Aufgabe überfällig') : `${overdue.length} Aufgaben überfällig`,
-    sub: overdue.length === 1 ? overdue[0].message : `Älteste: „${overdue[0].title}" · ${overdue[0].message}`,
-    to: routeFor(overdue, '/projects'),
-  });
-  if (soon.length) cards.push({
-    key: 'soon', accent: '#f78166', accentBg: '#f7816614', icon: '📅', label: 'Diese Woche',
-    title: soon.length === 1 ? (soon[0].title || 'Aufgabe bald fällig') : `${soon.length} Aufgaben bald fällig`,
-    sub: soon.length === 1 ? soon[0].message : `Nächste: „${soon[0].title}" · ${soon[0].message}`,
-    to: routeFor(soon, '/calendar'),
-  });
-  if (feedback.length) cards.push({
-    key: 'feedback', accent: C.gr, accentBg: C.gr + '14', icon: '✓', label: 'Erledigt',
-    title: feedback.length === 1 ? (feedback[0].title || 'Bericht mit Feedback') : `${feedback.length} Berichte mit Feedback`,
-    sub: feedback.length === 1 ? feedback[0].message : 'Neues Feedback von deinem Ausbilder',
-    to: '/reports',
-  });
-  return cards;
-}
+// Aggregierte News-Karte. sev steuert die Sortierung (0 critical → 2 info).
+type Card = { key: string; sev: number; accent: string; accentBg: string; icon: string; label: string; title: string; sub?: string; to?: string };
 
-function staffCards(notifications: NotificationEntry[]): Card[] {
-  const toReview = notifications.filter(n => n.type === 'report');
+const ACC = {
+  crit: { accent: C.cr,      accentBg: C.crd },
+  warn: { accent: '#f78166', accentBg: '#f7816614' },
+  ac:   { accent: C.ac,      accentBg: C.acd },
+  ok:   { accent: C.gr,      accentBg: C.gr + '14' },
+};
+
+// Alle News-Karten direkt aus `data` aggregieren (rollenabhängig). Bewusst eigenständig,
+// NICHT über den Glocken-Hook (useNotifications) — das Fenster ist eine andere Verdichtung
+// und die Glocke (live) bleibt unverändert.
+export function buildNewsCards(data: AppState | null, currentUser: User, lastConfirmedSeen: number | null, confirmedCount: number): Card[] {
+  if (!data) return [];
+  const now = new Date();
+  const me = currentUser.id;
+  const isStaff = currentUser.role === 'ausbilder' || currentUser.role === 'mentor';
+  const mentor = isMentor(currentUser);
+  const active = (data.projects || []).filter((p: Project) => !p.archived);
+  const reports = data.reports || [];
+  const weekMon = isoMonday(now);
+  const week = getISOWeek(today()).week;
   const cards: Card[] = [];
-  if (toReview.length) cards.push({
-    key: 'review', accent: C.ac, accentBg: C.acd, icon: '📋', label: 'Prüfung offen',
-    title: `${toReview.length} ${toReview.length === 1 ? 'Berichtsheft wartet' : 'Berichtshefte warten'} auf Prüfung`,
-    sub: `Neueste: ${toReview[0].message}`,
-    to: '/reports',
-  });
-  return cards;
+  const dayDiff = (iso: string) => Math.ceil((+new Date(iso) - +now) / 86400000);
+
+  if (!isStaff) {
+    // ── Azubi ──────────────────────────────────────────────
+    const overdue: string[] = [];   // Titel
+    const soon: string[] = [];
+    active.forEach((p: Project) => {
+      (p.tasks || []).forEach((tk: Task) => {
+        if (tk.assignee !== me || tk.status === 'done' || !tk.deadline) return;
+        const d = dayDiff(tk.deadline);
+        if (d < 0) overdue.push(tk.text || 'Aufgabe'); else if (d <= 3) soon.push(tk.text || 'Aufgabe');
+      });
+      if (p.assignees?.includes(me) && p.deadline) {
+        const d = dayDiff(p.deadline);
+        if (d < 0) overdue.push(p.title); else if (d <= 3) soon.push(p.title);
+      }
+    });
+    if (overdue.length) cards.push({ key: 'overdue', sev: 0, ...ACC.crit, icon: '⚠', label: 'Überfällig',
+      title: overdue.length === 1 ? overdue[0] : `${overdue.length} Aufgaben überfällig`,
+      sub: overdue.length === 1 ? 'Deadline überschritten' : `Älteste: „${overdue[0]}"`, to: '/projects' });
+    if (soon.length) cards.push({ key: 'soon', sev: 1, ...ACC.warn, icon: '📅', label: 'Diese Woche',
+      title: soon.length === 1 ? soon[0] : `${soon.length} Aufgaben bald fällig`,
+      sub: soon.length === 1 ? 'Fällig in ≤3 Tagen' : `Nächste: „${soon[0]}"`, to: '/calendar' });
+
+    const hasThisWeek = reports.some((r: Report) => r.user_id === me && (r.week_start || '') >= weekMon);
+    if (!hasThisWeek) cards.push({ key: 'report-open', sev: 1, ...ACC.warn, icon: '📝', label: 'Diese Woche',
+      title: `Berichtsheft KW ${week ?? ''} noch offen`, sub: 'Wochenbericht fehlt', to: '/reports' });
+
+    const feedback = reports.filter((r: Report) => r.user_id === me && (r.status === 'reviewed' || r.status === 'signed'));
+    if (feedback.length) cards.push({ key: 'feedback', sev: 2, ...ACC.ok, icon: '✓', label: 'Erledigt',
+      title: feedback.length === 1 ? 'Bericht mit Feedback' : `${feedback.length} Berichte mit Feedback`,
+      sub: 'Neues Feedback von deinem Ausbilder', to: '/reports' });
+
+    if (lastConfirmedSeen != null && confirmedCount > lastConfirmedSeen) {
+      const delta = confirmedCount - lastConfirmedSeen;
+      cards.push({ key: 'goals-confirmed', sev: 2, ...ACC.ok, icon: '🎉', label: 'Lernziele',
+        title: `${delta} ${delta === 1 ? 'Lernziel' : 'Lernziele'} bestätigt 🎉`, sub: 'Von deinem Ausbilder abgezeichnet', to: '/training' });
+    }
+
+    const examDate = data.trainingPlan?.examDate;
+    if (examDate) {
+      const d = dayDiff(examDate);
+      if (d >= 0 && d <= 60) cards.push({ key: 'exam', sev: 2, ...ACC.ac, icon: '🎓', label: 'Prüfung',
+        title: d === 0 ? 'Heute ist deine Prüfung!' : `Noch ${d} ${d === 1 ? 'Tag' : 'Tage'} bis zur Prüfung`, to: '/training' });
+    }
+  } else {
+    // ── Ausbilder / Mentor ─────────────────────────────────
+    const azubis = (data.users || []).filter((u: User) => u.role === 'azubi');
+
+    const critical = azubis.map((a: User) => {
+      const ov = active.filter((p: Project) => p.assignees?.includes(a.id))
+        .flatMap((p: Project) => (p.tasks || []).filter((tk: Task) => tk.assignee === a.id && tk.status !== 'done' && tk.deadline && new Date(tk.deadline) < now));
+      return { a, count: ov.length };
+    }).filter((x: { count: number }) => x.count > 2);
+    if (critical.length) cards.push({ key: 'critical-azubis', sev: 0, ...ACC.crit, icon: '⚠', label: 'Aufmerksamkeit',
+      title: critical.length === 1 ? `${firstNameOf(critical[0].a.name)} braucht Aufmerksamkeit` : `${critical.length} Azubis brauchen Aufmerksamkeit`,
+      sub: `${firstNameOf(critical[0].a.name)} · ${critical[0].count} Aufgaben überfällig`, to: '/' });
+
+    const submitted = reports.filter((r: Report) => r.status === 'submitted')
+      .sort((x: Report, y: Report) => (y.week_start || '').localeCompare(x.week_start || ''));
+    if (submitted.length) cards.push({ key: 'review', sev: 1, ...ACC.ac, icon: '📋', label: 'Prüfung offen',
+      title: `${submitted.length} ${submitted.length === 1 ? 'Berichtsheft wartet' : 'Berichtshefte warten'} auf Prüfung`,
+      sub: `Neueste: ${submitted[0].user_name || 'Azubi'} · KW ${submitted[0].week_number}`, to: '/reports' });
+
+    const missing = azubis.filter((a: User) => !reports.some((r: Report) => r.user_id === a.id && (r.week_start || '') >= weekMon));
+    if (missing.length) cards.push({ key: 'missing-report', sev: 1, ...ACC.warn, icon: '📝', label: 'Wochenbericht',
+      title: `${missing.length} ${missing.length === 1 ? 'Azubi' : 'Azubis'}: KW ${week ?? ''} fehlt`,
+      sub: missing.length === 1 ? firstNameOf(missing[0].name) : missing.slice(0, 3).map((a: User) => firstNameOf(a.name)).join(', '), to: '/' });
+
+    if (!mentor) {
+      const goals = (data.trainingPlan?.goals || []) as Goal[];
+      let learned = 0;
+      goals.forEach((g: Goal) => azubis.forEach((a: User) => { if (g.progress?.[a.id]?.status === 'learned') learned++; }));
+      if (learned) cards.push({ key: 'goals-learned', sev: 2, ...ACC.warn, icon: '🎯', label: 'Lernziele',
+        title: `${learned} ${learned === 1 ? 'Lernziel' : 'Lernziele'} als „gelernt" markiert`, sub: '→ bestätigen', to: '/training' });
+    }
+
+    const red = active.filter((p: Project) => p.status === 'red');
+    if (red.length) cards.push({ key: 'projects-red', sev: 1, ...ACC.crit, icon: '🔴', label: 'Projekte',
+      title: `${red.length} ${red.length === 1 ? 'Projekt' : 'Projekte'} kritisch`,
+      sub: red.length === 1 ? red[0].title : undefined, to: red.length === 1 ? `/project/${red[0].id}` : '/projects' });
+  }
+
+  return cards.sort((a, b) => a.sev - b.sev);
 }
 
 export default function WelcomeNews({ data, currentUser, onClose, navigate }: WelcomeNewsProps) {
   const ref = useDialog<HTMLDivElement>(onClose);
-  const { notifications } = useNotifications(data, currentUser);
 
   const isStaff = currentUser.role === 'ausbilder' || currentUser.role === 'mentor';
-  const mentor  = isMentor(currentUser);
-  const firstName = currentUser.name?.split(' ')[0] || currentUser.name || '';
+  const mentor = isMentor(currentUser);
+  const firstName = firstNameOf(currentUser.name);
+
+  // Delta-Persistenz für „X Lernziele bestätigt 🎉" (zuletzt gesehene Anzahl pro User).
+  const confKey = `azubiboard_news_confirmed_${currentUser.id}`;
+  const goals = useMemo(() => (data?.trainingPlan?.goals || []) as Goal[], [data]);
+  const confirmedCount = useMemo(
+    () => isStaff ? 0 : goals.filter((g: Goal) => g.progress?.[currentUser.id]?.status === 'confirmed').length,
+    [goals, isStaff, currentUser.id]);
+  const [lastConfirmedSeen] = useState<number | null>(() => {
+    try { const v = localStorage.getItem(confKey); return v == null ? null : Number(v); } catch { return null; }
+  });
+  // Aktuelle Anzahl als „gesehen" persistieren (nächster Login zeigt nur den neuen Zuwachs).
+  useEffect(() => {
+    if (isStaff) return;
+    try { localStorage.setItem(confKey, String(confirmedCount)); } catch { /* noop */ }
+  }, [confirmedCount, confKey, isStaff]);
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
   const week = getISOWeek(today()).week;
 
-  const cards = isStaff ? staffCards(notifications) : azubiCards(notifications);
+  const cards = buildNewsCards(data, currentUser, lastConfirmedSeen, confirmedCount);
 
-  // Leerzustand (User-Entscheid: Fenster auch bei 0 Items zeigen, "Alles gut")
   const myProjects = (data?.projects || []).filter(p => p.assignees?.includes(currentUser.id as Id));
-  const azubiEmptyAccount = !isStaff && myProjects.length === 0;
+  const azubiEmptyAccount = !isStaff && myProjects.length === 0 && cards.length === 0;
 
   const nav = (to: string) => { onClose(); navigate(to); };
 
-  // Primär-CTA je Rolle/Zustand
   const primaryCta = isStaff
     ? (mentor ? { label: 'Zum Dashboard →', to: '/' } : { label: 'Berichte prüfen →', to: '/reports' })
     : (azubiEmptyAccount ? { label: 'Bericht anlegen →', to: '/reports' }
