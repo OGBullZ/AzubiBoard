@@ -71,7 +71,8 @@ export const uid = (): string =>
   Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-4);
 
 // ── Datums-Helfer ────────────────────────────────────────────
-export const today = (): string => new Date().toISOString().split('T')[0];
+// Lokales Datum (YYYY-MM-DD) — NICHT toISOString() (UTC), sonst Off-by-one in positiven Zeitzonen 00–02 Uhr.
+export const today = (): string => fmtLocalDate(new Date());
 
 export const fmtDate = (d?: string | null): string => {
   if (!d) return '';

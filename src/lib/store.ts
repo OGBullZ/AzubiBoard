@@ -52,13 +52,16 @@ export function useAppStore() {
     return () => { _listeners.delete(listener); };
   }, []);
 
-  const setData = useCallback((dataOrFn: DataUpdater) => {
+  // opts.persist=false: State setzen + Tabs informieren, aber NICHT zurückschreiben.
+  // Nötig wenn die Daten gerade erst vom Server kamen (Konflikt-Accept) — ein erneuter
+  // POST wäre redundant (If-Match matcht, updated_at-Bump, unnötiger Sync-/Rate-Limit-Slot).
+  const setData = useCallback((dataOrFn: DataUpdater, opts?: { persist?: boolean }) => {
     // Funktionale Updates erlaubt: setData(prev => ({ ...prev, users: newList }))
     const next = typeof dataOrFn === 'function' ? dataOrFn(_state.data) : dataOrFn;
     setState({ data: next });
     // saveData() persistiert selbst synchron nach localStorage (beide Branches),
     // danach API-Persistenz (fire & forget) — kein Reload auf 401, nur localStorage-Fallback
-    dataService.saveData(next).catch(() => {});
+    if (opts?.persist !== false) dataService.saveData(next).catch(() => {});
     // Andere Tabs informieren (eigener Tab empfängt seine eigene
     // Nachricht NICHT — BroadcastChannel-Spec § 6.1)
     _ch?.postMessage({ type: 'data', payload: next });

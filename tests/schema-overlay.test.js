@@ -79,11 +79,20 @@ describe('overlaySchemaReads', () => {
     expect(out.reports).toEqual([{ id: 'keepr' }]);
   });
 
-  it('robust gegen null-Basis', async () => {
+  it('robust gegen null-Basis (kein Crash)', async () => {
     const fetchJson = makeFetchJson({ '/projects': [], '/reports': [] });
     const out = await overlaySchemaReads(null, fetchJson);
-    expect(out.projects).toEqual([]);
-    expect(out.reports).toEqual([]);
+    // null-Basis darf nicht crashen; leere relationale Resultate überlagern NICHT
+    // (sonst würde eine leere/nicht-migrierte Tabelle Blob-Daten mit [] überschreiben).
+    expect(out).toEqual({});
+  });
+
+  it('leeres relationales Resultat überlagert NICHT — Blob bleibt erhalten (Datenverlust-Schutz)', async () => {
+    const blob = { projects: [{ id: 'keep' }], reports: [{ id: 'keepr' }] };
+    const fetchJson = makeFetchJson({ '/projects': [], '/reports': [] });
+    const out = await overlaySchemaReads(blob, fetchJson);
+    expect(out.projects).toEqual([{ id: 'keep' }]);
+    expect(out.reports).toEqual([{ id: 'keepr' }]);
   });
 });
 

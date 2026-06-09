@@ -963,9 +963,12 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
 function CalendarPage({ showToast }: { showToast: ShowToast }) {
   const store = useAppStore();
   const data = store.data as AppState | null;
+  const currentUser = store.currentUser as User | null;
   const setData = store.setData;
   // updates bleibt any: CalendarView onUpdate = (id:any, patch:any), patch heterogen (ev/id/Projekt-Patch).
+  // Mentor = nur lesend (wie ProjectDetail/Dashboard) — alle Kalender-Schreibpfade laufen durch diesen choke point.
   const handleUpdate = useCallback((projectId: string, updates: any) => {
+    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
     if (projectId === '_cal') {
       setData({ ...data, calendarEvents: [...(data?.calendarEvents || []), updates.ev] });
     } else if (projectId === '_cal_del') {
@@ -975,7 +978,7 @@ function CalendarPage({ showToast }: { showToast: ShowToast }) {
     } else {
       setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
     }
-  }, [data, setData]);
+  }, [data, setData, currentUser, showToast]);
   return <CalendarView projects={data?.projects||[]} calendarEvents={data?.calendarEvents||[]} users={data?.users||[]} onUpdate={handleUpdate} showToast={showToast} />;
 }
 
@@ -1263,7 +1266,8 @@ const App = () => {
   // J2: Konflikt-Handler — Server-Version übernehmen
   const acceptServer = useCallback(() => {
     if (!conflict?.serverData) { setConflict(null); return; }
-    setData(conflict.serverData);
+    // persist:false — die Daten kommen gerade vom Server, kein redundanter Re-POST
+    setData(conflict.serverData, { persist: false });
     dataService.setKnownVersion(conflict.serverVersion || 0);
     setConflict(null);
     showToast('✓ Server-Version übernommen');

@@ -209,7 +209,9 @@ const saveQueue = (() => {
 
 // Phase 3: Overlay-Read. Holt Entitäten aus den relationalen Routes und
 // überlagert sie auf die Blob-Basis. Pro Sektion try/catch → bei Fehler bleibt
-// der jeweilige Blob-Wert erhalten (kein Hard-Fail).
+// der jeweilige Blob-Wert erhalten (kein Hard-Fail). Ein LEERES (aber valides)
+// Resultat überlagert NICHT — sonst würde eine noch nicht migrierte/leere
+// relationale Tabelle den echten Blob-Inhalt mit [] überschreiben (Datenverlust).
 //   fetchJson(path): liefert geparstes JSON, wirft bei !ok.
 // Exportiert für Unit-Tests (injizierbares fetchJson).
 export async function overlaySchemaReads(
@@ -224,7 +226,7 @@ export async function overlaySchemaReads(
     (async () => {
       try {
         const list = await fetchJson('/projects');
-        if (Array.isArray(list)) {
+        if (Array.isArray(list) && list.length) {
           const detailed = await Promise.all(list.map(async (p) => {
             try { return await fetchJson(`/projects/${p.id}`); }
             catch { return p; }
@@ -237,21 +239,21 @@ export async function overlaySchemaReads(
     (async () => {
       try {
         const reps = await fetchJson('/reports');
-        if (Array.isArray(reps)) out.reports = mapReportsToBlob(reps);
+        if (Array.isArray(reps) && reps.length) out.reports = mapReportsToBlob(reps);
       } catch { /* reports bleiben aus Blob */ }
     })(),
 
     (async () => {
       try {
         const quizzes = await fetchJson('/quizzes');
-        if (Array.isArray(quizzes)) out.quizzes = mapQuizzesToBlob(quizzes);
+        if (Array.isArray(quizzes) && quizzes.length) out.quizzes = mapQuizzesToBlob(quizzes);
       } catch { /* quizzes bleiben aus Blob */ }
     })(),
 
     (async () => {
       try {
         const paths = await fetchJson('/learningPaths');
-        if (Array.isArray(paths)) {
+        if (Array.isArray(paths) && paths.length) {
           out.learningPaths = mapLearningPathsToBlob(paths);
           out.pathProgress  = extractPathProgress(paths);
         }
@@ -261,14 +263,14 @@ export async function overlaySchemaReads(
     (async () => {
       try {
         const evs = await fetchJson('/calendar');
-        if (Array.isArray(evs)) out.calendarEvents = mapCalendarEventsToBlob(evs);
+        if (Array.isArray(evs) && evs.length) out.calendarEvents = mapCalendarEventsToBlob(evs);
       } catch { /* calendarEvents bleiben aus Blob */ }
     })(),
 
     (async () => {
       try {
         const plan = await fetchJson('/trainingPlan');
-        if (plan && typeof plan === 'object') out.trainingPlan = plan;
+        if (plan && typeof plan === 'object' && Object.keys(plan).length) out.trainingPlan = plan;
       } catch { /* trainingPlan bleibt aus Blob */ }
     })(),
   ]);

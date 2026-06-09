@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { User, Goal, GoalProgress, AppState, Id } from '../../types';
 import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
+import { isMentor } from '../../lib/roles.js';
 import { softDelete } from '../../lib/trash.js';
 import ImportGoalsModal from './ImportGoalsModal.jsx';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
@@ -125,6 +126,8 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
 
   const myStatus = goal.progress?.[currentUser.id]?.status || 'open';
   const myCfg    = STATUS_CFG[myStatus];
+  // Mentor = read-only Staff (roles.ts): darf den eigenen Lernziel-Status NICHT schreiben.
+  const readOnly = isMentor(currentUser);
 
   const totalProgress = isAusbilder
     ? azubis.map((a) => ({ user: a, st: goal.progress?.[a.id]?.status || 'open' }))
@@ -133,6 +136,7 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
   const learnedCount   = totalProgress?.filter((p) => p.st !== 'open').length || 0;
 
   const markLearned = () => {
+    if (readOnly) return;
     // 0.9: bestätigte Ziele sind gesperrt — der Azubi darf die Ausbilder-Bestätigung nicht per Toggle aufheben
     if (myStatus === 'confirmed') return;
     const next = myStatus === 'open' ? 'learned' : 'open';
@@ -162,7 +166,7 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', cursor: 'pointer' }}
         onClick={() => setExpanded(e => !e)}>
         {/* Status dot / toggle for azubi */}
-        {!isAusbilder ? (
+        {!isAusbilder && !readOnly ? (
           <button onClick={e => { e.stopPropagation(); markLearned(); }}
             disabled={myStatus === 'confirmed'}
             title={myStatus === 'confirmed' ? 'Vom Ausbilder bestätigt — gesperrt' : myStatus === 'open' ? 'Als gelernt markieren' : 'Rückgängig'}
@@ -217,7 +221,7 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 12, color: C.mu }}>Dein Status:</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: myCfg.c }}>{myCfg.dot} {myCfg.l}</span>
-              {myStatus === 'open' && (
+              {myStatus === 'open' && !readOnly && (
                 <button onClick={markLearned} className="abtn" style={{ fontSize: 11, padding: '3px 10px' }}>Als gelernt markieren</button>
               )}
               {myStatus === 'learned' && (

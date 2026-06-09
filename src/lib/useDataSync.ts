@@ -27,36 +27,47 @@ export function useDataSync(
     if (!currentUser) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // In-flight-Guard: poll() yieldet bei await (getDataVersion/getData). Ohne diesen
+    // Guard würde ein focus/visibilitychange während eines laufenden Polls eine zweite,
+    // parallele Poll-Kette starten (überlappende, nicht abbrechbare Timer-Schleifen).
+    let polling = false;
 
     async function poll() {
-      if (cancelled) return;
-      // Nur wenn Tab sichtbar UND online
-      if (typeof document !== 'undefined' && document.hidden) return schedule();
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) return schedule();
-
-      const v = await dataService.getDataVersion();
-      if (cancelled || !v) return schedule();
-
-      if (!initialized.current) {
-        lastVersion.current = v.version || 0;
-        initialized.current = true;
+      if (cancelled || polling) return;
+      // Nur wenn Tab sichtbar UND online — sonst nur neu schedulen
+      if ((typeof document !== 'undefined' && document.hidden) ||
+          (typeof navigator !== 'undefined' && navigator.onLine === false)) {
         return schedule();
       }
 
-      // Hat ein anderer Tab/Nutzer geschrieben?
-      if (v.version > lastVersion.current) {
-        // Wenn lokal ein Save in der Queue steht, NICHT überschreiben —
-        // unsere Änderung gewinnt erst, wenn sie persistiert ist.
-        const status = dataService.getSaveStatus();
-        if (!status.pending && !status.inflight) {
-          const fresh = await dataService.getData();
-          if (!cancelled && fresh) {
-            lastVersion.current = v.version;
-            setData(fresh);
+      polling = true;
+      try {
+        const v = await dataService.getDataVersion();
+        if (cancelled || !v) return;
+
+        if (!initialized.current) {
+          lastVersion.current = v.version || 0;
+          initialized.current = true;
+          return;
+        }
+
+        // Hat ein anderer Tab/Nutzer geschrieben?
+        if (v.version > lastVersion.current) {
+          // Wenn lokal ein Save in der Queue steht, NICHT überschreiben —
+          // unsere Änderung gewinnt erst, wenn sie persistiert ist.
+          const status = dataService.getSaveStatus();
+          if (!status.pending && !status.inflight) {
+            const fresh = await dataService.getData();
+            if (!cancelled && fresh) {
+              lastVersion.current = v.version;
+              setData(fresh);
+            }
           }
         }
+      } finally {
+        polling = false;
+        if (!cancelled) schedule();
       }
-      schedule();
     }
 
     function schedule() {
