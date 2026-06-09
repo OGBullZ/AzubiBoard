@@ -27,7 +27,10 @@ function digest_overdue_tasks(array $projects, int $today): array {
             $dl = $t['deadline'] ?? null;
             if (!$dl) continue;
             if (($t['status'] ?? '') === 'done' || !empty($t['done'])) continue;
-            if (strtotime($dl) < $today) {
+            $ts = strtotime($dl);
+            // strtotime() liefert bei unparsbarem Datum false (→ 0 im Vergleich) — sonst
+            // würde eine Task mit kaputtem Deadline-String fälschlich als überfällig zählen.
+            if ($ts !== false && $ts < $today) {
                 $overdue[] = ['project' => $p['title'] ?? '?', 'task' => $t['text'] ?? '?', 'deadline' => $dl];
             }
         }

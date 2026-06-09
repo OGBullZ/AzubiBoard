@@ -556,27 +556,39 @@ if (!function_exists('migrate_calendar_events')) {
             $type = migration_status_or_default($ev['type'] ?? null, ['event','deadline','reminder','untis','holiday'], 'event');
 
             if (!$dryRun) {
-                $stmt = $pdo->prepare(
-                    "INSERT INTO calendar_events
-                        (user_id, project_id, title, description, event_date, start_time, end_time,
-                         all_day, type, color, source, external_id)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
-                );
-                $stmt->execute([
-                    $userId,
-                    !empty($ev['project_id']) ? (int)$ev['project_id'] : null,
-                    $title,
-                    $ev['description'] ?? null,
-                    $eventDate,
-                    $ev['start_time'] ?? null,
-                    $ev['end_time'] ?? null,
-                    !empty($ev['all_day']) || empty($ev['start_time']) ? 1 : 0,
-                    $type,
-                    $ev['color'] ?? null,
-                    $ev['source'] ?? 'manual',
-                    $ev['external_id'] ?? null,
-                ]);
-                register_map($pdo, 'calendar_event', $blobId, (int)$pdo->lastInsertId());
+                // INSERT + register_map atomar: ein Crash dazwischen würde sonst eine
+                // gemappte-lose Row hinterlassen → 2. Lauf dupliziert (calendar_events
+                // hat keinen UNIQUE-Business-Key). Konsistent mit migrate_projects.
+                $pdo->beginTransaction();
+                try {
+                    $stmt = $pdo->prepare(
+                        "INSERT INTO calendar_events
+                            (user_id, project_id, title, description, event_date, start_time, end_time,
+                             all_day, type, color, source, external_id)
+                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+                    );
+                    $stmt->execute([
+                        $userId,
+                        !empty($ev['project_id']) ? (int)$ev['project_id'] : null,
+                        $title,
+                        $ev['description'] ?? null,
+                        $eventDate,
+                        $ev['start_time'] ?? null,
+                        $ev['end_time'] ?? null,
+                        !empty($ev['all_day']) || empty($ev['start_time']) ? 1 : 0,
+                        $type,
+                        $ev['color'] ?? null,
+                        $ev['source'] ?? 'manual',
+                        $ev['external_id'] ?? null,
+                    ]);
+                    register_map($pdo, 'calendar_event', $blobId, (int)$pdo->lastInsertId());
+                    $pdo->commit();
+                } catch (\Throwable $e) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    error_log("[migration] migrate_calendar_events rollback for calendar_event:{$blobId}: " . $e->getMessage());
+                    $stats['skipped']++;
+                    continue;
+                }
             }
             $stats['calendar_events']++;
         }
@@ -916,6 +928,11 @@ if (!function_exists('migrate_reports')) {
 
             try {
                 if (!$dryRun) {
+                    // report-INSERT + register_map + report_file atomar: sonst kann ein
+                    // Teilfehler/Crash nach register_map('report') die Datei dauerhaft
+                    // verlieren (Folgelauf überspringt den gemappten Report). Konsistent
+                    // mit migrate_projects.
+                    $pdo->beginTransaction();
                     $stmt = $pdo->prepare("
                         INSERT INTO reports
                             (user_id, reviewer_id, week_start, week_number, year, title,
@@ -944,11 +961,15 @@ if (!function_exists('migrate_reports')) {
                     $relRepId = (int)$pdo->lastInsertId();
                     register_map($pdo, 'report', $blobRepId, $relRepId);
 
+                    $localFiles = 0;
                     if (!empty($r['file'])) {
-                        $stats['report_files'] += migrate_report_file($pdo, $relRepId, $userId, $blobRepId, $r['file'], false);
+                        $localFiles = migrate_report_file($pdo, $relRepId, $userId, $blobRepId, $r['file'], false);
                     }
+                    $pdo->commit();
+                    $stats['report_files'] += $localFiles;   // erst nach Commit zählen
                 }
             } catch (\Throwable $e) {
+                if (!$dryRun && $pdo->inTransaction()) $pdo->rollBack();
                 error_log("[migration] migrate_reports skip report:{$blobRepId}: " . $e->getMessage());
                 $stats['skipped']++;
                 continue;

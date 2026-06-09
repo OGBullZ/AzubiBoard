@@ -55,12 +55,24 @@ final class DigestTest extends TestCase
                 ['text' => 'überfällig-doneflag','deadline' => $past,   'done' => true],         // skip: done-Flag
                 ['text' => 'ohne-deadline',      'status' => 'open'],                            // skip: keine Deadline
                 ['text' => 'zukunft',            'deadline' => $future, 'status' => 'open'],      // skip: nicht überfällig
+                ['text' => 'kaputtes-datum',     'deadline' => 'unbekannt', 'status' => 'open'],  // skip: strtotime=false (#14)
             ],
         ]];
         $out = digest_overdue_tasks($projects, $today);
         $this->assertCount(1, $out);
         $this->assertSame('überfällig-offen', $out[0]['task']);
         $this->assertSame('Doku', $out[0]['project']);
+    }
+
+    public function testOverdueIgnoriertUnparsbaresDatum(): void
+    {
+        // #14: strtotime('unbekannt') === false, früher false<today → fälschlich überfällig.
+        $today    = strtotime('today');
+        $projects = [['title' => 'X', 'tasks' => [
+            ['text' => 'kaputt', 'deadline' => 'unbekannt', 'status' => 'open'],
+            ['text' => 'leer',   'deadline' => 'not-a-date', 'status' => 'open'],
+        ]]];
+        $this->assertCount(0, digest_overdue_tasks($projects, $today));
     }
 
     public function testSubjectSpiegeltZaehlerWider(): void
