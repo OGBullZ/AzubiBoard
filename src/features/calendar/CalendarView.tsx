@@ -39,9 +39,10 @@ type CalendarViewProps = {
   users: User[];
   onUpdate: (id: any, patch: any) => void;
   showToast: (msg: string) => void;
+  canEdit?: boolean;   // Mentor = read-only: keine Termine anlegen/bearbeiten/löschen
 };
 
-export function CalendarView({ projects, calendarEvents, users, onUpdate, showToast }: CalendarViewProps) {
+export function CalendarView({ projects, calendarEvents, users, onUpdate, showToast, canEdit = true }: CalendarViewProps) {
   const [date,      setDate]     = useState<Date>(new Date());
   const [viewMode,  setViewMode] = useState<string>('month');
   const [newEvDay,  setNewEvDay] = useState<number | { date: string; label: string } | null>(null);
@@ -75,8 +76,16 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
   }
   const weeks = buildCalendar();
 
+  // Neuer-Termin-Modal öffnen — read-only (Mentor) gibt nur Feedback, kein Modal.
+  const startNew = (dayInfo: number | { date: string; label: string }) => {
+    if (!canEdit) { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
+    setNewEvDay(dayInfo);
+    setForm({ title: '', note: '', projectId: '', type: 'event' });
+  };
+
   const openEdit = (ev: CalEvent, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canEdit) return;   // Mentor: read-only, kein Bearbeiten-Modal
     const isDerived = (ev.id as any)?.startsWith('dl-') || (ev.id as any)?.startsWith('tdl-') || ev._project;
     if (isDerived && ((ev.id as any)?.startsWith('dl-') || (ev.id as any)?.startsWith('tdl-'))) return;
     setEditEv(ev);
@@ -84,6 +93,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
   };
 
   const saveEdit = () => {
+    if (!canEdit) return;
     if (!editForm || !editForm.title.trim() || !editEv) return;
     const updated = { ...editEv, ...editForm, title: editForm.title.trim() };
     if (editEv.projectId && !editForm.projectId) {
@@ -110,6 +120,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
   };
 
   const deleteEvent = (ev: CalEvent) => {
+    if (!canEdit) return;
     if (ev.projectId) {
       const p = projects.find(x => x.id === ev.projectId);
       if (p) onUpdate(p.id, { calendarEvents: ((p as any).calendarEvents || []).filter((e: CalEvent) => e.id !== ev.id) });
@@ -149,6 +160,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
   };
 
   function addEvent() {
+    if (!canEdit) return;
     if (!form.title.trim()) return;
     const ds = typeof newEvDay === 'object' ? (newEvDay as { date: string; label: string }).date : dayStr(newEvDay);
     const ev = { id: uid(), date: ds, title: form.title.trim(), note: form.note, projectId: form.projectId || null, type: form.type };
@@ -309,8 +321,8 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
               return (
                 <div key={di} role="gridcell" tabIndex={0}
                   style={{ background: today_ ? '#0b1624' : C.sf2, minHeight: 200, padding: 8, cursor: 'pointer', transition: 'background .12s', position: 'relative', borderLeft: today_ ? `2px solid ${C.ac}` : 'none', outline: 'none' }}
-                  onClick={() => { setNewEvDay({ date: ds, label: `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}` }); setForm({ title: '', note: '', projectId: '', type: 'event' }); }}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNewEvDay({ date: ds, label: `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}` }); setForm({ title: '', note: '', projectId: '', type: 'event' }); } }}>
+                  onClick={() => startNew({ date: ds, label: `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}` })}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startNew({ date: ds, label: `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}` }); } }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div style={{ width: 24, height: 24, borderRadius: '50%', background: today_ ? C.ac : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: today_ ? 12 : 11, fontWeight: today_ ? 800 : 500, color: today_ ? '#fff' : C.mu }}>{day}</div>
                     {workers.length > 0 && <div style={{ display: 'flex' }}>{workers.slice(0,3).map((w,i) => <div key={w.id} style={{ marginLeft: i>0?-4:0, width:7, height:7, borderRadius:'50%', background: w.taskStatus==='in_progress'?C.gr:C.yw, border:`1px solid ${C.sf2}` }} />)}</div>}
@@ -345,10 +357,10 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                 return (
                   <div key={di} role="gridcell" tabIndex={day ? 0 : -1}
                     style={{ background: !day ? 'var(--c-sf3)' : today_ ? 'var(--c-acd)' : C.sf2, minHeight: 92, padding: 7, cursor: day ? 'pointer' : 'default', transition: 'background .12s', position: 'relative', borderLeft: today_ ? `2px solid ${C.ac}` : 'none', outline: 'none' }}
-                    onClick={() => { if (day) { setNewEvDay(day); setForm({ title: '', note: '', projectId: '', type: 'event' }); } }}
+                    onClick={() => { if (day) startNew(day); }}
                     onMouseEnter={() => { if (day) setHovDay(day); }}
                     onMouseLeave={() => setHovDay(null)}
-                    onKeyDown={e => { if (day && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setNewEvDay(day); } }}>
+                    onKeyDown={e => { if (day && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); startNew(day); } }}>
                     {day && (
                       <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>

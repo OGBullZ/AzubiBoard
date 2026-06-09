@@ -979,7 +979,7 @@ function CalendarPage({ showToast }: { showToast: ShowToast }) {
       setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
     }
   }, [data, setData, currentUser, showToast]);
-  return <CalendarView projects={data?.projects||[]} calendarEvents={data?.calendarEvents||[]} users={data?.users||[]} onUpdate={handleUpdate} showToast={showToast} />;
+  return <CalendarView projects={data?.projects||[]} calendarEvents={data?.calendarEvents||[]} users={data?.users||[]} onUpdate={handleUpdate} showToast={showToast} canEdit={currentUser?.role !== 'mentor'} />;
 }
 
 function GroupsPage({ showToast }: { showToast: ShowToast }) {

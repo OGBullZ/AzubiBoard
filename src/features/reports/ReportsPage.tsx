@@ -161,8 +161,10 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
 
   const isOwner  = !report || report.user_id === currentUser.id;
   const isReview = isAusbilder(currentUser);
-  // Mentor sieht alles wie Review-Modus, aber kann nichts speichern → readOnly forciert
-  const readOnly = (report?.status !== 'draft' && !isReview) || (!isOwner && isStaff(currentUser) && !isReview);
+  // Mentor sieht alles wie Review-Modus, aber kann nichts speichern → readOnly forciert.
+  // `report &&`-Guard: ein NEUER Bericht (report=null) ist ein Entwurf des Azubi → editierbar
+  // (ohne Guard wäre `undefined !== 'draft'` true → ganzes Formular gesperrt, kein Speichern-Button).
+  const readOnly = (!!report && report.status !== 'draft' && !isReview) || (!isOwner && isStaff(currentUser) && !isReview);
   const kw       = getKW(form.week_start);
 
   const insertTemplate = (tmpl: { label: string; activities: string; learnings: string }) => { setForm((f: any) => ({ ...f, activities: tmpl.activities, learnings: tmpl.learnings })); showToast('✓ Vorlage eingefügt'); };
