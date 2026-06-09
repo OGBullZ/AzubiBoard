@@ -22,18 +22,32 @@ function load_report(PDO $pdo, int $id): ?array {
     return $s->fetch() ?: null;
 }
 
+// L5-6a-RLS für Reports: prüft, ob der Report-Eigentümer eine Gruppe mit dem
+// eingeloggten User teilt (reports hat user_id, keine group_id → users-Filter).
+// Ohne Gruppen-Mitgliedschaft ist die Klausel 1=1 (kein Regress) — Isolation
+// greift erst bei befülltem group_members.
+function report_group_ok(PDO $pdo, array $auth, int $reportId): bool {
+    $gf = with_group_filter_users($pdo, $auth, 'user_id');
+    $s  = $pdo->prepare("SELECT 1 FROM reports WHERE id = ? AND {$gf['clause']} LIMIT 1");
+    $s->execute([$reportId, ...$gf['params']]);
+    return (bool)$s->fetch();
+}
+
 // ─────────────────────────────────────────────────────────────
 
 // GET /api/reports — Liste
 if ($method === 'GET' && $id === null) {
     $params = [];
     if ($role === 'ausbilder') {
+        // RLS: nur Reports von Azubis aus geteilten Gruppen (kein gruppenübergreifender Leak).
+        $gf = with_group_filter_users(db(), $auth, 'user_id');
         // Optionaler Filter: ?user_id=X
         if (!empty($_GET['user_id'])) {
-            $s = db()->prepare("SELECT * FROM reports WHERE user_id = ? ORDER BY week_start DESC");
-            $s->execute([(int)$_GET['user_id']]);
+            $s = db()->prepare("SELECT * FROM reports WHERE user_id = ? AND {$gf['clause']} ORDER BY week_start DESC");
+            $s->execute([(int)$_GET['user_id'], ...$gf['params']]);
         } else {
-            $s = db()->query("SELECT * FROM reports ORDER BY week_start DESC");
+            $s = db()->prepare("SELECT * FROM reports WHERE {$gf['clause']} ORDER BY week_start DESC");
+            $s->execute($gf['params']);
         }
     } else {
         $s = db()->prepare("SELECT * FROM reports WHERE user_id = ? ORDER BY week_start DESC");
@@ -47,6 +61,7 @@ if ($method === 'GET' && $id !== null) {
     $r = load_report(db(), $id);
     if (!$r) error('Bericht nicht gefunden', 404);
     if ($role !== 'ausbilder' && (int)$r['user_id'] !== $uid) error('Kein Zugriff', 403);
+    if ($role === 'ausbilder' && !report_group_ok(db(), $auth, $id)) error('Kein Zugriff', 403);
     respond($r);
 }
 
@@ -86,6 +101,7 @@ if ($method === 'PATCH' && $id !== null) {
 
     $isOwner = (int)$r['user_id'] === $uid;
     if ($role !== 'ausbilder' && !$isOwner) error('Kein Zugriff', 403);
+    if ($role === 'ausbilder' && !report_group_ok(db(), $auth, $id)) error('Kein Zugriff', 403);
 
     $b = body();
     $newStatus = $b['status'] ?? $r['status'];
@@ -96,8 +112,10 @@ if ($method === 'PATCH' && $id !== null) {
         if (!in_array($newStatus, ['draft','submitted'])) {
             error('Nur Ausbilder dürfen Status auf reviewed/signed setzen', 403);
         }
-        if ($r['status'] !== 'draft' && $r['status'] !== 'submitted') {
-            error('Bericht kann nach Prüfung nicht mehr geändert werden', 403);
+        // K2: sobald nicht mehr Entwurf, ist KEINE Änderung mehr erlaubt (auch kein
+        // Zurücksetzen submitted→draft) — konsistent mit validate_reports_diff (data.php).
+        if ($r['status'] !== 'draft') {
+            error('Eingereichter Bericht kann nicht mehr geändert werden', 403);
         }
     }
 
@@ -136,6 +154,8 @@ if ($method === 'DELETE' && $id !== null) {
     if ($role !== 'ausbilder') {
         if ((int)$r['user_id'] !== $uid) error('Kein Zugriff', 403);
         if ($r['status'] !== 'draft') error('Nur Entwürfe können gelöscht werden', 403);
+    } elseif (!report_group_ok(db(), $auth, $id)) {
+        error('Kein Zugriff', 403);
     }
     db()->prepare("DELETE FROM reports WHERE id = ?")->execute([$id]);
     respond(['ok' => true]);

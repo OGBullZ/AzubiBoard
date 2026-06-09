@@ -195,6 +195,14 @@ if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'check'
 // ── K1: POST /api/auth/2fa/setup ── Secret erzeugen (noch nicht aktiv) ─
 if ($method === 'POST' && $sub_action === '2fa' && ($parts[2] ?? '') === 'setup') {
     $auth = require_auth();
+    // B2-Schutz: ist 2FA bereits aktiv, Setup NICHT zulassen — sonst würde dieser
+    // Pfad totp_enabled ohne Passwort/Code auf 0 setzen (2FA-Downgrade per gestohlener
+    // Session). Zum Neueinrichten erst /2fa/disable (verlangt Passwort + 2. Faktor).
+    $cur = db()->prepare('SELECT totp_enabled FROM users WHERE id = ? LIMIT 1');
+    $cur->execute([$auth['sub']]);
+    if ((int)($cur->fetchColumn() ?: 0) === 1) {
+        error('2FA ist bereits aktiv — zum Neueinrichten zuerst 2FA deaktivieren.', 409);
+    }
     $secret = totp_generate_secret(20);
     // In DB schreiben, aber totp_enabled bleibt 0 bis Verify
     db()->prepare('UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?')

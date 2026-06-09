@@ -42,7 +42,9 @@ if ($method === 'GET' && (($parts[1] ?? null) === 'version')) {
 }
 
 // ── GET /api/data ────────────────────────────────────────────
-if ($method === 'GET') {
+// WICHTIG (spezifisch vor allgemein): nur der bloße /data-Pfad. Sonst würde
+// dieser Handler /data/backups{,/{day}} verschlucken (respond() beendet sofort).
+if ($method === 'GET' && empty($parts[1] ?? null)) {
     // L5-DEP: Lesezugriff bleibt erhalten (Legacy + Backup), aber im
     // Schema-First-Modus signalisieren wir die Deprecation per Header.
     if (FORCE_SCHEMA) {
@@ -66,7 +68,10 @@ if ($method === 'GET') {
 }
 
 // ── POST /api/data ───────────────────────────────────────────
-if ($method === 'POST') {
+// WICHTIG (spezifisch vor allgemein): nur der bloße /data-Pfad. Sonst würde
+// dieser Handler /data/restore verschlucken und den Restore-Body als kompletten
+// app_data-Content speichern (Totalverlust des States).
+if ($method === 'POST' && empty($parts[1] ?? null)) {
     // L5-DEP: Im Schema-First-Modus sind Blob-Writes depreciert.
     if (FORCE_SCHEMA) {
         http_response_code(410);

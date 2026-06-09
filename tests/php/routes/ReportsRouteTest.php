@@ -61,4 +61,37 @@ final class ReportsRouteTest extends TestCase
             'Ownership-Check (Vergleich user_id vs $uid/$auth) erwartet'
         );
     }
+
+    public function testAusbilderReportsAreGroupScoped(): void
+    {
+        // L5-6a-RLS: Ausbilder darf NICHT systemweit alle Reports lesen/ändern, sondern
+        // nur die von Azubis aus geteilten Gruppen → with_group_filter_users muss greifen.
+        // Regressionsschutz gegen den Cross-Group-Leak (Bug-Hunt #4).
+        $this->assertStringContainsString('with_group_filter_users', $this->code,
+            'Reports-Route muss Gruppen-RLS (with_group_filter_users) anwenden');
+        // Der gefährliche ungefilterte Voll-Scan darf nicht zurückkehren.
+        $this->assertDoesNotMatchRegularExpression(
+            '/query\(\s*[\'"]SELECT \* FROM reports ORDER BY/i',
+            $this->code,
+            'Ungefilterter SELECT * FROM reports (alle Gruppen) darf nicht existieren'
+        );
+    }
+
+    public function testAzubiCannotEditAfterDraft(): void
+    {
+        // K2 (#7): sobald ein Report NICHT mehr 'draft' ist, darf ein Nicht-Ausbilder
+        // ihn nicht mehr ändern (auch kein submitted→draft-Reset) — konsistent zu
+        // validate_reports_diff in data.php. Der alte, zu permissive Guard ließ
+        // 'submitted' noch durch.
+        $this->assertMatchesRegularExpression(
+            '/\$r\[[\'"]status[\'"]\]\s*!==?\s*[\'"]draft[\'"]/',
+            $this->code,
+            'PATCH muss bei status !== draft jede Azubi-Änderung blocken'
+        );
+        $this->assertStringNotContainsString(
+            "\$r['status'] !== 'draft' && \$r['status'] !== 'submitted'",
+            $this->code,
+            'Der alte zu permissive Guard (submitted noch editierbar) darf nicht mehr existieren'
+        );
+    }
 }

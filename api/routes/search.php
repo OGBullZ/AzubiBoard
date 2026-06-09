@@ -115,15 +115,18 @@ try {
 // ── Reports ──────────────────────────────────────────────────
 try {
     if ($role === 'ausbilder') {
+        // RLS: nur Reports von Azubis aus geteilten Gruppen (analog projects/tasks oben).
+        $gf = with_group_filter_users(db(), $auth, 'user_id');
         $s = db()->prepare("
             SELECT id, title,
                    SUBSTRING(COALESCE(activities,''), 1, 120) AS sub,
                    MATCH(title, activities, learnings) AGAINST (? IN BOOLEAN MODE) AS score
             FROM reports
-            WHERE MATCH(title, activities, learnings) AGAINST (? IN BOOLEAN MODE) > 0
+            WHERE {$gf['clause']}
+              AND MATCH(title, activities, learnings) AGAINST (? IN BOOLEAN MODE) > 0
             ORDER BY score DESC LIMIT ?
         ");
-        $s->execute([$ftQ, $ftQ, $limit]);
+        $s->execute([$ftQ, ...$gf['params'], $ftQ, $limit]);
     } else {
         $s = db()->prepare("
             SELECT id, title,
