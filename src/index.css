@@ -84,12 +84,76 @@ body {
 [data-design="beta"] {
   --font-body: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
   --font-display: 'Chakra Petch', 'Archivo Variable', sans-serif;
+
+  /* ── Primitives ── */
+  --petrol-950: #0B0F0E; --petrol-900: #111715; --petrol-850: #161E1B; --petrol-800: #1C2522;
+  --line-1: #243029; --line-2: #2F3D36;
+  --ink-hi: #F2F0E9; --ink-tx: #C9CCC4; --ink-mu: #86918A;
+  --stamp-red: #D14437; --stamp-blue: #4D7FBF; --stamp-green: #3E9B68;
+
+  /* ── Semantik (Werkstatt-Dark) — überschreibt die 1.0-Token-NAMEN, Konsumenten unverändert ── */
+  --c-bg:  var(--petrol-950);
+  --c-sf:  var(--petrol-900);
+  --c-sf2: var(--petrol-850);
+  --c-sf3: var(--petrol-800);
+  --c-tx:  var(--ink-tx);
+  --c-br:  var(--ink-hi);
+  --c-mu:  var(--ink-mu);
+  --c-bd:  var(--line-1);
+  --c-bd2: var(--line-2);
+  --c-bd-soft: color-mix(in srgb, var(--line-1) 50%, transparent);
+  --c-ac:  #FF6A1A;                                     /* Signal-Orange (User-Entscheid) */
+  --c-ac-press: #E55708;
+  --c-ac-text: #FFB78A;                                 /* AA-taugliche Text-Variante auf Dunkel */
+  --c-acd: color-mix(in srgb, #FF6A1A 12%, transparent);
+  --c-gr: #37C871; --c-grd: color-mix(in srgb, #37C871 12%, transparent);
+  --c-cr: #F45B4E; --c-crd: color-mix(in srgb, #F45B4E 12%, transparent);
+  --c-yw: #FFB224; --c-ywd: color-mix(in srgb, #FFB224 12%, transparent);
+  --st-green-bg: #0C1A12;
+  --c-data: #3FD2C7;                                    /* Daten/Sync — nie Orange */
+  --c-grid: color-mix(in srgb, #3FD2C7 4%, transparent);
+  --c-grid-strong: color-mix(in srgb, #3FD2C7 7%, transparent);
+
+  /* ── Skalen ── */
+  --r-1: 4px; --r-2: 8px; --r-3: 14px;
+  --shadow-xs: inset 0 1px 0 rgba(255,255,255,.04);
+  --shadow-sm: inset 0 1px 0 rgba(255,255,255,.05), 0 4px 12px -6px rgba(0,0,0,.5);
+  --shadow:    inset 0 1px 0 rgba(255,255,255,.05), 0 6px 16px -8px rgba(0,0,0,.55);
+  --shadow-lg: 0 12px 32px -12px rgba(0,0,0,.6);
+  --shadow-focus: none;                                  /* Beta: Messlehre-Focus statt Ring (motion.css) */
+  --ease-stamp: cubic-bezier(.2,1.4,.4,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
 }
+
+/* Papier-Light (Beta): eigener Charakter — Zeichenbrett am Tag, kein invertiertes Dark */
+[data-design="beta"][data-theme="light"] {
+  --c-bg:  #F6F3EC;
+  --c-sf:  #FFFFFF;
+  --c-sf2: #FBF9F4;
+  --c-sf3: #F1EDE3;
+  --c-tx:  #2A3A35;
+  --c-br:  #16211D;
+  --c-mu:  #6E7B74;
+  --c-bd:  #C9CFC4;
+  --c-bd2: #A9B2A9;
+  --c-bd-soft: color-mix(in srgb, #C9CFC4 50%, transparent);
+  --c-ac-text: #C24A08;                                  /* auf Papier: dunkleres Orange für Text */
+  --c-acd: color-mix(in srgb, #FF6A1A 10%, transparent);
+  --st-green-bg: #E9F4EC;
+  --c-grid: color-mix(in srgb, #2C5E9E 7%, transparent); /* Millimeterpapier-Blau */
+  --c-grid-strong: color-mix(in srgb, #2C5E9E 12%, transparent);
+  --shadow-xs: 0 1px 0 rgba(22,33,29,.06);
+  --shadow-sm: 0 1px 0 rgba(22,33,29,.08);
+  --shadow:    0 4px 14px -8px rgba(22,33,29,.18);
+  --shadow-lg: 0 8px 24px -12px rgba(22,33,29,.22);
+}
+
 [data-design="beta"] body, [data-design="beta"] h1, [data-design="beta"] h2,
 [data-design="beta"] h3, [data-design="beta"] h4 { letter-spacing: .01em; }
 [data-design="beta"] h1, [data-design="beta"] h2, [data-design="beta"] h3, [data-design="beta"] h4 {
   font-weight: 700; line-height: 1.2;
 }
+[data-design="beta"] ::selection { background: color-mix(in srgb, var(--c-ac) 30%, transparent); }
 
 /* ── Light-Mode ── */
 [data-theme="light"] {
