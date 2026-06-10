@@ -67,7 +67,7 @@ Zweischichtig: **Primitives** (rohe Skalen) → **Semantik** (was Komponenten be
 - Theme-Wechsel = Metapher-Wechsel: **nachts Werkstatt, tags Zeichenbrett.**
 
 ### 1.4 Textur, Tiefe, Material
-- **Blueprint-Raster** Body-Hintergrund: `repeating-linear-gradient` 0°/90°, 1px-Linien alle 24px @3 %, jede 5. Linie @6 % (Hauptraster 120px). Eine CSS-Regel, null Assets.
+- ~~Blueprint-Raster als Body-Hintergrund~~ — **GESTRICHEN (User-Entscheid 2026-06-10): Hintergrund bleibt solid.** Das Raster lebt nur noch LOKAL weiter: Netzplan-Canvas (D4) und optional Login-Bühne — als Werkzeug-Fläche, nicht als Tapete. `--c-grid`-Tokens bleiben dafür definiert.
 - **Grain:** 64px-SVG-Noise-Kachel (`feTurbulence`, inline data-URI), fixed Overlay `opacity:.035; pointer-events:none; mix-blend-mode:overlay`. Toggle-bar über ein einziges `data-grain`-Attribut.
 - **Material-Rezept Karte** („gestanztes Blech"): `box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 6px 16px -8px rgba(0,0,0,.5); border: 1px solid var(--c-bd)`.
 - Schatten-Skala: `--sh-1` (Karte) / `--sh-2` (Popover) / `--sh-3` (Modal, mit 2px Akzent-Glow-Anteil).
@@ -362,6 +362,34 @@ type StampProps = {
 
 ### Doodle-Bibliothek (D5, Vorab-Spec)
 `src/components/Doodles.tsx` — 8 Inline-SVGs (je <2 KB): leeres Kanban (Kiste), keine Berichte (Laufkarte), Papierkorb leer (Schredder), Suche leer (Lupe+Maßlinie), keine Termine (Plantafel), Fehler (Zahnrad mit Bruchzahn), alles-gut (Kaffeebecher), keine Gruppe (Karteikasten). Strichstärke 1.75, `stroke="currentColor"`, gestrichelte Maßlinien + Annotations-Text als `<text>` in Mono.
+
+## Anhang C — Animations-Drehbuch (verbindlich für D3–D6)
+
+Timing-System: **90ms** (Press/Snap) · **180ms** (Hover/Toggle) · **320ms** (Entrance/Layout) · **600ms** (Zeremonie: Stempel-Folge, Zeichnen). Easings: `--ease-out` Standard, `--ease-stamp` nur für Aufschläge. Nur `transform`/`opacity` (Compositor); alles außer Focus-Brackets hinter `prefers-reduced-motion`. **Budget: 1 Entrance + 1 Signature + Micro-Feedback pro Screen — nicht mehr.**
+
+| Screen | Entrance (einmalig je Mount) | Signature | Micro-Feedback |
+|---|---|---|---|
+| **Login** | Logo-Konstruktion: SVG-Strokes zeichnen sich 1.2s (stroke-dashoffset), Formular faded danach ein (320ms) | „ABGELEHNT"-Stempel blitzt bei Fehlversuch auf + `.shake-reject` (200ms) | Button-Press 90ms; Input-Focus-Brackets snappen |
+| **Dashboard** | `.draft-in`-Stagger über Widgets (60ms-Versatz) | Stat-Zahlen zählen hoch (`useCountUp`, 600ms, nur beim 1. Sichtbarwerden) | WeekProgress-Balken wachsen 320ms gestaffelt; Hover hebt Karte 1px |
+| **Berichte** | Listen-Stagger 40ms | **Statuswechsel = `<Stamp stamped>`-Aufschlag** (280ms) + Tinten-Ring-Fade 600ms | KW-Wechsel als Mini-Split-Flap; Filter-Chip-Toggle 90ms |
+| **Kanban** | Spalten staggern 60ms | Drag: Karte kippt 2.5° + Schatten; Drop-Slot = wandernde Schablonen-Strichlinie; Drop in „done" → Mini-Stempel ✓ | Spalten-Zähler pulst (scale 1.15→1, 180ms) bei Änderung |
+| **Netzplan** | Knoten faden entlang Topologie ein (Welle, 40ms/Knoten) | Kritischer Pfad: Opacity-Puls wandert alle 8s einmal die Kanten entlang („Strom fließt") | Hover dimmt Nicht-Nachbarn auf 40 % (150ms); Zoom buttert 180ms |
+| **Kalender** | Monat/Woche cross-faded 180ms | **Split-Flap-KW** beim Wochenwechsel (3 Flaps, 90ms versetzt) | Heute-Spalten-Glow faded beim Laden ein; Event-Chip-Hover hebt 1px |
+| **Trainingsplan** | Kategorien staggern | Ausbilder bestätigt → Stempel + **12 CSS-Partikel** (800ms, danach DOM-Cleanup); Flipclock-Countdown klappt bei Tageswechsel | Fortschritts-Maßband füllt 320ms |
+| **Lernbereich** | Karteikasten-Fächer staggern | Karteikarte **3D-Flip** (rotateY, 400ms); Karte „fliegt" ins nächste SM-2-Fach (500ms translate+scale) | Quiz richtig = grüner Mini-Stempel; falsch = `.shake-reject` |
+| **Welcome-News** | Karten staggern 60ms unter Perfo-Kante | Datum/KW stempelt sich beim Öffnen (280ms, einmal pro Tag ohnehin) | CTA-Press |
+| **Ctrl+K** | Panel scale .96→1 + fade 120ms | Block-Cursor blinkt `steps(1)` | Treffer-Hover: linke Akzentkante scaleY |
+| **Profil/Users** | Werksausweis-Karte kippt minimal ein (rotate -1°→0, 320ms) | „MEISTERSTÜCK"-Schimmer (nur bei 100 % Lernzielen, animierter Gradient) | Avatar-Upload: Drop-Zone-Strichlinie wandert |
+| **Papierkorb** | Zeilen-Stagger | Wiederherstellen-Hover: Schredder-Streifen setzen sich zusammen (Versatz→0, 200ms) | Endgültig-Löschen-Dialog: rote Schraffur-Ecke pulst NICHT (Ruhe = Ernst) |
+| **Toasts** | — | Einfahrt von unten mit Überschwingen (320ms `--ease-stamp` light); Akzentkante „druckt" sich scaleX 0→1 | Undo-Link-Hover unterstreicht 90ms |
+| **Theme-/Design-Switch** | — | View-Transition: radialer Sweep vom Schalter (600ms, progressive enhancement) | Schalter-Knopf federt 90ms |
+| **Sync-Indicator** | — | Zahnrad dreht `steps(8)` bei inflight (mechanisch); steht bei Fehler abrupt still | Erfolg: kurzer grüner Tick-Fade |
+
+**Implementierungs-Regeln:**
+1. Alles CSS-Klassen aus `motion.css` + max. 3 Mini-Hooks (`useCountUp`, Partikel-Spawner, Flap-Ziffern-Swap) — kein Animations-Framework.
+2. Entrance-Animationen NUR beim Mount, nie bei Re-Render (Key-Disziplin; `.draft-in` sitzt am Container).
+3. Listen >30 Einträge: Stagger kappen (max. 12 Kinder animieren, Rest erscheint sofort).
+4. Jede neue Animation wird im Browser gegen „nervt beim 20. Mal?" geprüft — Zeremonien (Stempel, Partikel) nur an echten Meilensteinen, nie an Routine-Klicks.
 
 ### Preview als lebendes Artefakt
 `docs/design-preview.html` wird pro D-Phase um die neu gebauten Primitives erweitert (Copy aus echtem CSS) — dient als Styleguide-Snapshot für Reviews, fliegt nach D6 in `docs/styleguide.html` umbenannt zusammen.

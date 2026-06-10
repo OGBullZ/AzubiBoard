@@ -155,15 +155,8 @@ body {
 }
 [data-design="beta"] ::selection { background: color-mix(in srgb, var(--c-ac) 30%, transparent); }
 
-/* Blueprint-Raster: 24px-Feinraster, jede 5. Linie stärker (120px) — null Assets */
-[data-design="beta"] body {
-  background-image:
-    linear-gradient(var(--c-grid-strong) 1px, transparent 1px),
-    linear-gradient(90deg, var(--c-grid-strong) 1px, transparent 1px),
-    linear-gradient(var(--c-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--c-grid) 1px, transparent 1px);
-  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
-}
+/* Hintergrund bleibt SOLID (User-Entscheid 2026-06-10) — kein globales Raster.
+   --c-grid-Tokens bleiben für LOKALE Blueprint-Flächen (Netzplan-Canvas, D4). */
 /* Grain: SVG-Noise-Kachel als fixed Overlay (User-Entscheid: an). GPU-billig (eine Komposition). */
 [data-design="beta"] body::after {
   content: '';
@@ -182,9 +175,8 @@ body {
   text-transform: uppercase;
   color: var(--c-mu);
 }
-/* Raster/Grain dürfen nie mitdrucken */
+/* Grain darf nie mitdrucken */
 @media print {
-  [data-design="beta"] body { background-image: none; }
   [data-design="beta"] body::after { display: none; }
 }
 
