@@ -102,7 +102,8 @@ body {
   --c-bd:  var(--line-1);
   --c-bd2: var(--line-2);
   --c-bd-soft: color-mix(in srgb, var(--line-1) 50%, transparent);
-  --c-ac:  #FF6A1A;                                     /* Signal-Orange (User-Entscheid) */
+  /* Akzent: per User wählbar via [data-accent] (Default Orange). Picker in ProfilePage. */
+  --c-ac:  #FF6A1A;                                     /* Signal-Orange */
   --c-ac-press: #E55708;
   --c-ac-text: #FFB78A;                                 /* AA-taugliche Text-Variante auf Dunkel */
   --c-acd: color-mix(in srgb, #FF6A1A 12%, transparent);
@@ -124,6 +125,18 @@ body {
   --ease-stamp: cubic-bezier(.2,1.4,.4,1);
   --ease-out: cubic-bezier(.16,1,.3,1);
 }
+
+/* Akzent-Varianten (User-Einstellung, nur Beta) */
+[data-design="beta"][data-accent="amber"] {
+  --c-ac: #FFB224; --c-ac-press: #E09A0E; --c-ac-text: #FFD27A;
+  --c-acd: color-mix(in srgb, #FFB224 12%, transparent);
+}
+[data-design="beta"][data-accent="cyan"] {
+  --c-ac: #3FD2C7; --c-ac-press: #26B5AA; --c-ac-text: #8FE8E1;
+  --c-acd: color-mix(in srgb, #3FD2C7 12%, transparent);
+}
+[data-design="beta"][data-accent="amber"][data-theme="light"] { --c-ac-text: #8A5C00; }
+[data-design="beta"][data-accent="cyan"][data-theme="light"]  { --c-ac-text: #0E6B63; }
 
 /* Papier-Light (Beta): eigener Charakter — Zeichenbrett am Tag, kein invertiertes Dark */
 [data-design="beta"][data-theme="light"] {

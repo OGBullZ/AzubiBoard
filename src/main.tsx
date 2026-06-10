@@ -20,6 +20,7 @@ initSentry();
 // Umschalter in ProfilePage; gleiche Mechanik wie data-theme.
 try {
   document.documentElement.setAttribute('data-design', localStorage.getItem('azubiboard_design') || 'v1');
+  document.documentElement.setAttribute('data-accent', localStorage.getItem('azubiboard_accent') || 'orange');
 } catch { /* noop */ }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
