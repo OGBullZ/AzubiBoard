@@ -84,6 +84,7 @@ function DesignSwitch() {
     set(val);
     try { localStorage.setItem(`azubiboard_${key}`, val); } catch { /* noop */ }
     document.documentElement.setAttribute(`data-${key}`, val);
+    if (key === 'design') window.dispatchEvent(new Event('azubiboard:design')); // useDesign-Konsumenten re-rendern
   };
   return (
     <div style={{ marginTop: 14 }}>

@@ -59,3 +59,18 @@ export function useDialog<T extends HTMLElement = HTMLDivElement>(onClose?: () =
   }, [onClose]);
   return ref;
 }
+
+// ── Design-Version (1.0 / 1.0 Beta) ──────────────────────────
+// Liest data-design (Boot-Apply in main.tsx) und re-rendert live beim Umschalten
+// (DesignSwitch dispatcht 'azubiboard:design'). Für JSX-Verzweigungen, die im
+// Beta-Design anders rendern (CSS-only-Unterschiede brauchen den Hook NICHT).
+export function useDesign(): 'v1' | 'beta' {
+  const [d, setD] = useState<'v1' | 'beta'>(() =>
+    (document.documentElement.getAttribute('data-design') as 'v1' | 'beta') || 'v1');
+  useEffect(() => {
+    const fn = () => setD((document.documentElement.getAttribute('data-design') as 'v1' | 'beta') || 'v1');
+    window.addEventListener('azubiboard:design', fn);
+    return () => window.removeEventListener('azubiboard:design', fn);
+  }, []);
+  return d;
+}
