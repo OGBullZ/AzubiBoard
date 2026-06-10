@@ -108,3 +108,16 @@
   [data-design="beta"] .draw-in .draw-2 { animation-delay: .35s; }
   [data-design="beta"] .draw-in .draw-3 { animation-delay: .7s; }
 }
+
+/* ── Zelebrations-Partikel (lib/celebrate.ts) ── */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes partFly {
+    from { opacity: 1; transform: translate(0, 0) rotate(0); }
+    to   { opacity: 0; transform: translate(var(--dx, 0), var(--dy, -40px)) rotate(var(--rr, 180deg)); }
+  }
+  .celebrate-burst { position: fixed; inset: 0; pointer-events: none; z-index: 9500; }
+  .celebrate-burst i {
+    position: fixed; width: 5px; height: 9px; border-radius: 1.5px;
+    animation: partFly .8s ease-out forwards;
+  }
+}
