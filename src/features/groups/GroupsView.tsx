@@ -18,6 +18,9 @@ type GroupProject = Project & {
   assignees?: Id[];
 };
 
+// IDs sind je nach Modus string (localStorage) oder number (API) — nie strikt vergleichen.
+const sameId = (a: Id, b: Id) => String(a) === String(b);
+
 type GroupForm = {
   name: string;
   type: string;
@@ -52,8 +55,8 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
   const resolveRequest = (groupId: Id, userId: Id, accept: boolean) => {
     onUpdateGroups(groups.map(g => g.id === groupId ? {
       ...g,
-      requests: (g.requests || []).filter(r => r !== userId),
-      members: accept && !g.members.includes(userId) ? [...g.members, userId] : g.members,
+      requests: (g.requests || []).filter(r => !sameId(r, userId)),
+      members: accept && !g.members.some(m => sameId(m, userId)) ? [...g.members, userId] : g.members,
     } : g));
     showToast(accept ? '✓ Azubi aufgenommen' : 'Anfrage abgelehnt');
   };
@@ -75,7 +78,7 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: 14 }}>
           {groups.map(g => {
-            const members  = users.filter(u => g.members.includes(u.id));
+            const members  = users.filter(u => g.members.some(m => sameId(m, u.id)));
             const gProjects = projects.filter(p => p.groupId === g.id);
             return (
               <article key={g.id} className="card" aria-label={`Gruppe: ${g.name}`}>
@@ -96,7 +99,7 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {(g.requests || []).map(rid => {
-                        const u = users.find(x => x.id === rid);
+                        const u = users.find(x => sameId(x.id, rid));
                         return (
                           <div key={String(rid)} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Avatar name={u?.name || '?'} size={24} />

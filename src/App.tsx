@@ -633,7 +633,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-br)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser?.name?.split(' ')[0]}</div>
                 <div style={{ fontSize: 9, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5 }}>
-                  {currentUser?.role === 'azubi' ? `Azubi · LJ ${currentUser?.apprenticeship_year || 1}` : 'Ausbilder'}
+                  {currentUser?.role === 'azubi' ? `Azubi · LJ ${currentUser?.apprenticeship_year || 1}` : currentUser?.role === 'mentor' ? 'Mentor' : 'Ausbilder'}
                 </div>
               </div>
               <span style={{ fontSize: 9, color: 'var(--c-mu)', flexShrink: 0 }}>›</span>
@@ -857,7 +857,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
           <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 2 }}>
             {isAzubi
               ? `Azubi · Lehrjahr ${currentUser.apprenticeship_year || 1}${currentUser.profession ? ` · ${currentUser.profession}` : ''}`
-              : `Ausbilder${currentUser.profession ? ` · ${currentUser.profession}` : ''}`}
+              : `${currentUser.role === 'mentor' ? 'Mentor' : 'Ausbilder'}${currentUser.profession ? ` · ${currentUser.profession}` : ''}`}
           </div>
         </div>
       </div>
@@ -1400,7 +1400,7 @@ const App = () => {
   const handleRequestGroup = useCallback((groupId: Id) => {
     if (!currentUser?.id) return;
     setData((prev: any) => prev ? { ...prev, groups: (prev.groups || []).map((g: any) =>
-      g.id === groupId && !(g.members || []).includes(currentUser.id) && !(g.requests || []).includes(currentUser.id)
+      g.id === groupId && ![...(g.members || []), ...(g.requests || [])].some((x: Id) => String(x) === String(currentUser.id))
         ? { ...g, requests: [...(g.requests || []), currentUser.id] } : g) } : prev);
   }, [currentUser, setData]);
 
