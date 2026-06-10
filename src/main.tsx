@@ -8,6 +8,7 @@ import '@fontsource-variable/archivo/index.css'
 import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/700.css'
 import './index.css'
+import './motion.css'
 import './lib/i18n.js' // Side-Effect: i18next-Instance initialisieren
 import { initSentry } from './lib/sentry.js'
 
