@@ -74,3 +74,25 @@ export function useDesign(): 'v1' | 'beta' {
   }, []);
   return d;
 }
+
+// ── CountUp (Anhang C: Dashboard-Stats zählen einmalig hoch) ──
+export function useCountUp(target: number, duration = 600): number {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reduced-motion: Zielwert sofort, kein Frame-Loop
+      setVal(target);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / duration);
+      setVal(Math.round(target * (1 - Math.pow(1 - k, 3))));   // easeOutCubic
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return val;
+}

@@ -25,6 +25,8 @@ import { LearnWidget }         from './widgets/LearnWidget.jsx';
 import { ActivityFeed }        from './widgets/ActivityFeed.jsx';
 import { ZeiterfassungWidget } from './widgets/ZeiterfassungWidget.jsx';
 import { MonthReportModal }    from './widgets/MonthReportModal.jsx';
+import { DashboardBeta }       from './DashboardBeta.jsx';
+import { useDesign }           from '../../lib/hooks.js';
 
 // Blob-Daten weichen vom Zod-Schema ab (task.assignee, task.timeLog, task.note,
 // p.archived, user.apprenticeship_year etc. sind blob-only). Daher any für die
@@ -42,6 +44,7 @@ type DashboardProps = {
   reports: Report[];
   calendarEvents?: CalendarEvent[];
   activityLog?: unknown[];
+  groups?: any[];
   onNewProject?: () => void;
   onOpenProject: (id: any) => void;
   onUpdateProject?: (id: any, patch: any) => void;
@@ -414,8 +417,13 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
 export function Dashboard(props: DashboardProps) {
   // M2: Mentor sieht dasselbe Dashboard wie Ausbilder (read-only durch ausgeblendete Aktionen).
   const role = props.user?.role;
+  const design = useDesign();
   if (role === 'ausbilder' || role === 'mentor') {
     return <AusbilderDashboard {...props} activityLog={props.activityLog || []} />;
+  }
+  // D3 (Anhang D): Azubi im Beta-Design → „Instrumententafel" (Z1/Z3); Ausbilder-Cockpit folgt in D4.
+  if (design === 'beta') {
+    return <DashboardBeta {...props} activityLog={props.activityLog || []} />;
   }
   return <AzubiDashboard {...props} activityLog={props.activityLog || []} />;
 }

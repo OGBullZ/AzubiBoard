@@ -95,3 +95,16 @@
   content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px;
   background: rgba(0, 0, 0, .45);
 }
+
+/* ── Z1: Blueprint-Zeichnung konstruiert sich (Dashboard leerer Tisch, Login-Logo) ── */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes drawIn { to { stroke-dashoffset: 0; } }
+  [data-design="beta"] .draw-in path, [data-design="beta"] .draw-in line,
+  [data-design="beta"] .draw-in rect, [data-design="beta"] .draw-in circle {
+    stroke-dasharray: 320;
+    stroke-dashoffset: 320;
+    animation: drawIn 1.4s ease forwards;
+  }
+  [data-design="beta"] .draw-in .draw-2 { animation-delay: .35s; }
+  [data-design="beta"] .draw-in .draw-3 { animation-delay: .7s; }
+}
