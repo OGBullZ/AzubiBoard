@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { C, uid } from '../../lib/utils.js';
+import { useDesign } from '../../lib/hooks.js';
 import { ProgressBar, Modal, Field } from '../../components/UI.jsx';
 import { useAppStore } from '../../lib/store.js';
 import JAVA_QUIZ from '../../data/quiz.json';
@@ -71,6 +72,7 @@ function FlashcardReview({ cards, onGrade, onFinish }: {
   const [idx,     setIdx]     = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [results, setResults] = useState<FlashGrade[]>([]);
+  const design = useDesign();
 
   const card = cards[idx];
   if (!card) return null;
@@ -103,14 +105,16 @@ function FlashcardReview({ cards, onGrade, onFinish }: {
         <ProgressBar value={pct} color={C.ac} height={4} label={`${pct}%`} />
         <div style={{ marginBottom: 20 }} />
 
-        <div className="card" style={{ minHeight: 180, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: flipped ? C.gr : C.mu, textTransform: 'uppercase', letterSpacing: .8, transition: 'color .15s' }}>
-            {flipped ? '✓ Antwort' : 'Frage'}
-          </div>
-          {!flipped ? (
-            <pre style={{ fontFamily: C.sans, fontSize: 14, fontWeight: 600, color: C.br, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0, flex: 1 }}>{card.question}</pre>
-          ) : (
-            <div style={{ animation: 'fadeUp .15s ease' }}>
+        {(() => {
+          const frage = (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8 }}>Frage</div>
+              <pre style={{ fontFamily: C.sans, fontSize: 14, fontWeight: 600, color: C.br, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0, flex: 1 }}>{card.question}</pre>
+            </>
+          );
+          const antwort = (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.gr, textTransform: 'uppercase', letterSpacing: .8 }}>✓ Antwort</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: correctAnswers.length > 0 ? 12 : 0 }}>
                 {correctAnswers.map(a => (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--st-green-bg)', border: `1px solid ${C.gr}`, borderRadius: 8 }}>
@@ -125,9 +129,25 @@ function FlashcardReview({ cards, onGrade, onFinish }: {
                   <div style={{ fontSize: 12, color: C.tx, lineHeight: 1.65 }}>{card.explanation}</div>
                 </div>
               )}
+            </>
+          );
+          if (design === 'beta') {
+            // Echte Karteikarte: beide Seiten gerendert, 3D-Flip (key=idx setzt die Drehung pro Karte zurück)
+            return (
+              <div className="flip-wrap" style={{ marginBottom: 16 }} key={String(card.id)}>
+                <div className={`flip-inner${flipped ? ' is-flipped' : ''}`}>
+                  <div className="card flip-face" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{frage}</div>
+                  <div className="card flip-face flip-back" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{antwort}</div>
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div className="card" style={{ minHeight: 180, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {!flipped ? frage : <div style={{ animation: 'fadeUp .15s ease' }}>{antwort}</div>}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {!flipped ? (
           <button className="abtn" onClick={() => setFlipped(true)} style={{ width: '100%', padding: 12, fontSize: 14 }}>

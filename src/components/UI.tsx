@@ -3,6 +3,8 @@ import type { CSSProperties, ReactNode, ComponentType, KeyboardEvent as ReactKey
 import { useTranslation } from 'react-i18next';
 import { C, ST } from '../lib/utils.js';
 import { IcoMoon, IcoSun } from './Icons.jsx';
+import { useDesign } from '../lib/hooks.js';
+import { Doodle, type DoodleName } from './Doodles.jsx';
 
 type IconComponent = ComponentType<{ size?: number }>;
 
@@ -217,16 +219,20 @@ export function StatCard({ label, value, color, sub, Icon, onClick }: StatCardPr
 type EmptyStateProps = {
   icon?: ReactNode;
   Icon?: IconComponent;
+  doodle?: DoodleName;   // Beta: Blueprint-Doodle statt Emoji/Icon (D5)
   title: ReactNode;
   subtitle?: ReactNode;
   action?: ReactNode;
   onAction?: () => void;
 };
 
-export function EmptyState({ icon, Icon, title, subtitle, action, onAction }: EmptyStateProps) {
+export function EmptyState({ icon, Icon, doodle, title, subtitle, action, onAction }: EmptyStateProps) {
+  const design = useDesign();
   return (
     <div style={{ textAlign: 'center', padding: '32px 16px', color: C.mu }}>
-      {Icon
+      {design === 'beta' && doodle
+        ? <div style={{ marginBottom: 10 }}><Doodle name={doodle} size={110} /></div>
+        : Icon
         ? <div style={{ display: 'inline-flex', padding: 14, borderRadius: 14, background: C.sf2, border: `1px solid ${C.bd}`, marginBottom: 14, opacity: .5, color: C.mu }}><Icon size={26} /></div>
         : icon && <div style={{ fontSize: 34, marginBottom: 12, opacity: .3 }}>{icon}</div>}
       <div style={{ fontSize: 14, fontWeight: 700, color: C.tx, marginBottom: 5 }}>{title}</div>

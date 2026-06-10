@@ -113,7 +113,7 @@ export default function TrashPage({ data, currentUser, onUpdateData, showToast }
       </div>
 
       {items.length === 0 ? (
-        <EmptyState Icon={IcoTrash} title="Leer" subtitle={`Keine ${TYPE_META[tab].label.toLowerCase()} im Papierkorb`} />
+        <EmptyState Icon={IcoTrash} doodle="kiste" title="Leer" subtitle={`Keine ${TYPE_META[tab].label.toLowerCase()} im Papierkorb`} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {items.map(it => {
@@ -121,7 +121,7 @@ export default function TrashPage({ data, currentUser, onUpdateData, showToast }
             const meta = TYPE_META[tab];
             const sub  = meta.subtitleFn ? meta.subtitleFn(it) : null;
             return (
-              <div key={it.id} className="card" style={{ padding: 12, display: 'flex', alignItems: 'center', gap: 12, borderLeft: `3px solid color-mix(in srgb, ${C.cr} 33%, transparent)` }}>
+              <div key={it.id} className="card shred-row" style={{ padding: 12, display: 'flex', alignItems: 'center', gap: 12, borderLeft: `3px solid color-mix(in srgb, ${C.cr} 33%, transparent)` }}>
                 <meta.Icon size={18} style={{ color: C.mu, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

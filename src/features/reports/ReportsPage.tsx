@@ -869,7 +869,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
-          <EmptyState Icon={IcoReport}
+          <EmptyState Icon={IcoReport} doodle="laufkarte"
             title={q ? t('report.noResults', { q }) : t('report.noReports')}
             subtitle={q ? 'Versuche einen anderen Suchbegriff.' : (currentUser.role === 'azubi' ? t('report.noReportsSub') : t('report.noReportsStaff'))}
             action={!q && currentUser.role === 'azubi' ? '+ ' + t('report.newReport') : undefined}
