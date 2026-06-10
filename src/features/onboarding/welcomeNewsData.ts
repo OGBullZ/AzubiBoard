@@ -90,7 +90,7 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
 
     const critical = azubis.map((a: User) => {
       const ov = active.filter((p: Project) => p.assignees?.includes(a.id))
-        .flatMap((p: Project) => (p.tasks || []).filter((tk: Task) => tk.assignee === a.id && tk.status !== 'done' && tk.deadline && new Date(tk.deadline) < now));
+        .flatMap((p: Project) => (p.tasks || []).filter((tk: Task) => tk.assignee === a.id && tk.status !== 'done' && tk.deadline && dayDiff(tk.deadline) < 0));
       return { a, count: ov.length };
     }).filter((x: { count: number }) => x.count > 2);
     if (critical.length) cards.push({ key: 'critical-azubis', sev: 0, ...ACC.crit, icon: '⚠', label: 'Aufmerksamkeit',

@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { buildNewsCards } from '../src/features/onboarding/welcomeNewsData.ts';
 
-// Datum N Tage von heute als ISO (YYYY-MM-DD)
-const isoDay = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+// Datum N Tage von heute als ISO (YYYY-MM-DD) — LOKAL wie der Produktionscode
+// (toISOString wäre UTC und kippt in TZ östlich von UTC kurz nach Mitternacht).
+const isoDay = (n) => {
+  const d = new Date(Date.now() + n * 86400000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const has = (cards, key) => cards.find((c) => c.key === key);
 
 const azubi = { id: 1, name: 'Tobias Krause', role: 'azubi' };

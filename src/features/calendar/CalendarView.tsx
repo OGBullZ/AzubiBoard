@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, uid } from '../../lib/utils.js';
+import { C, uid, getKW } from '../../lib/utils.js';
 import { Avatar, Modal, Field } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import type { Project, User, CalendarEvent, Task } from '../../types';
@@ -177,11 +177,8 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
 
   const now     = new Date();
   const isToday = (d: number | null) => d && now.getDate() === d && now.getMonth() === m && now.getFullYear() === y;
-  const KW      = (d: number) => {
-    const dt = new Date(y, m, d);
-    const startOfYear = new Date(dt.getFullYear(), 0, 1);
-    return Math.ceil(((dt.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
-  };
+  // ISO-KW wie im Berichtsheft (getKW) — die alte Naiv-Formel wich an KW1/KW53-Kanten ab
+  const KW      = (d: number) => getKW(new Date(y, m, d)) ?? '';
 
   const exportIcal = () => {
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -229,11 +226,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
   };
 
   const isWeekMode = viewMode === 'week';
-  const mondayKW = (() => {
-    const dt = monday;
-    const startOfYear = new Date(dt.getFullYear(), 0, 1);
-    return Math.ceil(((dt.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
-  })();
+  const mondayKW = getKW(monday) ?? '';
   const weekLabel = isWeekMode
     ? `KW ${mondayKW} · ${fmtShort(monday)} – ${fmtShort(addDays(monday, 4))}.${addDays(monday, 4).getFullYear()}`
     : null;

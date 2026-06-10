@@ -145,8 +145,9 @@ function StepRequestGroup({ currentUser, data, onRequestGroup }: { currentUser: 
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {groups.map(g => {
-            const isMember  = (g.members || []).includes(currentUser.id);
-            const isPending = requested.has(g.id) || (g.requests || []).includes(currentUser.id);
+            // String-Vergleich wie GroupsView.sameId — IDs sind je nach Modus string oder number
+            const isMember  = (g.members || []).some((m: unknown) => String(m) === String(currentUser.id));
+            const isPending = requested.has(g.id) || (g.requests || []).some((r: unknown) => String(r) === String(currentUser.id));
             return (
               <div key={String(g.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, background: C.sf2, border: `1px solid ${C.bd}` }}>
                 <span style={{ fontSize: 16 }} aria-hidden="true">{g.type === 'department' ? '🏢' : '👥'}</span>

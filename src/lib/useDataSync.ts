@@ -8,6 +8,7 @@
 // ============================================================
 import { useEffect, useRef } from 'react';
 import { dataService } from './dataService.js';
+import { persistData } from './utils';
 
 const POLL_INTERVAL_MS = 25_000; // 25s — gut für Multi-User-Wahrnehmung
 
@@ -15,7 +16,7 @@ type AppData = Record<string, unknown>;
 type CurrentUser = Record<string, unknown> | null;
 
 export function useDataSync(
-  setData: (data: AppData) => void,
+  setData: (data: AppData, opts?: { persist?: boolean }) => void,
   currentUser: CurrentUser,
 ): void {
   const lastVersion = useRef(0);
@@ -58,9 +59,15 @@ export function useDataSync(
           const status = dataService.getSaveStatus();
           if (!status.pending && !status.inflight) {
             const fresh = await dataService.getData();
-            if (!cancelled && fresh) {
+            // Re-Check NACH dem await: hat der User im Race-Fenster editiert,
+            // den älteren Server-Stand NICHT über seinen Edit stülpen.
+            const after = dataService.getSaveStatus();
+            if (!cancelled && fresh && !after.pending && !after.inflight) {
               lastVersion.current = v.version;
-              setData(fresh);
+              // persist:false — Server-Daten nicht zurück-POSTen (Echo-Schleife
+              // zwischen Clients); localStorage manuell aktuell halten.
+              setData(fresh, { persist: false });
+              persistData(fresh);
             }
           }
         }
@@ -87,8 +94,10 @@ export function useDataSync(
     // wahrnehmen.
     const onSyncSuccess = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (detail?.type === 'success' && detail.ts) {
-        lastVersion.current = Math.floor(detail.ts / 1000);
+      if (detail?.type === 'success' && (detail.version || detail.ts)) {
+        // Server-Version ist autoritativ; Client-Uhr (ts) nur als Fallback —
+        // Clock-Skew würde sonst fremde Updates verschlucken oder Reload-Schleifen erzeugen.
+        lastVersion.current = detail.version || Math.floor(detail.ts / 1000);
       }
     };
     window.addEventListener('azubiboard:sync', onSyncSuccess);

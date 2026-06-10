@@ -42,6 +42,11 @@ const STATUS_REPORT = {
   signed:    { l: 'Unterschrieben', c: C.gr,  bg: 'var(--st-green-bg)'      },
 };
 
+// HTML-Escape für Druck-Fenster: document.write interpoliert User-Inhalte roh —
+// ohne Escaping wäre das Stored XSS im same-origin Popup (z.B. Jahresmappe mit fremden Berichten).
+const esc = (s: unknown) => String(s ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 function getMonday(d = new Date()) {
   // ISO-Montag, lokal (DST-sicher)
   const dt = d instanceof Date ? new Date(d) : new Date(d);
@@ -283,7 +288,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     const azYear     = currentUser.apprenticeship_year ?? '';
 
     if (variant === 'standard') {
-      w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berichtsheft KW ${kw} – ${currentUser.name}</title>
+      w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berichtsheft KW ${kw} – ${esc(currentUser.name)}</title>
       <style>
         body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;color:#111;font-size:14px;line-height:1.7}
         h1{font-size:22px;margin-bottom:4px}
@@ -297,18 +302,18 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
       </head><body>
       <h1>Ausbildungsnachweis – KW ${kw} / ${isoYear}</h1>
       <div class="meta">
-        <strong>${currentUser.name}</strong> · Woche vom ${new Date(form.week_start).toLocaleDateString('de-DE')} ·
-        <span class="status">${STATUS_REPORT[form.status as keyof typeof STATUS_REPORT]?.l || form.status}</span>
+        <strong>${esc(currentUser.name)}</strong> · Woche vom ${new Date(form.week_start).toLocaleDateString('de-DE')} ·
+        <span class="status">${esc(STATUS_REPORT[form.status as keyof typeof STATUS_REPORT]?.l || form.status)}</span>
       </div>
-      ${form.title ? `<h2>Thema</h2><p>${form.title}</p>` : ''}
-      <h2>Durchgeführte Tätigkeiten</h2><pre>${form.activities || '–'}</pre>
-      <h2>Unterweisungen / Lerninhalt</h2><pre>${form.learnings || '–'}</pre>
-      ${form.reviewer_comment ? `<hr><h2>Kommentar des Ausbilders</h2><pre>${form.reviewer_comment}</pre>` : ''}
+      ${form.title ? `<h2>Thema</h2><p>${esc(form.title)}</p>` : ''}
+      <h2>Durchgeführte Tätigkeiten</h2><pre>${esc(form.activities) || '–'}</pre>
+      <h2>Unterweisungen / Lerninhalt</h2><pre>${esc(form.learnings) || '–'}</pre>
+      ${form.reviewer_comment ? `<hr><h2>Kommentar des Ausbilders</h2><pre>${esc(form.reviewer_comment)}</pre>` : ''}
       <hr><p style="font-size:11px;color:#999">Erstellt mit AzubiBoard · ${today}</p>
       </body></html>`);
     } else {
       // IHK-Variante: A4, 25mm linker Rand, formaler Aufbau
-      w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ausbildungsnachweis KW ${kw}/${isoYear} – ${currentUser.name}</title>
+      w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ausbildungsnachweis KW ${kw}/${isoYear} – ${esc(currentUser.name)}</title>
       <style>
         @page { size: A4; margin: 20mm 15mm 20mm 25mm; }
         body{font-family:'Times New Roman',Georgia,serif;color:#000;font-size:11pt;line-height:1.5;margin:0}
@@ -345,21 +350,21 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
 
         <div class="stammdaten">
           <table>
-            <tr><td class="lbl">Auszubildende/r:</td><td>${currentUser.name || '–'}</td></tr>
-            ${profession ? `<tr><td class="lbl">Ausbildungsberuf:</td><td>${profession}</td></tr>` : ''}
-            ${azYear ? `<tr><td class="lbl">Ausbildungsjahr:</td><td>${azYear}. Lehrjahr</td></tr>` : ''}
+            <tr><td class="lbl">Auszubildende/r:</td><td>${esc(currentUser.name) || '–'}</td></tr>
+            ${profession ? `<tr><td class="lbl">Ausbildungsberuf:</td><td>${esc(profession)}</td></tr>` : ''}
+            ${azYear ? `<tr><td class="lbl">Ausbildungsjahr:</td><td>${esc(azYear)}. Lehrjahr</td></tr>` : ''}
             <tr><td class="lbl">Berichtswoche:</td><td>${weekRange}</td></tr>
-            ${form.title ? `<tr><td class="lbl">Thema der Woche:</td><td>${form.title}</td></tr>` : ''}
+            ${form.title ? `<tr><td class="lbl">Thema der Woche:</td><td>${esc(form.title)}</td></tr>` : ''}
           </table>
         </div>
 
         <h2>Durchgeführte betriebliche Tätigkeiten</h2>
-        ${form.activities ? `<pre>${form.activities}</pre>` : '<p class="empty">(keine Angaben)</p>'}
+        ${form.activities ? `<pre>${esc(form.activities)}</pre>` : '<p class="empty">(keine Angaben)</p>'}
 
         <h2>Unterweisungen / Lerninhalte / Berufsschule</h2>
-        ${form.learnings ? `<pre>${form.learnings}</pre>` : '<p class="empty">(keine Angaben)</p>'}
+        ${form.learnings ? `<pre>${esc(form.learnings)}</pre>` : '<p class="empty">(keine Angaben)</p>'}
 
-        ${form.reviewer_comment ? `<h2>Kommentar des Ausbilders</h2><pre>${form.reviewer_comment}</pre>` : ''}
+        ${form.reviewer_comment ? `<h2>Kommentar des Ausbilders</h2><pre>${esc(form.reviewer_comment)}</pre>` : ''}
 
         <div class="signatures">
           <div class="sigblock">
@@ -672,7 +677,7 @@ function printJahresmappe(reports: Report[], year: number, showToast?: (msg: str
   </head><body>
   <h1>Ausbildungsnachweis-Mappe ${year}</h1>
   ${Object.values(byUser).map(u => `
-    <h2>${u.name}</h2>
+    <h2>${esc(u.name)}</h2>
     ${u.reports.map((r: Report, i: number) => {
       const iso = getISOWeek(r.week_start);
       const kw  = r.week_number ?? iso.week ?? '';
@@ -680,11 +685,11 @@ function printJahresmappe(reports: Report[], year: number, showToast?: (msg: str
       return `
       ${i > 0 ? '<hr class="divider">' : ''}
       <div class="kw">KW ${kw}/${yr}</div>
-      <div class="meta">${new Date(r.week_start as string).toLocaleDateString('de-DE')} · <span class="status">${r.status}</span></div>
-      ${r.title ? `<h3>${r.title}</h3>` : ''}
-      <h3>Tätigkeiten</h3><pre>${r.activities || '–'}</pre>
-      <h3>Lerninhalt</h3><pre>${r.learnings || '–'}</pre>
-      ${r.reviewer_comment ? `<h3>Ausbilder-Kommentar</h3><pre>${r.reviewer_comment}</pre>` : ''}
+      <div class="meta">${new Date(r.week_start as string).toLocaleDateString('de-DE')} · <span class="status">${esc(r.status)}</span></div>
+      ${r.title ? `<h3>${esc(r.title)}</h3>` : ''}
+      <h3>Tätigkeiten</h3><pre>${esc(r.activities) || '–'}</pre>
+      <h3>Lerninhalt</h3><pre>${esc(r.learnings) || '–'}</pre>
+      ${r.reviewer_comment ? `<h3>Ausbilder-Kommentar</h3><pre>${esc(r.reviewer_comment)}</pre>` : ''}
     `;}).join('')}
   `).join('<div class="pagebreak"></div>')}
   <p style="margin-top:50px;font-size:10px;color:#999;text-align:center">Erstellt mit AzubiBoard · ${new Date().toLocaleDateString('de-DE')}</p>

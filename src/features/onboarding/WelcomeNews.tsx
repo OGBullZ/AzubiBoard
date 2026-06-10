@@ -37,9 +37,11 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
   });
   // Aktuelle Anzahl als „gesehen" persistieren (nächster Login zeigt nur den neuen Zuwachs).
   useEffect(() => {
-    if (isStaff) return;
+    // !data-Guard: vor geladenem Blob wäre confirmedCount fälschlich 0 und würde
+    // die Baseline überschreiben (Fake-"N Lernziele bestätigt"-Karte beim nächsten Login).
+    if (isStaff || !data) return;
     try { localStorage.setItem(confKey, String(confirmedCount)); } catch { /* noop */ }
-  }, [confirmedCount, confKey, isStaff]);
+  }, [confirmedCount, confKey, isStaff, data]);
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });

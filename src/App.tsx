@@ -969,16 +969,19 @@ function CalendarPage({ showToast }: { showToast: ShowToast }) {
   // Mentor = nur lesend (wie ProjectDetail/Dashboard) — alle Kalender-Schreibpfade laufen durch diesen choke point.
   const handleUpdate = useCallback((projectId: string, updates: any) => {
     if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
+    // Funktionale Updates: saveEdit (CalendarView) ruft beim Projekt-Wechsel onUpdate ZWEIMAL
+    // synchron auf — Objekt-Form würde beim zweiten Aufruf den stale Closure-Snapshot spreaden
+    // und den ersten Update überschreiben (Event-Duplikate, persistiert).
     if (projectId === '_cal') {
-      setData({ ...data, calendarEvents: [...(data?.calendarEvents || []), updates.ev] });
+      setData((prev: any) => prev ? { ...prev, calendarEvents: [...(prev.calendarEvents || []), updates.ev] } : prev);
     } else if (projectId === '_cal_del') {
-      setData({ ...data, calendarEvents: (data?.calendarEvents || []).filter((e: CalendarEvent) => e.id !== updates.id) });
+      setData((prev: any) => prev ? { ...prev, calendarEvents: (prev.calendarEvents || []).filter((e: CalendarEvent) => e.id !== updates.id) } : prev);
     } else if (projectId === '_cal_edit') {
-      setData({ ...data, calendarEvents: (data?.calendarEvents || []).map((e: CalendarEvent) => e.id === updates.ev.id ? updates.ev : e) });
+      setData((prev: any) => prev ? { ...prev, calendarEvents: (prev.calendarEvents || []).map((e: CalendarEvent) => e.id === updates.ev.id ? updates.ev : e) } : prev);
     } else {
-      setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
+      setData((prev: any) => prev ? { ...prev, projects: (prev.projects || []).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) } : prev);
     }
-  }, [data, setData, currentUser, showToast]);
+  }, [setData, currentUser, showToast]);
   return <CalendarView projects={data?.projects||[]} calendarEvents={data?.calendarEvents||[]} users={data?.users||[]} onUpdate={handleUpdate} showToast={showToast} canEdit={currentUser?.role !== 'mentor'} />;
 }
 
@@ -1223,14 +1226,18 @@ const App = () => {
   // activityLog ist im Schema z.array(z.unknown) (Blob-Form, kein Domain-Typ) → e/Set any belassen.
   const auditSentRef = useRef<Set<any> | null>(null);
   useEffect(() => {
-    if (!data?.activityLog?.length || !currentUser) return;
+    if (!data?.activityLog || !currentUser) return;
     if (!auditSentRef.current) {
-      // Initial-Pool: alles was schon da war ist "alt"
+      // Initial-Pool: alles was schon da war ist "alt". Auch bei leerem Log initialisieren,
+      // sonst würde der erste neue Eintrag als Initial-Pool behandelt und nie gesendet.
       auditSentRef.current = new Set((data.activityLog || []).map((e: any) => e.id));
       return;
     }
     const seen   = auditSentRef.current;
-    const fresh  = (data.activityLog || []).filter((e: any) => e.id && !seen.has(e.id));
+    // Nur EIGENE Einträge forwarden: fremde kommen per Sync-Poll/BroadcastChannel herein
+    // und würden sonst mit dem eigenen JWT dupliziert (falscher Akteur im Server-Audit).
+    const fresh  = (data.activityLog || []).filter((e: any) =>
+      e.id && !seen.has(e.id) && String(e.userId) === String(currentUser.id));
     if (!fresh.length) return;
     // Senden in der zeitlich aufsteigenden Reihenfolge
     fresh.slice().reverse().forEach((e: any) => {
@@ -1266,8 +1273,10 @@ const App = () => {
   // J2: Konflikt-Handler — Server-Version übernehmen
   const acceptServer = useCallback(() => {
     if (!conflict?.serverData) { setConflict(null); return; }
-    // persist:false — die Daten kommen gerade vom Server, kein redundanter Re-POST
+    // persist:false — die Daten kommen gerade vom Server, kein redundanter Re-POST.
+    // localStorage trotzdem aktualisieren, sonst reanimiert ein Offline-Reload den verworfenen Stand.
     setData(conflict.serverData, { persist: false });
+    persistData(conflict.serverData);
     dataService.setKnownVersion(conflict.serverVersion || 0);
     setConflict(null);
     showToast('✓ Server-Version übernommen');
