@@ -281,14 +281,14 @@ Kein Fork des Designs — nur Akzent + Reihenfolge. Die Rollen-Logik existiert (
 
 ## Umsetzungsplan (jede Phase eigener Branch, Gates: typecheck/lint/Vitest/Build + Browser-Review)
 
-| Phase | Inhalt | Aufwand | Risiko |
-|---|---|---|---|
-| **D1 Foundations** | Fonts, Token-Architektur (Primitives+Semantik), Raster+Grain, Typo-/Schatten-/Radius-Skala, Papier-Light, Mono-Caps-Label | M | zentral: index.css + utils-`C`-Brücke; Rest-Hex-Arithmetik → color-mix |
-| **D2 Primitives + Motion-Kit** | UI.tsx-Komponenten, `<Stamp>`, motion.css (Stempel/Stagger/Focus/Skeleton), Messlehre-Focus | M | gering |
-| **D3 Screens A** | Login (Logo-Konstruktion), Dashboard (Instrumente), Berichte (Laufkarte+Stempel), Welcome-News (Auftragszettel) | L | mittel |
-| **D4 Screens B** | Kalender (Split-Flap), Kanban (Plantafel), Netzplan (Blaupause), Trainingsplan (Flipclock+Zelebration) | L | mittel |
-| **D5 Screens C + Illustration** | Lernbereich (Flip-Karten/Karteikasten), Ctrl+K, Users/Groups (Ausweise), Trash/Audit/Backups, Doodles, Icons | M | gering |
-| **D6 Querschnitt + Extended** | PWA-Icons, Theme-Sweep, Rollen-Akzente, Microcopy-Pass, Signature 7–12 nach Wahl, a11y-/Kontrast-/Lighthouse-Audit | M | gering |
+| Phase | Inhalt | Status |
+|---|---|---|
+| **D1 Foundations** | Fonts, Token-Architektur, Grain (Raster gestrichen → solid), Skalen, Papier-Light, **Design-Switch 1.0/Beta + Akzent-Picker (User-Einstellungen)** | ✅ gemergt (2026-06-10) |
+| **D2 Primitives + Motion-Kit** | UI-Primitives, `<Stamp>`, motion.css, Messlehre-Focus | ✅ gemergt |
+| **D3 Screens A** | Login (Logo-Konstruktion/Ausweise/Abgelehnt), Dashboard (Anhang D: Z1+Zeremonie+Z3, Azubi), Berichte (Stempel+01/02) | 🔍 Branch `design-d3`, wartet auf Review |
+| **D4 Screens B** | Kalender (Split-Flap), Kanban (Plantafel), Netzplan (Blaupause, lokales Raster), Trainingsplan (Flipclock+Zelebration), **+ Ausbilder-Cockpit (D.4), + Welcome-News-Auftragszettel (aus D3 verschoben)** | offen |
+| **D5 Screens C + Illustration** | Lernbereich (Flip-Karten/Karteikasten), Ctrl+K, Users/Groups (Ausweise), Trash/Audit/Backups, Doodles, Icons | offen |
+| **D6 Querschnitt + Extended** | PWA-Icons, Theme-Sweep, Rollen-Akzente, Microcopy-Pass, Signature 7–12 (Entscheid offen), Sound-Entscheid, a11y-/Kontrast-/Lighthouse-Audit, **Beta-Graduierung** (wann wird Beta Default?) | offen |
 
 **Einstieg: D1+D2 zusammen** — Fundament + Primitives, damit sieht sofort die ganze App anders aus. In D1 liefere ich **3 Akzent-Varianten als Screenshot-Vergleich** (Signal-Orange / Amber / Cyan-dominant) vor der Festlegung.
 
