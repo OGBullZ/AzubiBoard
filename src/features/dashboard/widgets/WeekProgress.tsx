@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C } from '../../../lib/utils.js';
+import { C, getKW } from '../../../lib/utils.js';
 import type { Task } from '../../../types';
 
 // Das Widget liest Felder, die das strikte Task-Schema nicht kennt
@@ -56,7 +56,7 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <span style={{ fontSize: 10, color: C.textSecondary }}>
-          KW {Math.ceil((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 604800000)}
+          KW {getKW(now) ?? ''}
         </span>
         <span style={{ fontSize: 13, fontFamily: C.mono, color: weekDone === weekTotal && weekTotal > 0 ? C.gr : C.ac, fontWeight: 700 }}>
           {weekDone} / {weekTotal} diese Woche
