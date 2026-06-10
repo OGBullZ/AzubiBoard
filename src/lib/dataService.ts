@@ -303,13 +303,19 @@ export const dataService = {
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return r.json();
           });
-        } catch {
-          return blob;   // Schema-Overlay fehlgeschlagen → reiner Blob
+        } catch (err) {
+          // Schema-Overlay fehlgeschlagen → reiner Blob; Degradation sichtbar machen
+          addBreadcrumb({ category: 'sync', level: 'warning', message: 'schema overlay failed',
+            data: { error: err instanceof Error ? err.message : String(err) } });
+          return blob;
         }
       }
       return blob;
-    } catch {
-      return loadData();    // Fallback auf localStorage
+    } catch (err) {
+      // API nicht erreichbar → localStorage; ohne Breadcrumb wäre die Degradation unsichtbar
+      addBreadcrumb({ category: 'sync', level: 'warning', message: 'getData fell back to localStorage',
+        data: { error: err instanceof Error ? err.message : String(err) } });
+      return loadData();
     }
   },
 

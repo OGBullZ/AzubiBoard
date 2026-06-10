@@ -46,7 +46,10 @@ export default function ShareLinkModal({ kind, title, data, onClose }: ShareLink
       await navigator.clipboard.writeText(link.url);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
-    } catch { /* noop */ }
+    } catch {
+      // Clipboard-API verweigert in non-secure Contexts (HTTP) oder ohne Fokus
+      setError('Kopieren fehlgeschlagen — Link bitte manuell markieren');
+    }
   };
 
   return (

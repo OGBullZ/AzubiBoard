@@ -1389,11 +1389,11 @@ const App = () => {
   // Profil aktualisieren (Azubi-Schritt 2): wie AzubiProfilePage — API + Blob + currentUser.
   const handleUpdateProfile = useCallback((changes: Partial<User>) => {
     if (!currentUser?.id) return;
-    if (USE_API) dataService.updateProfile(changes).catch(() => { /* noop */ });
+    if (USE_API) dataService.updateProfile(changes).catch(() => showToast('⚠ Profil konnte nicht zum Server synchronisiert werden'));
     setCurrentUser({ ...currentUser, ...changes });
     // prev: Store-Blob (Boundary) → any.
     setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => u.id === currentUser.id ? { ...u, ...changes } : u) } : prev);
-  }, [currentUser, setCurrentUser, setData]);
+  }, [currentUser, setCurrentUser, setData, showToast]);
 
   // Beitritts-Anfrage an eine Gruppe (Azubi-Schritt 3): schreibt currentUser.id in group.requests.
   // Der Ausbilder bestätigt sie später in der Gruppen-Verwaltung.
