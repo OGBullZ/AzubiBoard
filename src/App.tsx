@@ -70,6 +70,34 @@ function RouteFallback() {
   );
 }
 
+// ── Design-Version 1.0 ↔ 1.0 Beta (Werkbank-Redesign, DESIGN-VISION.md) ──
+// Default v1; Beta aktiviert die [data-design="beta"]-Styles. Boot-Apply in main.tsx.
+function DesignSwitch() {
+  const [design, setDesign] = useState(() => localStorage.getItem('azubiboard_design') || 'v1');
+  const apply = (d: string) => {
+    setDesign(d);
+    try { localStorage.setItem('azubiboard_design', d); } catch { /* noop */ }
+    document.documentElement.setAttribute('data-design', d);
+  };
+  return (
+    <div style={{ marginTop: 14 }}>
+      <label>Design-Version</label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[['v1', '1.0'], ['beta', '1.0 Beta ✦']].map(([val, lab]) => (
+          <button key={val} className="btn" onClick={() => apply(val)} aria-pressed={design === val}
+            style={{ flex: 1, justifyContent: 'center', padding: '9px',
+              ...(design === val ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)', background: 'var(--c-acd)' } : {}) }}>
+            {lab}
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 6 }}>
+        1.0 Beta = neues „Werkbank"-Design (in Arbeit). Jederzeit zurückschaltbar.
+      </div>
+    </div>
+  );
+}
+
 // ── Theme aus User-Objekt übernehmen (nach Login / Startup) ──
 function applyUserTheme(theme?: string | null) {
   if (!theme) return;
@@ -921,6 +949,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
             }} style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac)', borderColor: 'var(--c-ac)60' }}>
               🎓 Einführungs-Wizard erneut anzeigen
             </button>
+            <DesignSwitch />
           </div>
         )}
 

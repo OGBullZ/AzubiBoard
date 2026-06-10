@@ -32,9 +32,9 @@ html, body {
 body {
   background: var(--c-bg);
   color: var(--c-tx);
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -74,6 +74,21 @@ body {
   --shadow-xs: 0 1px 4px  rgba(0,0,0,.2);
   --shadow-focus: 0 0 0 3px rgba(0,113,227,.3);
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  /* Design 1.0 (Default): bisherige System-Schrift. 1.0 Beta überschreibt unter [data-design="beta"]. */
+  --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-body);
+}
+
+/* ════ Design „1.0 Beta" — Digitale Werkbank (DESIGN-VISION.md) ════
+   Alles Beta-spezifische lebt unter [data-design="beta"]; Default = 1.0 unverändert. */
+[data-design="beta"] {
+  --font-body: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --font-display: 'Chakra Petch', 'Archivo Variable', sans-serif;
+}
+[data-design="beta"] body, [data-design="beta"] h1, [data-design="beta"] h2,
+[data-design="beta"] h3, [data-design="beta"] h4 { letter-spacing: .01em; }
+[data-design="beta"] h1, [data-design="beta"] h2, [data-design="beta"] h3, [data-design="beta"] h4 {
+  font-weight: 700; line-height: 1.2;
 }
 
 /* ── Light-Mode ── */
@@ -104,7 +119,7 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--c-bd2); border-radius: 99px; }
 
 /* ── Typografie ── */
-h1, h2, h3, h4 { color: var(--c-br); font-weight: 800; line-height: 1.25; }
+h1, h2, h3, h4 { color: var(--c-br); font-weight: 800; line-height: 1.25; font-family: var(--font-display); }
 a               { color: var(--c-ac); text-decoration: none; }
 ::selection     { background: rgba(0,113,227,.3); }
 
