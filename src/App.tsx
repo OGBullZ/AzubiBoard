@@ -969,6 +969,10 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
             }} style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac)', borderColor: 'var(--c-ac)60' }}>
               🎓 Einführungs-Wizard erneut anzeigen
             </button>
+            <button className="btn" onClick={() => window.dispatchEvent(new Event('azubiboard:show-news'))}
+              style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac)', borderColor: 'var(--c-ac)60' }}>
+              📰 Tagesübersicht anzeigen
+            </button>
             <DesignSwitch />
           </div>
         )}
@@ -1266,6 +1270,12 @@ const App = () => {
     const fn = () => setShowOnboarding(true);
     window.addEventListener('azubiboard:show-onboarding', fn);
     return () => window.removeEventListener('azubiboard:show-onboarding', fn);
+  }, []);
+  // Q5: News-Fenster manuell wiederöffnen (ProfilePage) — unabhängig vom 1×/Tag-Gate
+  useEffect(() => {
+    const fn = () => setShowNews(true);
+    window.addEventListener('azubiboard:show-news', fn);
+    return () => window.removeEventListener('azubiboard:show-news', fn);
   }, []);
 
   // K5: Neue activityLog-Einträge automatisch an Server-Audit weiterleiten.

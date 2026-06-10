@@ -78,6 +78,27 @@ describe('buildNewsCards — Staff', () => {
     expect(has(cards, 'projects-red').to).toBe('/project/5');
   });
 
+  it('Termine in den nächsten 7 Tagen → info "upcoming-events"; untis/holiday und Vergangenes zählen nicht', () => {
+    const data = {
+      projects: [{ id: 1, title: 'P', archived: false, assignees: [], tasks: [], calendarEvents: [{ id: 'E3', date: isoDay(2), title: 'Projekt-Review' }] }],
+      reports: [],
+      users: [ausbilder, azubiUser],
+      calendarEvents: [
+        { id: 'E1', date: isoDay(3), title: 'IHK-Infotag', type: 'event' },
+        { id: 'E2', date: isoDay(1), title: 'Berufsschule', type: 'untis' },   // Rauschen → raus
+        { id: 'E4', date: isoDay(-2), title: 'Vorbei', type: 'event' },        // Vergangenheit → raus
+        { id: 'E5', date: isoDay(20), title: 'Zu weit weg', type: 'event' },   // außerhalb 7 Tage → raus
+      ],
+    };
+    const c = has(buildNewsCards(data, ausbilder, null, 0), 'upcoming-events');
+    expect(c).toBeTruthy();
+    expect(c.title).toMatch(/2 Termine/);                  // IHK-Infotag + Projekt-Review (eingebettet)
+    expect(c.sub).toMatch(/Projekt-Review/);               // chronologisch erster zuerst
+    // Azubi bekommt die Karte ebenfalls
+    const azubiData = { ...data, reports: [{ id: 'R', user_id: 1, week_start: isoDay(0) }] };
+    expect(has(buildNewsCards(azubiData, azubiUser, null, 0), 'upcoming-events')).toBeTruthy();
+  });
+
   it('Mentor bekommt KEINE "Lernziele bestätigen"-Karte (kann nicht bestätigen)', () => {
     const data = {
       projects: [], reports: [], users: [mentor, azubiUser],
