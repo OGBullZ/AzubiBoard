@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="de" data-accent="orange" data-grain="on" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AzubiBoard — Design-Preview „Digitale Werkbank"</title>
+<!-- Preview-only: Fonts via CDN. In der App: self-hosted @fontsource (CSP/PWA). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ════════ TOKEN-ARCHITEKTUR (D1-Entwurf) ════════ */
+:root{
+  /* Primitives */
+  --petrol-950:#0B0F0E; --petrol-900:#111715; --petrol-850:#161E1B; --petrol-800:#1C2522;
+  --line-1:#243029; --line-2:#2F3D36;
+  --ink-hi:#F2F0E9; --ink-tx:#C9CCC4; --ink-mu:#86918A;
+  --stamp-red:#D14437; --stamp-blue:#4D7FBF; --stamp-green:#3E9B68;
+  --green-500:#37C871; --red-500:#F45B4E; --amber-500:#FFB224; --cyan-400:#3FD2C7;
+  /* Typo */
+  --f-display:'Chakra Petch',sans-serif; --f-body:'Archivo',sans-serif; --f-mono:'JetBrains Mono',monospace;
+  --fs-0:11px; --fs-1:12.5px; --fs-2:14px; --fs-3:16px; --fs-4:19px; --fs-5:24px; --fs-6:32px; --fs-7:44px;
+  --r-1:4px; --r-2:8px; --r-3:14px;
+  --ease-stamp:cubic-bezier(.2,1.4,.4,1); --ease-out:cubic-bezier(.16,1,.3,1);
+  /* Semantik (Dark default) */
+  --c-bg:var(--petrol-950); --c-sf:var(--petrol-900); --c-sf2:var(--petrol-850); --c-sf3:var(--petrol-800);
+  --c-tx:var(--ink-tx); --c-br:var(--ink-hi); --c-mu:var(--ink-mu);
+  --c-bd:var(--line-1); --c-bd2:var(--line-2);
+  --c-data:var(--cyan-400);
+  --c-grid:color-mix(in srgb, var(--cyan-400) 4%, transparent);
+  --c-grid-strong:color-mix(in srgb, var(--cyan-400) 7%, transparent);
+  --sh-1:inset 0 1px 0 rgba(255,255,255,.05), 0 6px 16px -8px rgba(0,0,0,.55);
+  --sh-2:0 12px 32px -12px rgba(0,0,0,.6);
+}
+/* Akzent-Varianten (Entscheid #1) */
+[data-accent="orange"]{ --c-ac:#FF6A1A; --c-ac-press:#E55708; --c-ac-text:#FFB78A; --c-acd:color-mix(in srgb,#FF6A1A 12%,transparent); }
+[data-accent="amber"] { --c-ac:#FFB224; --c-ac-press:#E09A0E; --c-ac-text:#FFD27A; --c-acd:color-mix(in srgb,#FFB224 12%,transparent); }
+[data-accent="cyan"]  { --c-ac:#3FD2C7; --c-ac-press:#26B5AA; --c-ac-text:#8FE8E1; --c-acd:color-mix(in srgb,#3FD2C7 12%,transparent); }
+/* Papier-Light (Entwurf) */
+[data-theme="paper"]{
+  --c-bg:#F6F3EC; --c-sf:#FFFFFF; --c-sf2:#FBF9F4; --c-sf3:#F1EDE3;
+  --c-tx:#2A3A35; --c-br:#16211D; --c-mu:#6E7B74;
+  --c-bd:#C9CFC4; --c-bd2:#A9B2A9;
+  --c-grid:color-mix(in srgb, #2C5E9E 7%, transparent);
+  --c-grid-strong:color-mix(in srgb, #2C5E9E 12%, transparent);
+  --sh-1:0 1px 0 rgba(22,33,29,.08); --sh-2:0 8px 24px -12px rgba(22,33,29,.22);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--c-bg); color:var(--c-tx);
+  font:400 var(--fs-2)/1.55 var(--f-body);
+  -webkit-font-smoothing:antialiased;
+  /* Blueprint-Raster: 24px fein, 120px Hauptlinie */
+  background-image:
+    linear-gradient(var(--c-grid-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid-strong) 1px, transparent 1px),
+    linear-gradient(var(--c-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid) 1px, transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+/* Grain (Entscheid #3) */
+[data-grain="on"]::after{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9999; opacity:.035; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='64' height='64' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+main{max-width:1060px;margin:0 auto;padding:48px 32px 120px}
+h1{font:700 var(--fs-6)/1.15 var(--f-display);color:var(--c-br)}
+h2{font:700 var(--fs-4)/1.2 var(--f-display);color:var(--c-br);margin:0 0 18px}
+section{margin-top:64px}
+/* Mono-Caps-Label + SectionHeader mit Maßlinien-Dekor */
+.label{font:700 var(--fs-0) var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--c-mu)}
+.sec{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.sec::before{content:'';width:26px;height:1px;background:var(--c-mu)}
+.sec::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--c-ac)}
+/* ── Steuerpult oben ── */
+.pult{position:sticky;top:0;z-index:50;display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 18px;margin:-24px -8px 0;background:color-mix(in srgb,var(--c-bg) 86%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--c-bd)}
+.pult .label{margin-right:4px}
+.chip{font:700 var(--fs-0) var(--f-mono);letter-spacing:.1em;text-transform:uppercase;padding:7px 12px;border-radius:var(--r-1);border:1px solid var(--c-bd2);background:var(--c-sf2);color:var(--c-tx);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--c-acd);border-color:var(--c-ac);color:var(--c-ac-text)}
+/* ── Material: Karte ── */
+.card{background:var(--c-sf);border:1px solid var(--c-bd);border-radius:var(--r-2);box-shadow:var(--sh-1);padding:18px}
+.card--punched{position:relative;padding-left:30px}
+.card--punched::before{content:'';position:absolute;left:10px;top:12px;bottom:12px;width:6px;
+  background-image:radial-gradient(circle 3px, var(--c-bg) 98%, transparent), ;
+  background:radial-gradient(circle at 50% 6px, var(--c-bg) 3px, transparent 3.5px);
+  background-size:6px 18px;background-repeat:repeat-y}
+.grid{display:grid;gap:16px}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+/* ── Buttons ── */
+.abtn{font:600 var(--fs-2) var(--f-body);color:#fff;background:var(--c-ac);border:none;border-radius:var(--r-1);padding:10px 18px;cursor:pointer;transition:transform .09s,background .09s;box-shadow:0 2px 0 color-mix(in srgb,var(--c-ac-press) 80%, black)}
+.abtn:hover{background:color-mix(in srgb,var(--c-ac) 88%, white)}
+.abtn:active{transform:translateY(2px);box-shadow:0 0 0 var(--c-ac-press);background:var(--c-ac-press)}
+.btn{font:700 var(--fs-0) var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--c-tx);background:transparent;border:1px solid var(--c-bd2);border-radius:var(--r-1);padding:10px 16px;cursor:pointer}
+.btn:hover{border-color:var(--c-mu);color:var(--c-br)}
+.btn--danger{color:var(--stamp-red);border-color:color-mix(in srgb,var(--stamp-red) 50%,transparent)}
+/* ── Messlehre-Focus (global) ── */
+:focus-visible{outline:none;}
+.fok:focus-visible, .chip:focus-visible, .abtn:focus-visible, .btn:focus-visible, input:focus-visible{
+  outline:none;
+  --b:2px; --l:9px;
+  box-shadow:0 0 0 var(--b) transparent;
+  background-image:
+    linear-gradient(var(--c-ac),var(--c-ac)),linear-gradient(var(--c-ac),var(--c-ac)),
+    linear-gradient(var(--c-ac),var(--c-ac)),linear-gradient(var(--c-ac),var(--c-ac)),
+    linear-gradient(var(--c-ac),var(--c-ac)),linear-gradient(var(--c-ac),var(--c-ac)),
+    linear-gradient(var(--c-ac),var(--c-ac)),linear-gradient(var(--c-ac),var(--c-ac));
+  background-repeat:no-repeat;
+  background-size:var(--l) var(--b),var(--b) var(--l),var(--l) var(--b),var(--b) var(--l),var(--l) var(--b),var(--b) var(--l),var(--l) var(--b),var(--b) var(--l);
+  background-position:top 0 left 0,top 0 left 0,top 0 right 0,top 0 right 0,bottom 0 left 0,bottom 0 left 0,bottom 0 right 0,bottom 0 right 0;
+}
+/* ── Inputs ── */
+.field{display:flex;flex-direction:column;gap:7px}
+.field input{font:400 var(--fs-2) var(--f-body);color:var(--c-br);background:var(--c-sf2);border:1px solid var(--c-bd);border-bottom:2px solid var(--c-bd2);border-radius:var(--r-1);padding:10px 12px}
+.field input::placeholder{color:var(--c-mu)}
+/* ── STEMPEL ── */
+.stamp{
+  display:inline-block;font:700 var(--fs-1) var(--f-display);letter-spacing:.12em;text-transform:uppercase;
+  padding:5px 12px;border:2px solid currentColor;border-radius:3px;position:relative;
+  box-shadow:inset 0 0 0 1.5px var(--c-sf), inset 0 0 0 2.5px currentColor;
+  transform:rotate(calc(var(--seed,0) * 1deg));
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='30'%3E%3Cfilter id='r'%3E%3CfeTurbulence baseFrequency='.55' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .6 .4'/%3E%3CfeComposite operator='in' in2='SourceGraphic'/%3E%3C/filter%3E%3Crect width='80' height='30' fill='%23fff' filter='url(%23r)'/%3E%3C/svg%3E");
+  -webkit-mask-size:cover; mask-size:cover;
+}
+.stamp--red{color:var(--stamp-red)} .stamp--blue{color:var(--stamp-blue)} .stamp--green{color:var(--stamp-green)}
+@keyframes stampIn{
+  0%{transform:scale(1.45) rotate(calc(var(--seed,0)*1deg - 4deg));opacity:0}
+  62%{transform:scale(.96) rotate(calc(var(--seed,0)*1deg));opacity:1;filter:blur(.4px)}
+  100%{transform:scale(1) rotate(calc(var(--seed,0)*1deg));filter:blur(0)}
+}
+.stamp-in{animation:stampIn .28s var(--ease-stamp) both}
+/* ── Laufkarte (Bericht) ── */
+.lauf{display:flex;justify-content:space-between;align-items:center;gap:18px}
+.lauf .kw{font:700 var(--fs-5) var(--f-mono);color:var(--c-br)}
+.lauf .meta{font:400 var(--fs-0) var(--f-mono);color:var(--c-mu);letter-spacing:.08em}
+/* ── Split-Flap ── */
+.flap{display:inline-flex;gap:3px;perspective:400px}
+.flap .d{position:relative;width:34px;height:46px;background:var(--c-sf3);border:1px solid var(--c-bd2);border-radius:5px;
+  font:700 var(--fs-5) var(--f-mono);color:var(--c-br);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.flap .d::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.45)}
+@keyframes flapTurn{0%{transform:rotateX(0)}49%{transform:rotateX(-88deg)}50%{transform:rotateX(88deg)}100%{transform:rotateX(0)}}
+.flap .d.go{animation:flapTurn .36s ease-in-out}
+/* ── Füllstand / Skala ── */
+.fuell{position:relative;height:14px;background:var(--c-sf3);border:1px solid var(--c-bd);border-radius:3px;overflow:hidden}
+.fuell .bar{height:100%;width:64%;background:repeating-linear-gradient(45deg,var(--c-ac),var(--c-ac) 4px,color-mix(in srgb,var(--c-ac) 70%,black) 4px,color-mix(in srgb,var(--c-ac) 70%,black) 8px)}
+.fuell .ticks{position:absolute;inset:0;background-image:linear-gradient(90deg,var(--c-bd2) 1px,transparent 1px);background-size:20% 100%}
+/* ── Skeleton-Schraffur ── */
+@keyframes hatch{to{background-position:48px 0}}
+.skel{height:14px;border-radius:3px;background:repeating-linear-gradient(45deg,var(--c-sf3),var(--c-sf3) 6px,var(--c-sf2) 6px,var(--c-sf2) 12px);background-size:48px 100%;animation:hatch 1.2s linear infinite;border:1px solid var(--c-bd)}
+/* ── Werksausweis ── */
+.ausweis{display:flex;gap:14px;align-items:center;background:var(--c-sf);border:1px solid var(--c-bd2);border-radius:var(--r-2);padding:14px 16px;position:relative;box-shadow:var(--sh-1);max-width:300px}
+.ausweis::before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);width:34px;height:6px;border-radius:4px;background:var(--c-bg);border:1px solid var(--c-bd2)}
+.ausweis .foto{width:46px;height:46px;border-radius:6px;background:var(--c-sf3);border:1px solid var(--c-bd2);display:flex;align-items:center;justify-content:center;font:700 var(--fs-3) var(--f-display);color:var(--c-br)}
+.ausweis .rolle{position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 3px 3px 0;background:var(--c-ac)}
+.ausweis .name{font:600 var(--fs-2) var(--f-body);color:var(--c-br)}
+.ausweis .nr{font:400 var(--fs-0) var(--f-mono);color:var(--c-mu);letter-spacing:.1em}
+/* ── Tabs/Karteireiter ── */
+.reiter{display:flex;gap:4px;align-items:flex-end}
+.reiter button{font:600 var(--fs-1) var(--f-body);color:var(--c-mu);background:var(--c-sf2);border:1px solid var(--c-bd);border-bottom:none;border-radius:8px 8px 0 0;padding:8px 16px;cursor:pointer;transform:translateY(2px)}
+.reiter button[aria-selected="true"]{color:var(--c-br);background:var(--c-sf);padding-bottom:11px;transform:translateY(1px);border-color:var(--c-bd2)}
+.reiterflaeche{background:var(--c-sf);border:1px solid var(--c-bd2);border-radius:0 var(--r-2) var(--r-2) var(--r-2);padding:18px}
+/* ── Schriftfeld ── */
+.schriftfeld{display:grid;grid-template-columns:auto auto;border:1px solid var(--c-bd2);font:400 var(--fs-0) var(--f-mono);color:var(--c-mu);max-width:280px;margin-left:auto}
+.schriftfeld div{padding:5px 10px;border-top:1px solid var(--c-bd)}
+.schriftfeld div:nth-child(-n+2){border-top:none}
+.schriftfeld div:nth-child(odd){border-right:1px solid var(--c-bd);letter-spacing:.1em;text-transform:uppercase}
+.schriftfeld b{color:var(--c-tx);font-weight:400}
+/* ── Stagger-Entrance ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.draft-in > *{animation:fadeUp .32s var(--ease-out) both;animation-delay:calc(var(--i,0) * 60ms)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+.hint{font:400 var(--fs-1) var(--f-body);color:var(--c-mu);margin-top:10px}
+kbd{font:700 var(--fs-0) var(--f-mono);background:var(--c-sf3);border:1px solid var(--c-bd2);border-bottom-width:3px;border-radius:5px;padding:2px 7px;color:var(--c-tx)}
+</style>
+</head>
+<body>
+<main>
+  <div class="pult" role="toolbar" aria-label="Preview-Steuerung">
+    <span class="label">Akzent</span>
+    <button class="chip" data-set="accent" data-val="orange" aria-pressed="true">Orange</button>
+    <button class="chip" data-set="accent" data-val="amber" aria-pressed="false">Amber</button>
+    <button class="chip" data-set="accent" data-val="cyan" aria-pressed="false">Cyan</button>
+    <span class="label" style="margin-left:14px">Grain</span>
+    <button class="chip" data-set="grain" data-val="on" aria-pressed="true">An</button>
+    <button class="chip" data-set="grain" data-val="off" aria-pressed="false">Aus</button>
+    <span class="label" style="margin-left:14px">Thema</span>
+    <button class="chip" data-set="theme" data-val="dark" aria-pressed="true">Werkstatt</button>
+    <button class="chip" data-set="theme" data-val="paper" aria-pressed="false">Papier</button>
+  </div>
+
+  <section style="margin-top:48px">
+    <div class="label">AzubiBoard · Design-Preview · Entwurf v2</div>
+    <h1 style="margin-top:6px">Die digitale Werkbank</h1>
+    <p class="hint" style="max-width:620px">Klickbarer Prototyp der Design-Foundations (Ebene 1–3). Oben umschalten: drei Akzent-Varianten, Grain, Werkstatt/Papier. Alles hier ist purer CSS-Entwurf — null App-Code angefasst. <kbd>Tab</kbd> drücken für den Messlehre-Focus.</p>
+  </section>
+
+  <section>
+    <div class="sec"><span class="label">01 · Stempel — die Kern-Identität</span></div>
+    <div class="card lauf">
+      <div>
+        <div class="kw">KW 24</div>
+        <div class="meta">08.06. – 12.06.2026 · BERICHT #0247</div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:center">
+        <span class="stamp stamp--blue" style="--seed:-2">Eingereicht</span>
+        <span id="stampTarget" style="min-width:140px;text-align:center"></span>
+        <button class="abtn" id="stampBtn">Prüfen &amp; stempeln</button>
+      </div>
+    </div>
+    <p class="hint">Jeder Stempel sitzt über <code>--seed</code> minimal anders (deterministisch aus der ID). Rauer Rand via SVG-Maske, Aufschlag mit Überschwingen.</p>
+  </section>
+
+  <section>
+    <div class="sec"><span class="label">02 · Split-Flap &amp; Füllstand — Instrumente</span></div>
+    <div class="grid grid-2">
+      <div class="card" style="display:flex;align-items:center;gap:18px">
+        <div class="flap" id="flap" aria-label="Kalenderwoche 24"><div class="d">2</div><div class="d">4</div></div>
+        <div>
+          <div class="label">Kalenderwoche</div>
+          <button class="btn" id="flapBtn" style="margin-top:8px">Woche wechseln</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label" style="margin-bottom:10px">Wochenfortschritt · 64 %</div>
+        <div class="fuell"><div class="bar"></div><div class="ticks"></div></div>
+        <div class="label" style="margin-top:14px;margin-bottom:8px">Skeleton = Schraffur (lädt…)</div>
+        <div class="skel" style="width:70%"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec"><span class="label">03 · Material — Karten, Buttons, Felder</span></div>
+    <div class="grid grid-3 draft-in">
+      <div class="card card--punched" style="--i:0">
+        <div class="label" style="margin-bottom:8px">Laufkarte</div>
+        <div style="font:600 var(--fs-3) var(--f-body);color:var(--c-br)">API-Doku schreiben</div>
+        <div class="meta" style="font:400 var(--fs-0) var(--f-mono);color:var(--c-mu);margin-top:4px">FÄLLIG 14.06. · P-102</div>
+        <div style="margin-top:12px;display:flex;gap:8px"><button class="abtn">Erledigt</button><button class="btn">Später</button></div>
+      </div>
+      <div class="card" style="--i:1">
+        <div class="label" style="margin-bottom:10px">Formularfeld</div>
+        <div class="field">
+          <span class="label">E-Mail</span>
+          <input placeholder="azubi@betrieb.de">
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn--danger">Ausmustern</button></div>
+      </div>
+      <div class="card" style="--i:2">
+        <div class="label" style="margin-bottom:10px">Werksausweis</div>
+        <div class="ausweis">
+          <span class="rolle"></span>
+          <div class="foto">TK</div>
+          <div>
+            <div class="name">Tobias Krause</div>
+            <div class="nr">AZUBI · LJ 2 · #0042</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec"><span class="label">04 · Karteireiter &amp; Schriftfeld</span></div>
+    <div class="reiter" role="tablist">
+      <button role="tab" aria-selected="true">Tätigkeiten</button>
+      <button role="tab" aria-selected="false">Lerninhalte</button>
+      <button role="tab" aria-selected="false">Kommentar</button>
+    </div>
+    <div class="reiterflaeche">
+      <div class="label" style="margin-bottom:6px">01 · Tätigkeiten</div>
+      <p>REST-Endpoints für Berichtsmodul implementiert, PHPUnit-Tests ergänzt, Code-Review mit Mentor durchgeführt.</p>
+      <div class="schriftfeld" style="margin-top:16px">
+        <div>Erstellt</div><div><b>10.06.2026</b></div>
+        <div>Geprüft</div><div><b>—</b></div>
+        <div>KW / Jahr</div><div><b>24 / 2026</b></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec"><span class="label">05 · Typo-Probe</span></div>
+    <div class="card">
+      <div style="font:700 var(--fs-7)/1.1 var(--f-display);color:var(--c-br)">328 Tage</div>
+      <div class="label" style="margin:4px 0 14px">bis zur Abschlussprüfung · Chakra Petch</div>
+      <p style="max-width:560px">Archivo trägt den Fließtext: ruhig, schmal laufend, gemacht für dichte Datenlisten. <span style="font-family:var(--f-mono);color:var(--c-data)">JetBrains Mono übernimmt KW 24 · 14:32 · #0247</span> — alles, was Maß und Zahl ist.</p>
+    </div>
+  </section>
+</main>
+<script>
+// Preview-Steuerung
+document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+  const set = b.dataset.set, val = b.dataset.val;
+  document.documentElement.setAttribute('data-' + set, val);
+  document.querySelectorAll(`.chip[data-set="${set}"]`).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+}));
+// Stempel-Demo
+const stamps = [['GEPRÜFT','stamp--blue',-1.5],['UNTERSCHRIEBEN','stamp--red',2]];
+let si = 0;
+document.getElementById('stampBtn').addEventListener('click', () => {
+  const [txt, cls, seed] = stamps[si++ % stamps.length];
+  const t = document.getElementById('stampTarget');
+  t.innerHTML = `<span class="stamp ${cls} stamp-in" style="--seed:${seed}">${txt}</span>`;
+});
+// Split-Flap-Demo
+let kw = 24;
+document.getElementById('flapBtn').addEventListener('click', () => {
+  kw = kw >= 52 ? 1 : kw + 1;
+  const ds = document.querySelectorAll('#flap .d');
+  const s = String(kw).padStart(2, '0');
+  ds.forEach((d, i) => {
+    d.classList.remove('go'); void d.offsetWidth; d.classList.add('go');
+    setTimeout(() => { d.textContent = s[i]; }, 170 + i * 90);
+  });
+});
+</script>
+</body>
+</html>

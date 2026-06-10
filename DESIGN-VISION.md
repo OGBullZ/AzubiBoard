@@ -292,8 +292,76 @@ Kein Fork des Designs — nur Akzent + Reihenfolge. Die Rollen-Logik existiert (
 **Einstieg: D1+D2 zusammen** — Fundament + Primitives, damit sieht sofort die ganze App anders aus. In D1 liefere ich **3 Akzent-Varianten als Screenshot-Vergleich** (Signal-Orange / Amber / Cyan-dominant) vor der Festlegung.
 
 ### Offene Entscheide (vor D1)
-1. **Akzentfarbe:** Signal-Orange (Empfehlung) vs. Amber vs. Cyan — Screenshot-Vergleich in D1.
+1. **Akzentfarbe:** Signal-Orange (Empfehlung) vs. Amber vs. Cyan — **live umschaltbar in `docs/design-preview.html`**.
 2. **Display-Font:** Chakra Petch (Empfehlung, techy) vs. Saira SemiCondensed (DIN-näher, ruhiger) vs. Rajdhani (leichter).
-3. **Grain:** an (Empfehlung, .035) / aus — 1-Attribut-Toggle, im Review live umschaltbar.
+3. **Grain:** an (Empfehlung, .035) / aus — im Preview umschaltbar.
 4. **Sound:** Stempel-Klack & Co als Opt-in bauen (D6) — ja/nein?
 5. **Erweiterte Signatures (7–12) + Easter Eggs:** welche davon? (Empfehlung: 7, 9, 10 — die ritualbildenden.)
+
+> **👉 `docs/design-preview.html` im Browser öffnen** — klickbarer Prototyp der Foundations (Stempel-Animation, Split-Flap, Messlehre-Focus per Tab, Werksausweis, Karteireiter, Papier-Modus). Null App-Code, reine Entscheidungshilfe.
+
+---
+
+## Anhang A — Playbook D1+D2 (erster Umsetzungs-Branch `design-d1`)
+
+### Commit-Plan (jeder Commit einzeln grün: typecheck/lint/Vitest/Build)
+| # | Commit | Inhalt | Berührte Dateien |
+|---|---|---|---|
+| 1 | `design: fonts` | `@fontsource-variable/archivo`, `@fontsource/chakra-petch`, `@fontsource/jetbrains-mono` installieren; Imports in `main.tsx`; `--f-*`-Tokens; body/h-Defaults in index.css | package.json, main.tsx, index.css |
+| 2 | `design: token-architektur` | Primitives + Semantik-Layer in index.css (Struktur aus Preview übernehmen), `[data-theme=light]` → Papier-Werte, Typo-/Radius-/Schatten-Skala | index.css |
+| 3 | `design: C-bridge` | utils.ts-`C` vollständig auf `var(--c-*)` (Token-Namen 1:1 → 38 Konsumenten-Dateien unverändert); verbleibende Hex+Alpha-Arithmetik (`C.gr+'45'` u. ä., ~6 Stellen via grep) auf `color-mix`-Tokens | utils.ts + die ~6 Arithmetik-Stellen |
+| 4 | `design: raster+grain` | Blueprint-Raster auf body, Grain-Overlay hinter `data-grain`, Mono-Caps-Label-Klasse `.label`, SectionHeader-Maßlinien-Dekor | index.css, UI.tsx (SectionHeader) |
+| 5 | `design: motion-kit` | `src/motion.css`: stampIn/fadeUp-Stagger/hatch/flapTurn + Easing-Tokens; global `:focus-visible`-Messlehre (Eckklammern-Technik aus Preview); reduced-motion-Block | motion.css (neu), main.tsx-Import |
+| 6 | `design: stamp` | `src/components/Stamp.tsx` (API s. Anhang B) + Vitest (Render, Seed-Determinismus, Klassen je Status) | Stamp.tsx (neu), Test |
+| 7 | `design: primitives` | UI.tsx: Card (Blech + `--punched`-Variante), Buttons (Press-State), Inputs (Unterkante), Toast (Etikett), Tabs (Karteireiter), EmptyState (Doodle-Slot), Füllstands-Progress | UI.tsx, ConfirmDialog.tsx |
+
+### Verifikation pro Commit + am Ende
+- Gates: tsc/lint/Vitest/Build; **Bundle-Diff dokumentieren** (Budget: JS ≤170 KB gz, Fonts ≤120 KB).
+- Browser-Pass über ALLE 14 Routen (Edge/Playwright-Screenshots vorher/nachher je Route ablegen) — Token-Umstellung ist global, Regressionen zeigen sich visuell, nicht in Tests.
+- Kontrast-Matrix prüfen (axe oder manuell): `--c-tx`/`--c-mu`/`--c-ac-text`/Status-Text auf allen 4 Flächen, beide Themes.
+- Lighthouse-CI-Lauf (a11y/bp/seo error-Gates) auf dem Branch.
+
+### Risiken & Gegenmittel
+- **`C`-Brücke bricht Alpha-Arithmetik:** vorher `grep -rn "C\.\w\w*\s*\+\s*'" src/` → jede Stelle einzeln auf `color-mix`-Token; Commit 3 ist der riskanteste → kleinster Scope, eigener Screenshot-Pass.
+- **Font-Layout-Shift:** Archivo ist schmaler als system-ui → Dichte-Pass über Sidebar/Tabellen (Commit 1 bewusst früh, damit alle Folge-Commits mit echten Fonts beurteilt werden).
+- **Grain auf Low-End:** `mix-blend-mode` auf fixed Element ist GPU-billig, aber: messen (Performance-Tab); Fallback = Grain aus per Default.
+- **Inline-Style-Altlasten:** Stellen, die noch rohe Hex (#161b22 etc.) statt `C.*`/Token nutzen: `grep -rn "#0a0e14\|#161b22\|#0071E3" src/` → Liste in D1 abarbeiten oder dokumentiert stehen lassen.
+
+---
+
+## Anhang B — Komponenten-APIs & Kit-Inventar (D2)
+
+### `<Stamp>` — `src/components/Stamp.tssx`
+```ts
+type StampProps = {
+  label: string;                      // i18n-Key-Resultat, z. B. t('report.status.reviewed')
+  color?: 'red' | 'blue' | 'green';   // Stempelfarben-Welt (default: blue)
+  stamped?: boolean;                  // true → .stamp-in-Animation beim Mount/Wechsel
+  seed?: string | number;             // Entity-ID → deterministische Rotation (-3..3°, Hash, KEIN Math.random)
+  size?: 'sm' | 'md';                 // sm = Listen-Badge, md = Dokument-Stempel
+};
+```
+- Rotations-Hash: `(String(seed).split('').reduce((a,c)=>a+c.charCodeAt(0),0) % 7) - 3`.
+- Status-Mapping Berichte: draft = neutraler Pill (kein Stempel) · submitted/reviewed = blau · signed = rot. Lernziele: learned = blau klein · confirmed = rot + `stamped`.
+- a11y: `role="img"` + `aria-label`, Farbe nie alleiniger Träger (Text immer da).
+
+### `useCountUp(target: number, opts?: { duration?: number })`
+- Startet beim ersten IntersectionObserver-Hit, easeOut, rAF; gibt formatierte Zahl zurück; reduced-motion → sofort Zielwert. ≤40 Zeilen, `src/lib/hooks.ts`.
+
+### `motion.css` — Klassen-Inventar
+| Klasse | Zweck | Spec |
+|---|---|---|
+| `.stamp-in` | Stempel-Aufschlag | 280ms `--ease-stamp`, scale 1.45→.96→1, blur-Frame |
+| `.draft-in > *` | Screen-Entrance | fadeUp 12px/320ms, delay `calc(var(--i)*60ms)` — Container vergibt `--i` |
+| `.skel` | Lade-Schraffur | 45°-Streifen wandern 1.2s linear |
+| `.flap .d.go` | Split-Flap-Drehung | rotateX-Halbzeiten, 360ms; Ziffern-Swap bei 170ms via JS |
+| `:focus-visible` global | Messlehre | 8 background-Gradients als Eckklammern (Technik im Preview), kein outline |
+| `.shake-reject` | Login-Fehler | translateX ±4px ×3, 200ms |
+| `@keyframes particles` | Zelebration | 12 Partikel (`<i>`-Elemente), transform-only, 800ms, danach DOM-Cleanup |
+- Alles in `@media (prefers-reduced-motion: no-preference)`; Datei < 4 KB.
+
+### Doodle-Bibliothek (D5, Vorab-Spec)
+`src/components/Doodles.tsx` — 8 Inline-SVGs (je <2 KB): leeres Kanban (Kiste), keine Berichte (Laufkarte), Papierkorb leer (Schredder), Suche leer (Lupe+Maßlinie), keine Termine (Plantafel), Fehler (Zahnrad mit Bruchzahn), alles-gut (Kaffeebecher), keine Gruppe (Karteikasten). Strichstärke 1.75, `stroke="currentColor"`, gestrichelte Maßlinien + Annotations-Text als `<text>` in Mono.
+
+### Preview als lebendes Artefakt
+`docs/design-preview.html` wird pro D-Phase um die neu gebauten Primitives erweitert (Copy aus echtem CSS) — dient als Styleguide-Snapshot für Reviews, fliegt nach D6 in `docs/styleguide.html` umbenannt zusammen.
