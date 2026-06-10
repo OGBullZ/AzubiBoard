@@ -266,6 +266,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     // (z.B. Mo 29.12.2025 = ISO KW1/2026, getFullYear() liefert aber 2025).
     const year = getISOWeek(form.week_start).year ?? ws.getFullYear();
     const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year, updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
+    // Signed ist terminal (Bug-Hunt KAL-F3): normales Speichern darf die Unterschrift nie zurückdrehen
+    if (report?.status === 'signed') newReport.status = 'signed';
     onSave(newReport as Report);
     showToast('✓ Berichtsheft gespeichert');
   };

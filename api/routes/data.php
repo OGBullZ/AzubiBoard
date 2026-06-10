@@ -134,6 +134,9 @@ if ($method === 'POST' && empty($parts[1] ?? null)) {
         $oldRow = db()->query('SELECT content FROM app_data WHERE id = 1')->fetch();
         $oldData = $oldRow ? (json_decode($oldRow['content'], true) ?: []) : [];
         validate_reports_diff($parsed['reports'] ?? [], $oldData['reports'] ?? [], (int)$auth['sub']);
+        // Gruppen-Mutationen sind Ausbilder-Sache; Azubi darf nur die EIGENE Beitritts-Anfrage
+        // stellen/zurückziehen (Bug-Hunt GR-F1: sonst RLS-Bypass via Self-Add in members).
+        validate_groups_diff($parsed['groups'] ?? [], $oldData['groups'] ?? [], (string)$auth['sub']);
     }
 
     $stmt = db()->prepare("
@@ -330,5 +333,55 @@ function validate_reports_diff(array $newReports, array $oldReports, int $uid): 
         $status  = $or['status'] ?? 'draft';
         if (!$isOwner) error('Nicht berechtigt: Report eines anderen Nutzers gelöscht', 403);
         if ($status !== 'draft') error('Eingereichter Report kann nicht gelöscht werden', 403);
+    }
+}
+
+// ── Gruppen-Diff-Validierung (GR-F1, 2026-06-10) ─────────────
+// Nicht-Ausbilder dürfen am groups-Array NUR die eigene Beitritts-Anfrage
+// stellen/zurückziehen. Alles andere (Gruppen anlegen/löschen/umbenennen,
+// members ändern, fremde requests anfassen) → 403. IDs typtolerant als String
+// vergleichen (localStorage-Modus speichert Strings, API-Modus Integer).
+function validate_groups_diff(array $newGroups, array $oldGroups, string $uid): void {
+    $norm = static function ($arr): array {
+        $out = [];
+        foreach ((array)$arr as $v) $out[] = (string)$v;
+        sort($out);
+        return $out;
+    };
+
+    $oldById = [];
+    foreach ($oldGroups as $g) {
+        if (isset($g['id'])) $oldById[(string)$g['id']] = $g;
+    }
+
+    if (count($newGroups) !== count($oldById)) {
+        error('Nicht berechtigt: Gruppen anlegen/löschen ist Ausbilder-Sache', 403);
+    }
+
+    foreach ($newGroups as $ng) {
+        $id = isset($ng['id']) ? (string)$ng['id'] : '';
+        if (!isset($oldById[$id])) {
+            error('Nicht berechtigt: Gruppen anlegen/löschen ist Ausbilder-Sache', 403);
+        }
+        $og = $oldById[$id];
+
+        // Stammdaten + Mitglieder müssen identisch bleiben
+        if (($ng['name'] ?? null) !== ($og['name'] ?? null) || ($ng['type'] ?? null) !== ($og['type'] ?? null)) {
+            error('Nicht berechtigt: Gruppen-Stammdaten geändert', 403);
+        }
+        if ($norm($ng['members'] ?? []) !== $norm($og['members'] ?? [])) {
+            error('Nicht berechtigt: Gruppen-Mitglieder dürfen nur Ausbilder ändern', 403);
+        }
+
+        // requests: symmetrische Differenz darf höchstens die eigene ID sein
+        $oldReq = $norm($og['requests'] ?? []);
+        $newReq = $norm($ng['requests'] ?? []);
+        $added   = array_diff($newReq, $oldReq);
+        $removed = array_diff($oldReq, $newReq);
+        foreach (array_merge($added, $removed) as $rid) {
+            if ($rid !== $uid) {
+                error('Nicht berechtigt: fremde Beitritts-Anfragen geändert', 403);
+            }
+        }
     }
 }

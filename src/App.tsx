@@ -804,7 +804,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
   if (!currentUser) return null;
 
   const isAzubi = currentUser.role === 'azubi';
-  const myProjects = (data?.projects || []).filter((p: Project) => !p.archived && p.assignees?.includes(currentUser.id));
+  const myProjects = (data?.projects || []).filter((p: Project) => !p.archived && p.assignees?.some(a => String(a) === String(currentUser.id)));
   const hue = (currentUser.name?.charCodeAt(0) || 100) * 37 % 360;
 
   // Eingabe-Style wiederverwenden
@@ -828,7 +828,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       if (USE_API) await dataService.updateProfile(changes);
       const updatedUser = { ...currentUser, ...changes };
       setCurrentUser(updatedUser);
-      if (data) setData({ ...data, users: (data.users || []).map((u: User) => u.id === currentUser.id ? { ...u, ...changes } : u) });
+      if (data) setData({ ...data, users: (data.users || []).map((u: User) => String(u.id) === String(currentUser.id) ? { ...u, ...changes } : u) });
       toast('✓ Profil gespeichert');
     } catch (e: any) { toast('⚠ ' + e.message); }
     finally { setSaving(false); }
@@ -861,7 +861,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       const { avatar_url } = await dataService.uploadAvatar(file);
       const updatedUser = { ...currentUser, avatar_url };
       setCurrentUser(updatedUser);
-      if (data) setData({ ...data, users: (data.users || []).map((u: User) => u.id === currentUser.id ? { ...u, avatar_url } : u) });
+      if (data) setData({ ...data, users: (data.users || []).map((u: User) => String(u.id) === String(currentUser.id) ? { ...u, avatar_url } : u) });
       toast('✓ Profilbild gespeichert');
     } catch (err: any) { toast('⚠ ' + err.message); }
     finally { setSaving(false); e.target.value = ''; }
@@ -915,7 +915,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {[
           { label: 'Aktive Projekte',  value: myProjects.length,                                                                                     color: 'var(--c-ac)' },
-          { label: 'Offene Aufgaben',  value: myProjects.flatMap((p: Project) => p.tasks||[]).filter((t: Task) => t.assignee === currentUser.id && t.status !== 'done').length, color: 'var(--c-yw)' },
+          { label: 'Offene Aufgaben',  value: myProjects.flatMap((p: Project) => p.tasks||[]).filter((t: Task) => String(t.assignee) === String(currentUser.id) && t.status !== 'done').length, color: 'var(--c-yw)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ borderLeft: `3px solid ${s.color}`, padding: '10px 14px' }}>
             <div style={{ fontSize: 10, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{s.label}</div>
@@ -1337,6 +1337,7 @@ const App = () => {
     // localStorage trotzdem aktualisieren, sonst reanimiert ein Offline-Reload den verworfenen Stand.
     setData(conflict.serverData, { persist: false });
     persistData(conflict.serverData);
+    dataService.discardPending();   // User hat sich gegen die lokalen Edits entschieden → Queue leeren
     dataService.setKnownVersion(conflict.serverVersion || 0);
     setConflict(null);
     showToast('✓ Server-Version übernommen');
@@ -1399,7 +1400,9 @@ const App = () => {
         if (isTokenValid()) {
           const me = await dataService.getMe();
           if (me) {
-            setCurrentUser(me);
+            // ID-Normalisierung (Bug-Hunt APP-F1): Blob-User sind Strings (getUsers normalisiert),
+            // getMe lieferte number → strikte Vergleiche (saveProfile/Stats) liefen ins Leere.
+            setCurrentUser({ ...me, id: String(me.id) });
             applyUserTheme(me.theme);  // Theme aus DB beim Start übernehmen
             // Nutzerliste aus MySQL laden (bleibt synchron mit Auth-DB)
             const apiUsers = await dataService.getUsers();
@@ -1461,7 +1464,7 @@ const App = () => {
     if (USE_API) dataService.updateProfile(changes).catch(() => showToast('⚠ Profil konnte nicht zum Server synchronisiert werden'));
     setCurrentUser({ ...currentUser, ...changes });
     // prev: Store-Blob (Boundary) → any.
-    setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => u.id === currentUser.id ? { ...u, ...changes } : u) } : prev);
+    setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => String(u.id) === String(currentUser.id) ? { ...u, ...changes } : u) } : prev);
   }, [currentUser, setCurrentUser, setData, showToast]);
 
   // Beitritts-Anfrage an eine Gruppe (Azubi-Schritt 3): schreibt currentUser.id in group.requests.
