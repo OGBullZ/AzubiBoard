@@ -3,7 +3,8 @@ import type { User, Project, Task, Report, AppState, Id } from '../../types';
 import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
-import { useDebounce } from '../../lib/hooks.js';
+import { useDebounce, useDesign } from '../../lib/hooks.js';
+import { Stamp } from '../../components/Stamp.jsx';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
 import { softDelete } from '../../lib/trash.js';
 import ShareLinkModal from '../../components/ShareLinkModal.jsx';
@@ -61,11 +62,13 @@ const TEMPLATES = [
   { label: 'Schul- & Betrieb', activities: `Betrieb (Mo/Di/Do/Fr):\n- \n\nBerufsschule (Mi):\n- Fächer: \n- Themen: `, learnings: `Im Betrieb gelernt:\n- \n\nIn der Schule gelernt:\n- ` },
 ];
 
-function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete }: {
+function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete, stamped = false }: {
   report: Report; currentUser: User;
   onOpen: (r: Report) => void; onSubmit: (id: Id) => void; onSign: (id: Id) => void; onDelete: (id: Id) => void;
+  stamped?: boolean;   // true direkt nach Statuswechsel → Stempel-Aufschlag (Beta)
 }) {
   const { t } = useTranslation();
+  const design = useDesign();
   const STATUS_REPORT_I18N = useStatusReport();
   const st       = STATUS_REPORT_I18N[report.status as keyof ReturnType<typeof useStatusReport>] || STATUS_REPORT_I18N.draft;
   const iso      = getISOWeek(report.week_start);
@@ -92,7 +95,9 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete }:
             <div style={{ fontSize: 11, color: C.ac, marginTop: 3, fontWeight: 600 }}>{report.user_name}</div>
           )}
         </div>
-        <span className="tag" style={{ background: st.bg, color: st.c, border: `1px solid ${st.c}35`, flexShrink: 0 }}>● {st.l}</span>
+        {design === 'beta' && report.status !== 'draft'
+          ? <Stamp label={st.l} color={report.status === 'signed' ? 'red' : 'blue'} seed={report.id} stamped={stamped} />
+          : <span className="tag" style={{ background: st.bg, color: st.c, border: `1px solid ${st.c}35`, flexShrink: 0 }}>● {st.l}</span>}
       </div>
 
       {report.title && (
@@ -142,6 +147,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   onSave: (rep: Report) => void; onClose: () => void; showToast: (msg: string, opts?: any) => void;
 }) {
   const { t } = useTranslation();
+  const design = useDesign();
   const STATUS_REPORT_I18N = useStatusReport();
   // Editor-Formular: gemischte Blob-Form (Report-Felder + sectionComments-Default + file-Objekt)
   // weicht vom Report-Schema ab → bewusst `any`
@@ -505,10 +511,9 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
           {tab === 'text' ? (
             <>
               {[
-                { key: 'activities', label: t('report.activitySection'), Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200 },
-                { key: 'learnings',  label: t('report.learningSection'),  Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160 },
-               
-              ].map(({ key, label, Icon, color, ph, minH }) => {
+                { key: 'activities', num: '01', label: t('report.activitySection'), Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200 },
+                { key: 'learnings',  num: '02', label: t('report.learningSection'),  Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160 },
+              ].map(({ key, num, label, Icon, color, ph, minH }) => {
                 const comments = (form.sectionComments?.[key] || []);
                 const addComment = () => {
                   const txt = newComment[key]?.trim();
@@ -524,8 +529,10 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                   <div key={key} className="card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <Icon size={13} style={{ color }} />
-                        <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7 }}>{label}</span>
+                        {design === 'beta'
+                          ? <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.mu }}>{num}</span>
+                          : <Icon size={13} style={{ color }} />}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7, ...(design === 'beta' ? { fontFamily: C.mono, letterSpacing: '.14em' } : {}) }}>{label}</span>
                         {comments.length > 0 && <span style={{ fontSize: 9, background: C.ywd, color: C.yw, borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>{comments.length} Kommentar{comments.length !== 1 ? 'e' : ''}</span>}
                       </div>
                       <button onClick={() => copyToClipboard(form[key], key)} className="btn" style={{ fontSize: 10, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -713,6 +720,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   const dSearch = useDebounce(search);
   const [confirmDel, setConfirmDel] = useState<Id | null>(null);
   const [shareOpen,  setShareOpen]  = useState(false);  // J10
+  const [justStamped, setJustStamped] = useState<Id | null>(null);  // Beta: Stempel-Aufschlag nach Statuswechsel
 
   const myReports = currentUser.role === 'azubi' ? reports.filter((r: Report) => r.user_id === currentUser.id) : reports;
   const q = dSearch.trim().toLowerCase();
@@ -747,7 +755,14 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
     // Toast fires in ConfirmDialog.onConfirm, not here
   };
 
+  // Beta: frisch gestempelte Karte bekommt den Aufschlag (Anhang C — Zeremonie nur bei echter Aktion)
+  const markStamped = (id: Id) => {
+    setJustStamped(id);
+    setTimeout(() => setJustStamped(null), 1500);
+  };
+
   const submitReport = (id: Id) => {
+    markStamped(id);
     const rep = reports.find((r: Report) => r.id === id);
     const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
     const next = { ...data, reports: reports.map((r: Report) => r.id === id ? { ...r, status: 'submitted', submitted_at: new Date().toISOString() } : r) };
@@ -765,6 +780,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   };
 
   const signReport = (id: Id) => {
+    markStamped(id);
     const rep = reports.find((r: Report) => r.id === id);
     const iso = rep ? getISOWeek(rep.week_start) : { week: '?', year: '?' };
     const next = { ...data, reports: reports.map((r: Report) => r.id === id ? { ...r, status: 'signed', signed_at: new Date().toISOString() } : r) };
@@ -862,7 +878,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
               <ReportCard key={r.id} report={r} currentUser={currentUser}
                 onOpen={(rep: Report) => { setEditing(rep); setView('edit'); }}
                 onSubmit={submitReport} onSign={signReport}
-                onDelete={deleteReport} />
+                onDelete={deleteReport} stamped={justStamped === r.id} />
             ))}
           </div>
         )}
