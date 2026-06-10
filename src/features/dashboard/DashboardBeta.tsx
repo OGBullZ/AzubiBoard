@@ -121,6 +121,124 @@ function Stat({ label, value, color }: { label: string; value: number; color?: s
   );
 }
 
+// ── Ausbilder-/Mentor-Cockpit (Anhang D.4): Hero = Eingangskorb, Azubi-Reihen ──
+export function AusbilderCockpitBeta({ user, projects, users, reports, calendarEvents, activityLog, groups, onOpenProject, onNavigate }: Props) {
+  const now = new Date();
+  const azubis = useMemo(() => (users || []).filter((u: User) => u.role === 'azubi'), [users]);
+  const active = useMemo(() => (projects || []).filter((p: Project) => !p.archived), [projects]);
+  const pending = useMemo(() => (reports || []).filter((r: Report) => r.status === 'submitted')
+    .sort((a: Report, b: Report) => (a.week_start || '').localeCompare(b.week_start || '')), [reports]);
+  const problems = useMemo(() => active.filter((p: Project) => p.status === 'red'), [active]);
+  const openRequests = useMemo(() => (groups || []).reduce((s, g) => s + (g.requests || []).length, 0), [groups]);
+  const weekMon = isoMondayOf(now);
+  const kw = getISOWeek(today()).week;
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Guten Morgen' : hour < 17 ? 'Hallo' : 'Guten Abend';
+
+  const repMap: Record<string, { l: string; c: 'red' | 'blue' | 'green' }> = {
+    submitted: { l: 'Eingereicht', c: 'blue' }, reviewed: { l: 'Geprüft', c: 'blue' }, signed: { l: 'Signiert', c: 'red' },
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flexShrink: 0, padding: '16px 24px 13px', borderBottom: '1px solid var(--c-bd)', background: 'var(--c-sf)', display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+        <h1 style={{ fontSize: 22, margin: 0 }}>{greeting}, {String(user.name || '').split(' ')[0]}</h1>
+        <LiveClock />
+        <div style={{ marginLeft: 'auto' }}>
+          <Stamp label={`KW ${kw ?? ''} · ${now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`} color="blue" seed={`kw-${kw}`} />
+        </div>
+      </div>
+      <div className="draft-in" style={{ flex: 1, overflowY: 'auto', padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 1180, width: '100%', margin: '0 auto' }}>
+
+        {/* Hero: Eingangskorb */}
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', ['--i' as string]: 0 }}>
+          <div className="card" style={{ flex: '2 1 380px', display: 'flex', alignItems: 'center', gap: 18, padding: '16px 20px', borderLeft: `3px solid ${pending.length ? C.ac : C.gr}` }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={monoCaps}>Eingangskorb</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, color: C.br, marginTop: 4 }}>
+                {pending.length === 0 ? 'Alles geprüft' : `${pending.length} ${pending.length === 1 ? 'Bericht wartet' : 'Berichte warten'} auf Prüfung`}
+              </div>
+              <div style={{ fontSize: 12, color: C.mu, marginTop: 3 }}>
+                {pending.length === 0 ? 'Kein Bericht offen — saubere Werkstatt.' : `Ältester: ${(pending[0] as any).user_name || 'Azubi'} · KW ${pending[0].week_number ?? ''}`}
+              </div>
+              <button className="abtn" style={{ marginTop: 12 }} onClick={() => onNavigate('/reports')}>
+                {pending.length ? 'Jetzt prüfen →' : 'Berichte öffnen →'}
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 14, flex: '1 1 320px' }}>
+            <Stat label="Azubis" value={azubis.length} />
+            <Stat label="Projekte" value={active.length} />
+            <Stat label="Kritisch" value={problems.length} color={problems.length ? C.cr : C.mu} />
+          </div>
+        </div>
+
+        {/* Azubi-Reihen */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 2fr) minmax(260px, 1fr)', gap: 18, alignItems: 'start', ['--i' as string]: 1 }}>
+          <div>
+            <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span className="section-header-title" style={{ ...monoCaps, color: C.tx }}>Azubis [{azubis.length}]</span>
+            </div>
+            {azubis.length === 0 && <div style={{ fontSize: 12, color: C.mu, fontStyle: 'italic' }}>Noch keine Azubis angelegt.</div>}
+            {azubis.map((a: User) => {
+              const myTasks = active.filter((p: Project) => (p.assignees || []).some(x => sameId(x, a.id)))
+                .flatMap((p: Project) => (p.tasks || []).filter((t: Task) => sameId(t.assignee, a.id) && t.status !== 'done'));
+              const overdue = myTasks.filter((t: Task) => t.deadline && Math.ceil((+new Date(t.deadline) - +now) / 86400000) < 0).length;
+              const myRep = (reports || []).filter((r: Report) => sameId(r.user_id, a.id) && (r.week_start || '') >= weekMon)
+                .sort((x: Report, y: Report) => (y.week_start || '').localeCompare(x.week_start || ''))[0];
+              const ampel = overdue > 2 ? C.cr : overdue > 0 || !myRep ? C.yw : C.gr;
+              return (
+                <button key={a.id} className="card" onClick={() => onNavigate(`azubi/${a.id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 14px', marginBottom: 8, cursor: 'pointer', textAlign: 'left' }}>
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: ampel, boxShadow: `0 0 8px ${ampel}`, flexShrink: 0 }} aria-label="Status" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 10, color: C.mu, marginTop: 2 }}>LJ {(a as any).apprenticeship_year || 1} · {myTasks.length} offen{overdue ? ` · ${overdue} überfällig` : ''}</div>
+                  </div>
+                  {myRep && repMap[myRep.status as string]
+                    ? <Stamp label={repMap[myRep.status as string].l} color={repMap[myRep.status as string].c} seed={myRep.id} />
+                    : myRep
+                      ? <span className="tag" style={{ background: 'var(--c-sf2)', color: C.mu }}>● Entwurf</span>
+                      : <span className="tag" style={{ background: C.ywd, color: C.yw }}>KW {kw ?? ''} fehlt</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {problems.length > 0 && (
+              <div className="card" style={{ borderLeft: `3px solid ${C.cr}` }}>
+                <div style={{ ...monoCaps, marginBottom: 8 }}>Kritische Projekte</div>
+                {problems.map((p: Project) => (
+                  <button key={p.id} className="row-btn" onClick={() => onOpenProject(p.id)} style={{ justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.br }}>{p.title}</span>
+                    <span style={{ color: C.cr }}>→</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {openRequests > 0 && (
+              <button className="card" onClick={() => onNavigate('/groups')} style={{ cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }} aria-hidden="true">🙋</span>
+                <span style={{ flex: 1, fontSize: 13, color: C.br, fontWeight: 600 }}>{openRequests} offene Beitritts-Anfrage{openRequests !== 1 ? 'n' : ''}</span>
+                <span style={{ color: C.ac }}>→</span>
+              </button>
+            )}
+            <div className="card">
+              <div style={{ ...monoCaps, marginBottom: 8 }}>Nächste Termine</div>
+              <CalWidget calendarEvents={calendarEvents || []} projects={projects} onNavigate={() => onNavigate('/calendar')} />
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ ['--i' as string]: 2 }}>
+          <div style={{ ...monoCaps, marginBottom: 8 }}>Logbuch</div>
+          <ActivityFeed activityLog={activityLog as any} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardBeta({ user, projects, reports, calendarEvents, activityLog, groups, onOpenProject, onNavigate }: Props) {
   const now = new Date();
   const mine = useMemo(() => (projects || []).filter((p: Project) => !p.archived && (p.assignees || []).some(a => sameId(a, user.id))), [projects, user.id]);

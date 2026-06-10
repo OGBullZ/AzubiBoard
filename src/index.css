@@ -239,6 +239,34 @@ body {
 [data-design="beta"] .progress-track,
 [data-design="beta"] .progress-fill { border-radius: 3px; }
 
+/* Welcome-News = Auftragszettel (D4): Perforations-Abrisskante oben */
+[data-design="beta"] .news-zettel {
+  -webkit-mask-image: radial-gradient(circle 5px at 12px -2px, transparent 98%, #000) ;
+  mask-image: radial-gradient(circle 5px at 12px -2px, transparent 98%, #000);
+  -webkit-mask-size: 24px 100%;
+  mask-size: 24px 100%;
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+}
+
+/* Netzplan = Blaupause: das Raster lebt LOKAL auf der Zeichenfläche weiter (D4) */
+[data-design="beta"] .np-surface {
+  background-image:
+    linear-gradient(var(--c-grid-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid-strong) 1px, transparent 1px),
+    linear-gradient(var(--c-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+
+/* Kanban-Plantafel (D4): Schablonen-Outline beim Drag-Over */
+[data-design="beta"] .kanban-col-over {
+  outline: 1.5px dashed var(--c-ac);
+  outline-offset: -4px;
+}
+
 /* SectionHeader: Maßlinien-Dekor (—•) + Schriftfeld-Typo */
 [data-design="beta"] .section-header::before {
   content: '';

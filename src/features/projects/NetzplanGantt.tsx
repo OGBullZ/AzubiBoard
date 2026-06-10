@@ -176,7 +176,7 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
         <button className="btn" onClick={resetLayout} style={{ fontSize: 11 }}>⊡ Layout zurücksetzen</button>
       </aside>
 
-      <div ref={contR}
+      <div ref={contR} className="np-surface"
         style={{ flex: 1, background: C.bg, border: `1px solid ${C.bd}`, borderRadius: 10, overflow: 'hidden', position: 'relative', cursor: isDrag ? 'grabbing' : panR.current ? 'grab' : 'default' }}
         role="img" aria-label="Netzplan Diagramm"
         onWheel={e => { e.preventDefault(); setZoom(z => Math.min(Math.max(z * (e.deltaY > 0 ? .9 : 1.1), .1), 4)); }}
