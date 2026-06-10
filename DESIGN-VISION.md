@@ -139,6 +139,7 @@ Token: `--ease-stamp: cubic-bezier(.2,1.4,.4,1)` · `--ease-out: cubic-bezier(.1
 - Fehler (falsches Passwort): kurzes mechanisches Ruckeln (translateX ±4px, 3 Zyklen, 200ms) + roter Stempelabdruck „ABGELEHNT" der sofort verblasst (Augenzwinkern, nicht nervig).
 
 ### Dashboard — „Instrumententafel"
+**→ Eigenes Vertiefungs-Konzept in Anhang D (Zustands-Modell leer → Arbeitsmodus).** Kurzform:
 - Begrüßung in Display-Font + Datum/KW als gestempelte Mono-Zeile.
 - HeroTask = großes Instrument: links Aufgabe, rechts Restzeit-Anzeige als Halbkreis-Gauge mit Skalenstrichen.
 - Stat-Kacheln: CountUp, Mono-Caps-Label, Trend-Pfeil als Maßpfeil; kritische Stat bekommt orangen Eckmarker.
@@ -390,6 +391,49 @@ Timing-System: **90ms** (Press/Snap) · **180ms** (Hover/Toggle) · **320ms** (E
 2. Entrance-Animationen NUR beim Mount, nie bei Re-Render (Key-Disziplin; `.draft-in` sitzt am Container).
 3. Listen >30 Einträge: Stagger kappen (max. 12 Kinder animieren, Rest erscheint sofort).
 4. Jede neue Animation wird im Browser gegen „nervt beim 20. Mal?" geprüft — Zeremonien (Stempel, Partikel) nur an echten Meilensteinen, nie an Routine-Klicks.
+
+## Anhang D — Dashboard-Konzept „Vom leeren Tisch zur Instrumententafel"
+
+Das Dashboard ist der meistgesehene Screen und hat drei klar getrennte Zustände. Das Designziel pro Zustand ist verschieden — Leere soll **einladen**, Betrieb soll **fokussieren**.
+
+### D.1 Zustands-Modell
+| Zustand | Bedingung (Azubi) | Designziel |
+|---|---|---|
+| **Z1 Leerer Tisch** | 0 Projekte UND 0 eigene Berichte | Neugier + erster Handgriff — darf charmant sein, Animation erlaubt |
+| **Z2 Einrichten** | Setup unvollständig (Profil/Gruppe/1. Bericht offen), aber schon Aktivität | Checkliste führt, Instrumente erscheinen nach und nach |
+| **Z3 Arbeitsmodus** | Projekte zugewiesen / Berichte laufen | **Ultra-Übersicht**: eine Blick-Hierarchie, null Deko-Konkurrenz |
+
+Ausbilder analog: Z1 = „Werkstatt eröffnen" (Gruppe anlegen → Azubis einladen → erstes Projekt), Z3 = Prüf-Cockpit (Eingangskorb zuerst).
+
+### D.2 Z1 — Der leere Tisch (cool statt peinlich)
+- **Bühne:** mittig eine **animierte Blueprint-Werkbank** (Inline-SVG ~3 KB): Konstruktionslinien zeichnen sich beim Mount (stroke-dashoffset, 1.4s, einmalig), danach EIN dezenter Idle-Loop — das kleine Zahnrad an der Werkbank dreht `steps(8)`, 12s-Periode. Nicht mehr; Leere soll ruhig wirken.
+- Headline (Display): „Deine Werkbank steht bereit." Sub: ein Satz, was als Nächstes Sinn ergibt.
+- **Einrichtungs-Laufkarte** darunter (card--punched): 3–4 Schritte mit leeren Stempelfeldern — „Profil vervollständigen" · „Gruppe beitreten" · „Ersten Wochenbericht anlegen" · „Lernpfad starten". Jeder erledigte Schritt bekommt live den Mini-Stempel (Aufschlag-Animation); Fortschritt als Mono-Zähler `EINRICHTUNG 2/4`.
+- Jeder Schritt = direkter Deep-Link (Event-Bus-navigate), kein „Anleitung lesen".
+- **Übergangs-Zeremonie Z1/Z2 → Z3** (= Signature 7): Wenn der letzte Schritt fällt ODER das erste Projekt zugewiesen wird → großer Stempel „BETRIEBSBEREIT" über der Laufkarte (600ms), die Karte faded aus, die Instrumente staggern herein. Passiert genau EINMAL (localStorage-Flag pro User).
+- Z1 mit teilweisem Inhalt (z. B. nur Bericht fehlt) zeigt zusätzlich schon die relevanten Mini-Widgets — keine künstliche Leere.
+
+### D.3 Z3 — Arbeitsmodus: die Blick-Hierarchie (genau 3 Ebenen)
+Lesefluss in unter 5 Sekunden — „Was jetzt? Wie steht's? Was kommt?":
+
+1. **Kopfzeile (volle Breite):** Begrüßung + Datum/KW-Stempel rechts. KEINE Aktionen hier.
+2. **Hero-Zeile = „WAS JETZT":** Das EINE nächste Ding, groß. Auswahl-Logik (Priorität): überfällige Aufgabe → heute fällige Aufgabe → Berichtsheft dieser Woche offen → nächste Deadline ≤3 Tage → „Alles im Plan" (grüner Ruhezustand mit nächstem Termin). Links Titel+Kontext, rechts **Halbkreis-Gauge** mit Resttagen, EIN orangefarbener CTA. Daneben kompakt: 3 CountUp-Stats (offene Aufgaben / Projekte / Berichts-Streak) — mehr Zahlen gibt es above-the-fold NICHT.
+3. **Arbeitsfläche (2 Spalten) = „WIE STEHT'S / WAS KOMMT":**
+   - Links **Aktive Projekte** als Werkbank-Reihen (nicht Karten-Grid): Signalleuchte (Ampel-Glow) · Titel · Füllstands-Balken mit Skalenstrichen · „nächste Aufgabe"-Zeile in Mono · Deadline rechts. Eine Zeile = ein Projekt = ein Klick. Max. 5, dann „Alle →".
+   - Rechts schmale Spalte: **Wochenübersicht** (Füllstand MO–FR), **Termine** (nächste 3, Mono-Datum), **Berichtsheft-Status** (Stempel-Vorschau der aktuellen KW), Lern-Snack (1 fälliger Karteikasten-Stapel).
+   - **Aktivitäts-Feed wandert ans Ende** (volle Breite, eingeklappt auf 5 Zeilen) — Historie ist Nachschlag, nicht Konkurrenz zur Arbeit.
+- **Dichte-Regeln:** Jedes Widget beantwortet EINE Frage und hat max. EINEN CTA. Keine zwei Widgets zeigen dieselbe Information (heute: Deadlines doppelt in HeroTask + Deadline-Widget → Deadline-Widget fliegt zusammengelegt in die Termin-Spalte). Leere Einzel-Widgets in Z3 zeigen einen Einzeiler statt Riesen-Emoji.
+- **Motion in Z3** (nach Anhang C): Entrance-Stagger + CountUp einmalig, Gauge-Nadel schwingt beim Laden ein (320ms) — danach ist das Dashboard STILL. Bewegung nur noch als Antwort auf Nutzer-Aktion.
+
+### D.4 Ausbilder-Cockpit (Z3-Variante)
+1. Hero = **Eingangskorb**: „N Berichte warten auf Prüfung" mit direktem Prüf-CTA + ältester Wartezeit in Mono.
+2. **Azubi-Reihen** statt Projekt-Reihen: Avatar · Name · Ampel (überfällige Aufgaben) · Berichtsstatus-Stempel der KW · letzter Aktiv-Zeitstempel. Ein Klick → Azubi-Profil.
+3. Peripherie: kritische Projekte, Gruppen-Anfragen-Tray, Termine.
+
+### D.5 Umsetzung & Geltung
+- **Phase D3** (Dashboard-Teil): Z1-Werkbank-SVG + Laufkarte + Zustands-Weiche + Z3-Hierarchie-Umbau + Hero-Auswahl-Logik (`buildHeroSuggestion` als pure Funktion in eigener .ts → unit-testbar wie buildNewsCards).
+- Wiederverwendung: Einrichtungs-Logik teilt Checks mit OnboardingWizard/WelcomeNews (ein Modul, kein Drift); Projekt-Reihen-Komponente wird auch im Ausbilder-Cockpit als Azubi-Reihe variiert.
+- Alles Beta-gescoped: 1.0-Dashboard bleibt unverändert; die Zustands-Weiche rendert in v1 schlicht das bisherige Layout.
 
 ### Preview als lebendes Artefakt
 `docs/design-preview.html` wird pro D-Phase um die neu gebauten Primitives erweitert (Copy aus echtem CSS) — dient als Styleguide-Snapshot für Reviews, fliegt nach D6 in `docs/styleguide.html` umbenannt zusammen.
