@@ -1,6 +1,6 @@
 # DESIGN-VISION — „Die digitale Werkbank"
 
-> Status: **PLANUNG** (2026-06-10). Keine Umsetzung ohne Freigabe; jede Phase branch-only, Merge erst nach Browser-Review.
+> Status: **PLANUNG v2** (2026-06-10, vertieft). Keine Umsetzung ohne Freigabe; jede Phase branch-only, Merge erst nach Browser-Review.
 > Ersetzt nicht UX-ROADMAP.md (abgeschlossen, Bedienbarkeit) — das hier ist die **ästhetische** Gesamtvision, auf allen Ebenen.
 
 ---
@@ -10,118 +10,271 @@
 **Ist-Zustand:** GitHub-Dark-Palette + Apple-Blau + `system-ui` = kompetent, aber gesichtslos. Nichts an der App sagt „Ausbildung", nichts bleibt hängen.
 
 **Konzept: Die digitale Werkbank / das technische Büro.**
-AzubiBoard verwaltet eine Ausbildung: Berichtshefte mit Stempeln, Prüfungen, Lehrjahre, IHK-Formalien, Projektpläne. Die Bildsprache dafür existiert seit 100 Jahren — **technische Zeichnung, Blaupause, Laufkarte, Prüfstempel, Messwerkzeug** — und kein anderes Tool nutzt sie. Das ist unsere Lücke.
+AzubiBoard verwaltet eine Ausbildung: Berichtshefte mit Stempeln, Prüfungen, Lehrjahre, IHK-Formalien, Projektpläne. Die Bildsprache dafür existiert seit 100 Jahren — **technische Zeichnung, Blaupause, Laufkarte, Prüfstempel, Messwerkzeug** — und kein anderes Tool nutzt sie.
 
-- **Ton:** Präzise + industriell, mit Wärme. Kein kaltes Dev-Tool, keine verspielte Lern-App — eine Werkstatt, in der man stolz auf saubere Arbeit ist.
-- **Das eine unvergessliche Ding:** **Der Stempel.** Berichtsstatus, bestätigte Lernziele, erledigte Meilensteine bekommen physisch anmutende Prüfstempel mit Stempel-Animation. Wer einmal „GEPRÜFT" auf seinen Wochenbericht geknallt bekommen hat, vergisst die App nicht.
-- **Leitmetapher pro Bereich:** Berichte = Laufkarte/Formular · Projekte/Netzplan = Blaupause · Dashboard = Instrumententafel · Kalender = Plantafel · Lernbereich = Karteikasten.
+- **Ton:** Präzise + industriell, mit Wärme. Eine Werkstatt, in der man stolz auf saubere Arbeit ist.
+- **Das eine unvergessliche Ding:** **Der Stempel.**
+- **Leitmetapher pro Bereich:** Berichte = Laufkarte · Projekte/Netzplan = Blaupause · Dashboard = Instrumententafel · Kalender = Plantafel · Lernbereich = Karteikasten · Nutzer/Gruppen = Werksausweise · Papierkorb = Schredder · Audit = Maschinenbuch.
+
+**Drei Gestaltungsgesetze** (gegen Beliebigkeit, jede Design-Entscheidung muss eines erfüllen):
+1. **Gefertigt, nicht gerendert** — Dinge haben Kanten, Material, Gewicht (Innenkanten, Stanzungen, Stempeldruck).
+2. **Beschriftet wie eine Zeichnung** — Meta-Informationen (KW, Datum, IDs, Maße) immer in Mono-Caps, wie Schriftfelder auf Plänen.
+3. **Ein Moment pro Screen** — Motion wird budgetiert wie Geld. Lieber ein perfekter Stempel als zehn Hover-Wackler.
 
 ---
 
 ## Ebene 1 — Foundations
 
-### 1.1 Typografie (größter Einzelhebel)
-| Rolle | Font | Einsatz |
-|---|---|---|
-| Display | **Chakra Petch** (700/600) | Seitentitel, Widget-Header, große Zahlen, Logo |
-| Body | **Archivo** (variable) | Fließtext, Formulare, Listen — schmale Breiten für dichte Tabellen |
-| Mono/Daten | **JetBrains Mono** (bereits referenziert, jetzt wirklich laden) | KW, IDs, Datumsangaben, Zeiterfassung, Stempel-Beschriftung |
+### 1.1 Typografie
+| Rolle | Font | Schnitte | Einsatz |
+|---|---|---|---|
+| Display | **Chakra Petch** | 600, 700 | Seitentitel, Widget-Header, große Zahlen, Logo, Stempeltext |
+| Body | **Archivo** (variable) | 400–700, width-axis | Fließtext, Formulare, Listen |
+| Mono | **JetBrains Mono** | 400, 700 | KW/Daten/IDs, Schriftfelder, Code, Terminal |
 
-- Self-hosted via `@fontsource` (PWA-offline, CSP bleibt ohne Google-CDN). Nur benötigte Schnitte: ~80–120 KB woff2, im Workbox-Precache.
-- Typo-Skala definieren (12/13/15/18/22/28/40) statt der heutigen ~15 Streuwerte; große Ziffern (Countdown, Stats) in Chakra Petch mit `font-feature-settings: 'tnum'`.
+- Self-hosted via `@fontsource` (PWA-offline, CSP ohne Google-CDN). Subset latin + latin-ext, gesamt ≤120 KB woff2, Workbox-Precache, `font-display: swap` mit `size-adjust`-Fallback-Metriken gegen Layout-Shift.
+- **Typo-Skala** (ersetzt ~15 Streuwerte): `--fs-0: 11px` (Mono-Labels) · `--fs-1: 12.5` · `--fs-2: 14` (Body-Default, hoch von 13) · `--fs-3: 16` · `--fs-4: 19` · `--fs-5: 24` · `--fs-6: 32` · `--fs-7: 44` (Hero-Zahlen). Zeilenhöhe 1.55 Body / 1.15 Display.
+- Ziffern: `font-feature-settings: 'tnum' 1` überall wo Zahlen untereinander stehen (Stats, Tabellen, Zeiterfassung, Countdown).
+- **Mono-Caps-Label** als festes Stilmittel: `font: 700 11px JetBrains Mono; letter-spacing: .14em; text-transform: uppercase; color: var(--c-mu)` — ersetzt die ~80 uneinheitlichen Inline-Uppercase-Labels (SectionHeader-Konsolidierung aus UX-Phase 1 wird hier vollendet).
 
-### 1.2 Farbe
-Raus aus Blau-auf-Blaugrau. Neues System (alle als `--c-*` Tokens, Alpha-Varianten via `color-mix` statt Hex+'44'-Arithmetik):
+### 1.2 Farbe — Token-Architektur
+Zweischichtig: **Primitives** (rohe Skalen) → **Semantik** (was Komponenten benutzen). Komponenten greifen NIE auf Primitives zu.
 
-| Token | Dark (Default) | Idee |
-|---|---|---|
-| `--c-bg` | `#0B0F0E` (tiefes Petrol-Schwarz, minimal grünstichig) | Werkstatt bei Nacht |
-| `--c-sf*` | gestufte Petrol-Graphit-Flächen | Stahlblech |
-| `--c-ac` | **Signal-Orange `#FF6A1A`** | Sicherheitsfarbe der Werkstatt — Aktionen, aktive Zustände |
-| `--c-ac2` | Cyan `#3FD2C7` | Daten-/Info-Akzent (Links, Sync, Mono-Daten) |
-| Status | Grün/Rot/Amber behalten, auf neue Palette gestimmt | Semantik unverändert |
-| Stempel | Tiefrot `#C2362B` + Blau `#2C5E9E` | klassische Stempelfarben |
+```css
+/* Primitives (Auszug) */
+--petrol-950:#0B0F0E; --petrol-900:#101614; --petrol-850:#151C1A; --petrol-800:#1A2320;
+--ink-100:#EDEAE2;    --paper:#F6F3EC;
+--orange-500:#FF6A1A; --orange-600:#E55708; --orange-100:#FFD9C2;
+--cyan-400:#3FD2C7;   --stamp-red:#C2362B;  --stamp-blue:#2C5E9E;
+--green-500:#37C871;  --red-500:#F45B4E;    --amber-500:#FFB224;
 
-**Light-Mode = „Papier":** warmes Papierweiß `#F6F3EC`, Tinte `#1A2B3C`, Blaupausen-Linien hellblau — kein invertiertes Dark, sondern eigener Charakter (Zeichenbrett am Tag).
+/* Semantik (Dark) */
+--c-bg: var(--petrol-950);        --c-sf: var(--petrol-900);     /* usw. */
+--c-ac: var(--orange-500);        --c-ac-press: var(--orange-600);
+--c-ac-text: #FFB78A;             /* Orange ist als Text auf Dunkel zu schwach → eigene Text-Variante, AA-geprüft */
+--c-data: var(--cyan-400);        /* Links, Sync, Mono-Daten */
+--c-grid: color-mix(in srgb, var(--cyan-400) 4%, transparent);   /* Blueprint-Raster */
+```
 
-### 1.3 Textur & Tiefe (heute: null Atmosphäre)
-- **Blueprint-Raster** als Body-Hintergrund: feines mm-Raster (CSS `repeating-linear-gradient`, ~3 % Opazität), alle 5 Einheiten stärkere Linie. Kostet nichts, trägt alles.
-- Dezentes **Noise-Grain-Overlay** (eine 64px-PNG/SVG-Kachel, `opacity .03`) gegen die sterile Flatness.
-- Schatten-Skala (3 Stufen) + 1px-Innenkante (`inset 0 1px 0 rgba(255,255,255,.04)`) für „gestanztes Blech"-Gefühl auf Karten.
-- Radius-Skala: 4/8/12 — Karten eher kantiger (Werkstück), Dialoge weicher.
+- **Alle Alpha-Varianten via `color-mix`** — die letzten `C.gr+'45'`-Hex-Arithmetiken sterben; `C` in utils.ts wird zur reinen `var()`-Brücke (Token-Namen 1:1 behalten → 38 Dateien kompilieren unverändert).
+- **60/30/10-Regel:** 60 % Flächen (Petrol), 30 % Text/Struktur, 10 % Akzent. Orange ist Belohnung, nicht Tapete — pro Screen max. 3 orange Elemente (primäre Aktion, aktiver Zustand, 1 Akzentdetail).
+- Status-Farben semantisch unverändert (grün/rot/amber), aber auf Petrol gestimmt + je eine `-bg`- und `-text`-Stufe (kein Raten mehr mit rgba).
 
-### 1.4 Ikonografie & Grafik
-- Icons.tsx vereinheitlichen: ein Strichgewicht (1.75), runde Kappen, „technisches" Set ergänzen (Stempel, Messschieber, Laufkarte, Zahnrad).
-- Leerzustände: kleine **Blueprint-Doodles** (SVG-Strichzeichnungen mit gestrichelten Maßlinien) statt Emoji-Großbuchstaben.
-- Avatare: Hue-Rotation behalten, aber als „Werksausweis"-Optik (eckig mit Lochung) im Profil.
+### 1.3 Licht-Modus = „Papier" (eigener Charakter, kein invertiertes Dark)
+- Hintergrund Papierweiß `#F6F3EC` mit **Millimeterpapier-Raster in Blaupausen-Blau** (klassisch!), Flächen reines Weiß mit harten 1px-Tintenlinien `#1A2B3C`.
+- Schatten fast weg → stattdessen Linienstärke-Hierarchie (Zeichnungs-Logik: dick = wichtig).
+- Akzent bleibt Signal-Orange (funktioniert auf Papier hervorragend), Stempel kräftiger (rot/blau wie echte Stempelfarbe auf Papier).
+- Theme-Wechsel = Metapher-Wechsel: **nachts Werkstatt, tags Zeichenbrett.**
+
+### 1.4 Textur, Tiefe, Material
+- **Blueprint-Raster** Body-Hintergrund: `repeating-linear-gradient` 0°/90°, 1px-Linien alle 24px @3 %, jede 5. Linie @6 % (Hauptraster 120px). Eine CSS-Regel, null Assets.
+- **Grain:** 64px-SVG-Noise-Kachel (`feTurbulence`, inline data-URI), fixed Overlay `opacity:.035; pointer-events:none; mix-blend-mode:overlay`. Toggle-bar über ein einziges `data-grain`-Attribut.
+- **Material-Rezept Karte** („gestanztes Blech"): `box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 6px 16px -8px rgba(0,0,0,.5); border: 1px solid var(--c-bd)`.
+- Schatten-Skala: `--sh-1` (Karte) / `--sh-2` (Popover) / `--sh-3` (Modal, mit 2px Akzent-Glow-Anteil).
+- Radius-Skala: `--r-1: 4px` (Inputs, Tags) / `--r-2: 8px` (Karten) / `--r-3: 14px` (Dialoge). Karten kantiger = Werkstück.
+- **Perforations-Kante** (Laufkarten/Welcome-News): `mask-image: radial-gradient(...)`-Punktreihe — physische Abrisskante ohne Bild-Asset.
+
+### 1.5 Ikonografie & Illustration
+- Icons.tsx: ein Strichgewicht 1.75, runde Kappen; neue Icons: Stempel, Messschieber, Laufkarte, Schraubstock, Karteikasten, Plantafel-Magnet, Lochzange.
+- **Blueprint-Doodles** für Leerzustände: SVG-Strichzeichnungen mit gestrichelten Maßlinien + Maßpfeilen + handschriftlicher Annotation (z. B. leeres Kanban: gezeichnete Kiste, Maßpfeil „hier entsteht dein erstes Projekt"). 6–8 Stück, je <2 KB inline.
+- Logo-Idee: „AB"-Monogramm als Zirkelschlag + Winkellineal konstruiert; Konstruktionslinien bleiben im Logo dezent sichtbar (Konzept „gefertigt, nicht gerendert").
+- Avatare: „Werksausweis"-Optik im Profil/UsersView — eckige Karte, Lochung oben, Name in Mono, Rolle als Farbstreifen (Azubi orange / Mentor cyan / Ausbilder grün).
+
+### 1.6 Räumliche Komposition
+- **Schriftfeld-Prinzip:** Jede „Dokument-artige" Fläche (Bericht, Projekt-Detail, Druck-Deckblatt) bekommt unten rechts ein technisches Schriftfeld (Tabelle: Erstellt / Geprüft / KW / Version) — echtes Zeichnungs-Layout.
+- Asymmetrie erlaubt: Dashboard-Hero darf 2 Spalten brechen; Seitentitel dürfen mit Maßlinie nach links aus dem Content-Raster „herausgezogen" werden.
+- Dichte: PC-only → wir dürfen dicht sein. Listen 36px-Zeilen, aber großzügige Sektion-Abstände (32/48) — Spannung aus Kontrast dicht/leer.
 
 ---
 
-## Ebene 2 — Motion-System (CSS-first, kein neues Framework)
+## Ebene 2 — Motion-System
 
-Prinzip: **ein orchestrierter Moment pro Screen** statt überall Gewackel. Alles hinter `prefers-reduced-motion`.
+Token: `--ease-stamp: cubic-bezier(.2,1.4,.4,1)` · `--ease-out: cubic-bezier(.16,1,.3,1)` · Dauern 90/180/320/600ms. Alles in einer `motion.css`, alles hinter `@media (prefers-reduced-motion: no-preference)`.
 
-1. **Seiten-Einstieg:** gestaffeltes Aufbauen (Widgets 40ms-Stagger, `fadeUp` existiert schon — systematisieren statt Einzelfälle).
-2. **Stempel-Animation:** Skalierung 1.4→1 + 2° Rotation + kurzes „Aufschlagen" (90ms, `cubic-bezier(.2,1.4,.4,1)`) + Tintenrand. Eine Keyframe-Klasse, überall nutzbar.
-3. **Zahlen zählen hoch** (Dashboard-Stats, Countdown) — kleines `useCountUp`, nur beim ersten Sichtbarwerden.
-4. **Kanban-Drag:** Karte kippt 2–3°, Drop-Ziel zeigt gestrichelte Schablonen-Outline; „done" triggert Mini-Stempel.
-5. **Focus-visible als Messlehre:** vier Eck-Klammern (`::before/::after`-Brackets) statt Standard-Ring — a11y-konform und absolut eigen.
-6. Skeleton-Loading als **Schraffur** (diagonale Linien wandern), passend zur Zeichnungs-Metapher.
+1. **Stempel** (`.stamp-in`): scale 1.45→.98→1, rotate -2.5°, 280ms `--ease-stamp`; beim Aufschlag 1 Frame `filter: blur(.4px)` + Tinten-Ring (`::after` mit radialem Gradient, fade 600ms). Ein dezenter Versatz/Rotation pro Instanz via `--stamp-seed` (deterministisch aus ID gehasht — kein Math.random im Render) → jeder Stempel sitzt minimal anders, wie echt.
+2. **Seiten-Einstieg:** Container-Klasse `.draft-in` — Kinder staggern mit `animation-delay: calc(var(--i) * 40ms)`, fadeUp 12px. Einheitlich statt der heutigen Einzel-`anim`.
+3. **CountUp:** `useCountUp(target, 600ms, easeOut)` — nur beim ersten IntersectionObserver-Sichtbarwerden, tnum verhindert Zappeln.
+4. **Kanban-Physik:** Drag = rotate 2.5° + Schatten Stufe 2 + cursor grabbing; Drop-Slot = gestrichelte Schablonen-Outline (animierter `stroke-dashoffset`-Lauf, „Ameisen"); Drop in „done" = Mini-Stempel ✓ auf der Karte.
+5. **Messlehre-Focus:** `:focus-visible` → vier Eck-Klammern via `clip-path`-Frame oder Doppel-`box-shadow`-Ecken, 2px Orange, snappt mit 90ms. Inputs behalten zusätzlich Unterkante.
+6. **Skeleton = Schraffur:** 45°-Linien (`repeating-linear-gradient`), wandern 1.2s linear — Lade-Zustand sieht aus wie „noch nicht ausgefülltes Zeichnungsfeld".
+7. **Split-Flap** (KW-Anzeige): zweigeteilte Karte, obere Hälfte klappt mit `rotateX`, 3 Kaskaden-Flaps bei Wochenwechsel, 90ms versetzt + dezenter Klack (nur wenn Sound an).
+8. **Zahnrad-Sync:** SyncIndicator-Icon = kleines Zahnrad, dreht bei inflight (rotate steps(8) — mechanisch, nicht smooth), bei Fehler steht es mit rotem Sprenkel still.
+9. **Toast-Einfahrt:** von unten mit leichtem Überschwingen, Akzentkante „druckt" sich von links auf (scaleX 0→1).
+10. **View-Transition Theme-Switch:** `document.startViewTransition` mit radialem `clip-path`-Sweep vom Schalter aus (progressive enhancement, Fallback = instant).
+
+**Choreografie-Budget je Screen:** 1 Entrance + 1 Signature + Micro-Feedback. Nicht mehr.
 
 ---
 
-## Ebene 3 — Komponenten (UI.tsx-Primitive zuerst, dann erbt alles)
+## Ebene 3 — Komponenten (UI.tsx zuerst, dann erbt alles)
 
-| Primitive | Redesign |
+| Primitive | Redesign-Spec |
 |---|---|
-| Card | Blech-Optik (Innenkante, Schatten Stufe 1), Header in Chakra Petch, optionale „Laufkarten"-Lochkante links |
-| Button `abtn` | Signal-Orange, satte Press-States (translateY 1px), Werkzeug-Feeling |
-| StatusBadge | → **Stempel-Variante** für reviewed/signed/confirmed; normale Pills für Rest |
-| Modal/Dialog | Kopfzeile als Zeichnungs-Schriftfeld (Titel + KW/Datum in Mono rechts) |
-| Toast | „Etikett"-Stil, Akzentkante links, Erfolg mit Mini-Stempel-Icon |
-| Tabs | Registerkarten-Metapher (physische Karteireiter, aktive Lasche hebt sich) |
-| Inputs | ruhige Felder, Fokus = Messlehre-Brackets, Labels in Mono-Caps |
-| Tabellen/Listen | Zeilen-Hover mit Raster-Hervorhebung, Zahlen rechtsbündig tnum |
-| SectionHeader | Maßlinien-Dekor (kurze Linie + Punkt) vor dem Label |
+| **Card** | Blech-Rezept (1.4), Header-Zeile: Mono-Caps-Label links, optional Schriftfeld-Meta rechts; Varianten `card--punched` (Lochkante links, Laufkarte) und `card--blueprint` (Rasterfüllung, für Netzplan/Empty) |
+| **Button** | `abtn`: Orange, `translateY(1px)` + dunklere Stufe beim Druck, 90ms; Sekundär: Outline mit Mono-Caps; Gefahr: Stempelrot. Loading-State: Mini-Schraffur-Streifen läuft durch |
+| **StatusBadge → Stamp** | Neue `<Stamp status>`-Komponente: doppelter Rahmen (2px außen, 1px innen, 2px Abstand), Chakra Petch caps, leichte Rotation aus `--stamp-seed`, Farbwelt Stempelrot/-blau/-grün; `stamped`-Prop triggert `.stamp-in`. Pills bleiben für neutrale Tags |
+| **Modal/Dialog** | Kopf als Zeichnungs-Schriftfeld: Titel links (Display), rechts Mono-Block (Datum · KW · ggf. Entity-ID); Fußleiste mit 1px-Doppellinie; Eintritt: fadeUp + Backdrop-Blur 4px |
+| **ConfirmDialog (destruktiv)** | rote Schraffur-Ecke oben links (Gefahrenzettel-Optik), Bestätigen-Button Stempelrot |
+| **Toast** | Etikett: linke Akzentkante, Mono-Zeitstempel klein rechts, Erfolg mit Mini-Stempel-Icon, Undo als unterstrichene Mono-Aktion |
+| **Tabs** | physische Karteireiter: aktive Lasche 2px höher, verbindet sich nahtlos mit Inhaltsfläche (border-bottom der Fläche unterbricht), inaktive abgedunkelt |
+| **Inputs/Select/Textarea** | ruhig: nur Unterkante + Fläche `--c-sf2`; Label = Mono-Caps; Focus = Messlehre; Fehler: Unterkante rot + Mono-Fehlertext; Pflichtfeld-Stern als Zeichnungs-Annotation `(*)` |
+| **Tabelle/Liste** | Zeilen-Hover: Hintergrund + linke 2px-Akzentkante; Zahlen rechts/tnum; Kopfzeile Mono-Caps mit Sortier-Dreieck |
+| **SectionHeader** | Maßlinien-Dekor: `—•` vor Label, optionale Zähler-Klammer in Mono `[12]` |
+| **EmptyState** | Blueprint-Doodle + Annotation + 1 CTA; nie wieder Riesen-Emoji |
+| **Avatar** | rund im Fluss, „Werksausweis" in Profil/Users |
+| **ProgressBar/WeekProgress** | Füllstandsanzeige: Skalenstriche (alle 20 %), Füllung mit feiner Diagonal-Schraffur statt Flat-Fill |
+| **Tooltip** | Mono, dunkler Zettel mit 1px-Kante, Pfeil als Maßpfeil-Spitze |
+| **NotificationBell** | Zähler als gestempelte Marke; Panel-Einträge mit Zeitstempel-Spalte in Mono |
 
 ---
 
-## Ebene 4 — Screens (jede Route bekommt ihren Moment)
+## Ebene 4 — Screens (jede Route: Metapher · Entrance · Signature · Details)
 
-- **Login/AuthPage:** Der erste Eindruck. Blueprint-Raster, Logo wird als technische Zeichnung „konstruiert" (SVG stroke-dashoffset, einmalig ~1.2s), Formular als Schriftfeld einer Zeichnung. Demo-Buttons als Werksausweise.
-- **Dashboard:** Instrumententafel — HeroTask als großes Anzeigeinstrument, Stats mit CountUp, WeekProgress als Füllstandsanzeige. Begrüßung in Display-Font.
-- **Berichte:** Editor als **Formular/Laufkarte** (nummerierte Abschnitte 01/02/03 in Mono), Statuswechsel = Stempel-Animation. Druck bleibt formal (IHK), Jahresmappe bekommt Deckblatt mit Stempelfeld.
-- **Projekte/Kanban:** Spaltenköpfe als Plantafel-Schilder, Karten mit Lochkante, Drag-Physik (Ebene 2.4).
-- **Netzplan/Gantt:** der Blueprint-Hero — Knoten als Bauteil-Boxen mit Schriftfeld, Kanten mit Maßpfeilen, Hintergrund-Raster stärker, optional Fadenkreuz-Cursor.
-- **Kalender:** Plantafel; KW-Spaltenkopf als **Split-Flap/Fallblatt-Anzeige** (CSS 3D-Flip beim Wochenwechsel), heute-Spalte mit Signal-Orange-Reiter.
-- **Trainingsplan:** Lernziel bestätigt = Stempel + dezente Konfetti-Partikel (CSS, einmalig); Prüfungs-Countdown als **Flipclock**.
-- **Lernbereich:** Karteikarten endlich wörtlich: 3D-Flip-Karten im Karteikasten, SM-2-Fächer sichtbar als Kastenfächer.
-- **Welcome-News:** „Tagesbriefing" als Auftragszettel — perforierte Abrisskante oben, Datum/KW gestempelt, Karten staggern rein.
-- **Ctrl+K-Suche:** Kommandopult — Mono-Font, Eingabe-Cursor als Block, Treffer-Kategorien als Registerreiter.
-- **GlobalSearch/Shortcuts/Trash/Users/Groups:** erben Primitives, je 1 kleiner Charakterzug (z. B. Papierkorb = Schredder-Streifen-Animation beim Wiederherstellen-Hover).
+### Login/AuthPage — „Zutritt zur Werkstatt"
+- Volle Blueprint-Bühne: stärkeres Raster, Vignette zu den Ecken.
+- **Logo-Konstruktion** (einmalig ~1.2s): SVG-Strokes zeichnen sich via `stroke-dashoffset`, Konstruktionslinien (gestrichelt) erscheinen zuerst und faden auf 20 %.
+- Formular = Schriftfeld-Block: Mono-Labels, Messlehre-Focus; Login-Button „Einstempeln".
+- Demo-Login-Buttons = drei **Werksausweise** (Karte mit Lochung, Rollen-Farbstreifen, Name in Mono).
+- 2FA-Schritt: Code-Input als 6 einzelne Stanzfelder.
+- Fehler (falsches Passwort): kurzes mechanisches Ruckeln (translateX ±4px, 3 Zyklen, 200ms) + roter Stempelabdruck „ABGELEHNT" der sofort verblasst (Augenzwinkern, nicht nervig).
+
+### Dashboard — „Instrumententafel"
+- Begrüßung in Display-Font + Datum/KW als gestempelte Mono-Zeile.
+- HeroTask = großes Instrument: links Aufgabe, rechts Restzeit-Anzeige als Halbkreis-Gauge mit Skalenstrichen.
+- Stat-Kacheln: CountUp, Mono-Caps-Label, Trend-Pfeil als Maßpfeil; kritische Stat bekommt orangen Eckmarker.
+- Widgets staggern (`.draft-in`); WeekProgress = Füllstandsanzeige (Ebene 3).
+- Aktivitäts-Feed: Zeitstempel-Spalte Mono, Einträge wie Logbuch-Zeilen mit Lochrand links.
+
+### Berichte — „Laufkarte & Prüfstempel" (emotionales Zentrum)
+- Editor als nummeriertes Formular: Abschnitte `01 TÄTIGKEITEN` / `02 LERNINHALTE` / `03 KOMMENTAR` in Mono-Caps mit Maßlinie.
+- Statuswechsel = **Stempel-Animation auf dem Dokument**: „EINGEREICHT" (blau) → „GEPRÜFT" (blau) → „UNTERSCHRIEBEN" (rot, mit Unterschriften-Schnörkel-SVG das sich zeichnet). Stempel bleiben als Badges auf der Karte sichtbar, leicht rotiert.
+- Berichts-Karte in der Liste = Laufkarte: Lochkante, KW groß in Mono, Status-Stempel rechts oben.
+- KW-Navigation als Split-Flap-Mini.
+- Jahresmappe-Druck: neues Deckblatt mit großem Schriftfeld + Stempelfeld (Print bleibt sonst IHK-formal).
+
+### Projekte/Kanban — „Plantafel"
+- Spaltenköpfe als angeschraubte Schilder (2 Schrauben-Punkte, Mono-Caps, Zähler-Marke).
+- Karten mit Magnete-Metapher: kleiner runder „Magnet"-Dot oben mittig in Spaltenfarbe.
+- Drag-Physik + Schablonen-Drop (Ebene 2.4); „done"-Drop = Mini-Stempel ✓.
+- Projekt-Status-Ampel als echte Signalleuchte (3 gestapelte Punkte, aktiver glüht mit 8px-Glow).
+
+### Netzplan/Gantt — „Die Blaupause" (visueller Hero)
+- Canvas-Fläche mit stärkerem Raster + Eckmarken wie Plot-Bögen; optional Fadenkreuz-Cursor (2 Hairlines, folgen der Maus, @10 %).
+- Knoten = Bauteil-Boxen: Titel + Mono-Schriftfeld (Dauer/FAZ/SAZ), kritischer Pfad in Signal-Orange mit dickerer Linie.
+- Kanten mit Maßpfeil-Spitzen; Abhängigkeit beim Hover hervorgehoben, Rest dimmt auf 40 %.
+- Gantt-Balken mit Schraffur-Füllung für „geplant" vs. satter Füllung „erledigt".
+- Zoom-Steuerung als Messschieber-Optik.
+
+### Kalender — „Plantafel mit Fallblatt"
+- **Split-Flap-KW** im Kopf (Signature); Heute-Spalte mit orangenem Reiter oben + zartem Spalten-Glow.
+- Event-Chips nach Typ: deadline = rotes Fähnchen, event = Magnet-Dot, holiday = Schraffur-Hintergrund, untis = Mono-Stundenplan-Optik.
+- Monats-/Wochen-Toggle als physischer Schiebeschalter.
+- iCal-Export-Button mit Mono-Label `EXPORT .ICS`.
+
+### Trainingsplan — „Prüfungsordner"
+- Lernziel-Zeilen mit Fortschritts-Stempelspur: leer → „GELERNT" (Azubi, blau klein) → „BESTÄTIGT" (Ausbilder, rot, mit Stempel-Animation + **Zelebration**: 12 CSS-Partikel in Orange/Cyan, 800ms, einmalig).
+- **Prüfungs-Countdown = Flipclock** (Tage), darunter Meilenstein-Maßband (horizontale Skala mit Markern).
+- Kategorie-Gruppen als Ordner-Register.
+
+### Lernbereich — „Karteikasten"
+- Karteikarten wörtlich: **3D-Flip** (`rotateY`, perspective 1200px), Vorderseite Frage (Display), Rückseite Antwort (Body) mit Karteikarten-Linien-Hintergrund.
+- SM-2-Fächer als sichtbarer Kasten: 5 Fächer-Tabs („Fach 1 = täglich" … „Fach 5 = gemeistert"), Karte wandert sichtbar ins nächste Fach (kleine Fluganimation).
+- Quiz: Fortschritt als Lochstreifen (gestanzte Punkte füllen sich); richtige Antwort = grüner Mini-Stempel, falsche = roter Korrektur-Strich (handschriftliche Anmutung).
+- Lernpfad-DAG erbt Blueprint-Optik vom Netzplan; abgeschlossene Knoten abgestempelt.
+
+### Welcome-News — „Das Tagesbriefing"
+- Auftragszettel: Perforations-Kante oben (1.4), Datum/KW als Stempelabdruck schräg rechts oben, Karten staggern.
+- Karten-Prioritäten als Marker: kritisch = rotes Fähnchen, info = Magnet-Dot.
+- Leerzustand „Alles gut" = Doodle: gezeichneter Kaffeebecher auf Werkbank, Annotation „Keine offenen Posten".
+
+### Ctrl+K — „Kommandopult"
+- Vollmono. Eingabezeile mit Block-Cursor (blinkt steps(1)), Prompt-Zeichen `>`.
+- Treffer-Gruppen als Registerreiter; Tastatur-Hints als gestanzte Keycaps (`<kbd>` mit 3D-Unterkante).
+- Sektion „Befehle" zusätzlich zu Suche (später: `>neuer bericht`, `>thema hell`).
+
+### Users/Groups — „Personalkartei"
+- User-Karten = Werksausweise (1.5); Gruppen = Karteikästen mit Reiter; Beitritts-Anfragen als „Eingangskorb"-Tray mit Zähler-Marke.
+
+### Papierkorb — „Schredder"
+- Einträge mit feinen vertikalen Schnittlinien-Streifen im Hintergrund; Wiederherstellen-Hover „setzt die Streifen zusammen" (Streifen-Versatz → 0, 200ms). Endgültig löschen = Konfirmations-Dialog mit Schraffur-Ecke.
+
+### Profil/Settings, Audit, Backups, Share
+- Profil: großer Werksausweis + Stats; „Tagesübersicht anzeigen"/„Wizard" als Werkzeugleisten-Buttons.
+- Audit-Log = Maschinenbuch: Zebra-Zeilen, Mono-Zeitstempel, Typ als kleine Marke.
+- BackupsModal: Backup-Einträge als Archiv-Kisten mit Datum-Stempel; Restore mit deutlicher roter Schraffur-Warnung.
+- ShareView (öffentlich): bekommt die Papier-Optik (Light), wie ein ausgehändigtes Dokument — Wiedererkennung nach außen.
+
+### ErrorBoundary/404 — „Maschinenschaden"
+- Doodle: gezeichnetes Zahnrad mit herausgebrochenem Zahn, Annotation „Hier klemmt's"; Mono-Fehlercode; Button „Neu einrichten" (reload). Charmant statt peinlich.
 
 ---
 
-## Ebene 5 — Signature-Momente (das „insane"-Budget, bewusst dosiert)
+## Ebene 5 — Signature-Momente (das „insane"-Budget)
 
-1. **Stempel-System** (überall, Kern-Identität)
-2. **Logo-Konstruktions-Animation** beim Login
-3. **Split-Flap-KW** im Kalender + Flipclock-Countdown
-4. **Messlehre-Focus** (jede Tastatur-Interaktion fühlt sich gefertigt an)
-5. **Lernziel-Zelebration** (Stempel + Partikel — der Dopamin-Moment für Azubis)
-6. Theme-Übergang Dark↔Light als kurzer „Lichtschalter"-Sweep (View Transitions API, progressive enhancement)
+**Kern-Sechs (Pflicht):**
+1. Stempel-System (App-weite Identität)
+2. Logo-Konstruktion beim Login
+3. Split-Flap-KW + Flipclock-Countdown
+4. Messlehre-Focus
+5. Lernziel-Zelebration (Stempel + Partikel)
+6. Theme-Sweep (View Transitions)
 
-Nicht mehr als diese sechs. Maximalismus in der Idee, Präzision in der Dosis.
+**Erweiterung (nach Geschmack, je klein):**
+7. **Onboarding-Abschluss:** „Werkstatt eingerichtet"-Moment — Wizard endet mit großem Stempel „BETRIEBSBEREIT" über der ausgegrauten App, der beim Aufschlag die Farben „freischaltet" (Sättigungs-Sweep).
+8. **Wochen-Ritual:** Der erste Login am Montag stempelt im Welcome-Briefing „NEUE WOCHE · KW XX" — kleines wiederkehrendes Ritual.
+9. **Signatur-Schnörkel:** Beim „Unterschreiben" zeichnet sich ein SVG-Unterschriften-Pfad unter dem Stempel (stroke-dashoffset, 600ms).
+10. **Jahres-Abschluss:** Wenn alle KW eines Jahres signed sind → Jahresmappe-Kachel bekommt Goldkante + „VOLLSTÄNDIG"-Prägung. (Ein einziges if, großer Stolz-Effekt.)
+11. **Tastatur-Spur:** `?`-Shortcut-Overlay zeigt Keycaps, die beim tatsächlichen Drücken physisch einfedern.
+12. **Kritischer-Pfad-Puls:** Im Netzplan pulsiert der kritische Pfad alle 8s einmal ganz dezent (Opacity-Welle entlang der Kanten — „Strom fließt").
+
+**Easter Eggs (max. 2, unaufdringlich):**
+- Konami-Code → kurz Schweißfunken-Partikel am Cursor (3s, dann nie wieder bis Reload).
+- 100 % Lernziele bestätigt → Profil-Werksausweis bekommt „MEISTERSTÜCK"-Hologramm-Schimmer (animierter Gradient).
+
+**Sound (opt-in, default AUS, Toggle im Profil):**
+- 3 Samples, gesamt <30 KB: Stempel-Klack (satt, tief), Split-Flap-Flattern (leise), Erfolgs-„Ping" (kurz, hölzern). Web Audio, lazy, niemals beim Laden.
 
 ---
 
-## Ebene 6 — Querschnitt
+## Ebene 6 — Datenvisualisierung (eigene Sprache statt Chart-Defaults)
 
-- **a11y:** Kontraste der neuen Palette gegen WCAG AA prüfen (Signal-Orange auf Dunkel: für Text ≥15px ok, sonst `--c-ac-text`-Variante); Motion komplett hinter `prefers-reduced-motion`; Fokus-Brackets ≥3:1.
-- **Performance-Budget:** JS-Bundle bleibt ≤170 KB gz (Motion = CSS, CountUp/Konfetti selbst geschrieben, **kein** framer-motion); Fonts ≤120 KB; Lighthouse-Gates (a11y/bp/seo = error) müssen grün bleiben.
-- **PWA/Meta:** neues Icon-Set (Stempel/Werkbank-Monogramm), maskable Icons, `theme-color` je Theme, Splash konsistent, Favicon SVG.
-- **Print:** unangetastet formal (IHK), nur Jahresmappen-Deckblatt neu.
-- **i18n:** alle neuen sichtbaren Strings über i18n (227-Key-System).
+- **Balken:** Schraffur für Plan/Offen, satte Füllung für Ist; Achsen als Maßlinien mit Endstrichen; Beschriftung Mono.
+- **Gauge/Halbkreis** (HeroTask, Auslastung): Skalenstriche außen, Zeiger-Nadel mit Gegengewicht-Punkt — Instrument, nicht Donut.
+- **Sparklines** in Stat-Kacheln: 1px-Linie mit Endpunkt-Dot, kein Fill.
+- **Heatmap** (optional, Berichts-Streak im Profil): Stanzraster — gefüllte vs. ungefüllte Lochungen pro KW. „Wie ein Fahrkarten-Entwerter für fleißige Wochen."
+- Farben: Daten immer Cyan/Neutral, nie Orange (Orange = Interaktion, Gesetz 1.2).
+
+---
+
+## Ebene 7 — Sprache & Microcopy (Design ist auch Text)
+
+- Ton: werkstattwarm, knapp, nie albern. „Sauber. Bericht ist raus." statt „Super gemacht!!! 🎉".
+- Konsistente Verben: einstempeln (Login), ablegen (speichern), aushändigen (teilen), ausmustern (löschen → Papierkorb).
+- Leerzustände erklären immer den nächsten Handgriff („Dein Ausbilder weist Projekte zu — bis dahin: erster Wochenbericht?").
+- Fehlertexte: was passiert ist + was zu tun ist, Mono-Fehlercode dezent für Support.
+- Alle neuen Strings über i18n (227-Key-System wächst mit, DE zuerst, EN nachziehen).
+
+---
+
+## Ebene 8 — Rollen-Identität (dieselbe Werkstatt, drei Perspektiven)
+
+| Rolle | Akzent-Detail | Dashboard-Fokus |
+|---|---|---|
+| Azubi | Ausweis-Streifen Orange; „mein Werkstück"-Sprache | HeroTask, Berichts-Streak, Countdown |
+| Mentor | Streifen Cyan; durchgängig Lese-Optik: Stempel „NUR ANSICHT" dezent im Header read-only-Seiten | Übersicht ohne Aktionsdruck |
+| Ausbilder | Streifen Grün; „Prüfer-Werkzeuge" (Stempelkissen-Leiste in Berichten: Geprüft/Unterschreiben nebeneinander) | Eingangskorb (zu prüfen), kritische Azubis |
+
+Kein Fork des Designs — nur Akzent + Reihenfolge. Die Rollen-Logik existiert (isStaff/isMentor/isAusbilder), hier bekommt sie Gesicht.
+
+---
+
+## Ebene 9 — Querschnitt: a11y, Performance, PWA, Print
+
+- **a11y:** Orange-auf-Petrol für Text nur via `--c-ac-text` (AA geprüft); Stempel-Infos nie nur Farbe (immer Text); Fokus-Brackets ≥3:1; alle Animationen hinter `prefers-reduced-motion`; Split-Flap/Flipclock mit `aria-live="polite"`-Textalternative; Partikel `aria-hidden`.
+- **Performance:** JS ≤170 KB gz hart (Motion = CSS; CountUp/Partikel/Flip selbst, je <1 KB; KEIN framer-motion/lottie); Fonts ≤120 KB precached; Grain/Raster = CSS/Data-URI; Lighthouse-Gates bleiben error-level. Animations-Layer nur `transform/opacity` (Compositor), `will-change` sparsam.
+- **PWA/Meta:** Icon-Neuzeichnung (Monogramm + Stempel-Variante), maskable, `theme-color` je Theme, Titelbar-Farbe, Splash; OG-Image für Share-Links im Papier-Look.
+- **Print:** IHK-Layouts unangetastet; Jahresmappen-Deckblatt (Schriftfeld + Stempelfeld); `@media print` killt Raster/Grain/Motion global.
+- **Browser:** `color-mix`/`:has`/View-Transitions = progressive enhancement mit definierten Fallbacks (Edge/Chrome aktuell = Primärziel, PC-only).
 
 ---
 
@@ -129,17 +282,18 @@ Nicht mehr als diese sechs. Maximalismus in der Idee, Präzision in der Dosis.
 
 | Phase | Inhalt | Aufwand | Risiko |
 |---|---|---|---|
-| **D1 Foundations** | Fonts laden, Token-Palette umstellen, Raster+Noise, Typo-/Schatten-Skala, Light-„Papier" | M | Hoch-sichtbar, aber zentral: 1 CSS-Datei + utils-`C` (38 Dateien lesen `C.*` → Tokens existieren schon aus UX-Phase 1; Rest-Hex `C.gr+'45'`-Arithmetik auf `color-mix` migrieren) |
-| **D2 Primitives** | UI.tsx-Komponenten, Fokus-Brackets, Stempel-Komponente + Animation | M | gering — zentrale Dateien |
-| **D3 Screens A** | Login, Dashboard, Welcome-News, Berichte (inkl. Stempel-Integration) | L | mittel |
-| **D4 Screens B** | Kalender (Split-Flap), Kanban, Netzplan-Blueprint, Trainingsplan (Flipclock/Zelebration) | L | mittel |
-| **D5 Screens C + Polish** | Lernbereich-Flip-Karten, Suche, Restscreens, Leerzustand-Doodles, Icons | M | gering |
-| **D6 Querschnitt** | PWA-Icons, Theme-Sweep, a11y-/Kontrast-Audit, Lighthouse, Doku | S | gering |
+| **D1 Foundations** | Fonts, Token-Architektur (Primitives+Semantik), Raster+Grain, Typo-/Schatten-/Radius-Skala, Papier-Light, Mono-Caps-Label | M | zentral: index.css + utils-`C`-Brücke; Rest-Hex-Arithmetik → color-mix |
+| **D2 Primitives + Motion-Kit** | UI.tsx-Komponenten, `<Stamp>`, motion.css (Stempel/Stagger/Focus/Skeleton), Messlehre-Focus | M | gering |
+| **D3 Screens A** | Login (Logo-Konstruktion), Dashboard (Instrumente), Berichte (Laufkarte+Stempel), Welcome-News (Auftragszettel) | L | mittel |
+| **D4 Screens B** | Kalender (Split-Flap), Kanban (Plantafel), Netzplan (Blaupause), Trainingsplan (Flipclock+Zelebration) | L | mittel |
+| **D5 Screens C + Illustration** | Lernbereich (Flip-Karten/Karteikasten), Ctrl+K, Users/Groups (Ausweise), Trash/Audit/Backups, Doodles, Icons | M | gering |
+| **D6 Querschnitt + Extended** | PWA-Icons, Theme-Sweep, Rollen-Akzente, Microcopy-Pass, Signature 7–12 nach Wahl, a11y-/Kontrast-/Lighthouse-Audit | M | gering |
 
-**Empfohlener Einstieg: D1 + D2 zusammen auf einem Branch** — damit steht das komplette Fundament und JEDER Screen sieht sofort anders aus, bevor wir einzelne Screens veredeln.
+**Einstieg: D1+D2 zusammen** — Fundament + Primitives, damit sieht sofort die ganze App anders aus. In D1 liefere ich **3 Akzent-Varianten als Screenshot-Vergleich** (Signal-Orange / Amber / Cyan-dominant) vor der Festlegung.
 
-### Offene Entscheide (vor D1 mit User klären)
-1. Signal-Orange als Hauptakzent ok — oder lieber Amber/Cyan-Variante? (3 Token-Sets als Screenshot-Vergleich in D1 lieferbar)
-2. Display-Font Chakra Petch ok — Alternativen: Saira SemiCondensed (DIN-näher, ruhiger) / Rajdhani (techy-leichter)
-3. Grain/Noise ja/nein (Geschmackssache, 5-Minuten-Toggle)
-4. Sound-Effekte (Stempel-Klack, opt-in, default aus) — überhaupt gewollt?
+### Offene Entscheide (vor D1)
+1. **Akzentfarbe:** Signal-Orange (Empfehlung) vs. Amber vs. Cyan — Screenshot-Vergleich in D1.
+2. **Display-Font:** Chakra Petch (Empfehlung, techy) vs. Saira SemiCondensed (DIN-näher, ruhiger) vs. Rajdhani (leichter).
+3. **Grain:** an (Empfehlung, .035) / aus — 1-Attribut-Toggle, im Review live umschaltbar.
+4. **Sound:** Stempel-Klack & Co als Opt-in bauen (D6) — ja/nein?
+5. **Erweiterte Signatures (7–12) + Easter Eggs:** welche davon? (Empfehlung: 7, 9, 10 — die ritualbildenden.)
