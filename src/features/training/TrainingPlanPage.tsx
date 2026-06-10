@@ -18,7 +18,7 @@ const CATS     = ['Fachkompetenz', 'Methodenkompetenz', 'Sozialkompetenz', 'IT &
 const STATUS_CFG: Record<NonNullable<GoalProgress['status']>, { l: string; c: string; bg: string; dot: string }> = {
   open:      { l: 'Offen',       c: C.mu, bg: 'var(--c-sf2)',  dot: '○' },
   learned:   { l: 'Gelernt',     c: C.ac, bg: C.acd,           dot: '◑' },
-  confirmed: { l: 'Bestätigt',   c: C.gr, bg: '#07130a',        dot: '●' },
+  confirmed: { l: 'Bestätigt',   c: C.gr, bg: 'var(--st-green-bg)',        dot: '●' },
 };
 
 // Audit-Hinweis für onUpdate: welcher Azubi gelernt/bestätigt wurde (steuert Audit-Log-Eintrag).
@@ -84,7 +84,7 @@ function GoalForm({ initial, onSave, onCancel }: { initial?: Goal; onSave: (goal
   const f = (v: Partial<Goal>) => setForm((p: Goal) => ({ ...p, ...v }));
   const valid = form.title.trim().length > 0;
   return (
-    <div className="card" style={{ marginBottom: 10, background: C.acd, border: `1px solid ${C.ac}30` }}>
+    <div className="card" style={{ marginBottom: 10, background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)` }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: C.ac, marginBottom: 10, textTransform: 'uppercase', letterSpacing: .8 }}>
         {initial ? 'Lernziel bearbeiten' : 'Neues Lernziel'}
       </div>
@@ -204,7 +204,7 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
             <button onClick={() => onEdit(goal)} title="Bearbeiten"
               style={{ width: 24, height: 24, borderRadius: 5, border: `1px solid ${C.bd2}`, background: C.sf3, color: C.mu, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✏</button>
             <button onClick={() => onDelete(goal.id)} title="Löschen"
-              style={{ width: 24, height: 24, borderRadius: 5, border: `1px solid ${C.cr}30`, background: 'transparent', color: C.cr, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              style={{ width: 24, height: 24, borderRadius: 5, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, background: 'transparent', color: C.cr, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
         )}
       </div>

@@ -26,7 +26,7 @@ function ReportWidgetImpl({ reports, userId, onNavigate }: ReportWidgetProps) {
   return (
     <div>
       {thisWeekMissing && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: C.ywd, border: `1px solid ${C.yw}30`, borderRadius: 7, marginBottom: 9 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 19%, transparent)`, borderRadius: 7, marginBottom: 9 }}>
           <IcoAlert size={13} style={{ color: C.yw, flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.yw }}>Berichtsheft diese Woche fehlt</div>

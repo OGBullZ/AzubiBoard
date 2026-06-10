@@ -105,7 +105,7 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
         })}
       </div>
 
-      {err && <div role="alert" style={{ fontSize: 12, color: C.cr, background: C.crd, border: `1px solid ${C.cr}30`, borderRadius: 7, padding: '8px 12px', marginBottom: 14 }}>⚠ {err}</div>}
+      {err && <div role="alert" style={{ fontSize: 12, color: C.cr, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, borderRadius: 7, padding: '8px 12px', marginBottom: 14 }}>⚠ {err}</div>}
 
       {step === 1 && (
         <div style={{ animation: 'fadeUp .15s ease', display: 'flex', flexDirection: 'column', gap: 14 }}>

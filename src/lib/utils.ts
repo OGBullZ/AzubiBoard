@@ -6,7 +6,8 @@
 // ── Farb-System ───────────────────────────────────────────────
 // Themebare Werte zeigen auf die CSS-Vars aus index.css (Dark + [data-theme=light]).
 // Inline-Styles lösen var() auf → Light-Mode greift überall. (0.3 / Phase 1)
-// Akzentfarben bleiben Hex: nicht themebar + werden mit Hex-Alpha (z.B. C.gr+'45') verkettet.
+// Akzent-Volltöne sind seit D1 ebenfalls Tokens (Hex-Alpha-Arithmetik → color-mix migriert);
+// [data-design=beta] färbt sie um, Design 1.0 behält die alten Werte aus :root.
 export const C = {
   // Hintergründe
   bg:   'var(--c-bg)',
@@ -23,11 +24,11 @@ export const C = {
   bd:   'var(--c-bd)',
   bd2:  'var(--c-bd2)',
 
-  // Akzent-Vollton: Hex — nicht themebar (index.css überschreibt nur die *d-Tints) + in Alpha-Arithmetik
-  ac:   '#0071E3',
-  gr:   '#34C759',
-  cr:   '#FF3B30',
-  yw:   '#FF9500',
+  // Akzent-Vollton: themebar
+  ac:   'var(--c-ac)',
+  gr:   'var(--c-gr)',
+  cr:   'var(--c-cr)',
+  yw:   'var(--c-yw)',
   // Akzent-Tints: themebar → var(--c-*d) (index.css [data-theme=light] passt die Deckkraft an)
   acd:  'var(--c-acd)',
   grd:  'var(--c-grd)',
@@ -37,19 +38,19 @@ export const C = {
   // Aliase für Kompatibilität
   textPrimary:   'var(--c-br)',
   textSecondary: 'var(--c-mu)',
-  primary:       '#0071E3',
-  critical:      '#FF3B30',
+  primary:       'var(--c-ac)',
+  critical:      'var(--c-cr)',
 
-  // Schriften
-  mono: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
-  sans: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+  // Schriften (Tokens aus index.css — Beta schaltet auf Archivo/Chakra Petch um)
+  mono: 'var(--font-mono)',
+  sans: 'var(--font-body)',
 };
 
 // ── Status-Konfiguration ─────────────────────────────────────
 export const ST = {
   green:  { label: 'Abgeschlossen',   bg: 'var(--st-green-bg)',    c: C.gr },
-  yellow: { label: 'In Bearbeitung', bg: 'rgba(255,149,0,0.1)',   c: C.yw },
-  red:    { label: 'Problem',        bg: 'rgba(255,59,48,0.1)',   c: C.cr },
+  yellow: { label: 'In Bearbeitung', bg: 'var(--c-ywd)',          c: C.yw },
+  red:    { label: 'Problem',        bg: 'var(--c-crd)',          c: C.cr },
 };
 
 // Platzhalter – werden in manchen Importen referenziert

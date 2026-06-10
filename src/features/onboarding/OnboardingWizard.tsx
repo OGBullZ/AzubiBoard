@@ -272,7 +272,7 @@ function StepNewsPreview({ currentUser, data, kind }: { currentUser: User; data:
           ))}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '20px 16px', borderRadius: 10, border: `1px solid ${C.gr}25`, background: C.gr + '08' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '20px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.gr} 15%, transparent)`, background: `color-mix(in srgb, ${C.gr} 3%, transparent)` }}>
           <div style={{ fontSize: 28, color: C.gr }} aria-hidden="true">✓</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.gr }}>Alles im grünen Bereich!</div>
           <div style={{ fontSize: 12, color: C.mu, textAlign: 'center' }}>Sobald es offene Punkte gibt, erscheinen sie hier.</div>
@@ -373,13 +373,13 @@ export default function OnboardingWizard({
           <div style={{ flex: 1 }} />
           {isLast && role === 'ausbilder' && (
             <button className="btn" onClick={() => { onDone(); onNewProject?.(); }}
-              style={{ padding: '10px 18px', color: C.ac, borderColor: C.ac + '60', fontSize: 13 }}>
+              style={{ padding: '10px 18px', color: C.ac, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)`, fontSize: 13 }}>
               + Erstes Projekt
             </button>
           )}
           {isLast && role === 'azubi' && onFirstReport && (
             <button className="btn" onClick={() => { onDone(); onFirstReport(); }}
-              style={{ padding: '10px 18px', color: C.ac, borderColor: C.ac + '60', fontSize: 13 }}>
+              style={{ padding: '10px 18px', color: C.ac, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)`, fontSize: 13 }}>
               + Erster Bericht
             </button>
           )}

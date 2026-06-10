@@ -22,7 +22,7 @@ const ACC = {
   crit: { accent: C.cr,      accentBg: C.crd },
   warn: { accent: '#f78166', accentBg: '#f7816614' },
   ac:   { accent: C.ac,      accentBg: C.acd },
-  ok:   { accent: C.gr,      accentBg: C.gr + '14' },
+  ok:   { accent: C.gr,      accentBg: `color-mix(in srgb, ${C.gr} 8%, transparent)` },
 };
 
 // Alle News-Karten direkt aus `data` aggregieren (rollenabhängig). Bewusst eigenständig,

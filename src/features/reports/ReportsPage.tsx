@@ -412,12 +412,12 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
         <button className="btn" onClick={printReportIHK} title="IHK-konform mit Stammdaten + Unterschriftenfeldern" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>{t('report.printIHK')}</button>
         {isOwner && !readOnly && (
           <button className="btn" onClick={() => setShowOcr(true)} title="Handschriftliches Berichtsheft per OCR einscannen"
-            style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: C.yw + '80', color: C.yw }}>
+            style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: `color-mix(in srgb, ${C.yw} 50%, transparent)`, color: C.yw }}>
             {t('report.ocrImport')}
           </button>
         )}
         {readOnly && !isReview && (
-          <div style={{ padding: '5px 12px', background: C.ywd, border: `1px solid ${C.yw}50`, borderRadius: 7, fontSize: 11, color: C.yw, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+          <div style={{ padding: '5px 12px', background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 31%, transparent)`, borderRadius: 7, fontSize: 11, color: C.yw, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
             {t('report.locked')}
           </div>
         )}
@@ -540,7 +540,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
                       <div style={{ marginTop: 10, borderTop: `1px solid ${C.bd}`, paddingTop: 10 }}>
                         <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 7 }}>{t('report.reviewerComments')}</div>
                         {comments.map((c: any) => (
-                          <div key={c.id} style={{ display: 'flex', gap: 8, padding: '6px 9px', background: C.ywd, border: `1px solid ${C.yw}25`, borderRadius: 7, marginBottom: 5 }}>
+                          <div key={c.id} style={{ display: 'flex', gap: 8, padding: '6px 9px', background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 15%, transparent)`, borderRadius: 7, marginBottom: 5 }}>
                             <IcoNote size={11} style={{ color: C.yw, flexShrink: 0, marginTop: 2 }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 11, color: C.br, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.text}</div>
@@ -581,7 +581,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
               </div>
               {form.file && typeof form.file === 'object' && (
                 <div style={{ marginTop: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, marginBottom: 10 }}>
                     <IcoDoc size={16} style={{ color: C.ac, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.file.name}</div>
@@ -598,7 +598,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
               )}
               {form.file && typeof form.file === 'string' && (
                 <div style={{ marginTop: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8 }}>
                     <IcoDoc size={16} style={{ color: C.ac, flexShrink: 0 }} />
                     <a href={form.file} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.ac, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Hochgeladene Datei öffnen</a>
                     {isOwner && !readOnly && (

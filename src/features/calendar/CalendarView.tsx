@@ -463,7 +463,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
           </Field>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button className="abtn" onClick={saveEdit} style={{ flex: 1, padding: 11 }} disabled={!editForm.title.trim()}>Speichern</button>
-            <button onClick={() => setConfirmDel(editEv)} style={{ padding: '11px 16px', borderRadius: 8, background: C.crd, border: `1px solid ${C.cr}40`, color: C.cr, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Löschen</button>
+            <button onClick={() => setConfirmDel(editEv)} style={{ padding: '11px 16px', borderRadius: 8, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, color: C.cr, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Löschen</button>
           </div>
         </Modal>
       )}

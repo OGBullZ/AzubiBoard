@@ -461,8 +461,8 @@ export function GanttTab({ project }: GanttTabProps) {
                 const isT = todayOff === i;
                 return (
                   <div key={i} style={{ width: CW, flexShrink: 0, borderRight: `1px solid var(--c-bd-soft)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isT ? C.acd : 'transparent', transition: 'background .15s' }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: isT ? C.ac : C.ac + '80', fontFamily: C.mono }}>{np.unit}{i}</div>
-                    <div style={{ fontSize: 8, color: isT ? C.ac + 'cc' : C.mu, fontFamily: C.mono, marginTop: 1 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: isT ? C.ac : `color-mix(in srgb, ${C.ac} 50%, transparent)`, fontFamily: C.mono }}>{np.unit}{i}</div>
+                    <div style={{ fontSize: 8, color: isT ? `color-mix(in srgb, ${C.ac} 80%, transparent)` : C.mu, fontFamily: C.mono, marginTop: 1 }}>
                       {d ? d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '–'}
                     </div>
                   </div>
@@ -497,7 +497,7 @@ export function GanttTab({ project }: GanttTabProps) {
                     {n.gp > 0 && <span style={{ fontSize: 9, color: C.yw, marginLeft: 5, opacity: .8 }}>+{n.gp}</span>}
                   </div>
                   {bufW > 0 && (
-                    <div style={{ position: 'absolute', left: barLeft + barW, top: '50%', transform: 'translateY(-50%)', width: bufW, height: 10, background: C.yw + '18', border: `1px dashed ${C.yw}50`, borderRadius: 3 }}
+                    <div style={{ position: 'absolute', left: barLeft + barW, top: '50%', transform: 'translateY(-50%)', width: bufW, height: 10, background: `color-mix(in srgb, ${C.yw} 9%, transparent)`, border: `1px dashed color-mix(in srgb, ${C.yw} 31%, transparent)`, borderRadius: 3 }}
                       title={`Puffer: ${n.gp} ${np.unit}`} />
                   )}
                 </div>

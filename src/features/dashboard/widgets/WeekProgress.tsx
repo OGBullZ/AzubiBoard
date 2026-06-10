@@ -73,7 +73,7 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: maxH, background: 'var(--c-bd)', borderRadius: 3, opacity: .5 }} />
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: barH, background: d.isToday ? C.ac : d.done > 0 ? C.gr : isFuture ? 'var(--c-bd2)' : 'var(--c-mu)', borderRadius: 3, transition: 'height .5s ease' }} />
                 {d.open > 0 && !isFuture && (
-                  <div style={{ position: 'absolute', bottom: barH, left: 0, right: 0, height: Math.max(2, Math.round((d.open / Math.max(d.total, 1)) * maxH)), background: C.cr + '80', borderRadius: '3px 3px 0 0' }} />
+                  <div style={{ position: 'absolute', bottom: barH, left: 0, right: 0, height: Math.max(2, Math.round((d.open / Math.max(d.total, 1)) * maxH)), background: `color-mix(in srgb, ${C.cr} 50%, transparent)`, borderRadius: '3px 3px 0 0' }} />
                 )}
               </div>
               <span style={{ fontSize: 9, fontWeight: d.isToday ? 800 : 500, color: d.isToday ? C.ac : C.mu, textTransform: 'uppercase', letterSpacing: .5 }}>{d.l}</span>
