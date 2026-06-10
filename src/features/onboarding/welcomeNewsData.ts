@@ -1,6 +1,6 @@
-import { C, getISOWeek, today, fmtLocalDate } from '../../lib/utils.js';
+import { C, getISOWeek, today, fmtLocalDate, fmtDate } from '../../lib/utils.js';
 import { isMentor } from '../../lib/roles.js';
-import type { User, AppState, Project, Task, Report, Goal } from '../../types';
+import type { User, AppState, Project, Task, Report, Goal, CalendarEvent } from '../../types';
 
 // Reine News-Aggregation (kein React) — getrennt von WelcomeNews.tsx, damit die
 // Komponenten-Datei nur die Komponente exportiert (react-refresh) und die Logik
@@ -121,6 +121,18 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
       title: `${red.length} ${red.length === 1 ? 'Projekt' : 'Projekte'} kritisch`,
       sub: red.length === 1 ? red[0].title : undefined, to: red.length === 1 ? `/project/${red[0].id}` : '/projects' });
   }
+
+  // ── Termine der nächsten 7 Tage (beide Rollen) ───────────
+  // Global + in Projekten eingebettete Events; untis/holiday wären tägliches Rauschen.
+  const todayIso = fmtLocalDate(now);
+  const horizon = fmtLocalDate(new Date(+now + 7 * 86400000));
+  const projEvents = active.flatMap((p: Project) => ((p as Project & { calendarEvents?: CalendarEvent[] }).calendarEvents || []));
+  const upcoming = [...(data.calendarEvents || []), ...projEvents]
+    .filter((ev: CalendarEvent) => !!ev.date && ev.date >= todayIso && ev.date <= horizon && !['untis', 'holiday'].includes(ev.type || ''))
+    .sort((a: CalendarEvent, b: CalendarEvent) => (a.date || '').localeCompare(b.date || ''));
+  if (upcoming.length) cards.push({ key: 'upcoming-events', sev: 2, ...ACC.ac, icon: '🗓', label: 'Termine',
+    title: upcoming.length === 1 ? upcoming[0].title : `${upcoming.length} Termine in den nächsten 7 Tagen`,
+    sub: upcoming.length === 1 ? fmtDate(upcoming[0].date) : `Nächster: „${upcoming[0].title}" (${fmtDate(upcoming[0].date)})`, to: '/calendar' });
 
   return cards.sort((a, b) => a.sev - b.sev);
 }
