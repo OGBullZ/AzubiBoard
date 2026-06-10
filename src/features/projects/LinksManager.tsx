@@ -128,7 +128,7 @@ export function LinksManager({ links = [], onUpdate, readOnly = false, compact: 
         </span>
         {!readOnly && (
           <button onClick={() => setShowForm(s => !s)}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, border: `1px solid ${showForm ? C.cr + '60' : C.ac + '50'}`, background: showForm ? C.crd : C.acd, color: showForm ? C.cr : C.ac, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .12s' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, border: `1px solid ${showForm ? `color-mix(in srgb, ${C.cr} 38%, transparent)` : `color-mix(in srgb, ${C.ac} 31%, transparent)`}`, background: showForm ? C.crd : C.acd, color: showForm ? C.cr : C.ac, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .12s' }}>
             {showForm ? <IcoX size={11} /> : <IcoPlus size={11} />}
             {showForm ? 'Abbrechen' : 'Link'}
           </button>

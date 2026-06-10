@@ -119,13 +119,13 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
   return (
     <main style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '15%', left: '20%', width: 400, height: 400, borderRadius: '50%', background: `radial-gradient(circle, ${C.ac}0a 0%, transparent 70%)` }} />
+        <div style={{ position: 'absolute', top: '15%', left: '20%', width: 400, height: 400, borderRadius: '50%', background: `radial-gradient(circle, color-mix(in srgb, ${C.ac} 4%, transparent) 0%, transparent 70%)` }} />
         <div style={{ position: 'absolute', bottom: '20%', right: '20%', width: 350, height: 350, borderRadius: '50%', background: `radial-gradient(circle, #2563eb0a 0%, transparent 70%)` }} />
       </div>
 
       <div style={{ width: '100%', maxWidth: 380, animation: 'fadeUp .3s ease', position: 'relative' }}>
         <header style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: 15, background: `linear-gradient(135deg, ${C.ac}, #2563eb)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 12, boxShadow: `0 8px 32px ${C.ac}30` }}>A</div>
+          <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: 15, background: `linear-gradient(135deg, ${C.ac}, #2563eb)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 12, boxShadow: `0 8px 32px color-mix(in srgb, ${C.ac} 19%, transparent)` }}>A</div>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: C.br, letterSpacing: -.5, margin: 0 }}>AzubiBoard</h1>
           <p style={{ fontSize: 14, color: C.mu, marginTop: 4 }}>{t('auth.subtitle')}</p>
         </header>
@@ -152,7 +152,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
                   style={{ width: '100%', padding: '12px 16px', fontSize: 18, letterSpacing: 4, textAlign: 'center', fontFamily: C.mono, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.br, boxSizing: 'border-box' }} />
               </div>
               {err && (
-                <div role="alert" style={{ fontSize: 13, color: C.cr, background: C.crd, border: `1px solid ${C.cr}35`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div role="alert" style={{ fontSize: 13, color: C.cr, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
                   <span aria-hidden="true">⚠</span> {err}
                 </div>
               )}
@@ -215,7 +215,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
             </div>
 
             {err && (
-              <div role="alert" style={{ fontSize: 13, color: C.cr, background: C.crd, border: `1px solid ${C.cr}35`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <div role="alert" style={{ fontSize: 13, color: C.cr, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span aria-hidden="true">⚠</span> {err}
               </div>
             )}

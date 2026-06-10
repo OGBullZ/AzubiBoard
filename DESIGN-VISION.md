@@ -67,7 +67,7 @@ Zweischichtig: **Primitives** (rohe Skalen) → **Semantik** (was Komponenten be
 - Theme-Wechsel = Metapher-Wechsel: **nachts Werkstatt, tags Zeichenbrett.**
 
 ### 1.4 Textur, Tiefe, Material
-- **Blueprint-Raster** Body-Hintergrund: `repeating-linear-gradient` 0°/90°, 1px-Linien alle 24px @3 %, jede 5. Linie @6 % (Hauptraster 120px). Eine CSS-Regel, null Assets.
+- ~~Blueprint-Raster als Body-Hintergrund~~ — **GESTRICHEN (User-Entscheid 2026-06-10): Hintergrund bleibt solid.** Das Raster lebt nur noch LOKAL weiter: Netzplan-Canvas (D4) und optional Login-Bühne — als Werkzeug-Fläche, nicht als Tapete. `--c-grid`-Tokens bleiben dafür definiert.
 - **Grain:** 64px-SVG-Noise-Kachel (`feTurbulence`, inline data-URI), fixed Overlay `opacity:.035; pointer-events:none; mix-blend-mode:overlay`. Toggle-bar über ein einziges `data-grain`-Attribut.
 - **Material-Rezept Karte** („gestanztes Blech"): `box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 6px 16px -8px rgba(0,0,0,.5); border: 1px solid var(--c-bd)`.
 - Schatten-Skala: `--sh-1` (Karte) / `--sh-2` (Popover) / `--sh-3` (Modal, mit 2px Akzent-Glow-Anteil).
@@ -139,6 +139,7 @@ Token: `--ease-stamp: cubic-bezier(.2,1.4,.4,1)` · `--ease-out: cubic-bezier(.1
 - Fehler (falsches Passwort): kurzes mechanisches Ruckeln (translateX ±4px, 3 Zyklen, 200ms) + roter Stempelabdruck „ABGELEHNT" der sofort verblasst (Augenzwinkern, nicht nervig).
 
 ### Dashboard — „Instrumententafel"
+**→ Eigenes Vertiefungs-Konzept in Anhang D (Zustands-Modell leer → Arbeitsmodus).** Kurzform:
 - Begrüßung in Display-Font + Datum/KW als gestempelte Mono-Zeile.
 - HeroTask = großes Instrument: links Aufgabe, rechts Restzeit-Anzeige als Halbkreis-Gauge mit Skalenstrichen.
 - Stat-Kacheln: CountUp, Mono-Caps-Label, Trend-Pfeil als Maßpfeil; kritische Stat bekommt orangen Eckmarker.
@@ -362,6 +363,77 @@ type StampProps = {
 
 ### Doodle-Bibliothek (D5, Vorab-Spec)
 `src/components/Doodles.tsx` — 8 Inline-SVGs (je <2 KB): leeres Kanban (Kiste), keine Berichte (Laufkarte), Papierkorb leer (Schredder), Suche leer (Lupe+Maßlinie), keine Termine (Plantafel), Fehler (Zahnrad mit Bruchzahn), alles-gut (Kaffeebecher), keine Gruppe (Karteikasten). Strichstärke 1.75, `stroke="currentColor"`, gestrichelte Maßlinien + Annotations-Text als `<text>` in Mono.
+
+## Anhang C — Animations-Drehbuch (verbindlich für D3–D6)
+
+Timing-System: **90ms** (Press/Snap) · **180ms** (Hover/Toggle) · **320ms** (Entrance/Layout) · **600ms** (Zeremonie: Stempel-Folge, Zeichnen). Easings: `--ease-out` Standard, `--ease-stamp` nur für Aufschläge. Nur `transform`/`opacity` (Compositor); alles außer Focus-Brackets hinter `prefers-reduced-motion`. **Budget: 1 Entrance + 1 Signature + Micro-Feedback pro Screen — nicht mehr.**
+
+| Screen | Entrance (einmalig je Mount) | Signature | Micro-Feedback |
+|---|---|---|---|
+| **Login** | Logo-Konstruktion: SVG-Strokes zeichnen sich 1.2s (stroke-dashoffset), Formular faded danach ein (320ms) | „ABGELEHNT"-Stempel blitzt bei Fehlversuch auf + `.shake-reject` (200ms) | Button-Press 90ms; Input-Focus-Brackets snappen |
+| **Dashboard** | `.draft-in`-Stagger über Widgets (60ms-Versatz) | Stat-Zahlen zählen hoch (`useCountUp`, 600ms, nur beim 1. Sichtbarwerden) | WeekProgress-Balken wachsen 320ms gestaffelt; Hover hebt Karte 1px |
+| **Berichte** | Listen-Stagger 40ms | **Statuswechsel = `<Stamp stamped>`-Aufschlag** (280ms) + Tinten-Ring-Fade 600ms | KW-Wechsel als Mini-Split-Flap; Filter-Chip-Toggle 90ms |
+| **Kanban** | Spalten staggern 60ms | Drag: Karte kippt 2.5° + Schatten; Drop-Slot = wandernde Schablonen-Strichlinie; Drop in „done" → Mini-Stempel ✓ | Spalten-Zähler pulst (scale 1.15→1, 180ms) bei Änderung |
+| **Netzplan** | Knoten faden entlang Topologie ein (Welle, 40ms/Knoten) | Kritischer Pfad: Opacity-Puls wandert alle 8s einmal die Kanten entlang („Strom fließt") | Hover dimmt Nicht-Nachbarn auf 40 % (150ms); Zoom buttert 180ms |
+| **Kalender** | Monat/Woche cross-faded 180ms | **Split-Flap-KW** beim Wochenwechsel (3 Flaps, 90ms versetzt) | Heute-Spalten-Glow faded beim Laden ein; Event-Chip-Hover hebt 1px |
+| **Trainingsplan** | Kategorien staggern | Ausbilder bestätigt → Stempel + **12 CSS-Partikel** (800ms, danach DOM-Cleanup); Flipclock-Countdown klappt bei Tageswechsel | Fortschritts-Maßband füllt 320ms |
+| **Lernbereich** | Karteikasten-Fächer staggern | Karteikarte **3D-Flip** (rotateY, 400ms); Karte „fliegt" ins nächste SM-2-Fach (500ms translate+scale) | Quiz richtig = grüner Mini-Stempel; falsch = `.shake-reject` |
+| **Welcome-News** | Karten staggern 60ms unter Perfo-Kante | Datum/KW stempelt sich beim Öffnen (280ms, einmal pro Tag ohnehin) | CTA-Press |
+| **Ctrl+K** | Panel scale .96→1 + fade 120ms | Block-Cursor blinkt `steps(1)` | Treffer-Hover: linke Akzentkante scaleY |
+| **Profil/Users** | Werksausweis-Karte kippt minimal ein (rotate -1°→0, 320ms) | „MEISTERSTÜCK"-Schimmer (nur bei 100 % Lernzielen, animierter Gradient) | Avatar-Upload: Drop-Zone-Strichlinie wandert |
+| **Papierkorb** | Zeilen-Stagger | Wiederherstellen-Hover: Schredder-Streifen setzen sich zusammen (Versatz→0, 200ms) | Endgültig-Löschen-Dialog: rote Schraffur-Ecke pulst NICHT (Ruhe = Ernst) |
+| **Toasts** | — | Einfahrt von unten mit Überschwingen (320ms `--ease-stamp` light); Akzentkante „druckt" sich scaleX 0→1 | Undo-Link-Hover unterstreicht 90ms |
+| **Theme-/Design-Switch** | — | View-Transition: radialer Sweep vom Schalter (600ms, progressive enhancement) | Schalter-Knopf federt 90ms |
+| **Sync-Indicator** | — | Zahnrad dreht `steps(8)` bei inflight (mechanisch); steht bei Fehler abrupt still | Erfolg: kurzer grüner Tick-Fade |
+
+**Implementierungs-Regeln:**
+1. Alles CSS-Klassen aus `motion.css` + max. 3 Mini-Hooks (`useCountUp`, Partikel-Spawner, Flap-Ziffern-Swap) — kein Animations-Framework.
+2. Entrance-Animationen NUR beim Mount, nie bei Re-Render (Key-Disziplin; `.draft-in` sitzt am Container).
+3. Listen >30 Einträge: Stagger kappen (max. 12 Kinder animieren, Rest erscheint sofort).
+4. Jede neue Animation wird im Browser gegen „nervt beim 20. Mal?" geprüft — Zeremonien (Stempel, Partikel) nur an echten Meilensteinen, nie an Routine-Klicks.
+
+## Anhang D — Dashboard-Konzept „Vom leeren Tisch zur Instrumententafel"
+
+Das Dashboard ist der meistgesehene Screen und hat drei klar getrennte Zustände. Das Designziel pro Zustand ist verschieden — Leere soll **einladen**, Betrieb soll **fokussieren**.
+
+### D.1 Zustands-Modell
+| Zustand | Bedingung (Azubi) | Designziel |
+|---|---|---|
+| **Z1 Leerer Tisch** | 0 Projekte UND 0 eigene Berichte | Neugier + erster Handgriff — darf charmant sein, Animation erlaubt |
+| **Z2 Einrichten** | Setup unvollständig (Profil/Gruppe/1. Bericht offen), aber schon Aktivität | Checkliste führt, Instrumente erscheinen nach und nach |
+| **Z3 Arbeitsmodus** | Projekte zugewiesen / Berichte laufen | **Ultra-Übersicht**: eine Blick-Hierarchie, null Deko-Konkurrenz |
+
+Ausbilder analog: Z1 = „Werkstatt eröffnen" (Gruppe anlegen → Azubis einladen → erstes Projekt), Z3 = Prüf-Cockpit (Eingangskorb zuerst).
+
+### D.2 Z1 — Der leere Tisch (cool statt peinlich)
+- **Bühne:** mittig eine **animierte Blueprint-Werkbank** (Inline-SVG ~3 KB): Konstruktionslinien zeichnen sich beim Mount (stroke-dashoffset, 1.4s, einmalig), danach EIN dezenter Idle-Loop — das kleine Zahnrad an der Werkbank dreht `steps(8)`, 12s-Periode. Nicht mehr; Leere soll ruhig wirken.
+- Headline (Display): „Deine Werkbank steht bereit." Sub: ein Satz, was als Nächstes Sinn ergibt.
+- **Einrichtungs-Laufkarte** darunter (card--punched): 3–4 Schritte mit leeren Stempelfeldern — „Profil vervollständigen" · „Gruppe beitreten" · „Ersten Wochenbericht anlegen" · „Lernpfad starten". Jeder erledigte Schritt bekommt live den Mini-Stempel (Aufschlag-Animation); Fortschritt als Mono-Zähler `EINRICHTUNG 2/4`.
+- Jeder Schritt = direkter Deep-Link (Event-Bus-navigate), kein „Anleitung lesen".
+- **Übergangs-Zeremonie Z1/Z2 → Z3** (= Signature 7): Wenn der letzte Schritt fällt ODER das erste Projekt zugewiesen wird → großer Stempel „BETRIEBSBEREIT" über der Laufkarte (600ms), die Karte faded aus, die Instrumente staggern herein. Passiert genau EINMAL (localStorage-Flag pro User).
+- Z1 mit teilweisem Inhalt (z. B. nur Bericht fehlt) zeigt zusätzlich schon die relevanten Mini-Widgets — keine künstliche Leere.
+
+### D.3 Z3 — Arbeitsmodus: die Blick-Hierarchie (genau 3 Ebenen)
+Lesefluss in unter 5 Sekunden — „Was jetzt? Wie steht's? Was kommt?":
+
+1. **Kopfzeile (volle Breite):** Begrüßung + Datum/KW-Stempel rechts. KEINE Aktionen hier.
+2. **Hero-Zeile = „WAS JETZT":** Das EINE nächste Ding, groß. Auswahl-Logik (Priorität): überfällige Aufgabe → heute fällige Aufgabe → Berichtsheft dieser Woche offen → nächste Deadline ≤3 Tage → „Alles im Plan" (grüner Ruhezustand mit nächstem Termin). Links Titel+Kontext, rechts **Halbkreis-Gauge** mit Resttagen, EIN orangefarbener CTA. Daneben kompakt: 3 CountUp-Stats (offene Aufgaben / Projekte / Berichts-Streak) — mehr Zahlen gibt es above-the-fold NICHT.
+3. **Arbeitsfläche (2 Spalten) = „WIE STEHT'S / WAS KOMMT":**
+   - Links **Aktive Projekte** als Werkbank-Reihen (nicht Karten-Grid): Signalleuchte (Ampel-Glow) · Titel · Füllstands-Balken mit Skalenstrichen · „nächste Aufgabe"-Zeile in Mono · Deadline rechts. Eine Zeile = ein Projekt = ein Klick. Max. 5, dann „Alle →".
+   - Rechts schmale Spalte: **Wochenübersicht** (Füllstand MO–FR), **Termine** (nächste 3, Mono-Datum), **Berichtsheft-Status** (Stempel-Vorschau der aktuellen KW), Lern-Snack (1 fälliger Karteikasten-Stapel).
+   - **Aktivitäts-Feed wandert ans Ende** (volle Breite, eingeklappt auf 5 Zeilen) — Historie ist Nachschlag, nicht Konkurrenz zur Arbeit.
+- **Dichte-Regeln:** Jedes Widget beantwortet EINE Frage und hat max. EINEN CTA. Keine zwei Widgets zeigen dieselbe Information (heute: Deadlines doppelt in HeroTask + Deadline-Widget → Deadline-Widget fliegt zusammengelegt in die Termin-Spalte). Leere Einzel-Widgets in Z3 zeigen einen Einzeiler statt Riesen-Emoji.
+- **Motion in Z3** (nach Anhang C): Entrance-Stagger + CountUp einmalig, Gauge-Nadel schwingt beim Laden ein (320ms) — danach ist das Dashboard STILL. Bewegung nur noch als Antwort auf Nutzer-Aktion.
+
+### D.4 Ausbilder-Cockpit (Z3-Variante)
+1. Hero = **Eingangskorb**: „N Berichte warten auf Prüfung" mit direktem Prüf-CTA + ältester Wartezeit in Mono.
+2. **Azubi-Reihen** statt Projekt-Reihen: Avatar · Name · Ampel (überfällige Aufgaben) · Berichtsstatus-Stempel der KW · letzter Aktiv-Zeitstempel. Ein Klick → Azubi-Profil.
+3. Peripherie: kritische Projekte, Gruppen-Anfragen-Tray, Termine.
+
+### D.5 Umsetzung & Geltung
+- **Phase D3** (Dashboard-Teil): Z1-Werkbank-SVG + Laufkarte + Zustands-Weiche + Z3-Hierarchie-Umbau + Hero-Auswahl-Logik (`buildHeroSuggestion` als pure Funktion in eigener .ts → unit-testbar wie buildNewsCards).
+- Wiederverwendung: Einrichtungs-Logik teilt Checks mit OnboardingWizard/WelcomeNews (ein Modul, kein Drift); Projekt-Reihen-Komponente wird auch im Ausbilder-Cockpit als Azubi-Reihe variiert.
+- Alles Beta-gescoped: 1.0-Dashboard bleibt unverändert; die Zustands-Weiche rendert in v1 schlicht das bisherige Layout.
 
 ### Preview als lebendes Artefakt
 `docs/design-preview.html` wird pro D-Phase um die neu gebauten Primitives erweitert (Copy aus echtem CSS) — dient als Styleguide-Snapshot für Reviews, fliegt nach D6 in `docs/styleguide.html` umbenannt zusammen.

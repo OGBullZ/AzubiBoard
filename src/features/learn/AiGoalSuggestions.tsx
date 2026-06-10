@@ -110,7 +110,7 @@ export default function AiGoalSuggestions({ lehrjahr, existingTitles = [], onAdd
           </Field>
 
           {err && (
-            <div style={{ background: '#130a0b', border: `1px solid ${C.cr}40`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: C.cr, marginBottom: 12 }}>
+            <div style={{ background: 'var(--c-crd)', border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: C.cr, marginBottom: 12 }}>
               ⚠ {err}
             </div>
           )}

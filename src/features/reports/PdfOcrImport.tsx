@@ -197,7 +197,7 @@ export function PdfOcrImport({ existingFile, onImport, onClose }: PdfOcrImportPr
       )}
 
       {step === 'error' && (
-        <div style={{ background: '#130a0b', border: `1px solid ${C.cr}`, borderRadius: 9, padding: '14px 16px', marginBottom: 14 }}>
+        <div style={{ background: 'var(--c-crd)', border: `1px solid ${C.cr}`, borderRadius: 9, padding: '14px 16px', marginBottom: 14 }}>
           <div style={{ fontSize: 13, color: C.cr, fontWeight: 700, marginBottom: 6 }}>✗ Fehler</div>
           <div style={{ fontSize: 12, color: C.tx }}>{msg}</div>
           <button className="btn" onClick={() => { setStep('idle'); setMsg(''); }} style={{ marginTop: 12 }}>← Zurück</button>
@@ -206,7 +206,7 @@ export function PdfOcrImport({ existingFile, onImport, onClose }: PdfOcrImportPr
 
       {step === 'done' && result && (
         <>
-          <div style={{ background: '#07130a', border: `1px solid ${C.gr}40`, borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 12, color: C.gr, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ background: 'var(--st-green-bg)', border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)`, borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 12, color: C.gr, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             ✓ OCR abgeschlossen — bitte den Vorschlag prüfen und ggf. korrigieren
           </div>
 

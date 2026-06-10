@@ -151,7 +151,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
                       <div style={{ fontSize: 15, fontWeight: 800, color: myTasks.length > 0 ? C.ac : C.mu, fontFamily: C.mono, lineHeight: 1.2 }}>{myTasks.length}</div>
                       {inProgress.length > 0 && <div style={{ fontSize: 8, color: C.ac }}>▶ {inProgress.length} {t('dashboard.statActive')}</div>}
                     </div>
-                    <div style={{ background: overdue.length > 0 ? C.crd : 'var(--c-sf3)', borderRadius: 6, padding: '5px 7px', border: overdue.length > 0 ? `1px solid ${C.cr}25` : 'none' }}>
+                    <div style={{ background: overdue.length > 0 ? C.crd : 'var(--c-sf3)', borderRadius: 6, padding: '5px 7px', border: overdue.length > 0 ? `1px solid color-mix(in srgb, ${C.cr} 15%, transparent)` : 'none' }}>
                       <div style={{ fontSize: 9, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: .5, fontWeight: 700 }}>{t('dashboard.statOverdue')}</div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: overdue.length > 0 ? C.cr : C.mu, fontFamily: C.mono, lineHeight: 1.2 }}>{overdue.length}</div>
                       {overdue.length > 0 && <div style={{ fontSize: 8, color: C.cr }}>{t('dashboard.statLate')}</div>}
@@ -199,7 +199,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               <PanelTitle Icon={IcoAlert} badge={{ text: problems.length, bg: C.crd, c: C.cr }}>{t('dashboard.problemProjects')}</PanelTitle>
               {problems.map(p => (
                 <button key={p.id} onClick={() => onOpenProject(p.id)} className="row-btn"
-                  style={{ justifyContent: 'space-between', marginBottom: 4, padding: '7px 9px', border: `1px solid ${C.cr}25`, borderRadius: 8, background: C.crd }}>
+                  style={{ justifyContent: 'space-between', marginBottom: 4, padding: '7px 9px', border: `1px solid color-mix(in srgb, ${C.cr} 15%, transparent)`, borderRadius: 8, background: C.crd }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
                     <div style={{ fontSize: 10, color: C.textSecondary }}>{users.filter(u => (p.assignees||[]).includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}</div>
@@ -230,7 +230,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(r as any).user_name}</div>
                       <div style={{ fontSize: 9, color: C.textSecondary }}>KW {r.week_number} · {fmtDate(r.week_start)}</div>
                     </div>
-                    <span className="tag" style={{ background: C.ywd, color: C.yw, border: `1px solid ${C.yw}30`, fontSize: 9 }}>{t('report.statusSubmitted')}</span>
+                    <span className="tag" style={{ background: C.ywd, color: C.yw, border: `1px solid color-mix(in srgb, ${C.yw} 19%, transparent)`, fontSize: 9 }}>{t('report.statusSubmitted')}</span>
                   </div>
                 ))}
                 {pending.length > 4 && <div style={{ fontSize: 10, color: C.textSecondary, marginTop: 6, textAlign: 'center' }}>{t('dashboard.moreReports', { count: pending.length - 4 })}</div>}

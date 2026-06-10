@@ -106,7 +106,7 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
               </div>
             </>
           ) : azubiEmptyAccount ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, padding: '24px 16px', borderRadius: 10, border: `1px solid ${C.ac}25`, background: C.acd }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, padding: '24px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.ac} 15%, transparent)`, background: C.acd }}>
               <div style={{ fontSize: 28 }} aria-hidden="true">👋</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: C.br }}>Willkommen zurück, {firstName}!</div>
               <div style={{ fontSize: 13, color: C.mu, textAlign: 'center', lineHeight: 1.6 }}>
@@ -114,7 +114,7 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
               </div>
             </div>
           ) : isStaff ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '24px 16px', borderRadius: 10, border: `1px solid ${C.gr}25`, background: C.gr + '08' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '24px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.gr} 15%, transparent)`, background: `color-mix(in srgb, ${C.gr} 3%, transparent)` }}>
               <div style={{ fontSize: 28, color: C.gr }} aria-hidden="true">✓</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: C.gr }}>Alles unter Kontrolle</div>
               <div style={{ fontSize: 13, color: C.mu, textAlign: 'center', lineHeight: 1.6 }}>
@@ -122,7 +122,7 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '24px 16px', borderRadius: 10, border: `1px solid ${C.gr}25`, background: C.gr + '08' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '24px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.gr} 15%, transparent)`, background: `color-mix(in srgb, ${C.gr} 3%, transparent)` }}>
               <div style={{ fontSize: 28, color: C.gr }} aria-hidden="true">✓</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: C.gr }}>Alles im grünen Bereich!</div>
               <div style={{ fontSize: 13, color: C.mu, textAlign: 'center', lineHeight: 1.6 }}>

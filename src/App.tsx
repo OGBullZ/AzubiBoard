@@ -70,6 +70,54 @@ function RouteFallback() {
   );
 }
 
+// ── Design-Version 1.0 ↔ 1.0 Beta (Werkbank-Redesign, DESIGN-VISION.md) ──
+// Default v1; Beta aktiviert die [data-design="beta"]-Styles. Boot-Apply in main.tsx.
+const ACCENTS = [
+  { val: 'orange', hex: '#FF6A1A', label: 'Signal-Orange' },
+  { val: 'amber',  hex: '#FFB224', label: 'Amber' },
+  { val: 'cyan',   hex: '#3FD2C7', label: 'Cyan' },
+];
+function DesignSwitch() {
+  const [design, setDesign] = useState(() => localStorage.getItem('azubiboard_design') || 'v1');
+  const [accent, setAccent] = useState(() => localStorage.getItem('azubiboard_accent') || 'orange');
+  const apply = (key: string, val: string, set: (v: string) => void) => {
+    set(val);
+    try { localStorage.setItem(`azubiboard_${key}`, val); } catch { /* noop */ }
+    document.documentElement.setAttribute(`data-${key}`, val);
+  };
+  return (
+    <div style={{ marginTop: 14 }}>
+      <label>Design-Version</label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[['v1', '1.0'], ['beta', '1.0 Beta ✦']].map(([val, lab]) => (
+          <button key={val} className="btn" onClick={() => apply('design', val, setDesign)} aria-pressed={design === val}
+            style={{ flex: 1, justifyContent: 'center', padding: '9px',
+              ...(design === val ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)', background: 'var(--c-acd)' } : {}) }}>
+            {lab}
+          </button>
+        ))}
+      </div>
+      {design === 'beta' && (
+        <div style={{ marginTop: 10 }}>
+          <label>Akzentfarbe</label>
+          <div style={{ display: 'flex', gap: 8 }} role="radiogroup" aria-label="Akzentfarbe">
+            {ACCENTS.map(a => (
+              <button key={a.val} onClick={() => apply('accent', a.val, setAccent)}
+                role="radio" aria-checked={accent === a.val} aria-label={a.label} title={a.label}
+                style={{ width: 34, height: 34, borderRadius: 8, background: a.hex, cursor: 'pointer',
+                  border: accent === a.val ? '2px solid var(--c-br)' : '2px solid transparent',
+                  outlineOffset: 2, boxShadow: accent === a.val ? '0 0 0 1.5px var(--c-bg) inset' : 'none' }} />
+            ))}
+          </div>
+        </div>
+      )}
+      <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 6 }}>
+        1.0 Beta = neues „Werkbank"-Design (in Arbeit). Jederzeit zurückschaltbar.
+      </div>
+    </div>
+  );
+}
+
 // ── Theme aus User-Objekt übernehmen (nach Login / Startup) ──
 function applyUserTheme(theme?: string | null) {
   if (!theme) return;
@@ -921,6 +969,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
             }} style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac)', borderColor: 'var(--c-ac)60' }}>
               🎓 Einführungs-Wizard erneut anzeigen
             </button>
+            <DesignSwitch />
           </div>
         )}
 

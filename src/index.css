@@ -32,9 +32,9 @@ html, body {
 body {
   background: var(--c-bg);
   color: var(--c-tx);
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -74,6 +74,190 @@ body {
   --shadow-xs: 0 1px 4px  rgba(0,0,0,.2);
   --shadow-focus: 0 0 0 3px rgba(0,113,227,.3);
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  /* Design 1.0 (Default): bisherige System-Schrift. 1.0 Beta überschreibt unter [data-design="beta"]. */
+  --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-body);
+}
+
+/* ════ Design „1.0 Beta" — Digitale Werkbank (DESIGN-VISION.md) ════
+   Alles Beta-spezifische lebt unter [data-design="beta"]; Default = 1.0 unverändert. */
+[data-design="beta"] {
+  --font-body: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --font-display: 'Chakra Petch', 'Archivo Variable', sans-serif;
+
+  /* ── Primitives ── */
+  --petrol-950: #0B0F0E; --petrol-900: #111715; --petrol-850: #161E1B; --petrol-800: #1C2522;
+  --line-1: #243029; --line-2: #2F3D36;
+  --ink-hi: #F2F0E9; --ink-tx: #C9CCC4; --ink-mu: #86918A;
+  --stamp-red: #D14437; --stamp-blue: #4D7FBF; --stamp-green: #3E9B68;
+
+  /* ── Semantik (Werkstatt-Dark) — überschreibt die 1.0-Token-NAMEN, Konsumenten unverändert ── */
+  --c-bg:  var(--petrol-950);
+  --c-sf:  var(--petrol-900);
+  --c-sf2: var(--petrol-850);
+  --c-sf3: var(--petrol-800);
+  --c-tx:  var(--ink-tx);
+  --c-br:  var(--ink-hi);
+  --c-mu:  var(--ink-mu);
+  --c-bd:  var(--line-1);
+  --c-bd2: var(--line-2);
+  --c-bd-soft: color-mix(in srgb, var(--line-1) 50%, transparent);
+  /* Akzent: per User wählbar via [data-accent] (Default Orange). Picker in ProfilePage. */
+  --c-ac:  #FF6A1A;                                     /* Signal-Orange */
+  --c-ac-press: #E55708;
+  --c-ac-text: #FFB78A;                                 /* AA-taugliche Text-Variante auf Dunkel */
+  --c-acd: color-mix(in srgb, #FF6A1A 12%, transparent);
+  --c-gr: #37C871; --c-grd: color-mix(in srgb, #37C871 12%, transparent);
+  --c-cr: #F45B4E; --c-crd: color-mix(in srgb, #F45B4E 12%, transparent);
+  --c-yw: #FFB224; --c-ywd: color-mix(in srgb, #FFB224 12%, transparent);
+  --st-green-bg: #0C1A12;
+  --c-data: #3FD2C7;                                    /* Daten/Sync — nie Orange */
+  --c-grid: color-mix(in srgb, #3FD2C7 4%, transparent);
+  --c-grid-strong: color-mix(in srgb, #3FD2C7 7%, transparent);
+
+  /* ── Skalen ── */
+  --r-1: 4px; --r-2: 8px; --r-3: 14px;
+  --shadow-xs: inset 0 1px 0 rgba(255,255,255,.04);
+  --shadow-sm: inset 0 1px 0 rgba(255,255,255,.05), 0 4px 12px -6px rgba(0,0,0,.5);
+  --shadow:    inset 0 1px 0 rgba(255,255,255,.05), 0 6px 16px -8px rgba(0,0,0,.55);
+  --shadow-lg: 0 12px 32px -12px rgba(0,0,0,.6);
+  --shadow-focus: none;                                  /* Beta: Messlehre-Focus statt Ring (motion.css) */
+  --ease-stamp: cubic-bezier(.2,1.4,.4,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+}
+
+/* Akzent-Varianten (User-Einstellung, nur Beta) */
+[data-design="beta"][data-accent="amber"] {
+  --c-ac: #FFB224; --c-ac-press: #E09A0E; --c-ac-text: #FFD27A;
+  --c-acd: color-mix(in srgb, #FFB224 12%, transparent);
+}
+[data-design="beta"][data-accent="cyan"] {
+  --c-ac: #3FD2C7; --c-ac-press: #26B5AA; --c-ac-text: #8FE8E1;
+  --c-acd: color-mix(in srgb, #3FD2C7 12%, transparent);
+}
+[data-design="beta"][data-accent="amber"][data-theme="light"] { --c-ac-text: #8A5C00; }
+[data-design="beta"][data-accent="cyan"][data-theme="light"]  { --c-ac-text: #0E6B63; }
+
+/* Papier-Light (Beta): eigener Charakter — Zeichenbrett am Tag, kein invertiertes Dark */
+[data-design="beta"][data-theme="light"] {
+  --c-bg:  #F6F3EC;
+  --c-sf:  #FFFFFF;
+  --c-sf2: #FBF9F4;
+  --c-sf3: #F1EDE3;
+  --c-tx:  #2A3A35;
+  --c-br:  #16211D;
+  --c-mu:  #6E7B74;
+  --c-bd:  #C9CFC4;
+  --c-bd2: #A9B2A9;
+  --c-bd-soft: color-mix(in srgb, #C9CFC4 50%, transparent);
+  --c-ac-text: #C24A08;                                  /* auf Papier: dunkleres Orange für Text */
+  --c-acd: color-mix(in srgb, #FF6A1A 10%, transparent);
+  --st-green-bg: #E9F4EC;
+  --c-grid: color-mix(in srgb, #2C5E9E 7%, transparent); /* Millimeterpapier-Blau */
+  --c-grid-strong: color-mix(in srgb, #2C5E9E 12%, transparent);
+  --shadow-xs: 0 1px 0 rgba(22,33,29,.06);
+  --shadow-sm: 0 1px 0 rgba(22,33,29,.08);
+  --shadow:    0 4px 14px -8px rgba(22,33,29,.18);
+  --shadow-lg: 0 8px 24px -12px rgba(22,33,29,.22);
+}
+
+[data-design="beta"] body, [data-design="beta"] h1, [data-design="beta"] h2,
+[data-design="beta"] h3, [data-design="beta"] h4 { letter-spacing: .01em; }
+[data-design="beta"] h1, [data-design="beta"] h2, [data-design="beta"] h3, [data-design="beta"] h4 {
+  font-weight: 700; line-height: 1.2;
+}
+[data-design="beta"] ::selection { background: color-mix(in srgb, var(--c-ac) 30%, transparent); }
+
+/* Hintergrund bleibt SOLID (User-Entscheid 2026-06-10) — kein globales Raster.
+   --c-grid-Tokens bleiben für LOKALE Blueprint-Flächen (Netzplan-Canvas, D4). */
+/* Grain: SVG-Noise-Kachel als fixed Overlay (User-Entscheid: an). GPU-billig (eine Komposition). */
+[data-design="beta"] body::after {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 9999;
+  opacity: .035; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='64' height='64' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* Mono-Caps-Label — das Zeichnungs-Schriftfeld-Stilmittel (Beta-Pendant zu <label>/.label-Streuung) */
+[data-design="beta"] label,
+[data-design="beta"] .mono-caps {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--c-mu);
+}
+/* Grain darf nie mitdrucken */
+@media print {
+  [data-design="beta"] body::after { display: none; }
+}
+
+/* ── Beta-Primitives (D2): „gefertigt, nicht gerendert" ── */
+
+/* Karte = gestanztes Blech: Innenkante + tiefer Schatten, kantiger Radius */
+[data-design="beta"] .card {
+  border-radius: var(--r-2);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Primär-Button = Werkzeug: satte Unterkante, drückt physisch ein (Active in motion.css) */
+[data-design="beta"] .abtn {
+  border-radius: var(--r-1);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--c-ac-press) 80%, black);
+  font-weight: 600;
+}
+[data-design="beta"] .abtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--c-ac) 88%, white);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--c-ac-press) 80%, black);
+}
+[data-design="beta"] .abtn:active:not(:disabled) {
+  background: var(--c-ac-press);
+  box-shadow: none;
+}
+
+/* Sekundär-Button = beschriftetes Werkstatt-Etikett (Mono-Caps) */
+[data-design="beta"] .btn {
+  border-radius: var(--r-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* Inputs: ruhige Fläche, betonte Unterkante (Fokus-Verhalten in motion.css) */
+[data-design="beta"] input,
+[data-design="beta"] textarea,
+[data-design="beta"] select {
+  border-radius: var(--r-1);
+  border-bottom-width: 2px;
+}
+
+/* Tags kantiger (Werkstück statt Pille) */
+[data-design="beta"] .tag { border-radius: var(--r-1); }
+[data-design="beta"] .progress-track,
+[data-design="beta"] .progress-fill { border-radius: 3px; }
+
+/* SectionHeader: Maßlinien-Dekor (—•) + Schriftfeld-Typo */
+[data-design="beta"] .section-header::before {
+  content: '';
+  width: 18px; height: 1px;
+  background: var(--c-mu);
+  flex-shrink: 0;
+}
+[data-design="beta"] .section-header::after {
+  content: '';
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--c-ac);
+  flex-shrink: 0;
+  order: -1;            /* Punkt vor der Linie: •— Label */
+  margin-right: -4px;
+}
+[data-design="beta"] .section-header-title {
+  font-family: var(--font-mono);
+  letter-spacing: .14em;
 }
 
 /* ── Light-Mode ── */
@@ -104,7 +288,7 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--c-bd2); border-radius: 99px; }
 
 /* ── Typografie ── */
-h1, h2, h3, h4 { color: var(--c-br); font-weight: 800; line-height: 1.25; }
+h1, h2, h3, h4 { color: var(--c-br); font-weight: 800; line-height: 1.25; font-family: var(--font-display); }
 a               { color: var(--c-ac); text-decoration: none; }
 ::selection     { background: rgba(0,113,227,.3); }
 

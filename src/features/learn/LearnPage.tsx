@@ -85,9 +85,9 @@ function FlashcardReview({ cards, onGrade, onFinish }: {
   };
 
   const RATINGS = [
-    { label: 'Nochmal', grade: 0, color: C.cr, bg: '#130a0b' },
+    { label: 'Nochmal', grade: 0, color: C.cr, bg: 'var(--c-crd)' },
     { label: 'Gut',     grade: 4, color: C.ac, bg: C.acd    },
-    { label: 'Perfekt', grade: 5, color: C.gr, bg: '#07130a' },
+    { label: 'Perfekt', grade: 5, color: C.gr, bg: 'var(--st-green-bg)' },
   ];
 
   return (
@@ -113,14 +113,14 @@ function FlashcardReview({ cards, onGrade, onFinish }: {
             <div style={{ animation: 'fadeUp .15s ease' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: correctAnswers.length > 0 ? 12 : 0 }}>
                 {correctAnswers.map(a => (
-                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: '#07130a', border: `1px solid ${C.gr}`, borderRadius: 8 }}>
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--st-green-bg)', border: `1px solid ${C.gr}`, borderRadius: 8 }}>
                     <span style={{ color: C.gr, fontWeight: 800, flexShrink: 0 }}>✓</span>
                     <span style={{ fontSize: 13, color: C.br, fontFamily: a.text.includes('(') ? C.mono : C.sans }}>{a.text}</span>
                   </div>
                 ))}
               </div>
               {card.explanation && (
-                <div style={{ background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8, padding: '10px 13px' }}>
+                <div style={{ background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, padding: '10px 13px' }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: C.ac, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>Erklärung</div>
                   <div style={{ fontSize: 12, color: C.tx, lineHeight: 1.65 }}>{card.explanation}</div>
                 </div>
@@ -207,8 +207,8 @@ function QuizQuestion({ q, onAnswer, answered, selected }: {
     if (!answered && !isMultiple) return { background: C.sf2, border: `1px solid ${C.bd}` };
     if (!answered && isMultiple) { const sel = multi.includes(a.id); return { background: sel ? C.acd : C.sf2, border: `1px solid ${sel ? C.ac : C.bd}` }; }
     const wasSelected = selected?.includes(a.id);
-    if (a.correct) return { background: '#07130a', border: `2px solid ${C.gr}` };
-    if (wasSelected && !a.correct) return { background: '#130a0b', border: `2px solid ${C.cr}` };
+    if (a.correct) return { background: 'var(--st-green-bg)', border: `2px solid ${C.gr}` };
+    if (wasSelected && !a.correct) return { background: 'var(--c-crd)', border: `2px solid ${C.cr}` };
     return { background: C.sf2, border: `1px solid ${C.bd}`, opacity: .5 };
   };
 
@@ -217,7 +217,7 @@ function QuizQuestion({ q, onAnswer, answered, selected }: {
       <div style={{ marginBottom: 18 }}>
         <pre style={{ fontFamily: C.sans, fontSize: 14, fontWeight: 600, color: C.br, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0 }}>{q.question}</pre>
         {isMultiple && !answered && (
-          <div style={{ fontSize: 11, color: C.ac, marginTop: 6, background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 6, padding: '4px 10px', display: 'inline-block' }}>Mehrere Antworten möglich</div>
+          <div style={{ fontSize: 11, color: C.ac, marginTop: 6, background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 6, padding: '4px 10px', display: 'inline-block' }}>Mehrere Antworten möglich</div>
         )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
@@ -237,7 +237,7 @@ function QuizQuestion({ q, onAnswer, answered, selected }: {
         <button className="abtn" onClick={submitMulti} disabled={multi.length === 0} style={{ marginBottom: 16, padding: '9px 20px' }}>Antwort bestätigen</button>
       )}
       {answered && q.explanation && (
-        <div style={{ background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 9, padding: '12px 15px', animation: 'fadeUp .2s ease' }}>
+        <div style={{ background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 9, padding: '12px 15px', animation: 'fadeUp .2s ease' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.ac, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 5 }}>Erklärung</div>
           <div style={{ fontSize: 13, color: C.tx, lineHeight: 1.65 }}>{q.explanation}</div>
         </div>
@@ -351,20 +351,20 @@ function CodingChallenge({ challenge, onBack }: {
               <pre style={{ fontSize: 13, color: C.tx, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: C.sans, margin: 0 }}>{challenge.description}</pre>
             </div>
             {showHint && (
-              <div style={{ background: C.ywd, border: `1px solid ${C.yw}40`, borderRadius: 9, padding: '10px 14px', marginBottom: 12, animation: 'fadeUp .2s ease' }}>
+              <div style={{ background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 25%, transparent)`, borderRadius: 9, padding: '10px 14px', marginBottom: 12, animation: 'fadeUp .2s ease' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.yw, marginBottom: 4 }}>💡 Hinweis</div>
                 <div style={{ fontSize: 13, color: C.tx }}>{challenge.hint}</div>
               </div>
             )}
             {showSol && (
-              <div style={{ background: C.sf3, border: `1px solid ${C.ac}30`, borderRadius: 9, padding: '12px 14px', animation: 'fadeUp .2s ease' }}>
+              <div style={{ background: C.sf3, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 9, padding: '12px 14px', animation: 'fadeUp .2s ease' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.ac, marginBottom: 8 }}>✓ Musterlösung</div>
                 <pre style={{ fontSize: 12, color: C.br, fontFamily: C.mono, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{challenge.solution}</pre>
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button className="btn" onClick={() => setShowHint(s => !s)} style={{ fontSize: 11 }}>{showHint ? '🙈 Hinweis verbergen' : '💡 Hinweis anzeigen'}</button>
-              <button className="btn" onClick={() => setShowSol(s => !s)} style={{ fontSize: 11, color: C.yw, borderColor: C.yw + '60' }}>{showSol ? 'Lösung verbergen' : '📖 Lösung anzeigen'}</button>
+              <button className="btn" onClick={() => setShowSol(s => !s)} style={{ fontSize: 11, color: C.yw, borderColor: `color-mix(in srgb, ${C.yw} 38%, transparent)` }}>{showSol ? 'Lösung verbergen' : '📖 Lösung anzeigen'}</button>
             </div>
           </div>
           <div>
@@ -378,7 +378,7 @@ function CodingChallenge({ challenge, onBack }: {
               <button className="btn" onClick={reset} style={{ padding: '10px 14px', fontSize: 12 }}>↺</button>
             </div>
             {result && (
-              <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: result.passed ? '#07130a' : '#130a0b', border: `1px solid ${result.passed ? C.gr : C.cr}`, animation: 'fadeUp .2s ease' }}>
+              <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: result.passed ? 'var(--st-green-bg)' : 'var(--c-crd)', border: `1px solid ${result.passed ? C.gr : C.cr}`, animation: 'fadeUp .2s ease' }}>
                 {result.passed ? (
                   <div style={{ color: C.gr, fontWeight: 700, fontSize: 14 }}>✓ Super! Dein Code enthält alle nötigen Elemente.</div>
                 ) : (
@@ -632,7 +632,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
             {reviewCards.length} Karte{reviewCards.length !== 1 ? 'n' : ''} lernen →
           </button>
         ) : (
-          <div style={{ padding: '12px 16px', background: '#07130a', border: `1px solid ${C.gr}40`, borderRadius: 9, fontSize: 13, color: C.gr, fontWeight: 600 }}>
+          <div style={{ padding: '12px 16px', background: 'var(--st-green-bg)', border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)`, borderRadius: 9, fontSize: 13, color: C.gr, fontWeight: 600 }}>
             ✓ Alle Karten für heute gelernt – komm morgen wieder!
           </div>
         )}

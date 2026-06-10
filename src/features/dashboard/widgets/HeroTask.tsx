@@ -25,7 +25,7 @@ function HeroTaskImpl({ task, onToggle, onOpen, onUpdateNote, emptyAccount, onFi
 
   // Leeres Azubi-Konto: noch nichts zugewiesen → Willkommen + Startanleitung (nicht "alles erledigt")
   if (!task && emptyAccount) return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9, padding: '20px 16px', borderRadius: 10, border: `1px solid ${C.ac}25`, background: C.acd }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9, padding: '20px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.ac} 15%, transparent)`, background: C.acd }}>
       <div style={{ fontSize: 28 }} aria-hidden="true">👋</div>
       <div style={{ fontSize: 16, fontWeight: 700, color: C.br }}>Willkommen bei AzubiBoard!</div>
       <div style={{ fontSize: 13, color: C.textSecondary, textAlign: 'center', lineHeight: 1.6 }}>Dein Ausbilder weist dir Projekte und Aufgaben zu. Bis dahin kannst du deinen ersten Berichtsheft-Eintrag anlegen.</div>
@@ -34,7 +34,7 @@ function HeroTaskImpl({ task, onToggle, onOpen, onUpdateNote, emptyAccount, onFi
   );
 
   if (!task) return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '20px 16px', borderRadius: 10, border: `1px solid ${C.gr}25`, background: C.gr + '08' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '20px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.gr} 15%, transparent)`, background: `color-mix(in srgb, ${C.gr} 3%, transparent)` }}>
       <div style={{ fontSize: 28, opacity: .6 }}>✓</div>
       <div style={{ fontSize: 16, fontWeight: 700, color: C.gr }}>Alles erledigt!</div>
       <div style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 1.6 }}>Keine offenen oder überfälligen Aufgaben</div>

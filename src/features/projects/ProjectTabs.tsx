@@ -147,7 +147,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   const taskLabels = (projectLabels || []).filter((lb: Label) => (task.labelIds || []).includes(lb.id));
 
   return (
-    <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? C.ac + '70' : isOpen ? st.color + '50' : C.bd}`, background: selected ? 'var(--c-acd)' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
+    <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? `color-mix(in srgb, ${C.ac} 44%, transparent)` : isOpen ? `color-mix(in srgb, ${st.color} 31%, transparent)` : C.bd}`, background: selected ? 'var(--c-acd)' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer' }}
         onClick={onToggle} role="button" tabIndex={0} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onToggle()}>
@@ -168,7 +168,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
             {task.text || <span style={{ color: C.mu, fontStyle: 'italic' }}>Kein Titel</span>}
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 700, color: st.color, background: st.bg, border: `1px solid ${st.color}25`, padding: '1px 6px', borderRadius: 4 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 700, color: st.color, background: st.bg, border: `1px solid color-mix(in srgb, ${st.color} 15%, transparent)`, padding: '1px 6px', borderRadius: 4 }}>
               <st.Icon size={9} />{st.label}
             </span>
             <span style={{ fontSize: 9, color: pr.c, fontWeight: 700 }}>{pr.l}</span>
@@ -190,7 +190,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
               const est    = Number(task.estimatedHours) || 0;
               const over   = est > 0 && logged > est;
               return (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9, fontFamily: C.mono, color: over ? C.cr : C.mu, background: over ? C.crd : C.sf3, border: `1px solid ${over ? C.cr + '30' : C.bd}`, borderRadius: 4, padding: '1px 5px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9, fontFamily: C.mono, color: over ? C.cr : C.mu, background: over ? C.crd : C.sf3, border: `1px solid ${over ? `color-mix(in srgb, ${C.cr} 19%, transparent)` : C.bd}`, borderRadius: 4, padding: '1px 5px' }}>
                   <IcoClock size={9} />{logged.toFixed(1)}{est > 0 ? `/${est}h` : 'h'}
                 </span>
               );
@@ -352,7 +352,7 @@ function MaterialRef({ materials, taskRef, onUpdate }: { materials: Material[]; 
         const sel = taskRef.includes(m.id);
         return (
           <div key={m.id} onClick={() => toggleRef(m.id)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 6, marginBottom: 3, cursor: 'pointer', background: sel ? C.ywd : 'transparent', border: `1px solid ${sel ? C.yw + '40' : 'transparent'}`, transition: 'all .12s' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 6, marginBottom: 3, cursor: 'pointer', background: sel ? C.ywd : 'transparent', border: `1px solid ${sel ? `color-mix(in srgb, ${C.yw} 25%, transparent)` : 'transparent'}`, transition: 'all .12s' }}>
             <div style={{ width: 14, height: 14, borderRadius: 3, border: `2px solid ${sel ? C.yw : C.bd2}`, background: sel ? C.yw : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .12s' }}>
               {sel && <IcoCheck size={8} style={{ color: '#fff' }} />}
             </div>
@@ -387,14 +387,14 @@ function TaskGroup({ status, tasks, users, currentUser, openTask, onToggleTask, 
   return (
     <section style={{ marginBottom: 8 }}>
       <button onClick={() => setCollapsed(c => !c)}
-        style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', padding: '6px 10px', background: st.bg, border: `1px solid ${st.color}25`, borderRadius: collapsed ? 7 : '7px 7px 0 0', cursor: 'pointer', transition: 'border-radius .12s' }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', padding: '6px 10px', background: st.bg, border: `1px solid color-mix(in srgb, ${st.color} 15%, transparent)`, borderRadius: collapsed ? 7 : '7px 7px 0 0', cursor: 'pointer', transition: 'border-radius .12s' }}>
         <st.Icon size={12} style={{ color: st.color }} />
         <span style={{ fontSize: 12, fontWeight: 700, color: st.color, flex: 1, textAlign: 'left' }}>{st.label}</span>
-        <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `${st.color}18`, padding: '1px 7px', borderRadius: 9 }}>{tasks.length}</span>
+        <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `color-mix(in srgb, ${st.color} 9%, transparent)`, padding: '1px 7px', borderRadius: 9 }}>{tasks.length}</span>
         <IcoChevronD size={11} style={{ color: st.color, transition: 'transform .15s', transform: collapsed ? 'rotate(-90deg)' : 'none' }} />
       </button>
       {!collapsed && (
-        <div style={{ background: C.sf3, border: `1px solid ${st.color}18`, borderTop: 'none', borderRadius: '0 0 7px 7px', padding: '5px 5px 3px' }}>
+        <div style={{ background: C.sf3, border: `1px solid color-mix(in srgb, ${st.color} 9%, transparent)`, borderTop: 'none', borderRadius: '0 0 7px 7px', padding: '5px 5px 3px' }}>
           {[...tasks].sort((a: Task, b: Task) => {
             if (!a.deadline && !b.deadline) return 0;
             if (!a.deadline) return 1;
@@ -451,11 +451,11 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: {
           {statusIdx < totalCols - 1 && (
             <button onClick={() => onUpdate(task.id, { status: STATUS_ORDER[statusIdx + 1] as Task['status'] })}
               title={`→ ${TASK_STATUS[STATUS_ORDER[statusIdx + 1]]?.label}`}
-              style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid ${st.color}50`, background: st.bg, color: st.color, cursor: 'pointer', fontWeight: 700 }}>→</button>
+              style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid color-mix(in srgb, ${st.color} 31%, transparent)`, background: st.bg, color: st.color, cursor: 'pointer', fontWeight: 700 }}>→</button>
           )}
         </div>
         <button onClick={() => onRemove(task.id)}
-          style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid ${C.cr}30`, background: 'transparent', color: C.cr, cursor: 'pointer', fontWeight: 700 }}>×</button>
+          style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, background: 'transparent', color: C.cr, cursor: 'pointer', fontWeight: 700 }}>×</button>
       </div>
     </div>
   );
@@ -484,7 +484,7 @@ function DroppableColumn({ status, children }: { status: string; children: any }
   const st = TASK_STATUS[status];
   return (
     <div ref={setNodeRef}
-      style={{ background: isOver ? `${st.color}12` : C.sf3, border: `1px solid ${isOver ? st.color + '55' : st.color + '18'}`, borderTop: 'none', borderRadius: '0 0 8px 8px', padding: 6, display: 'flex', flexDirection: 'column', gap: 5, minHeight: 160, transition: 'background .12s, border-color .12s' }}>
+      style={{ background: isOver ? `color-mix(in srgb, ${st.color} 7%, transparent)` : C.sf3, border: `1px solid ${isOver ? `color-mix(in srgb, ${st.color} 33%, transparent)` : `color-mix(in srgb, ${st.color} 9%, transparent)`}`, borderTop: 'none', borderRadius: '0 0 8px 8px', padding: 6, display: 'flex', flexDirection: 'column', gap: 5, minHeight: 160, transition: 'background .12s, border-color .12s' }}>
       {children}
     </div>
   );
@@ -529,10 +529,10 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: {
           const cols = tasks.filter((t: Task) => (t.status || 'not_started') === status);
           return (
             <div key={status} style={{ minWidth: 200, flex: '0 0 200px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: st.bg, border: `1px solid ${st.color}28`, borderRadius: '8px 8px 0 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: st.bg, border: `1px solid color-mix(in srgb, ${st.color} 16%, transparent)`, borderRadius: '8px 8px 0 0' }}>
                 <st.Icon size={11} style={{ color: st.color }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: st.color, flex: 1 }}>{st.label}</span>
-                <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `${st.color}18`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
+                <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `color-mix(in srgb, ${st.color} 9%, transparent)`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
               </div>
               <DroppableColumn status={status}>
                 {cols.map((task: Task) => (
@@ -647,10 +647,10 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
   return (
     <div className="anim">
       {activeWorkers.length > 0 && (
-        <div style={{ background: C.acd, border: `1px solid ${C.ac}28`, borderRadius: 8, padding: '7px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 16%, transparent)`, borderRadius: 8, padding: '7px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, color: C.ac, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><IcoPlay size={11} /> Aktiv:</span>
           {activeWorkers.map(({ task, user }: { task: Task; user?: User }) => (
-            <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.sf2, borderRadius: 6, padding: '3px 8px', border: `1px solid ${C.ac}20` }}>
+            <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.sf2, borderRadius: 6, padding: '3px 8px', border: `1px solid color-mix(in srgb, ${C.ac} 13%, transparent)` }}>
               <div style={{ position: 'relative' }}><Avatar name={user!.name} size={18} />
                 <div style={{ position: 'absolute', bottom: -1, right: -1, width: 6, height: 6, borderRadius: '50%', background: C.gr, border: `1px solid ${C.sf2}` }} />
               </div>
@@ -737,13 +737,13 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
           ? <KanbanBoard tasks={visibleTasks} users={assignable} onUpdate={updateTask} onRemove={removeTask} />
           : <>
               {selection.size > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', marginBottom: 8, background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', marginBottom: 8, background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: C.ac, marginRight: 4 }}>{selection.size} ausgewählt</span>
                   {STATUS_ORDER.map(s => {
                     const st = TASK_STATUS[s];
                     return (
                       <button key={s} onClick={() => bulkSetStatus(s as Task['status'])}
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${st.color}50`, background: st.bg, color: st.color, cursor: 'pointer' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid color-mix(in srgb, ${st.color} 31%, transparent)`, background: st.bg, color: st.color, cursor: 'pointer' }}>
                         <st.Icon size={10} /> → {st.label}
                       </button>
                     );
@@ -754,7 +754,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
                     Alle wählen
                   </button>
                   <button onClick={bulkDelete}
-                    style={{ padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${C.cr}40`, background: `${C.cr}12`, color: C.cr, cursor: 'pointer' }}>
+                    style={{ padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, background: `color-mix(in srgb, ${C.cr} 7%, transparent)`, color: C.cr, cursor: 'pointer' }}>
                     🗑 Löschen
                   </button>
                   <button onClick={clearSelection}
@@ -889,7 +889,7 @@ export function RequirementsTab({ project, onUpdate }: { project: Project; onUpd
         </div>
       )}
       {(project.requirements||[]).map((r: Requirement) => (
-        <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',background:C.sf2,border:`1px solid ${r.done?C.gr+'28':C.bd}`,borderRadius:7,marginBottom:4,transition:'border-color .15s'}}>
+        <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',background:C.sf2,border:`1px solid ${r.done?`color-mix(in srgb, ${C.gr} 16%, transparent)`:C.bd}`,borderRadius:7,marginBottom:4,transition:'border-color .15s'}}>
           <button onClick={()=>toggle(r.id)} style={{width:18,height:18,borderRadius:4,border:`2px solid ${r.done?C.gr:C.bd2}`,background:r.done?C.gr:'transparent',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .12s'}}>
             {r.done && <IcoCheck size={10} style={{color:'#fff'}} />}
           </button>

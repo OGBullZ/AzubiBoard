@@ -89,7 +89,7 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
           <div style={{ display: 'flex', gap: 6 }}>
             <button className="btn" onClick={onEditPath} style={{ fontSize: 11, padding: '4px 10px' }}>✎ Pfad</button>
             <button className="btn" onClick={onAiSuggest}
-              style={{ fontSize: 11, padding: '4px 10px', color: C.ac, borderColor: C.ac + '60' }}
+              style={{ fontSize: 11, padding: '4px 10px', color: C.ac, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)` }}
               title="KI-Lernziele vorschlagen">🤖 KI</button>
             <button className="abtn" onClick={onAddNode} style={{ fontSize: 11, padding: '4px 10px' }}>+ Lernziel</button>
           </div>
@@ -115,7 +115,7 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
             const locked   = !unlocked && !done;
 
             const borderColor = done ? C.gr : unlocked ? color : C.bd;
-            const bgColor     = done ? '#07130a' : unlocked ? C.sf : C.sf3;
+            const bgColor     = done ? 'var(--st-green-bg)' : unlocked ? C.sf : C.sf3;
             const textColor   = locked ? C.mu : C.br;
 
             return (
@@ -202,7 +202,7 @@ function NodeModal({ node, done, onComplete, onClose }: NodeModalProps) {
         <span className="tag" style={{ background: C.sf2, color: C.mu, border: `1px solid ${C.bd}` }}>
           {TYPE_ICON[node.type as string]} {node.type === 'article' ? 'Artikel' : node.type === 'link' ? 'Link' : node.type === 'quiz' ? 'Quiz' : 'Aufgabe'}
         </span>
-        {done && <span className="tag" style={{ background: '#07130a', color: C.gr, border: `1px solid ${C.gr}40` }}>✓ Abgeschlossen</span>}
+        {done && <span className="tag" style={{ background: 'var(--st-green-bg)', color: C.gr, border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)` }}>✓ Abgeschlossen</span>}
       </div>
 
       {node.description && (
@@ -211,7 +211,7 @@ function NodeModal({ node, done, onComplete, onClose }: NodeModalProps) {
 
       {node.content && node.type === 'link' && (
         <a href={node.content} target="_blank" rel="noreferrer"
-          style={{ display: 'block', padding: '10px 14px', background: C.acd, border: `1px solid ${C.ac}30`, borderRadius: 8, fontSize: 13, color: C.ac, marginBottom: 16, wordBreak: 'break-all' }}>
+          style={{ display: 'block', padding: '10px 14px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, fontSize: 13, color: C.ac, marginBottom: 16, wordBreak: 'break-all' }}>
           🔗 {node.content}
         </a>
       )}

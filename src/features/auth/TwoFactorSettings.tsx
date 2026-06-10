@@ -88,7 +88,7 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
   // Erfolgreiche Aktivierung → Recovery-Codes EINMALIG zeigen
   if (recovery) {
     return (
-      <div style={{ padding: 14, background: C.sf2, border: `1px solid ${C.gr}55`, borderRadius: 8 }}>
+      <div style={{ padding: 14, background: C.sf2, border: `1px solid color-mix(in srgb, ${C.gr} 33%, transparent)`, borderRadius: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: C.gr, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           ✓ 2FA erfolgreich aktiviert
         </div>
@@ -158,7 +158,7 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
 
   if (stage === 'disable') {
     return (
-      <div style={{ padding: 14, background: C.sf2, border: `1px solid ${C.cr}45`, borderRadius: 8 }}>
+      <div style={{ padding: 14, background: C.sf2, border: `1px solid color-mix(in srgb, ${C.cr} 27%, transparent)`, borderRadius: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: C.br, marginBottom: 8 }}>2FA deaktivieren</div>
         <div style={{ fontSize: 11, color: C.mu, marginBottom: 10 }}>
           Passwort <strong>und</strong> aktueller TOTP-Code (oder Recovery-Code) zur Bestätigung erforderlich.
@@ -182,7 +182,7 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
 
   // idle: Status anzeigen
   return (
-    <div style={{ padding: 14, background: C.sf2, border: `1px solid ${status.enabled ? C.gr + '45' : C.bd2}`, borderRadius: 8 }}>
+    <div style={{ padding: 14, background: C.sf2, border: `1px solid ${status.enabled ? `color-mix(in srgb, ${C.gr} 27%, transparent)` : C.bd2}`, borderRadius: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
         <span style={{ fontSize: 20 }}>{status.enabled ? '🔒' : '🔓'}</span>
         <div style={{ flex: 1 }}>
@@ -206,7 +206,7 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
         )}
         {status.enabled && (
           <button onClick={() => setStage('disable')} className="btn"
-            style={{ fontSize: 11, color: C.cr, borderColor: C.cr + '55' }}>
+            style={{ fontSize: 11, color: C.cr, borderColor: `color-mix(in srgb, ${C.cr} 33%, transparent)` }}>
             Deaktivieren …
           </button>
         )}

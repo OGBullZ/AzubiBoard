@@ -257,9 +257,9 @@ const SH_SIZES = {
 export function SectionHeader({ title, count, Icon, action, onAction, size = 'sm', badge }: SectionHeaderProps) {
   const z = SH_SIZES[size];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: z.gap, marginBottom: z.mb, flexShrink: z.shrink }}>
+    <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: z.gap, marginBottom: z.mb, flexShrink: z.shrink }}>
       {Icon && <span style={{ color: C.mu, display: 'flex' }}><Icon size={z.icon} /></span>}
-      <div style={{ flex: 1, fontSize: z.font, fontWeight: 700, color: z.color, textTransform: 'uppercase', letterSpacing: z.ls }}>
+      <div className="section-header-title" style={{ flex: 1, fontSize: z.font, fontWeight: 700, color: z.color, textTransform: 'uppercase', letterSpacing: z.ls }}>
         {title}{count !== undefined && <span style={{ color: C.mu, fontWeight: 400, marginLeft: 5 }}>({count})</span>}
       </div>
       {badge && (

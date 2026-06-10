@@ -1,0 +1,97 @@
+/* ============================================================
+   motion.css — Bewegungs-Kit „Digitale Werkbank" (Design 1.0 Beta)
+   Alles [data-design=beta]-gescoped + hinter prefers-reduced-motion.
+   Budget-Regel (DESIGN-VISION Ebene 2): 1 Entrance + 1 Signature pro Screen.
+   ============================================================ */
+
+/* ── Messlehre-Focus: vier Eck-Klammern statt Fokus-Ring ──
+   Technik: 8 background-Gradients (je Ecke 1 horizontale + 1 vertikale Kante).
+   Gilt auch bei reduced-motion (statisch, a11y-relevant). */
+[data-design="beta"] :focus-visible:not(select) {
+  outline: none;
+  --fok-b: 2px;   /* Strichstärke */
+  --fok-l: 9px;   /* Klammer-Länge */
+  background-image:
+    linear-gradient(var(--c-ac), var(--c-ac)), linear-gradient(var(--c-ac), var(--c-ac)),
+    linear-gradient(var(--c-ac), var(--c-ac)), linear-gradient(var(--c-ac), var(--c-ac)),
+    linear-gradient(var(--c-ac), var(--c-ac)), linear-gradient(var(--c-ac), var(--c-ac)),
+    linear-gradient(var(--c-ac), var(--c-ac)), linear-gradient(var(--c-ac), var(--c-ac));
+  background-repeat: no-repeat;
+  background-size:
+    var(--fok-l) var(--fok-b), var(--fok-b) var(--fok-l),
+    var(--fok-l) var(--fok-b), var(--fok-b) var(--fok-l),
+    var(--fok-l) var(--fok-b), var(--fok-b) var(--fok-l),
+    var(--fok-l) var(--fok-b), var(--fok-b) var(--fok-l);
+  background-position:
+    top 0 left 0,    top 0 left 0,
+    top 0 right 0,   top 0 right 0,
+    bottom 0 left 0, bottom 0 left 0,
+    bottom 0 right 0, bottom 0 right 0;
+}
+/* select behält den Pfeil (eigenes background-image) → schlichter Akzent-Rahmen */
+[data-design="beta"] select:focus-visible { outline: 2px solid var(--c-ac); outline-offset: 1px; }
+/* Formularfelder: Klammern + Akzent-Unterkante, alter Ring bleibt aus */
+[data-design="beta"] input:focus,
+[data-design="beta"] textarea:focus,
+[data-design="beta"] select:focus {
+  border-color: var(--c-bd2);
+  border-bottom-color: var(--c-ac);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+
+  /* ── Stempel-Aufschlag ── */
+  @keyframes stampIn {
+    0%   { transform: scale(1.45) rotate(calc(var(--stamp-rot, 0deg) - 4deg)); opacity: 0; }
+    62%  { transform: scale(.96)  rotate(var(--stamp-rot, 0deg)); opacity: 1; filter: blur(.4px); }
+    100% { transform: scale(1)    rotate(var(--stamp-rot, 0deg)); filter: blur(0); }
+  }
+  [data-design="beta"] .stamp-in { animation: stampIn .28s var(--ease-stamp) both; }
+
+  /* ── Screen-Entrance: Kinder staggern (Container vergibt --i pro Kind) ── */
+  @keyframes draftUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  [data-design="beta"] .draft-in > * {
+    animation: draftUp .32s var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
+  }
+
+  /* ── Skeleton = wandernde Schraffur ── */
+  @keyframes hatch { to { background-position: 48px 0; } }
+  [data-design="beta"] .skel {
+    background: repeating-linear-gradient(45deg, var(--c-sf3), var(--c-sf3) 6px, var(--c-sf2) 6px, var(--c-sf2) 12px);
+    background-size: 48px 100%;
+    animation: hatch 1.2s linear infinite;
+    border: 1px solid var(--c-bd);
+    border-radius: 3px;
+    color: transparent;
+  }
+
+  /* ── Split-Flap (Struktur: .flap > .d, JS togglet .go und tauscht Ziffer bei ~170ms) ── */
+  @keyframes flapTurn { 0% { transform: rotateX(0); } 49% { transform: rotateX(-88deg); } 50% { transform: rotateX(88deg); } 100% { transform: rotateX(0); } }
+  [data-design="beta"] .flap .d.go { animation: flapTurn .36s ease-in-out; }
+
+  /* ── Login-Fehler: mechanisches Ruckeln ── */
+  @keyframes shakeReject { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-4px); } 40%,80% { transform: translateX(4px); } }
+  [data-design="beta"] .shake-reject { animation: shakeReject .2s linear 1; }
+
+  /* ── Zahnrad-Sync: mechanisch in 8 Rasten (steps), nicht smooth ── */
+  @keyframes gearTurn { to { transform: rotate(360deg); } }
+  [data-design="beta"] .gear-spin { animation: gearTurn 1.6s steps(8) infinite; }
+
+  /* ── Button-Press: physisches Einfedern (ergänzt .abtn aus index.css) ── */
+  [data-design="beta"] .abtn:active:not(:disabled) { transform: translateY(1px); }
+}
+
+/* Split-Flap-Grundstruktur (auch ohne Motion sichtbar/korrekt) */
+[data-design="beta"] .flap { display: inline-flex; gap: 3px; perspective: 400px; }
+[data-design="beta"] .flap .d {
+  position: relative; min-width: 30px; height: 40px;
+  background: var(--c-sf3); border: 1px solid var(--c-bd2); border-radius: 5px;
+  font: 700 20px var(--font-mono); color: var(--c-br);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+[data-design="beta"] .flap .d::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px;
+  background: rgba(0, 0, 0, .45);
+}

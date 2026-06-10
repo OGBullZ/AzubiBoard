@@ -411,7 +411,7 @@ function RequirementsPopup({ project, onUpdate, onClose }: { project: any; onUpd
         </div>
       )}
       {project.requirements.map((r: Requirement) => (
-        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--c-sf3)', border: `1px solid ${r.done ? C.gr + '30' : 'var(--c-bd)'}`, borderRadius: 7, marginBottom: 5 }}>
+        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--c-sf3)', border: `1px solid ${r.done ? `color-mix(in srgb, ${C.gr} 19%, transparent)` : 'var(--c-bd)'}`, borderRadius: 7, marginBottom: 5 }}>
           <button onClick={() => toggle(r.id)} style={{ width: 17, height: 17, borderRadius: 4, border: `2px solid ${r.done ? C.gr : 'var(--c-bd2)'}`, background: r.done ? C.gr : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .12s' }}>
             {r.done && <IcoCheck size={9} style={{ color: '#fff' }} />}
           </button>
@@ -485,7 +485,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
 
       {/* Phase 2: Mentor = nur lesend (Schreibpfade sind am onUpdate-choke-point gesperrt) */}
       {currentUser?.role === 'mentor' && (
-        <div style={{ background: 'var(--c-ywd)', color: C.yw, borderBottom: `1px solid ${C.yw}35`, padding: '6px 18px', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ background: 'var(--c-ywd)', color: C.yw, borderBottom: `1px solid color-mix(in srgb, ${C.yw} 21%, transparent)`, padding: '6px 18px', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
           🔒 Mentor-Ansicht — nur lesend
         </div>
       )}
@@ -502,7 +502,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
             <StatusBadge status={project.status} />
-            {isOverdue && <span className="tag" style={{ background: 'var(--c-crd)', color: C.cr, border: `1px solid ${C.cr}35` }}>⚠ Überfällig</span>}
+            {isOverdue && <span className="tag" style={{ background: 'var(--c-crd)', color: C.cr, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)` }}>⚠ Überfällig</span>}
             {activeCount > 0 && <span style={{ fontSize: 9, color: C.ac, background: C.acd, borderRadius: 4, padding: '2px 7px', fontFamily: C.mono, fontWeight: 800 }}>▶ {activeCount} aktiv</span>}
             {!editMode ? (
               <>

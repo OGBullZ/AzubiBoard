@@ -56,7 +56,7 @@ function HoursChart({ weeks }: { weeks: WeekDatum[] }) {
         return (
           <g key={i}>
             <rect x={i * W + 2} y={H - bh - 12} width={W - 6} height={bh} rx={3}
-              fill={w.h > 0 ? `${C.ac}99` : `${C.bd2}`} />
+              fill={w.h > 0 ? `color-mix(in srgb, ${C.ac} 60%, transparent)` : `${C.bd2}`} />
             <text x={i * W + W / 2} y={H - 1} textAnchor="middle" fontSize={8} fill={C.mu}>{w.label}</text>
             {w.h > 0 && (
               <text x={i * W + W / 2} y={H - bh - 14} textAnchor="middle" fontSize={8} fill={C.ac} fontWeight={700}>{w.h.toFixed(0)}</text>
