@@ -5,6 +5,8 @@ import { hashPassword, isHashed } from '../../lib/crypto.js';
 import { dataService } from '../../lib/dataService.js';
 import { setToken } from '../../lib/auth.js';
 import type { User } from '../../types';
+import { useDesign } from '../../lib/hooks.js';
+import { Stamp } from '../../components/Stamp.jsx';
 
 const USE_API = import.meta.env.VITE_USE_API === 'true';
 
@@ -18,6 +20,7 @@ type TwoFactorState = { partial_token: string };
 
 export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) {
   const { t } = useTranslation();
+  const design = useDesign();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -125,12 +128,24 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
 
       <div style={{ width: '100%', maxWidth: 380, animation: 'fadeUp .3s ease', position: 'relative' }}>
         <header style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: 15, background: `linear-gradient(135deg, ${C.ac}, #2563eb)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 12, boxShadow: `0 8px 32px color-mix(in srgb, ${C.ac} 19%, transparent)` }}>A</div>
+          {design === 'beta' ? (
+            /* Logo konstruiert sich wie eine technische Zeichnung (Signature 2) */
+            <svg className="draw-in" width="68" height="68" viewBox="0 0 64 64" fill="none" aria-hidden="true" style={{ marginBottom: 10 }}>
+              <circle cx="32" cy="30" r="26" stroke="var(--c-ac)" strokeWidth="2" />
+              <path d="M19 44 L32 14 L45 44" stroke={C.br} strokeWidth="2.5" className="draw-2" />
+              <line x1="24.5" y1="34" x2="39.5" y2="34" stroke={C.br} strokeWidth="2.5" className="draw-2" />
+              <line x1="8" y1="56" x2="56" y2="56" stroke={C.mu} strokeWidth="1" strokeDasharray="4 4" className="draw-3" opacity=".55" />
+            </svg>
+          ) : (
+            <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: 15, background: `linear-gradient(135deg, ${C.ac}, #2563eb)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 12, boxShadow: `0 8px 32px color-mix(in srgb, ${C.ac} 19%, transparent)` }}>A</div>
+          )}
           <h1 style={{ fontSize: 32, fontWeight: 800, color: C.br, letterSpacing: -.5, margin: 0 }}>AzubiBoard</h1>
           <p style={{ fontSize: 14, color: C.mu, marginTop: 4 }}>{t('auth.subtitle')}</p>
         </header>
 
-        <div style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 14, padding: 26, boxShadow: '0 8px 40px rgba(0,0,0,.4)' }}>
+        <div key={design === 'beta' ? `err-${err || 'none'}` : 'card'}
+          className={design === 'beta' && err ? 'shake-reject' : undefined}
+          style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 14, padding: 26, boxShadow: '0 8px 40px rgba(0,0,0,.4)' }}>
           {twofa ? (
             /* K1: 2FA-Stufe — Code-Input */
             <form onSubmit={handle2FA} noValidate>
@@ -216,7 +231,8 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
 
             {err && (
               <div role="alert" style={{ fontSize: 13, color: C.cr, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span aria-hidden="true">⚠</span> {err}
+                <span aria-hidden="true">⚠</span> <span style={{ flex: 1 }}>{err}</span>
+                {design === 'beta' && mode === 'login' && <Stamp label="Abgelehnt" color="red" stamped seed={err} />}
               </div>
             )}
 
@@ -232,15 +248,20 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
             <div style={{ fontWeight: 700, marginBottom: 9, color: C.tx, fontSize: 12 }}>{t('auth.demoQuickAccess')}</div>
             <div style={{ display: 'flex', gap: 7 }}>
               {[
-                { label: t('auth.trainer'), email: 'ausbilder@firma.de' },
-                { label: t('auth.apprentice'), email: 'anna@azubi.de' },
-              ].map(({ label, email: demoEmail }) => (
+                { label: t('auth.trainer'), email: 'ausbilder@firma.de', stripe: C.gr, nr: '0001' },
+                { label: t('auth.apprentice'), email: 'anna@azubi.de', stripe: C.ac, nr: '0042' },
+              ].map(({ label, email: demoEmail, stripe, nr }) => (
                 <button key={label} type="button"
                   onClick={() => { setMode('login'); setEmail(demoEmail); setPw('1234'); setErr(''); }}
-                  style={{ flex: 1, padding: '7px 6px', borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf, color: C.tx, fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'border-color .15s' }}
+                  style={design === 'beta'
+                    /* Werksausweis: Rollen-Farbstreifen + Lochung + Mono-Nr (Ebene 8) */
+                    ? { flex: 1, position: 'relative', padding: '10px 8px 8px 14px', borderRadius: 'var(--r-2)', border: `1px solid ${C.bd2}`, background: C.sf, color: C.tx, fontSize: 11, fontWeight: 600, cursor: 'pointer', textAlign: 'left', overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }
+                    : { flex: 1, padding: '7px 6px', borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf, color: C.tx, fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'border-color .15s' }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = C.ac}
                   onMouseLeave={e => e.currentTarget.style.borderColor = C.bd2}>
+                  {design === 'beta' && <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 6, bottom: 6, width: 4, borderRadius: '0 3px 3px 0', background: stripe }} />}
                   {label}
+                  {design === 'beta' && <div style={{ fontFamily: C.mono, fontSize: 9, color: C.mu, letterSpacing: '.12em', marginTop: 2 }}>#{nr}</div>}
                 </button>
               ))}
             </div>
