@@ -188,6 +188,73 @@ body {
   [data-design="beta"] body::after { display: none; }
 }
 
+/* ── Beta-Primitives (D2): „gefertigt, nicht gerendert" ── */
+
+/* Karte = gestanztes Blech: Innenkante + tiefer Schatten, kantiger Radius */
+[data-design="beta"] .card {
+  border-radius: var(--r-2);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Primär-Button = Werkzeug: satte Unterkante, drückt physisch ein (Active in motion.css) */
+[data-design="beta"] .abtn {
+  border-radius: var(--r-1);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--c-ac-press) 80%, black);
+  font-weight: 600;
+}
+[data-design="beta"] .abtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--c-ac) 88%, white);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--c-ac-press) 80%, black);
+}
+[data-design="beta"] .abtn:active:not(:disabled) {
+  background: var(--c-ac-press);
+  box-shadow: none;
+}
+
+/* Sekundär-Button = beschriftetes Werkstatt-Etikett (Mono-Caps) */
+[data-design="beta"] .btn {
+  border-radius: var(--r-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* Inputs: ruhige Fläche, betonte Unterkante (Fokus-Verhalten in motion.css) */
+[data-design="beta"] input,
+[data-design="beta"] textarea,
+[data-design="beta"] select {
+  border-radius: var(--r-1);
+  border-bottom-width: 2px;
+}
+
+/* Tags kantiger (Werkstück statt Pille) */
+[data-design="beta"] .tag { border-radius: var(--r-1); }
+[data-design="beta"] .progress-track,
+[data-design="beta"] .progress-fill { border-radius: 3px; }
+
+/* SectionHeader: Maßlinien-Dekor (—•) + Schriftfeld-Typo */
+[data-design="beta"] .section-header::before {
+  content: '';
+  width: 18px; height: 1px;
+  background: var(--c-mu);
+  flex-shrink: 0;
+}
+[data-design="beta"] .section-header::after {
+  content: '';
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--c-ac);
+  flex-shrink: 0;
+  order: -1;            /* Punkt vor der Linie: •— Label */
+  margin-right: -4px;
+}
+[data-design="beta"] .section-header-title {
+  font-family: var(--font-mono);
+  letter-spacing: .14em;
+}
+
 /* ── Light-Mode ── */
 [data-theme="light"] {
   --c-bg:   #f5f5f7;
