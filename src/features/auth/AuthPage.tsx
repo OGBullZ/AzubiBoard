@@ -48,7 +48,8 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
           return;
         }
         setToken(res.token);
-        onLogin(res.user);
+        // ID als String normalisieren — Blob-User-IDs sind Strings (Bug-Hunt APP-F1)
+        onLogin({ ...res.user, id: String(res.user.id) });
       } else {
         // ── Lokaler Modus: SHA-256 (Entwicklung) ────────────
         const u = users.find(x => x.email.toLowerCase() === email.toLowerCase());
@@ -75,7 +76,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
     try {
       const { token, user } = await dataService.twoFactorCheck(twofa!.partial_token, code);
       setToken(token);
-      onLogin(user);
+      onLogin({ ...user, id: String(user.id) });
     } catch (err) {
       setErr((err as Error).message || t('auth.codeWrong'));
       setTfCode('');

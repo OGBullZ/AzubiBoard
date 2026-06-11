@@ -3,6 +3,7 @@ import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, us
 import type { User, Task, TimeLogEntry, Label, Material, Requirement, Project, Id } from '../../types';
 import { C, uid, today, fmtDate } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
+import { useDesign } from '../../lib/hooks.js';
 import { LinksManager } from './LinksManager.jsx';
 import {
   IcoCheck, IcoAlert, IcoPlay, IcoPause, IcoBlock,
@@ -481,9 +482,10 @@ function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }
 
 function DroppableColumn({ status, children }: { status: string; children: any }) {
   const { isOver, setNodeRef } = useDroppable({ id: status });
+  const design = useDesign();
   const st = TASK_STATUS[status];
   return (
-    <div ref={setNodeRef}
+    <div ref={setNodeRef} className={design === 'beta' && isOver ? 'kanban-col-over' : undefined}
       style={{ background: isOver ? `color-mix(in srgb, ${st.color} 7%, transparent)` : C.sf3, border: `1px solid ${isOver ? `color-mix(in srgb, ${st.color} 33%, transparent)` : `color-mix(in srgb, ${st.color} 9%, transparent)`}`, borderTop: 'none', borderRadius: '0 0 8px 8px', padding: 6, display: 'flex', flexDirection: 'column', gap: 5, minHeight: 160, transition: 'background .12s, border-color .12s' }}>
       {children}
     </div>
@@ -498,6 +500,7 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: {
   onRemove: (id: Id) => void;
 }) {
   const [activeId, setActiveId] = useState<Id | null>(null);
+  const design = useDesign();
   // PointerSensor: Maus/Stift (8 px Toleranz für Klick-vs-Drag).
   // TouchSensor: 200 ms Press + 5 px Toleranz für mobile Geräte (verhindert Scroll-Konflikt).
   // KeyboardSensor: Tab + Space + Pfeiltasten für a11y.
@@ -530,8 +533,11 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: {
           return (
             <div key={status} style={{ minWidth: 200, flex: '0 0 200px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: st.bg, border: `1px solid color-mix(in srgb, ${st.color} 16%, transparent)`, borderRadius: '8px 8px 0 0' }}>
-                <st.Icon size={11} style={{ color: st.color }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: st.color, flex: 1 }}>{st.label}</span>
+                {/* Beta: angeschraubtes Plantafel-Schild (Schrauben-Punkt statt Icon, Mono-Caps) */}
+                {design === 'beta'
+                  ? <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: st.color, boxShadow: 'inset 0 -1px 1px rgba(0,0,0,.5)' }} />
+                  : <st.Icon size={11} style={{ color: st.color }} />}
+                <span style={{ fontSize: 11, fontWeight: 700, color: st.color, flex: 1, ...(design === 'beta' ? { fontFamily: C.mono, fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase' as const } : {}) }}>{st.label}</span>
                 <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `color-mix(in srgb, ${st.color} 9%, transparent)`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
               </div>
               <DroppableColumn status={status}>
@@ -548,7 +554,8 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: {
       </div>
       <DragOverlay>
         {activeTask && (
-          <div style={{ cursor: 'grabbing', opacity: .95, boxShadow: '0 8px 24px rgba(0,0,0,.4)', borderRadius: 8 }}>
+          /* Beta: Karte kippt beim Tragen (Plantafel-Physik, Anhang C) */
+          <div style={{ cursor: 'grabbing', opacity: .95, boxShadow: '0 8px 24px rgba(0,0,0,.4)', borderRadius: 8, transform: design === 'beta' ? 'rotate(2.5deg)' : undefined }}>
             <KanbanCard task={activeTask} users={users} statusIdx={activeIdx} totalCols={STATUS_ORDER.length} onUpdate={() => {}} onRemove={() => {}} />
           </div>
         )}

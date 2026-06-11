@@ -239,6 +239,34 @@ body {
 [data-design="beta"] .progress-track,
 [data-design="beta"] .progress-fill { border-radius: 3px; }
 
+/* Welcome-News = Auftragszettel (D4): Perforations-Abrisskante oben */
+[data-design="beta"] .news-zettel {
+  -webkit-mask-image: radial-gradient(circle 5px at 12px -2px, transparent 98%, #000) ;
+  mask-image: radial-gradient(circle 5px at 12px -2px, transparent 98%, #000);
+  -webkit-mask-size: 24px 100%;
+  mask-size: 24px 100%;
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+}
+
+/* Netzplan = Blaupause: das Raster lebt LOKAL auf der Zeichenfläche weiter (D4) */
+[data-design="beta"] .np-surface {
+  background-image:
+    linear-gradient(var(--c-grid-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid-strong) 1px, transparent 1px),
+    linear-gradient(var(--c-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+
+/* Kanban-Plantafel (D4): Schablonen-Outline beim Drag-Over */
+[data-design="beta"] .kanban-col-over {
+  outline: 1.5px dashed var(--c-ac);
+  outline-offset: -4px;
+}
+
 /* SectionHeader: Maßlinien-Dekor (—•) + Schriftfeld-Typo */
 [data-design="beta"] .section-header::before {
   content: '';
@@ -469,3 +497,58 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 /* ── Tabellen ── */
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; }
+
+/* Ctrl+K = Kommandopult (D5): Mono-Eingabe, Prompt-Zeichen, Keycaps */
+[data-design="beta"] .cmd-row::before {
+  content: '>';
+  font: 700 15px var(--font-mono);
+  color: var(--c-ac);
+  flex-shrink: 0;
+}
+[data-design="beta"] .cmd-pult input {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  caret-color: var(--c-ac);
+}
+[data-design="beta"] .cmd-pult kbd {
+  font-family: var(--font-mono);
+  border-bottom-width: 3px;
+}
+
+/* Werksausweis (D5, Ebene 8): Lochung + Rollen-Farbstreifen auf User-Karten */
+[data-design="beta"] .ausweis-card {
+  position: relative;
+  padding-left: 22px;
+  overflow: hidden;
+}
+[data-design="beta"] .ausweis-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 10px; bottom: 10px;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background: var(--c-ac);
+}
+[data-design="beta"] .ausweis-card::after {
+  content: '';
+  position: absolute;
+  top: 8px; left: 50%;
+  transform: translateX(-50%);
+  width: 34px; height: 6px;
+  border-radius: 4px;
+  background: var(--c-bg);
+  border: 1px solid var(--c-bd2);
+}
+
+/* Papierkorb = Schredder (D5): Streifen setzen sich beim Hover zusammen */
+[data-design="beta"] .shred-row {
+  position: relative;
+}
+[data-design="beta"] .shred-row::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(90deg, transparent, transparent 14px, color-mix(in srgb, var(--c-bg) 55%, transparent) 14px, color-mix(in srgb, var(--c-bg) 55%, transparent) 16px);
+  transition: opacity .2s;
+}
+[data-design="beta"] .shred-row:hover::after { opacity: 0; }

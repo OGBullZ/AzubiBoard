@@ -160,13 +160,13 @@ export function UsersView({ users, onUpdateUsers, showToast }: UsersViewProps) {
       </div>
 
       {azubis.length === 0 ? (
-        <EmptyState icon="👤" title="Noch keine Azubis" subtitle="Lege Azubi-Profile an" action="+ Neuer Azubi" onAction={openNew} />
+        <EmptyState icon="👤" doodle="kiste" title="Noch keine Azubis" subtitle="Lege Azubi-Profile an" action="+ Neuer Azubi" onAction={openNew} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: 12 }}>
           {azubis.map(u => {
             const inactive = isInactive(u);
             return (
-              <article key={u.id} className="card" style={{ opacity: inactive ? .55 : 1 }}>
+              <article key={u.id} className="card ausweis-card" style={{ opacity: inactive ? .55 : 1 }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   <Avatar name={u.name} size={42} />
                   <div style={{ flex: 1, minWidth: 0 }}>

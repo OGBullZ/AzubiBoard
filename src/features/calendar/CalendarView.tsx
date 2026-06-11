@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { C, uid, getKW } from '../../lib/utils.js';
+import { useDesign } from '../../lib/hooks.js';
+import { FlapDigits } from '../../components/FlapDigits.jsx';
 import { Avatar, Modal, Field } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import type { Project, User, CalendarEvent, Task } from '../../types';
@@ -43,6 +45,7 @@ type CalendarViewProps = {
 };
 
 export function CalendarView({ projects, calendarEvents, users, onUpdate, showToast, canEdit = true }: CalendarViewProps) {
+  const design = useDesign();
   const [date,      setDate]     = useState<Date>(new Date());
   const [viewMode,  setViewMode] = useState<string>('month');
   const [newEvDay,  setNewEvDay] = useState<number | { date: string; label: string } | null>(null);
@@ -236,7 +239,13 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>
           {isWeekMode
-            ? <span>{weekLabel}</span>
+            ? (design === 'beta'
+              ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 12, fontFamily: C.mono, color: C.mu, fontWeight: 700, letterSpacing: '.14em' }}>KW</span>
+                  <FlapDigits value={String(mondayKW).padStart(2, '0')} label="Kalenderwoche" />
+                  <span style={{ fontSize: 13, color: C.mu, fontWeight: 400 }}>{fmtShort(monday)} – {fmtShort(addDays(monday, 4))}.{addDays(monday, 4).getFullYear()}</span>
+                </span>
+              : <span>{weekLabel}</span>)
             : <time dateTime={`${y}-${m+1}`}>{MONTHS[m]} {y}</time>
           }
           <span style={{ fontSize: 12, color: C.mu, fontWeight: 400, marginLeft: 10 }}>Mo – Fr</span>

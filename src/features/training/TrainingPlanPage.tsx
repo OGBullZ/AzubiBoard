@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type { User, Goal, GoalProgress, AppState, Id } from '../../types';
 import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
+import { celebrate } from '../../lib/celebrate.js';
+import { useDesign } from '../../lib/hooks.js';
+import { FlapDigits } from '../../components/FlapDigits.jsx';
 import { isMentor } from '../../lib/roles.js';
 import { softDelete } from '../../lib/trash.js';
 import ImportGoalsModal from './ImportGoalsModal.jsx';
@@ -30,6 +33,7 @@ function mkGoal(overrides: Partial<Goal> = {}): Goal {
 
 // ── Prüfungs-Countdown Widget (E3) ───────────────────────────
 function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: string | null | undefined; isAusbilder: boolean; onChange: (v: string | null) => void }) {
+  const design = useDesign();
   const [editing, setEditing] = useState(false);
   const [val,     setVal]     = useState<string>(examDate || '');
 
@@ -56,10 +60,12 @@ function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: string |
       </div>
       {days !== null && (
         <div style={{ textAlign: 'center', minWidth: 80 }}>
-          <div style={{ fontSize: 32, fontWeight: 900, color: over ? C.cr : urgent ? C.yw : C.gr, fontFamily: C.mono, lineHeight: 1 }}>
-            {over ? 'Past' : days}
-          </div>
-          {!over && <div style={{ fontSize: 10, color: C.mu }}>Tage</div>}
+          {design === 'beta' && !over
+            ? <FlapDigits value={String(Math.max(0, days)).padStart(3, '0')} label="Tage bis zur Prüfung" />
+            : <div style={{ fontSize: 32, fontWeight: 900, color: over ? C.cr : urgent ? C.yw : C.gr, fontFamily: C.mono, lineHeight: 1 }}>
+                {over ? 'Past' : days}
+              </div>}
+          {!over && <div style={{ fontSize: 10, color: C.mu, marginTop: design === 'beta' ? 4 : 0 }}>Tage</div>}
         </div>
       )}
       {isAusbilder && !editing && (
@@ -245,7 +251,7 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
                     <span style={{ fontSize: 12, color: C.br, flex: 1 }}>{a.name}</span>
                     <span style={{ fontSize: 11, color: cfg.c, fontWeight: 600 }}>{cfg.l}</span>
                     {st === 'learned' && (
-                      <button onClick={() => confirmUser(a.id)} className="abtn"
+                      <button onClick={e => { celebrate(e.clientX, e.clientY); confirmUser(a.id); }} className="abtn"
                         style={{ fontSize: 10, padding: '2px 8px', background: C.gr, borderColor: C.gr }}>✓ Bestätigen</button>
                     )}
                     {st === 'confirmed' && (

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
 import { useDebounce, useDesign } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
+import { playStamp } from '../../lib/sound.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
 import { softDelete } from '../../lib/trash.js';
 import ShareLinkModal from '../../components/ShareLinkModal.jsx';
@@ -266,6 +267,8 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     // (z.B. Mo 29.12.2025 = ISO KW1/2026, getFullYear() liefert aber 2025).
     const year = getISOWeek(form.week_start).year ?? ws.getFullYear();
     const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year, updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
+    // Signed ist terminal (Bug-Hunt KAL-F3): normales Speichern darf die Unterschrift nie zurückdrehen
+    if (report?.status === 'signed') newReport.status = 'signed';
     onSave(newReport as Report);
     showToast('✓ Berichtsheft gespeichert');
   };
@@ -757,6 +760,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
   // Beta: frisch gestempelte Karte bekommt den Aufschlag (Anhang C — Zeremonie nur bei echter Aktion)
   const markStamped = (id: Id) => {
+    playStamp(); // Werkstatt-Sound (opt-in, gated in sound.ts)
     setJustStamped(id);
     setTimeout(() => setJustStamped(null), 1500);
   };
@@ -867,7 +871,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
-          <EmptyState Icon={IcoReport}
+          <EmptyState Icon={IcoReport} doodle="laufkarte"
             title={q ? t('report.noResults', { q }) : t('report.noReports')}
             subtitle={q ? 'Versuche einen anderen Suchbegriff.' : (currentUser.role === 'azubi' ? t('report.noReportsSub') : t('report.noReportsStaff'))}
             action={!q && currentUser.role === 'azubi' ? '+ ' + t('report.newReport') : undefined}

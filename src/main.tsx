@@ -23,6 +23,19 @@ try {
   document.documentElement.setAttribute('data-accent', localStorage.getItem('azubiboard_accent') || 'orange');
 } catch { /* noop */ }
 
+// theme-color (Browser-/PWA-Titelleiste) folgt Theme + Design — via Attribut-Observer,
+// damit ALLE Umschaltpfade (Toggle, OS-Sync, DesignSwitch) abgedeckt sind.
+try {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  const syncThemeColor = () => {
+    const beta = document.documentElement.getAttribute('data-design') === 'beta';
+    const light = document.documentElement.getAttribute('data-theme') === 'light';
+    meta?.setAttribute('content', beta ? (light ? '#F6F3EC' : '#111715') : (light ? '#ffffff' : '#161b22'));
+  };
+  new MutationObserver(syncThemeColor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-design'] });
+  syncThemeColor();
+} catch { /* noop */ }
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

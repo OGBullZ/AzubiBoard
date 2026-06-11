@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, lazy } from "react";
 import { useTranslation } from 'react-i18next';
 import type { User, Project, Report, Task, TimeLogEntry, CalendarEvent, Id } from '../../types';
 import { C, fmtDate, fmtLocalDate } from '../../lib/utils.js';
@@ -25,7 +25,10 @@ import { LearnWidget }         from './widgets/LearnWidget.jsx';
 import { ActivityFeed }        from './widgets/ActivityFeed.jsx';
 import { ZeiterfassungWidget } from './widgets/ZeiterfassungWidget.jsx';
 import { MonthReportModal }    from './widgets/MonthReportModal.jsx';
-import { DashboardBeta }       from './DashboardBeta.jsx';
+// Beta-Dashboards lazy: nur Beta-Nutzer laden den Chunk (Bundle-Budget 170 KB gz, Ebene 9).
+// Suspense-Boundary liefert die Route-Suspense in App.tsx.
+const DashboardBeta        = lazy(() => import('./DashboardBeta.jsx').then(m => ({ default: m.DashboardBeta })));
+const AusbilderCockpitBeta = lazy(() => import('./DashboardBeta.jsx').then(m => ({ default: m.AusbilderCockpitBeta })));
 import { useDesign }           from '../../lib/hooks.js';
 
 // Blob-Daten weichen vom Zod-Schema ab (task.assignee, task.timeLog, task.note,
@@ -419,9 +422,13 @@ export function Dashboard(props: DashboardProps) {
   const role = props.user?.role;
   const design = useDesign();
   if (role === 'ausbilder' || role === 'mentor') {
+    // D4 (Anhang D.4): Beta-Cockpit mit Eingangskorb-Hero + Azubi-Reihen
+    if (design === 'beta') {
+      return <AusbilderCockpitBeta {...props} activityLog={props.activityLog || []} />;
+    }
     return <AusbilderDashboard {...props} activityLog={props.activityLog || []} />;
   }
-  // D3 (Anhang D): Azubi im Beta-Design → „Instrumententafel" (Z1/Z3); Ausbilder-Cockpit folgt in D4.
+  // D3 (Anhang D): Azubi im Beta-Design → „Instrumententafel" (Z1/Z3)
   if (design === 'beta') {
     return <DashboardBeta {...props} activityLog={props.activityLog || []} />;
   }

@@ -74,7 +74,7 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
       </div>
 
       {groups.length === 0 ? (
-        <EmptyState icon="👥" title="Noch keine Gruppen" subtitle={canManage ? 'Erstelle Teams oder Abteilungen' : 'Dein Ausbilder legt Gruppen an'} action={canManage ? '+ Gruppe erstellen' : undefined} onAction={canManage ? () => setShowNew(true) : undefined} />
+        <EmptyState icon="👥" doodle="kiste" title="Noch keine Gruppen" subtitle={canManage ? 'Erstelle Teams oder Abteilungen' : 'Dein Ausbilder legt Gruppen an'} action={canManage ? '+ Gruppe erstellen' : undefined} onAction={canManage ? () => setShowNew(true) : undefined} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: 14 }}>
           {groups.map(g => {

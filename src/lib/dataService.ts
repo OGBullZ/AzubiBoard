@@ -80,6 +80,7 @@ const saveQueue = (() => {
   let lastError: Error | null = null;
   let lastSyncTs: number | null = null;
   let knownVersion = 0;       // J2: zuletzt bekannte Server-Version (ETag)
+  let conflictHold = false;   // 409 offen → Queue pausiert bis User-Entscheidung (SYNC-F3)
   let entityVersions: Record<string, number> = {};    // L5-5b: per-Entität-Versionen (forward-compat, default leer)
 
   const MAX_BACKOFF = 30_000;
@@ -98,7 +99,7 @@ const saveQueue = (() => {
   }
 
   async function flush() {
-    if (inflight || !pending) return;
+    if (inflight || !pending || conflictHold) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       schedule(); return;
     }
@@ -123,15 +124,20 @@ const saveQueue = (() => {
       }
       if (res.status === 409) {
         // J2: Konflikt — Server hat neuere Version. Body enthält Server-State.
+        // WICHTIG (Bug-Hunt SYNC-F3): knownVersion NICHT vorab bumpen (sonst würde der
+        // nächste Save die fremden Änderungen still überschreiben, bevor der User im
+        // Dialog entschieden hat) und Edits aus dem Konflikt-Fenster NICHT verwerfen.
+        // Queue pausiert bis zur Entscheidung (conflictHold); acceptServer →
+        // setVersion()/clearPending(), forceMine → forceSave() lösen die Pause.
         const body = await res.json().catch(() => ({}));
-        knownVersion = body.server_version || knownVersion;
-        pending = null;
+        conflictHold = true;
+        pending = pending ?? snapshot;   // neueste lokale Fassung behalten
         lastError = new Error('Conflict');
         emit('conflict', {
           serverData:     body.server_data,
           serverVersion:  body.server_version,
           clientVersion:  body.client_version,
-          clientSnapshot: snapshot,
+          clientSnapshot: pending,
         });
         return;
       }
@@ -164,8 +170,14 @@ const saveQueue = (() => {
     }
   }
 
-  // Externer Setter: nach GET /api/data kennen wir die Version
-  function setVersion(v: number) { if (typeof v === 'number' && v > 0) knownVersion = v; }
+  // Externer Setter: nach GET /api/data kennen wir die Version.
+  // Löst außerdem eine Konflikt-Pause (User hat Server-Version übernommen).
+  function setVersion(v: number) {
+    if (typeof v === 'number' && v > 0) knownVersion = v;
+    conflictHold = false;
+  }
+  // Konflikt „Server übernehmen": lokale Edits aus dem Konflikt-Fenster bewusst verwerfen
+  function clearPending() { pending = null; conflictHold = false; }
   function getVersion()  { return knownVersion; }
 
   // L5-5b: per-Entität-Versionen (forward-compat).
@@ -192,6 +204,8 @@ const saveQueue = (() => {
     enqueue,
     retry: () => { backoff = 1000; flush(); },   // Phase 4: manueller Retry (Backoff zurücksetzen, sofort flushen)
     setVersion,
+    clearPending,
+    latestPending: () => pending,
     getVersion,
     getEntityVersions,
     getEntityVersion,
@@ -339,8 +353,12 @@ export const dataService = {
     saveQueue.retry();
   },
 
-  // J2: Force-Save (überschreibt If-Match-Check serverseitig)
+  // J2: Force-Save (überschreibt If-Match-Check serverseitig).
+  // Nimmt die NEUESTE lokale Fassung (Edits aus dem Konflikt-Fenster), nicht das alte Snapshot.
   async forceSave(newData: Record<string, unknown>) {
+    const latest = (saveQueue.latestPending() as Record<string, unknown> | null) ?? newData;
+    saveQueue.clearPending();   // Konflikt-Pause lösen, Queue leeren (wir senden selbst)
+    newData = latest;
     if (!USE_API) { persistData(newData); return newData; }
     persistData(newData);
     if (!isTokenValid()) return newData;
@@ -359,6 +377,8 @@ export const dataService = {
   },
 
   setKnownVersion(v: number) { saveQueue.setVersion(v); },
+  // Konflikt „Server übernehmen": queued lokale Edits bewusst verwerfen + Pause lösen
+  discardPending() { saveQueue.clearPending(); },
   getKnownVersion()  { return saveQueue.getVersion(); },
 
   // AI1: Tätigkeitsbericht aus Aufgaben generieren — POST /api/ai/fill-report

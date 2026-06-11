@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { C, getISOWeek, today } from '../../lib/utils.js';
 import { isMentor } from '../../lib/roles.js';
-import { useDialog } from '../../lib/hooks.js';
+import { useDialog, useDesign } from '../../lib/hooks.js';
+import { Stamp } from '../../components/Stamp.jsx';
 import NewsCard from './NewsCard';
 import { buildNewsCards, firstNameOf } from './welcomeNewsData';
 import type { User, AppState, Id, Goal } from '../../types';
@@ -21,6 +22,7 @@ function greetingByHour(): string {
 
 export default function WelcomeNews({ data, currentUser, onClose, navigate }: WelcomeNewsProps) {
   const ref = useDialog<HTMLDivElement>(onClose);
+  const design = useDesign();
 
   const isStaff = currentUser.role === 'ausbilder' || currentUser.role === 'mentor';
   const mentor = isMentor(currentUser);
@@ -67,14 +69,16 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 20, animation: 'fadeIn .25s ease',
     }}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-label="Willkommen" tabIndex={-1} style={{
-        background: C.sf, border: `1px solid ${C.bd}`,
-        borderRadius: 16, width: '100%', maxWidth: 540,
-        maxHeight: '90vh', overflow: 'hidden',
-        display: 'flex', flexDirection: 'column',
-        boxShadow: '0 24px 80px rgba(0,0,0,.5)',
-        animation: 'fadeUp .25s ease',
-      }}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label="Willkommen" tabIndex={-1}
+        className={design === 'beta' ? 'news-zettel' : undefined}
+        style={{
+          background: C.sf, border: `1px solid ${C.bd}`,
+          borderRadius: design === 'beta' ? 'var(--r-2)' : 16, width: '100%', maxWidth: 540,
+          maxHeight: '90vh', overflow: 'hidden',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 24px 80px rgba(0,0,0,.5)',
+          animation: 'fadeUp .25s ease',
+        }}>
         {/* Header / Begrüßung */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 22px 14px', borderBottom: `1px solid ${C.bd}`, flexShrink: 0 }}>
           <div>
@@ -82,7 +86,9 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
               <span aria-hidden="true">👋</span> {greetingByHour()}, {firstName}!
             </div>
             <div style={{ fontSize: 12, color: C.mu, marginTop: 4 }}>
-              {dateStr}{week != null && <> · <span style={{ fontFamily: C.mono }}>KW {week}</span></>}
+              {design === 'beta'
+                ? <Stamp label={`${now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}${week != null ? ` · KW ${week}` : ''}`} color="blue" seed={dateStr} stamped />
+                : <>{dateStr}{week != null && <> · <span style={{ fontFamily: C.mono }}>KW {week}</span></>}</>}
             </div>
           </div>
           <button onClick={onClose} aria-label="Schließen"
@@ -98,10 +104,12 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
               <div style={{ fontSize: 10, fontWeight: 800, color: C.mu, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
                 {isStaff ? 'Zu tun' : 'Deine Lage'}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {cards.map(c => (
-                  <NewsCard key={c.key} accent={c.accent} accentBg={c.accentBg} icon={c.icon} label={c.label}
-                    title={c.title} sub={c.sub} onClick={c.to ? () => nav(c.to as string) : undefined} />
+              <div className={design === 'beta' ? 'draft-in' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {cards.map((c, i) => (
+                  <div key={c.key} style={{ ['--i' as string]: i }}>
+                    <NewsCard accent={c.accent} accentBg={c.accentBg} icon={c.icon} label={c.label}
+                      title={c.title} sub={c.sub} onClick={c.to ? () => nav(c.to as string) : undefined} />
+                  </div>
                 ))}
               </div>
             </>
