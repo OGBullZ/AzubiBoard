@@ -81,6 +81,24 @@
 
   /* ── Button-Press: physisches Einfedern (ergänzt .abtn aus index.css) ── */
   [data-design="beta"] .abtn:active:not(:disabled) { transform: translateY(1px); }
+
+  /* ── Toast: Einfahrt von unten mit Überschwingen + Akzentkante „druckt" sich (Anhang C) ── */
+  @keyframes toastInBeta {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(16px); }
+    70%  { opacity: 1; transform: translateX(-50%) translateY(-3px); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+  [data-design="beta"] .app-toast { animation: toastInBeta .32s var(--ease-out) both; overflow: hidden; }
+  @keyframes edgePrint { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  [data-design="beta"] .app-toast::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: var(--c-ac); transform-origin: left;
+    animation: edgePrint .42s .1s var(--ease-out) both;
+  }
+
+  /* ── Sync-Indicator: Erfolg = kurzer grüner Tick-Fade (Anhang C) ── */
+  @keyframes tickFade { 0% { opacity: 0; transform: scale(.5); } 60% { transform: scale(1.15); } 100% { opacity: 1; transform: scale(1); } }
+  [data-design="beta"] .tick-fade { animation: tickFade .18s var(--ease-out) both; }
 }
 
 /* Split-Flap-Grundstruktur (auch ohne Motion sichtbar/korrekt) */

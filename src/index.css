@@ -493,6 +493,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
 
 .anim { animation: fadeUp .18s ease; }
+.app-toast { animation: toastIn .2s ease; } /* v1; Beta-Override (Überschwingen) in motion.css */
 
 /* ── Tabellen ── */
 table { border-collapse: collapse; width: 100%; }
