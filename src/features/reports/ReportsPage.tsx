@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
 import { useDebounce, useDesign } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
+import { playStamp } from '../../lib/sound.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
 import { softDelete } from '../../lib/trash.js';
 import ShareLinkModal from '../../components/ShareLinkModal.jsx';
@@ -759,6 +760,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
 
   // Beta: frisch gestempelte Karte bekommt den Aufschlag (Anhang C — Zeremonie nur bei echter Aktion)
   const markStamped = (id: Id) => {
+    playStamp(); // Werkstatt-Sound (opt-in, gated in sound.ts)
     setJustStamped(id);
     setTimeout(() => setJustStamped(null), 1500);
   };

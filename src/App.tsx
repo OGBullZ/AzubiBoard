@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData, addActivity, uid } from './lib/utils';
+import { playStamp } from './lib/sound.js';
 import { useDebounce, useDialog } from './lib/hooks';
 import { clearToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
@@ -80,11 +81,24 @@ const ACCENTS = [
 function DesignSwitch() {
   const [design, setDesign] = useState(() => localStorage.getItem('azubiboard_design') || 'v1');
   const [accent, setAccent] = useState(() => localStorage.getItem('azubiboard_accent') || 'orange');
+  const [sound, setSound] = useState(() => localStorage.getItem('azubiboard_sound') === 'on');
   const apply = (key: string, val: string, set: (v: string) => void) => {
     set(val);
     try { localStorage.setItem(`azubiboard_${key}`, val); } catch { /* noop */ }
-    document.documentElement.setAttribute(`data-${key}`, val);
-    if (key === 'design') window.dispatchEvent(new Event('azubiboard:design')); // useDesign-Konsumenten re-rendern
+    const run = () => {
+      document.documentElement.setAttribute(`data-${key}`, val);
+      if (key === 'design') window.dispatchEvent(new Event('azubiboard:design')); // useDesign-Konsumenten re-rendern
+    };
+    // Design-Wechsel mit weichem Sweep (View Transitions, progressive enhancement)
+    if (key === 'design' && 'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      (document as any).startViewTransition(run);
+    } else run();
+  };
+  const toggleSound = () => {
+    const next = !sound;
+    setSound(next);
+    try { localStorage.setItem('azubiboard_sound', next ? 'on' : 'off'); } catch { /* noop */ }
+    if (next) playStamp();   // sofortiges Probehören
   };
   return (
     <div style={{ marginTop: 14 }}>
@@ -111,6 +125,13 @@ function DesignSwitch() {
             ))}
           </div>
         </div>
+      )}
+      {design === 'beta' && (
+        <button className="btn" onClick={toggleSound} aria-pressed={sound}
+          style={{ width: '100%', marginTop: 10, padding: '9px', justifyContent: 'center',
+            ...(sound ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)' } : {}) }}>
+          {sound ? '🔊 Werkstatt-Sounds an' : '🔇 Werkstatt-Sounds aus'}
+        </button>
       )}
       <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 6 }}>
         1.0 Beta = neues „Werkbank"-Design (in Arbeit). Jederzeit zurückschaltbar.
@@ -214,7 +235,12 @@ function useTheme() {
       const next = t === 'dark' ? 'light' : 'dark';
       localStorage.setItem('azubiboard_theme', next);
       localStorage.setItem('azubiboard_theme_manual', '1'); // OS-Sync deaktivieren
-      document.documentElement.setAttribute('data-theme', next);
+      // D6 Signature 6: Theme-Wechsel als weicher Sweep (View Transitions, progressive enhancement)
+      const apply = () => document.documentElement.setAttribute('data-theme', next);
+      const beta = document.documentElement.getAttribute('data-design') === 'beta';
+      const motionOk = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (beta && motionOk && 'startViewTransition' in document) (document as any).startViewTransition(apply);
+      else apply();
       if (USE_API) dataService.syncTheme(next);
       return next;
     });
