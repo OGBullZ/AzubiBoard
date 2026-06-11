@@ -123,6 +123,14 @@
   @keyframes cardTiltIn { from { opacity: 0; transform: rotate(-1deg) translateY(8px); } to { opacity: 1; transform: none; } }
   [data-design="beta"] .tilt-in, [data-design="beta"] .ausweis-card { animation: cardTiltIn .32s var(--ease-out) both; }
 
+  /* ── Kanban Drop-Slot: Schablonen-Strichlinie wandert im Uhrzeigersinn (Anhang C) ── */
+  @keyframes antsMarch { to { background-position: 12px 0, -12px 100%, 0 -12px, 100% 12px; } }
+  [data-design="beta"] .kanban-col-over::after { animation: antsMarch .6s linear infinite; }
+
+  /* ── Kanban Spalten-Zähler pulst bei Änderung (Anhang C; key-remount triggert) ── */
+  @keyframes countPulse { from { transform: scale(1.15); } to { transform: scale(1); } }
+  [data-design="beta"] .count-pulse { display: inline-block; animation: countPulse .18s var(--ease-out); }
+
   /* ── Avatar-Upload: wandernde Drop-Zone-Strichlinie beim Hover (Anhang C) ── */
   @keyframes antsSpin { to { transform: rotate(360deg); } }
   [data-design="beta"] .avatar-drop::after {
