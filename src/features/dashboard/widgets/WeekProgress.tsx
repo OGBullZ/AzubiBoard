@@ -63,7 +63,7 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
         </span>
       </div>
       <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 44 }}>
-        {days.map(d => {
+        {days.map((d, di) => {
           const maxH = 36;
           const barH = d.total === 0 ? 4 : Math.max(4, Math.round((d.done / Math.max(d.total, 1)) * maxH));
           const isFuture = d.d > now;
@@ -71,9 +71,10 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
             <div key={d.l} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
               <div style={{ width: '100%', height: maxH, display: 'flex', alignItems: 'flex-end', position: 'relative' }}>
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: maxH, background: 'var(--c-bd)', borderRadius: 3, opacity: .5 }} />
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: barH, background: d.isToday ? C.ac : d.done > 0 ? C.gr : isFuture ? 'var(--c-bd2)' : 'var(--c-mu)', borderRadius: 3, transition: 'height .5s ease' }} />
+                {/* Anhang C Dashboard: Balken wachsen 320ms gestaffelt (beta-gated via .wp-bar) */}
+                <div className="wp-bar" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: barH, background: d.isToday ? C.ac : d.done > 0 ? C.gr : isFuture ? 'var(--c-bd2)' : 'var(--c-mu)', borderRadius: 3, transition: 'height .5s ease', ['--i' as string]: di }} />
                 {d.open > 0 && !isFuture && (
-                  <div style={{ position: 'absolute', bottom: barH, left: 0, right: 0, height: Math.max(2, Math.round((d.open / Math.max(d.total, 1)) * maxH)), background: `color-mix(in srgb, ${C.cr} 50%, transparent)`, borderRadius: '3px 3px 0 0' }} />
+                  <div className="wp-bar" style={{ position: 'absolute', bottom: barH, left: 0, right: 0, height: Math.max(2, Math.round((d.open / Math.max(d.total, 1)) * maxH)), background: `color-mix(in srgb, ${C.cr} 50%, transparent)`, borderRadius: '3px 3px 0 0', ['--i' as string]: di }} />
                 )}
               </div>
               <span style={{ fontSize: 9, fontWeight: d.isToday ? 800 : 500, color: d.isToday ? C.ac : C.mu, textTransform: 'uppercase', letterSpacing: .5 }}>{d.l}</span>

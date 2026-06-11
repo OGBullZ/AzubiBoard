@@ -123,6 +123,18 @@
   @keyframes cardTiltIn { from { opacity: 0; transform: rotate(-1deg) translateY(8px); } to { opacity: 1; transform: none; } }
   [data-design="beta"] .tilt-in, [data-design="beta"] .ausweis-card { animation: cardTiltIn .32s var(--ease-out) both; }
 
+  /* ── Dashboard: WeekProgress-Balken wachsen gestaffelt von unten (Anhang C) ── */
+  @keyframes barGrow { from { transform: scaleY(0); } }
+  [data-design="beta"] .wp-bar { transform-origin: bottom; animation: barGrow .32s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 60ms); }
+
+  /* ── Kalender: Monat/Woche-Crossfade, Heute-Glow, Event-Chip-Hover (Anhang C) ── */
+  @keyframes calFade { from { opacity: 0; } }
+  [data-design="beta"] .cal-fade { animation: calFade .18s ease both; }
+  @keyframes todayGlowIn { from { box-shadow: inset 0 0 0 0 transparent; } to { box-shadow: inset 0 0 22px 0 color-mix(in srgb, var(--c-ac) 18%, transparent); } }
+  [data-design="beta"] .cal-today { animation: todayGlowIn .6s var(--ease-out) both; }
+  [data-design="beta"] .ev-chip { transition: transform .18s var(--ease-out); }
+  [data-design="beta"] .ev-chip:hover { transform: translateY(-1px); }
+
   /* ── Netzplan: Knoten faden als Welle entlang der Topologie ein (Anhang C Entrance) ── */
   @keyframes npNodeIn { from { opacity: 0; } }
   [data-design="beta"] .np-node { animation: npNodeIn .32s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
