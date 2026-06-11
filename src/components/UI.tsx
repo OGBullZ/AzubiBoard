@@ -23,12 +23,12 @@ export function Toast({ payload, onDismiss }: ToastProps) {
   const msg   = isObj ? payload.msg  : payload;
   const undo  = isObj ? payload.undo : null;
   return (
-    <div role="status" aria-live="polite"
+    <div role="status" aria-live="polite" className="app-toast"
       style={{
         position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)',
         background: 'var(--c-sf)', border: '1px solid var(--c-bd2)', borderRadius: 9,
         padding: '9px 14px 9px 18px', fontSize: 13, color: 'var(--c-br)', zIndex: 9999,
-        fontWeight: 600, boxShadow: 'var(--shadow-lg)', animation: 'toastIn .2s ease',
+        fontWeight: 600, boxShadow: 'var(--shadow-lg)',
         whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 12, maxWidth: '90vw'
       }}>
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg}</span>

@@ -115,7 +115,7 @@ export default function TrashPage({ data, currentUser, onUpdateData, showToast }
       {items.length === 0 ? (
         <EmptyState Icon={IcoTrash} doodle="kiste" title="Leer" subtitle={`Keine ${TYPE_META[tab].label.toLowerCase()} im Papierkorb`} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="draft-in-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {items.map(it => {
             const days = daysLeft(it.deletedAt);
             const meta = TYPE_META[tab];

@@ -463,19 +463,28 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: {
 }
 
 // ── Kanban DnD ────────────────────────────────────────────────
-function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: {
+function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove, stamped }: {
   task: Task;
   users: User[];
   statusIdx: number;
   totalCols: number;
   onUpdate: (id: Id, patch: Partial<Task>) => void;
   onRemove: (id: Id) => void;
+  stamped?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
-      style={{ opacity: isDragging ? 0.3 : 1, cursor: 'grab', touchAction: 'none' }}>
+      style={{ position: 'relative', opacity: isDragging ? 0.3 : 1, cursor: 'grab', touchAction: 'none' }}>
       <KanbanCard task={task} users={users} statusIdx={statusIdx} totalCols={totalCols} onUpdate={onUpdate} onRemove={onRemove} />
+      {/* Anhang C: Drop in „done" → Mini-Stempel ✓ (nur Beta gerendert, s. KanbanBoard) */}
+      {stamped && (
+        <span className="stamp-in" aria-hidden="true"
+          style={{ position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%',
+            border: '2px solid var(--c-gr)', color: 'var(--c-gr)', background: 'var(--c-sf)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 800, zIndex: 2, ['--stamp-rot' as string]: '-8deg' }}>✓</span>
+      )}
     </div>
   );
 }
@@ -500,6 +509,7 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: {
   onRemove: (id: Id) => void;
 }) {
   const [activeId, setActiveId] = useState<Id | null>(null);
+  const [justDone, setJustDone] = useState<Id | null>(null); // Anhang C: Mini-Stempel nach Done-Drop
   const design = useDesign();
   // PointerSensor: Maus/Stift (8 px Toleranz für Klick-vs-Drag).
   // TouchSensor: 200 ms Press + 5 px Toleranz für mobile Geräte (verhindert Scroll-Konflikt).
@@ -517,6 +527,10 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: {
     const fromStatus = tasks.find((t: Task) => t.id === active.id)?.status || 'not_started';
     if (over.id !== fromStatus) {
       onUpdate(active.id, { status: over.id });
+      if (over.id === 'done' && design === 'beta') {
+        setJustDone(active.id);
+        setTimeout(() => setJustDone(d => (d === active.id ? null : d)), 1200);
+      }
     }
     setActiveId(null);
   };
@@ -538,11 +552,12 @@ function KanbanBoard({ tasks, users, onUpdate, onRemove }: {
                   ? <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: st.color, boxShadow: 'inset 0 -1px 1px rgba(0,0,0,.5)' }} />
                   : <st.Icon size={11} style={{ color: st.color }} />}
                 <span style={{ fontSize: 11, fontWeight: 700, color: st.color, flex: 1, ...(design === 'beta' ? { fontFamily: C.mono, fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase' as const } : {}) }}>{st.label}</span>
-                <span style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `color-mix(in srgb, ${st.color} 9%, transparent)`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
+                {/* key=Anzahl → Re-Mount bei Änderung triggert Puls (Anhang C Micro-Feedback) */}
+                <span key={cols.length} className="count-pulse" style={{ fontSize: 10, color: st.color, fontFamily: C.mono, background: `color-mix(in srgb, ${st.color} 9%, transparent)`, padding: '1px 6px', borderRadius: 9 }}>{cols.length}</span>
               </div>
               <DroppableColumn status={status}>
                 {cols.map((task: Task) => (
-                  <DraggableCard key={task.id} task={task} users={users} statusIdx={idx} totalCols={STATUS_ORDER.length} onUpdate={onUpdate} onRemove={onRemove} />
+                  <DraggableCard key={task.id} task={task} users={users} statusIdx={idx} totalCols={STATUS_ORDER.length} onUpdate={onUpdate} onRemove={onRemove} stamped={justDone === task.id} />
                 ))}
                 {cols.length === 0 && !activeId && (
                   <div style={{ textAlign: 'center', fontSize: 10, color: C.mu, padding: '20px 0', opacity: .5 }}>Leer</div>

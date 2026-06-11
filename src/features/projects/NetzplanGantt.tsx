@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { C, PAL, UDAYS, detectCycle, computeCPM, computeLayout } from '../../lib/utils.js';
+import { useDesign } from '../../lib/hooks.js';
 
 const NW = 162, NH = 92, CG = 178, RG = 138, NP = 36;
 
@@ -31,6 +32,8 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
   const [pan, setPan] = useState<Pos>({ x: 0, y: 0 });
   const panR = useRef<any>(null), dragR = useRef<any>(null), contR = useRef<HTMLDivElement>(null), rectR = useRef<DOMRect | null>(null);
   const [isDrag, setIsDrag] = useState(false);
+  const [hoverN, setHoverN] = useState<number | null>(null); // Anhang C: Hover dimmt Nicht-Nachbarn
+  const design = useDesign();
   const [cycErr, setCycErr] = useState('');
   const [nName, setNName] = useState(''), [nD, setND] = useState(1);
   const [eF, setEF] = useState<string>(''), [eT, setET] = useState<string>('');
@@ -234,14 +237,18 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
               const ic = critSet.has(e.from) && critSet.has(e.to);
               const x1 = fp.x + NW, y1 = fp.y + NH / 2, x2 = tp.x, y2 = tp.y + NH / 2;
               const bx = Math.abs(x2 - x1) * .45;
+              const d = `M${x1},${y1} C${x1+bx},${y1} ${x2-bx},${y2} ${x2},${y2}`;
+              const dim = hoverN != null && e.from !== hoverN && e.to !== hoverN;
               return (
-                <g key={e.id}>
-                  {ic && <path d={`M${x1},${y1} C${x1+bx},${y1} ${x2-bx},${y2} ${x2},${y2}`} fill="none" stroke={C.cr} strokeWidth={8} strokeOpacity={.06} />}
-                  <path d={`M${x1},${y1} C${x1+bx},${y1} ${x2-bx},${y2} ${x2},${y2}`} fill="none"
+                <g key={e.id} style={{ opacity: dim ? .25 : 1, transition: 'opacity .15s' }}>
+                  {ic && <path d={d} fill="none" stroke={C.cr} strokeWidth={8} strokeOpacity={.06} />}
+                  <path d={d} fill="none"
                     stroke={ic ? C.cr : C.ac} strokeWidth={ic ? 2 : 1.5}
                     strokeOpacity={ic ? .95 : .5}
                     strokeDasharray={ic ? 'none' : '5,3'}
                     markerEnd={ic ? 'url(#np-arr-c)' : 'url(#np-arr-n)'} />
+                  {/* Anhang C Signature: „Strom fließt" — Lichtpuls wandert alle 8s den kritischen Pfad entlang */}
+                  {ic && design === 'beta' && <path className="np-flow" d={d} fill="none" stroke={C.cr} strokeWidth={2.5} />}
                 </g>
               );
             })}
@@ -254,8 +261,14 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
               const mid = Math.ceil(words.length / 2);
               const l1 = words.slice(0, mid).join(' '), l2 = words.slice(mid).join(' ');
 
+              // Anhang C: Hover dimmt Nicht-Nachbarn auf 40 % (150ms); Welle staggert per Topologie-Spalte
+              const isNeighbor = hoverN != null && (n.id === hoverN || np.edges.some(e => (e.from === hoverN && e.to === n.id) || (e.to === hoverN && e.from === n.id)));
+              const dim = hoverN != null && !isNeighbor;
               return (
-                <g key={n.id} style={{ cursor: 'grab' }}
+                <g key={n.id} className="np-node"
+                  style={{ cursor: 'grab', opacity: dim ? .4 : 1, transition: 'opacity .15s', ['--i' as string]: Math.min(n.col || 0, 12) }}
+                  onMouseEnter={() => { if (design === 'beta' && !isDrag) setHoverN(n.id); }}
+                  onMouseLeave={() => setHoverN(h => (h === n.id ? null : h))}
                   onMouseDown={e => {
                     if (panR.current) return;
                     e.stopPropagation();

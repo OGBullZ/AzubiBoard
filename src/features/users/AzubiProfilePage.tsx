@@ -177,6 +177,11 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
             <div>
               <div style={{ fontSize: 11, color: C.gr, fontWeight: 700 }}>Kompetenzen</div>
               <div style={{ fontSize: 10, color: C.mu }}>{confirmed}/{myGoals} bestätigt</div>
+              {confirmed === myGoals && (
+                <div className="meisterstueck" style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.14em', marginTop: 3 }}>
+                  ★ MEISTERSTÜCK
+                </div>
+              )}
             </div>
           </div>
         )}

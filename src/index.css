@@ -261,10 +261,19 @@ body {
   background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
 }
 
-/* Kanban-Plantafel (D4): Schablonen-Outline beim Drag-Over */
-[data-design="beta"] .kanban-col-over {
-  outline: 1.5px dashed var(--c-ac);
-  outline-offset: -4px;
+/* Kanban-Plantafel (D4): Schablonen-Strichlinie beim Drag-Over —
+   4 Gradient-Kanten als Overlay; wandert nur mit Motion (antsMarch in motion.css) */
+[data-design="beta"] .kanban-col-over { position: relative; }
+[data-design="beta"] .kanban-col-over::after {
+  content: ''; position: absolute; inset: 3px; border-radius: 6px; pointer-events: none;
+  background-image:
+    repeating-linear-gradient(90deg, var(--c-ac) 0 6px, transparent 6px 12px),
+    repeating-linear-gradient(90deg, var(--c-ac) 0 6px, transparent 6px 12px),
+    repeating-linear-gradient(0deg,  var(--c-ac) 0 6px, transparent 6px 12px),
+    repeating-linear-gradient(0deg,  var(--c-ac) 0 6px, transparent 6px 12px);
+  background-size: 100% 1.5px, 100% 1.5px, 1.5px 100%, 1.5px 100%;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+  background-repeat: no-repeat;
 }
 
 /* SectionHeader: Maßlinien-Dekor (—•) + Schriftfeld-Typo */
@@ -493,6 +502,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
 
 .anim { animation: fadeUp .18s ease; }
+.app-toast { animation: toastIn .2s ease; } /* v1; Beta-Override (Überschwingen) in motion.css */
 
 /* ── Tabellen ── */
 table { border-collapse: collapse; width: 100%; }

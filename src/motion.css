@@ -81,7 +81,103 @@
 
   /* ── Button-Press: physisches Einfedern (ergänzt .abtn aus index.css) ── */
   [data-design="beta"] .abtn:active:not(:disabled) { transform: translateY(1px); }
+
+  /* ── Toast: Einfahrt von unten mit Überschwingen + Akzentkante „druckt" sich (Anhang C) ── */
+  @keyframes toastInBeta {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(16px); }
+    70%  { opacity: 1; transform: translateX(-50%) translateY(-3px); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+  [data-design="beta"] .app-toast { animation: toastInBeta .32s var(--ease-out) both; overflow: hidden; }
+  @keyframes edgePrint { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  [data-design="beta"] .app-toast::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: var(--c-ac); transform-origin: left;
+    animation: edgePrint .42s .1s var(--ease-out) both;
+  }
+
+  /* ── Sync-Indicator: Erfolg = kurzer grüner Tick-Fade (Anhang C) ── */
+  @keyframes tickFade { 0% { opacity: 0; transform: scale(.5); } 60% { transform: scale(1.15); } 100% { opacity: 1; transform: scale(1); } }
+  [data-design="beta"] .tick-fade { animation: tickFade .18s var(--ease-out) both; }
+
+  /* ── Listen-Entrance: 40ms-Stagger CSS-only, Kappung bei 12 (Anhang C Regel 3) ── */
+  [data-design="beta"] .draft-in-list > * { animation: draftUp .32s var(--ease-out) both; }
+  [data-design="beta"] .draft-in-list > :nth-child(2)  { animation-delay: 40ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(3)  { animation-delay: 80ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(4)  { animation-delay: 120ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(5)  { animation-delay: 160ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(6)  { animation-delay: 200ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(7)  { animation-delay: 240ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(8)  { animation-delay: 280ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(9)  { animation-delay: 320ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(10) { animation-delay: 360ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(11) { animation-delay: 400ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(12) { animation-delay: 440ms; }
+  [data-design="beta"] .draft-in-list > :nth-child(n+13) { animation: none; }
+
+  /* ── Filter-Chips: 90ms-Press (Anhang C Berichte Micro-Feedback) ── */
+  [data-design="beta"] .chip-press { transition: transform .09s var(--ease-out); }
+  [data-design="beta"] .chip-press:active { transform: translateY(1px) scale(.98); }
+
+  /* ── Werksausweis-Karte kippt minimal ein (Anhang C Profil/Users Entrance) ── */
+  @keyframes cardTiltIn { from { opacity: 0; transform: rotate(-1deg) translateY(8px); } to { opacity: 1; transform: none; } }
+  [data-design="beta"] .tilt-in, [data-design="beta"] .ausweis-card { animation: cardTiltIn .32s var(--ease-out) both; }
+
+  /* ── Dashboard: WeekProgress-Balken wachsen gestaffelt von unten (Anhang C) ── */
+  @keyframes barGrow { from { transform: scaleY(0); } }
+  [data-design="beta"] .wp-bar { transform-origin: bottom; animation: barGrow .32s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 60ms); }
+
+  /* ── Kalender: Monat/Woche-Crossfade, Heute-Glow, Event-Chip-Hover (Anhang C) ── */
+  @keyframes calFade { from { opacity: 0; } }
+  [data-design="beta"] .cal-fade { animation: calFade .18s ease both; }
+  @keyframes todayGlowIn { from { box-shadow: inset 0 0 0 0 transparent; } to { box-shadow: inset 0 0 22px 0 color-mix(in srgb, var(--c-ac) 18%, transparent); } }
+  [data-design="beta"] .cal-today { animation: todayGlowIn .6s var(--ease-out) both; }
+  [data-design="beta"] .ev-chip { transition: transform .18s var(--ease-out); }
+  [data-design="beta"] .ev-chip:hover { transform: translateY(-1px); }
+
+  /* ── Netzplan: Knoten faden als Welle entlang der Topologie ein (Anhang C Entrance) ── */
+  @keyframes npNodeIn { from { opacity: 0; } }
+  [data-design="beta"] .np-node { animation: npNodeIn .32s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
+
+  /* ── Netzplan Signature: Lichtpuls wandert alle 8s den kritischen Pfad entlang ── */
+  @keyframes npFlow {
+    0%        { stroke-dashoffset: 1030; opacity: 0; }
+    2%        { opacity: .9; }
+    18%       { stroke-dashoffset: 0; opacity: .9; }
+    20%, 100% { stroke-dashoffset: 0; opacity: 0; }
+  }
+  [data-design="beta"] .np-flow { stroke-dasharray: 30 1000; animation: npFlow 8s linear infinite; }
+
+  /* ── Kanban Drop-Slot: Schablonen-Strichlinie wandert im Uhrzeigersinn (Anhang C) ── */
+  @keyframes antsMarch { to { background-position: 12px 0, -12px 100%, 0 -12px, 100% 12px; } }
+  [data-design="beta"] .kanban-col-over::after { animation: antsMarch .6s linear infinite; }
+
+  /* ── Kanban Spalten-Zähler pulst bei Änderung (Anhang C; key-remount triggert) ── */
+  @keyframes countPulse { from { transform: scale(1.15); } to { transform: scale(1); } }
+  [data-design="beta"] .count-pulse { display: inline-block; animation: countPulse .18s var(--ease-out); }
+
+  /* ── Avatar-Upload: wandernde Drop-Zone-Strichlinie beim Hover (Anhang C) ── */
+  @keyframes antsSpin { to { transform: rotate(360deg); } }
+  [data-design="beta"] .avatar-drop::after {
+    content: ''; position: absolute; inset: -5px; border-radius: 50%;
+    border: 1.5px dashed var(--c-ac); opacity: 0; transition: opacity .18s;
+  }
+  [data-design="beta"] .avatar-drop:hover::after { opacity: 1; animation: antsSpin 6s linear infinite; }
+
+  /* ── „MEISTERSTÜCK"-Schimmer: nur bei 100 % Lernzielen (Anhang C Profil Signature) ── */
+  @keyframes shimmerSweep { to { background-position: -200% 0; } }
+  [data-design="beta"] .meisterstueck {
+    background: linear-gradient(100deg, var(--c-ac) 42%, color-mix(in srgb, var(--c-ac) 35%, #fff) 50%, var(--c-ac) 58%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shimmerSweep 2.8s linear infinite;
+  }
 }
+/* MEISTERSTÜCK ohne Motion / im v1: ruhiger Akzent-Text statt Schimmer */
+.meisterstueck { color: var(--c-ac); }
+
+/* Netzplan-Lichtpuls ohne Motion: unsichtbar (kein statischer Strich-Rest) */
+[data-design="beta"] .np-flow { opacity: 0; }
 
 /* Split-Flap-Grundstruktur (auch ohne Motion sichtbar/korrekt) */
 [data-design="beta"] .flap { display: inline-flex; gap: 3px; perspective: 400px; }

@@ -907,8 +907,8 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
     <div style={{ padding: 24, maxWidth: 560 }}>
       {/* Avatar + Header */}
       <div className="card" style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16 }}>
-        {/* Klickbarer Avatar mit Kamera-Overlay */}
-        <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }}
+        {/* Klickbarer Avatar mit Kamera-Overlay; Beta: wandernde Strichlinie beim Hover (Anhang C) */}
+        <div className="avatar-drop" style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }}
           onClick={handleAvatarClick}
           onMouseEnter={() => setAvatarHov(true)}
           onMouseLeave={() => setAvatarHov(false)}

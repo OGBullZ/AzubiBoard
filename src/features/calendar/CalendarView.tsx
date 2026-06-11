@@ -299,6 +299,8 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
           ))}
         </div>
 
+        {/* key=viewMode → Re-Mount beim Umschalten triggert Crossfade (Anhang C, beta-gated) */}
+        <div key={viewMode} className="cal-fade">
         {isWeekMode ? (
           <div role="row" style={{ display: 'grid', gridTemplateColumns: '40px repeat(5,1fr)', gap: 1, background: C.bd }}>
             <div style={{ background: C.sf, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -321,7 +323,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
               });
               const day = dt.getDate();
               return (
-                <div key={di} role="gridcell" tabIndex={0}
+                <div key={di} role="gridcell" tabIndex={0} className={today_ ? 'cal-today' : undefined}
                   style={{ background: today_ ? '#0b1624' : C.sf2, minHeight: 200, padding: 8, cursor: 'pointer', transition: 'background .12s', position: 'relative', borderLeft: today_ ? `2px solid ${C.ac}` : 'none', outline: 'none' }}
                   onClick={() => startNew({ date: ds, label: `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}` })}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startNew({ date: ds, label: `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}` }); } }}>
@@ -333,7 +335,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                     const et = EV_TYPES[e.type as string] || EV_TYPES.event;
                     const editable = !(e.id as any)?.startsWith('dl-') && !(e.id as any)?.startsWith('tdl-');
                     return (
-                      <div key={e.id} onClick={editable ? (ev2: React.MouseEvent) => openEdit(e, ev2) : undefined}
+                      <div key={e.id} className="ev-chip" onClick={editable ? (ev2: React.MouseEvent) => openEdit(e, ev2) : undefined}
                         style={{ fontSize: 10, fontWeight: 600, color: et.color, background: et.bg, borderRadius: 4, padding: '3px 6px', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: `1px solid ${et.color}30`, cursor: editable ? 'pointer' : 'default' }}>
                         {e.title}
                       </div>
@@ -357,7 +359,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                 const workers = day ? activeWorkersOnDay(day) : [];
                 const isHov   = hovDay === day;
                 return (
-                  <div key={di} role="gridcell" tabIndex={day ? 0 : -1}
+                  <div key={di} role="gridcell" tabIndex={day ? 0 : -1} className={today_ ? 'cal-today' : undefined}
                     style={{ background: !day ? 'var(--c-sf3)' : today_ ? 'var(--c-acd)' : C.sf2, minHeight: 92, padding: 7, cursor: day ? 'pointer' : 'default', transition: 'background .12s', position: 'relative', borderLeft: today_ ? `2px solid ${C.ac}` : 'none', outline: 'none' }}
                     onClick={() => { if (day) startNew(day); }}
                     onMouseEnter={() => { if (day) setHovDay(day); }}
@@ -383,7 +385,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                           const et = EV_TYPES[e.type as string] || EV_TYPES.event;
                           const editable = !(e.id as any)?.startsWith('dl-') && !(e.id as any)?.startsWith('tdl-');
                           return (
-                            <div key={e.id} onClick={editable ? (ev2: React.MouseEvent) => openEdit(e, ev2) : undefined}
+                            <div key={e.id} className="ev-chip" onClick={editable ? (ev2: React.MouseEvent) => openEdit(e, ev2) : undefined}
                               style={{ fontSize: 9, fontWeight: 600, color: et.color, background: et.bg, borderRadius: 4, padding: '2px 5px', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: `1px solid ${et.color}30`, cursor: editable ? 'pointer' : 'default' }}>
                               {e.title}
                             </div>
@@ -413,6 +415,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
             </div>
           ))
         )}
+        </div>
       </div>
 
       {newEvDay && (

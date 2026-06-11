@@ -857,7 +857,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         {Object.entries(STATUS_REPORT_I18N).map(([k, v]) => {
           const cnt = myReports.filter((r: Report) => r.status === k).length;
           return (
-            <button key={k} type="button" onClick={() => setFilter(filter === k ? 'alle' : k)} aria-pressed={filter === k} title={`Filter: ${v.l}`}
+            <button key={k} type="button" className="chip-press" onClick={() => setFilter(filter === k ? 'alle' : k)} aria-pressed={filter === k} title={`Filter: ${v.l}`}
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 13px', background: filter === k ? v.c + '18' : 'var(--c-sf2)', border: `1px solid ${filter === k ? v.c + '50' : 'var(--c-bd)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all .12s', font: 'inherit' }}>
               <span style={{ fontSize: 18, fontWeight: 800, color: v.c, lineHeight: 1 }}>{cnt}</span>
               <span style={{ fontSize: 10, color: C.mu, fontWeight: 600, textTransform: 'uppercase', letterSpacing: .7 }}>{v.l}</span>
@@ -877,7 +877,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             action={!q && currentUser.role === 'azubi' ? '+ ' + t('report.newReport') : undefined}
             onAction={!q && currentUser.role === 'azubi' ? () => { setEditing(null); setView('edit'); } : undefined} />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, alignContent: 'start' }}>
+          <div className="draft-in-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, alignContent: 'start' }}>
             {[...filtered].sort((a: Report, b: Report) => +new Date(b.week_start as string) - +new Date(a.week_start as string)).map((r: Report) => (
               <ReportCard key={r.id} report={r} currentUser={currentUser}
                 onOpen={(rep: Report) => { setEditing(rep); setView('edit'); }}

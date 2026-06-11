@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { dataService } from '../lib/dataService.js';
+import { useDesign } from '../lib/hooks.js';
 
 type SyncStateKind = 'syncing' | 'success' | 'error' | 'fatal' | 'offline';
 
@@ -21,6 +22,7 @@ type SyncEventDetail = {
 
 export default function SyncIndicator() {
   const { t } = useTranslation();
+  const design = useDesign();
   // null = idle (nicht zeigen); sonst aktueller Status
   const [state, setState] = useState<SyncState | null>(null);
   const [hideAt, setHideAt] = useState(0);
@@ -63,6 +65,13 @@ export default function SyncIndicator() {
     offline: { icon: '⚡', label: t('sync.offline'),  color: 'var(--c-yw)', spin: false },
   }[state.kind];
 
+  // Anhang C: Zahnrad dreht mechanisch (steps-8) bei inflight, steht bei Fehler abrupt
+  // still (gleiches Icon, keine Animation); Erfolg = grüner Tick-Fade. Nur Werkbank-Design.
+  const beta = design === 'beta';
+  const gear = beta && (state.kind === 'syncing' || state.kind === 'error' || state.kind === 'fatal');
+  const icon = gear ? '⚙' : cfg.icon;
+  const iconClass = beta ? (state.kind === 'syncing' ? 'gear-spin' : state.kind === 'success' ? 'tick-fade' : '') : '';
+
   return (
     <div role="status" aria-live="polite"
       style={{
@@ -74,10 +83,10 @@ export default function SyncIndicator() {
         color: cfg.color, maxWidth: '70vw',
         animation: 'syncPop .15s ease',
       }}>
-      <span style={{
+      <span className={iconClass} style={{
         display: 'inline-block', fontSize: 14,
-        animation: cfg.spin ? 'syncSpin 1s linear infinite' : 'none'
-      }}>{cfg.icon}</span>
+        animation: !beta && cfg.spin ? 'syncSpin 1s linear infinite' : undefined
+      }}>{icon}</span>
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {cfg.label}
       </span>
