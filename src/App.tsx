@@ -79,7 +79,8 @@ const ACCENTS = [
   { val: 'cyan',   hex: '#3FD2C7', label: 'Cyan' },
 ];
 function DesignSwitch() {
-  const [design, setDesign] = useState(() => localStorage.getItem('azubiboard_design') || 'v1');
+  // Graduierung 2026-06-11: Werkbank-Design ist 1.1 und Default; interner Wert bleibt 'beta' (CSS-Hooks)
+  const [design, setDesign] = useState(() => localStorage.getItem('azubiboard_design') || 'beta');
   const [accent, setAccent] = useState(() => localStorage.getItem('azubiboard_accent') || 'orange');
   const [sound, setSound] = useState(() => localStorage.getItem('azubiboard_sound') === 'on');
   const apply = (key: string, val: string, set: (v: string) => void) => {
@@ -104,7 +105,7 @@ function DesignSwitch() {
     <div style={{ marginTop: 14 }}>
       <label>Design-Version</label>
       <div style={{ display: 'flex', gap: 8 }}>
-        {[['v1', '1.0'], ['beta', '1.0 Beta ✦']].map(([val, lab]) => (
+        {[['v1', '1.0'], ['beta', '1.1 ✦']].map(([val, lab]) => (
           <button key={val} className="btn" onClick={() => apply('design', val, setDesign)} aria-pressed={design === val}
             style={{ flex: 1, justifyContent: 'center', padding: '9px',
               ...(design === val ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)', background: 'var(--c-acd)' } : {}) }}>
@@ -134,7 +135,7 @@ function DesignSwitch() {
         </button>
       )}
       <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 6 }}>
-        1.0 Beta = neues „Werkbank"-Design (in Arbeit). Jederzeit zurückschaltbar.
+        1.1 = neues „Werkbank"-Design (Standard). Jederzeit auf 1.0 zurückschaltbar.
       </div>
     </div>
   );

@@ -16,10 +16,11 @@ import { initSentry } from './lib/sentry.js'
 // No-Op wenn VITE_SENTRY_DSN nicht gesetzt ist.
 initSentry();
 
-// Design-Version vor dem ersten Paint anwenden (1.0 = Default, '1.0 Beta' = Werkbank-Redesign).
+// Design-Version vor dem ersten Paint anwenden. Graduierung 2026-06-11: 1.1 (Werkbank,
+// intern 'beta' wg. CSS-Hooks) ist Default; explizit gewähltes 1.0 ('v1') bleibt erhalten.
 // Umschalter in ProfilePage; gleiche Mechanik wie data-theme.
 try {
-  document.documentElement.setAttribute('data-design', localStorage.getItem('azubiboard_design') || 'v1');
+  document.documentElement.setAttribute('data-design', localStorage.getItem('azubiboard_design') || 'beta');
   document.documentElement.setAttribute('data-accent', localStorage.getItem('azubiboard_accent') || 'orange');
 } catch { /* noop */ }
 
