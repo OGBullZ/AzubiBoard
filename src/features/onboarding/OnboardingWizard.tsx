@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { C } from '../../lib/utils.js';
 import { buildNewsCards } from './welcomeNewsData';
 import NewsCard from './NewsCard';
+import { Stamp } from '../../components/Stamp.jsx';
+import { playStamp } from '../../lib/sound.js';
+import { ACCENTS, applyAccent, applyThemeChoice, setSoundPref, type ThemeChoice } from '../../lib/prefs.js';
 import type { User, AppState, Id } from '../../types';
 
 // ── Feature-Karten Konfiguration ──────────────────────────────
@@ -76,6 +79,113 @@ function StepWelcome({ currentUser }: { currentUser: User }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Alle Rollen: Werkbank einrichten (Akzent / Licht / Sound, wirkt live) ──
+// Ausweis-Nr deterministisch aus der User-ID (numerisch → gepolstert, sonst Hash)
+function badgeNr(id: Id): string {
+  const n = Number(id);
+  if (Number.isFinite(n)) return String(Math.abs(n) % 10000).padStart(4, '0');
+  const s = String(id);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 10000;
+  return String(h).padStart(4, '0');
+}
+
+// Rollen-Streifen wie auf den Login-Werksausweisen (Ebene 8: Azubi Orange, Ausbilder Grün, Mentor Cyan)
+const ROLE_META: Record<string, { stripe: string; label: string }> = {
+  azubi:     { stripe: 'var(--c-ac)', label: 'Azubi' },
+  ausbilder: { stripe: 'var(--c-gr)', label: 'Ausbilder' },
+  mentor:    { stripe: '#3FD2C7',     label: 'Mentor' },
+};
+
+function StepWorkbench({ currentUser }: { currentUser: User }) {
+  const [accent, setAccent] = useState(() => { try { return localStorage.getItem('azubiboard_accent') || 'orange'; } catch { return 'orange'; } });
+  const [theme,  setTheme]  = useState<ThemeChoice>(() => {
+    try {
+      if (!localStorage.getItem('azubiboard_theme_manual')) return 'system';
+      return (localStorage.getItem('azubiboard_theme') as ThemeChoice) || 'dark';
+    } catch { return 'system'; }
+  });
+  const [sound,   setSound]   = useState(() => { try { return localStorage.getItem('azubiboard_sound') === 'on'; } catch { return false; } });
+  const [stamped, setStamped] = useState(false);
+
+  // Zeremonie-Dosierung (Anhang C): EIN Stempel, kurz nachdem der Ausweis steht
+  useEffect(() => {
+    const t = setTimeout(() => { setStamped(true); playStamp(); }, 700);
+    return () => clearTimeout(t);
+  }, []);
+
+  const pickAccent  = (v: string)      => { setAccent(v); applyAccent(v); };
+  const pickTheme   = (v: ThemeChoice) => { setTheme(v); applyThemeChoice(v); };
+  const toggleSound = () => {
+    const next = !sound;
+    setSound(next);
+    setSoundPref(next);
+    if (next) playStamp(); // sofortiges Probehören
+  };
+
+  const role     = ROLE_META[currentUser.role] || ROLE_META.azubi;
+  const initials = (currentUser.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+  return (
+    <div style={{ padding: '4px 0 12px' }}>
+      <StepHeading icon="🛠️" title="Deine Werkbank einrichten"
+        sub="Alles wirkt sofort hinter diesem Fenster — und bleibt jederzeit im Profil änderbar." />
+
+      {/* Werksausweis — färbt sich live mit der gewählten Lackierung */}
+      <div className="ausweis-card" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px 14px 24px', borderRadius: 10, background: C.sf2, border: `1px solid ${C.bd2}`, overflow: 'hidden', marginBottom: 20, boxShadow: 'var(--shadow-xs)' }}>
+        <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 8, bottom: 8, width: 5, borderRadius: '0 3px 3px 0', background: role.stripe }} />
+        <span aria-hidden="true" style={{ position: 'absolute', right: 14, top: 10, width: 8, height: 8, borderRadius: '50%', background: C.bg, border: `1px solid ${C.bd2}` }} />
+        <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--c-acd)', color: 'var(--c-ac)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>{initials}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 9, color: C.mu, fontFamily: C.mono, letterSpacing: '.16em', marginBottom: 2 }}>WERKSAUSWEIS · NR. {badgeNr(currentUser.id)}</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.name}</div>
+          <div style={{ fontSize: 11, color: C.mu }}>{role.label}</div>
+        </div>
+        {stamped && <Stamp label="Gültig" color="green" stamped seed={currentUser.id} />}
+      </div>
+
+      {/* Lackierung */}
+      <div style={{ marginBottom: 16 }}>
+        <span style={labelStyle}>Lackierung</span>
+        <div style={{ display: 'flex', gap: 10 }} role="radiogroup" aria-label="Akzentfarbe">
+          {ACCENTS.map(a => (
+            <button key={a.val} type="button" role="radio" aria-checked={accent === a.val} aria-label={a.label} title={a.label}
+              onClick={() => pickAccent(a.val)}
+              style={{ width: 38, height: 38, borderRadius: 9, background: a.hex, cursor: 'pointer',
+                border: accent === a.val ? `2px solid ${C.br}` : '2px solid transparent',
+                boxShadow: accent === a.val ? 'inset 0 0 0 2px var(--c-sf)' : 'none' }} />
+          ))}
+        </div>
+      </div>
+
+      {/* Licht */}
+      <div style={{ marginBottom: 16 }}>
+        <span style={labelStyle}>Licht</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([['dark', '🌙', 'Werkstatt'], ['light', '📄', 'Papier'], ['system', '🖥️', 'Wie System']] as const).map(([v, ico, lab]) => (
+            <button key={v} type="button" className="btn" onClick={() => pickTheme(v)} aria-pressed={theme === v}
+              style={{ flex: 1, justifyContent: 'center', padding: '9px 0', fontSize: 12,
+                ...(theme === v ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)', background: 'var(--c-acd)' } : {}) }}>
+              {ico} {lab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Werkstatt-Sounds */}
+      <div>
+        <span style={labelStyle}>Geräusche</span>
+        <button type="button" className="btn" onClick={toggleSound} aria-pressed={sound}
+          style={{ width: '100%', justifyContent: 'center', padding: '10px 0', fontSize: 12,
+            ...(sound ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)' } : {}) }}>
+          {sound ? '🔊 Werkstatt-Sounds an' : '🔇 Werkstatt-Sounds aus'}
+        </button>
+        <div style={{ fontSize: 11, color: C.mu, marginTop: 6 }}>Dezenter Stempel-Klack bei Aktionen — standardmäßig aus.</div>
       </div>
     </div>
   );
@@ -308,18 +418,21 @@ export default function OnboardingWizard({
   const steps: { label: string; node: React.ReactNode }[] =
     role === 'azubi' ? [
       { label: 'Willkommen', node: <StepWelcome currentUser={currentUser} /> },
+      { label: 'Werkbank',   node: <StepWorkbench currentUser={currentUser} /> },
       { label: 'Profil',     node: <StepProfile currentUser={currentUser} onUpdateProfile={onUpdateProfile} /> },
       { label: 'Gruppe',     node: <StepRequestGroup currentUser={currentUser} data={data} onRequestGroup={onRequestGroup} /> },
       { label: 'Features',   node: <StepFeatures /> },
       { label: 'Start',      node: <StepNewsPreview currentUser={currentUser} data={data} kind="azubi" /> },
     ] : role === 'ausbilder' ? [
       { label: 'Willkommen', node: <StepWelcome currentUser={currentUser} /> },
+      { label: 'Werkbank',   node: <StepWorkbench currentUser={currentUser} /> },
       { label: 'Gruppe',     node: <StepCreateGroup onCreateGroup={onCreateGroup} /> },
       { label: 'Azubis',     node: <StepInviteAzubi navigate={navigate} onDone={onDone} /> },
       { label: 'Features',   node: <StepFeatures /> },
       { label: 'Überblick',  node: <StepNewsPreview currentUser={currentUser} data={data} kind="staff" /> },
     ] : [
       { label: 'Willkommen', node: <StepWelcome currentUser={currentUser} /> },
+      { label: 'Werkbank',   node: <StepWorkbench currentUser={currentUser} /> },
       { label: 'Features',   node: <StepFeatures /> },
       { label: 'Überblick',  node: <StepNewsPreview currentUser={currentUser} data={data} kind="staff" /> },
     ];

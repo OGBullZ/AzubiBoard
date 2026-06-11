@@ -4,6 +4,7 @@ import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData, addActivity, uid } from './lib/utils';
 import { playStamp } from './lib/sound.js';
+import { ACCENTS } from './lib/prefs.js';
 import { useDebounce, useDialog } from './lib/hooks';
 import { clearToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
@@ -71,13 +72,8 @@ function RouteFallback() {
   );
 }
 
-// ── Design-Version 1.0 ↔ 1.0 Beta (Werkbank-Redesign, DESIGN-VISION.md) ──
-// Default v1; Beta aktiviert die [data-design="beta"]-Styles. Boot-Apply in main.tsx.
-const ACCENTS = [
-  { val: 'orange', hex: '#FF6A1A', label: 'Signal-Orange' },
-  { val: 'amber',  hex: '#FFB224', label: 'Amber' },
-  { val: 'cyan',   hex: '#3FD2C7', label: 'Cyan' },
-];
+// ── Design-Version 1.0 ↔ 1.1 (Werkbank-Redesign, DESIGN-VISION.md) ──
+// Boot-Apply in main.tsx; ACCENTS geteilt mit Onboarding (lib/prefs).
 function DesignSwitch() {
   // Graduierung 2026-06-11: Werkbank-Design ist 1.1 und Default; interner Wert bleibt 'beta' (CSS-Hooks)
   const [design, setDesign] = useState(() => localStorage.getItem('azubiboard_design') || 'beta');
@@ -216,6 +212,12 @@ function useTheme() {
     document.documentElement.setAttribute('data-theme', t);
     return t;
   });
+  // Externe Theme-Setzer (Onboarding „Werkbank einrichten" via lib/prefs) syncen den Toggle-State
+  useEffect(() => {
+    const fn = () => setTheme(localStorage.getItem('azubiboard_theme') || 'dark');
+    window.addEventListener('azubiboard:theme', fn);
+    return () => window.removeEventListener('azubiboard:theme', fn);
+  }, []);
   // OS-Theme-Änderungen live mitsynchronisieren (nur wenn kein manuelles Override)
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: light)');
