@@ -108,8 +108,8 @@ if command -v node &> /dev/null; then
     NODE_VER=$(node -v)
     ok "Node.js bereits installiert: $NODE_VER"
 else
-    info "Node.js wird installiert (v20 LTS)..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
+    info "Node.js wird installiert (v22 LTS, wie CI)..."
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - > /dev/null 2>&1
     apt-get install -y nodejs > /dev/null 2>&1
     ok "Node.js $(node -v) installiert"
 fi
@@ -181,6 +181,18 @@ JWT_EXPIRY=604800
 ALLOWED_ORIGIN=${DOMAIN:+https://${DOMAIN}}${DOMAIN:-http://${SERVER_IP}}
 
 APP_ENV=production
+
+# Sprint 12: Dual-Write Blob → relationale Tabellen (für Tier-1-Test auf true)
+BACKEND_DUAL_WRITE=false
+
+# N1: SMTP-Versand (leer = Fallback auf native mail())
+# SMTP_HOST=
+# SMTP_PORT=587
+# SMTP_USER=
+# SMTP_PASS=
+# SMTP_SECURE=tls
+# SMTP_FROM=azubiboard@example.de
+# SMTP_FROM_NAME=AzubiBoard
 EOF
 chmod 640 "$APP_DIR/.env"
 chown www-data:www-data "$APP_DIR/.env"
@@ -212,7 +224,7 @@ CREATE DATABASE IF NOT EXISTS ${DB_NAME}
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost'
     IDENTIFIED BY '${DB_PASS}';
 
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES, LOCK TABLES
     ON ${DB_NAME}.*
     TO '${DB_USER}'@'localhost';
 
@@ -220,9 +232,18 @@ FLUSH PRIVILEGES;
 EOF
 ok "Datenbank '$DB_NAME' und User '$DB_USER' angelegt"
 
-# Schema importieren
-$MYSQL_CMD "$DB_NAME" < "$REPO_DIR/database/setup.sql" 2>/dev/null || true
-ok "Datenbank-Schema importiert"
+# Schema importieren: setup.sql (Basis) + azubiboard.sql (relationales
+# Sprint-12-Ziel-Schema, idempotent) + sprint12_phase2.sql (Lernpfade etc.).
+# Ohne die relationalen Tabellen sind Migration/Dual-Write/RLS nicht nutzbar.
+for SQL_FILE in setup.sql azubiboard.sql migrations/sprint12_phase2.sql; do
+    if [ -f "$REPO_DIR/database/$SQL_FILE" ]; then
+        if $MYSQL_CMD "$DB_NAME" < "$REPO_DIR/database/$SQL_FILE" 2>/tmp/azubiboard-sql-err.log; then
+            ok "Schema importiert: $SQL_FILE"
+        else
+            info "⚠ $SQL_FILE: Import-Fehler (siehe /tmp/azubiboard-sql-err.log) — manuell prüfen"
+        fi
+    fi
+done
 
 # ── 6. Apache konfigurieren ────────────────────────────────────
 hdr "6/9 Apache konfigurieren"
@@ -278,7 +299,7 @@ cat > /usr/local/bin/azubiboard-backup.sh << 'SCRIPT'
 #!/bin/bash
 BACKUP_DIR="/var/backups/azubiboard"
 DAY=$(date +%Y-%m-%d)
-mysqldump --defaults-extra-file=/etc/mysql/azubiboard-backup.cnf azubiboard 2>/dev/null \
+mysqldump --defaults-extra-file=/etc/mysql/azubiboard-backup.cnf --single-transaction azubiboard 2>/dev/null \
   | gzip > "${BACKUP_DIR}/azubiboard_${DAY}.sql.gz"
 # Backups älter als 30 Tage löschen
 find "${BACKUP_DIR}" -name "*.sql.gz" -mtime +30 -delete

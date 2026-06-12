@@ -165,17 +165,19 @@ try {
     exit 1
 }
 
-# Schema importieren
-$setupSql = "$appPath\database\setup.sql"
-if (-not (Test-Path $setupSql)) {
-    # Fallback: Schema direkt mitgeliefert
-    Write-Host "  Hinweis: database\setup.sql nicht gefunden, Schema wird übersprungen." -ForegroundColor Yellow
-} else {
+# Schema importieren: setup.sql (Basis) + azubiboard.sql (relationales
+# Sprint-12-Ziel-Schema, idempotent) + sprint12_phase2.sql (Lernpfade etc.)
+foreach ($sqlName in @('setup.sql', 'azubiboard.sql', 'migrations\sprint12_phase2.sql')) {
+    $sqlFile = "$appPath\database\$sqlName"
+    if (-not (Test-Path $sqlFile)) {
+        Write-Host "  Hinweis: database\$sqlName nicht gefunden, übersprungen." -ForegroundColor Yellow
+        continue
+    }
     try {
-        & $mysqlExe -u root azubiboard --connect-timeout=5 "-e" "source $setupSql" 2>&1
-        Write-Host "  Datenbank-Schema importiert: OK" -ForegroundColor Green
+        & $mysqlExe -u root azubiboard --connect-timeout=5 "-e" "source $sqlFile" 2>&1
+        Write-Host "  Schema importiert: ${sqlName}: OK" -ForegroundColor Green
     } catch {
-        Write-Host "  Hinweis: Schema-Import fehlgeschlagen (evtl. bereits vorhanden): $_" -ForegroundColor Yellow
+        Write-Host "  Hinweis: $sqlName Import fehlgeschlagen (evtl. bereits vorhanden): $_" -ForegroundColor Yellow
     }
 }
 
