@@ -1,0 +1,64 @@
+name: Deploy → Firebase Hosting
+
+# Ersetzt den Netlify-Deploy (2026-06-12). Ziel: https://azubiboard-1fc20.web.app
+#
+# Benötigtes Secret (GitHub Repo Settings → Secrets → Actions):
+#   FIREBASE_SERVICE_ACCOUNT — JSON eines Service Accounts mit Rolle "Firebase Hosting Admin"
+#   (Anlegen: Firebase Console → Projekteinstellungen → Dienstkonten,
+#    oder einmalig `firebase init hosting:github` ausführen)
+# Solange das Secret fehlt, wird der Deploy-Schritt übersprungen (Workflow bleibt grün);
+# manueller Deploy geht weiterhin lokal via `firebase deploy --only hosting`.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy to Firebase Hosting
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run tests before deploy
+        run: npm test
+
+      - name: Build Production Bundle
+        run: npm run build
+        env:
+          VITE_BASE_PATH:    '/'
+          # localStorage-Modus — Frontend-only, wie zuvor bei Netlify
+          VITE_USE_API:      'false'
+          VITE_APP_VERSION:  ${{ github.sha }}
+          VITE_SENTRY_DSN:   ${{ secrets.VITE_SENTRY_DSN }}
+
+      - name: Check Firebase secret
+        id: secret
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT fehlt — Deploy übersprungen. Secret anlegen oder lokal 'firebase deploy --only hosting' nutzen."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to Firebase Hosting
+        if: steps.secret.outputs.present == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: azubiboard-1fc20
+          channelId: live
+        timeout-minutes: 5

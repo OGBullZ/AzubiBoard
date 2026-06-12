@@ -46,3 +46,6 @@ playwright-report/
 vendor/
 .phpunit.cache/
 .phpunit.result.cache
+
+# Firebase CLI Cache
+.firebase/

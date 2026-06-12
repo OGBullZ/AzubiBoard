@@ -10,6 +10,7 @@ import '@fontsource/jetbrains-mono/700.css'
 import './index.css'
 import './motion.css'
 import './lib/i18n.js' // Side-Effect: i18next-Instance initialisieren
+import './lib/firebase.js' // Side-Effect: Firebase-App + Analytics initialisieren
 import { initSentry } from './lib/sentry.js'
 
 // L3: Sentry initialisieren BEVOR React rendert, damit Boot-Errors gefangen werden.
