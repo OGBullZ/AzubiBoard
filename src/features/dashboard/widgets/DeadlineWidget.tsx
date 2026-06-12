@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C } from '../../../lib/utils.js';
+import { C, dayDiffLocal } from '../../../lib/utils.js';
 import { urgencyColor, urgencyBg, urgencyLabel } from './_helpers.jsx';
 import type { Project, Id } from '../../../types';
 
@@ -20,7 +20,7 @@ function DeadlineWidgetImpl({ projects, userId, isAusbilder, onOpen }: DeadlineW
   const items: DeadlineItem[] = (projects as ProjectWithAssignees[])
     .filter(p => p.deadline && !p.archived)
     .filter(p => isAusbilder || (p.assignees||[]).includes(userId))
-    .map(p => ({ ...p, diff: Math.ceil((new Date(p.deadline as string).getTime() - now.getTime()) / 86400000) }))
+    .map(p => ({ ...p, diff: dayDiffLocal(p.deadline as string, now) }))
     .filter(p => p.diff <= 21)
     .sort((a, b) => a.diff - b.diff);
 

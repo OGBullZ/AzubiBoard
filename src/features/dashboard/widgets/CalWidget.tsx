@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, fmtDate } from '../../../lib/utils.js';
+import { C, fmtDate, dayDiffLocal } from '../../../lib/utils.js';
 import { IcoCalendar } from '../../../components/Icons.jsx';
 import { urgencyColor, urgencyLabel } from './_helpers.jsx';
 import type { CalendarEvent, Project } from '../../../types';
@@ -39,7 +39,7 @@ function CalWidgetImpl({ calendarEvents, projects, onNavigate }: CalWidgetProps)
         ? <div style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', padding: '8px 0' }}>Keine Termine in Sicht</div>
         : all.map(e => {
             const c    = (e.type && TYPE_COLOR[e.type]) || C.ac;
-            const diff = Math.ceil((Number(new Date(e.date + 'T12:00:00')) - Number(now)) / 86400000);
+            const diff = dayDiffLocal(e.date, now);
             return (
               <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 0', borderBottom: `1px solid var(--c-bd)` }}>
                 <div style={{ width: 3, height: 28, borderRadius: 2, background: c, flexShrink: 0 }} />

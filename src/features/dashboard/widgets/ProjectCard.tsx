@@ -1,6 +1,6 @@
 import { memo, useState, useRef } from "react";
 import type { Project, Task, User } from '../../../types';
-import { C, ST, fmtDate } from '../../../lib/utils.js';
+import { C, ST, fmtDate, dayDiffLocal } from '../../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar } from '../../../components/UI.jsx';
 import { IcoCheck, IcoChevron, IcoChevronD, IcoPlus } from '../../../components/Icons.jsx';
 import { Ring, urgencyColor, urgencyLabel } from './_helpers.jsx';
@@ -106,7 +106,7 @@ function ProjectCardImpl({ project, users, onClick, onUpdate }: ProjectCardProps
             <StatusBadge status={project.status} />
             {active > 0 && <span style={{ fontSize: 9, color: C.ac, background: C.acd, borderRadius: 4, padding: '1px 5px', fontFamily: C.mono, fontWeight: 700 }}>▶ {active}</span>}
             {project.deadline && (() => {
-              const diff = Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / 86400000);
+              const diff = dayDiffLocal(project.deadline);
               return diff <= 14 ? <span style={{ fontSize: 9, color: urgencyColor(diff), fontFamily: C.mono, fontWeight: 700 }}>{urgencyLabel(diff)}</span> : null;
             })()}
           </div>

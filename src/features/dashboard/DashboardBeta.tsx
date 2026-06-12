@@ -6,7 +6,7 @@
 // ============================================================
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Project, Report, Task, CalendarEvent, Id } from '../../types';
-import { C, fmtDate, getISOWeek, today } from '../../lib/utils.js';
+import { C, fmtDate, getISOWeek, today, dayDiffLocal } from '../../lib/utils.js';
 import { useCountUp } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import { WeekProgress } from './widgets/WeekProgress.jsx';
@@ -183,7 +183,7 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
             {azubis.map((a: User) => {
               const myTasks = active.filter((p: Project) => (p.assignees || []).some(x => sameId(x, a.id)))
                 .flatMap((p: Project) => (p.tasks || []).filter((t: Task) => sameId(t.assignee, a.id) && t.status !== 'done'));
-              const overdue = myTasks.filter((t: Task) => t.deadline && Math.ceil((+new Date(t.deadline) - +now) / 86400000) < 0).length;
+              const overdue = myTasks.filter((t: Task) => t.deadline && dayDiffLocal(t.deadline, now) < 0).length;
               const myRep = (reports || []).filter((r: Report) => sameId(r.user_id, a.id) && (r.week_start || '') >= weekMon)
                 .sort((x: Report, y: Report) => (y.week_start || '').localeCompare(x.week_start || ''))[0];
               const ampel = overdue > 2 ? C.cr : overdue > 0 || !myRep ? C.yw : C.gr;
