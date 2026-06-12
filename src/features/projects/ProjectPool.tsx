@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from 'react-i18next';
 import { C, ST, fmtDate } from '../../lib/utils.js';
 import { useDebounce } from '../../lib/hooks.js';
-import { isStaff, isAusbilder } from '../../lib/roles.js';
+import { isStaff, isAusbilder, isMentor } from '../../lib/roles.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoCheck, IcoClock, IcoSearch, IcoTrash,
@@ -116,9 +116,11 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
             <option value="deadline">{t('project.sortDeadline')}</option>
             <option value="progress">{t('project.sortProgress')}</option>
           </select>
-          <button className="abtn" onClick={onNew} style={{ fontSize: 12 }}>
-            <IcoPlus size={13} /> {t('common.new')}
-          </button>
+          {!isMentor(currentUser) && (
+            <button className="abtn" onClick={onNew} style={{ fontSize: 12 }}>
+              <IcoPlus size={13} /> {t('common.new')}
+            </button>
+          )}
           <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 7, padding: 2, gap: 2, border: `1px solid var(--c-bd)` }}>
             <button onClick={() => setViewMode('grid')}
               style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'grid' ? C.ac : 'transparent', color: viewMode === 'grid' ? '#fff' : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -277,10 +279,12 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                       <span style={{ fontSize: 16, fontWeight: 700, color: C.br, wordBreak: 'break-word', flex: 1 }}>{p.title}</span>
                       <span className="tag" style={{ background: 'var(--c-sf3)', color: C.textSecondary, border: `1px solid var(--c-bd2)`, fontSize: 9, flexShrink: 0 }}>{t('project.archiveTag')}</span>
                     </div>
+                    {!isMentor(currentUser) && (
                     <div style={{ display: 'flex', gap: 7 }}>
                       <button onClick={() => onUnarchive?.(p.id)} className="btn" style={{ fontSize: 11, padding: '3px 9px' }}>{t('common.restore')}</button>
                       <button onClick={() => onDelete(p.id, p.title)} className="del" style={{ fontSize: 11 }}>{t('common.delete')}</button>
                     </div>
+                    )}
                   </div>
                 ))}
               </div>

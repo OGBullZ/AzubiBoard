@@ -1125,6 +1125,7 @@ function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; s
   const currentUser = store.currentUser as User;
   const setData = store.setData;
   const duplicate = (id: Id) => {
+    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
     const src = (data?.projects||[]).find((p: Project) => p.id === id);
     if (!src) return;
     const copy = {
@@ -1144,6 +1145,7 @@ function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; s
     <ProjectPool projects={(data?.projects||[]) as any} users={data?.users||[]} groups={(data?.groups||[]) as any} currentUser={currentUser}
       onOpen={(id: Id) => navigate(`/project/${id}`)} onNew={onNewProject}
       onDelete={(id: Id) => {
+        if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
         const project  = (data?.projects||[]).find((p: Project) => p.id === id);
         const snapshot = data;
         if (project) {
@@ -1155,11 +1157,12 @@ function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; s
         showToast('🗑 Projekt → Papierkorb (30 Tage)', { undo: () => setData(snapshot as any) });
       }}
       onArchive={(id: Id) => {
+        if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
         const snapshot = data;
         setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: true } : p) });
         showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });
       }}
-      onUnarchive={(id: Id) => { setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: false } : p) }); showToast('Projekt wiederhergestellt'); }}
+      onUnarchive={(id: Id) => { if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; } setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: false } : p) }); showToast('Projekt wiederhergestellt'); }}
       onDuplicate={duplicate}
     />
   );
@@ -1539,6 +1542,7 @@ const App = () => {
 
   // projectData: NewProjectModal-FormState (kein Domain-Typ) → any belassen.
   const handleCreate = useCallback((projectData: any) => {
+    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
     const newProject = { ...projectData, id: `proj_${Date.now()}`, tasks: [], steps: [], calendarEvents: [], archived: false };
     const withProject = { ...data, projects: [...(data?.projects || []), newProject] };
     const withActivity = addActivity(withProject, {

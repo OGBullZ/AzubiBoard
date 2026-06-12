@@ -490,6 +490,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
   const deleteCustomQ = (id: string | number) => saveCustom(customQuestions.filter(q => q.id !== id));
 
   const updateFlashcard = (qId: string | number, grade: number) => {
+    if (currentUser?.role === 'mentor') return;
     const prev = flashProgress[String(qId)] || {};
     setData((d: any) => ({
       ...d,

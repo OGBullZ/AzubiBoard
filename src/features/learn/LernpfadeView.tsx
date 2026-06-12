@@ -351,7 +351,9 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
   const pathProgress: ProgressMap      = data?.pathProgress?.[userId] || {};
 
   const savePaths = (next: LearningPath[]) => setData(d => ({ ...d, learningPaths: next }));
-  const saveProgress = (nodeId: Id) => setData(d => ({
+  const saveProgress = (nodeId: Id) => {
+    if (currentUser?.role === 'mentor') return;
+    setData(d => ({
     ...d,
     pathProgress: {
       ...(d.pathProgress || {}),
@@ -361,6 +363,7 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
       },
     },
   }));
+  };
 
   // ── Path CRUD ──
   const openCreatePath = () => { setPathForm(EMPTY_PATH); setEditingPath(null); setShowPathModal(true); };
