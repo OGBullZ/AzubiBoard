@@ -1,12 +1,12 @@
 # AzubiBoard — Ziele bis „v1.0 / quasi fertig"
 
-> Stand: 8. Juni 2026 · `main = 9d4a000` · Schema v5
+> Stand: 12. Juni 2026 · `main = bd39d17` · Schema v5
 > Scope: **v1.0 production-done** — die großen Vision-Features (Multi-Tenant, IHK-API,
 > RBAC, Offline-PWA) gehören bewusst NICHT dazu (siehe unten).
 
-> **UX-/Design-Roadmap (war Prio 1) ist ✅ abgeschlossen** (Phase 0,1,2,4 live; Phase 3 Mobile out-of-scope).
-> **Aktueller Arbeitsstrang = Willkommens-/News-Fenster** (`WELCOME-FENSTER-DESIGN.md`, Phase 0+1 auf Branch
-> `welcome-news`). Tier 1 (Server-Verifikation) bleibt parallel und braucht das Deployment.
+> **Alle Code-/UI-Stränge sind ✅ abgeschlossen + live:** UX-Roadmap, Welcome-/News-Fenster (Ph 0–3),
+> „Digitale Werkbank"-Design (D1–D6 + Animationen + Erst-Login, Beta = Version 1.1 = Default), Bug-Hunt 1–3.
+> **Einzige verbleibende v1.0-Arbeit = Tier 1 (Server-Live-Verifikation)** — braucht das Ubuntu-Deployment.
 
 **Kernlage:** Code-seitig ist nahezu alles fertig. Was „fertig" noch blockt, ist
 überwiegend **Live-Verifikation gegen den echten Ubuntu-Server** (`10.14.99.10`) —
@@ -43,7 +43,7 @@ Legende: **[Server]** = braucht echtes Deployment · **[hier]** = ohne Server ma
 |---|---|---|---|
 | 7 | `ROADMAP.md` aktualisieren (war auf 18.05/`5aa9707`) | [hier] | ✅ erledigt 05.06 |
 | 8 | CI Node-Bump 20→22 erledigt; `nwtgck/actions-netlify@v3`→`@v4` (node24-Runtime) gebumpt → erzwungener Cutover 16.06.2026 bricht den Auto-Deploy nicht mehr | [hier] | ✅ erledigt 08.06 |
-| 9 | ~30 silent-catches durchgehen (latente Bugs, niedrige Prio) | [hier] | offen |
+| 9 | ~30 silent-catches durchgehen (latente Bugs, niedrige Prio) | [hier] | ✅ erledigt 10.06 |
 | 10 | Sprint-12-Akzeptanzkriterien-Checkboxen final abhaken (nach Tier 1) | [hier] | offen |
 
 ---

@@ -1,30 +1,38 @@
 # AzubiBoard — Roadmap
 
-> Stand: 8. Juni 2026 · `main = 9d4a000` · Schema v5
+> Stand: 12. Juni 2026 · `main = bd39d17` · Schema v5
 > Sprint-Historie (Details) → `HANDOVER.md` · Restliste bis v1.0 → `ZIELE-v1.md`
-> Aktive Design-Spec → `WELCOME-FENSTER-DESIGN.md` · abgeschlossene UX-Arbeit → `UX-ROADMAP.md`
+> Design-Spec → `DESIGN-VISION.md` / `WELCOME-FENSTER-DESIGN.md` · abgeschlossene UX-Arbeit → `UX-ROADMAP.md`
 
-**Lage in einem Satz:** Code-seitig ist v1.0 nahezu fertig; die UX-/Design-Roadmap ist abgearbeitet, der aktuelle Arbeitsstrang ist das **Willkommens-/News-Fenster**, und die letzten v1.0-Lücken sind überwiegend **Live-Verifikation am Ubuntu-Server** (kein Dev-Env dafür).
+**Lage in einem Satz:** Code-seitig ist v1.0 fertig; UX-/Design-Roadmap, Welcome-/News-Fenster, „Digitale Werkbank"-Design (D1–D6 + Animationen + Erst-Login, Beta = Version 1.1 = Default) und ein voller Bug-Hunt sind live — die **einzige verbleibende v1.0-Lücke ist die Live-Verifikation am Ubuntu-Server** (kein Dev-Env dafür).
 
 ---
 
-## 🎯 Aktiv jetzt — Willkommens-/News-Fenster beim Login
+## 🎯 Aktiv jetzt — Server-Tier (einzige offene v1.0-Arbeit)
 
-> Design-Spec: `WELCOME-FENSTER-DESIGN.md` (Multi-Agent Design-Workflow). Umsetzung **branch-only bis Freigabe** (harte Regel: keine UI live ohne User-OK).
+Alle Code-/UI-Stränge sind durch und live. Was bleibt, ist die Live-Verifikation gegen ein echtes Ubuntu-Deployment (`10.14.99.10`):
 
-| Phase | Inhalt | Status |
-|---|---|---|
-| **0** | `useNotifications`-Hook aus App.tsx extrahieren (geteilte Aggregation, Fundament gg. Drift) | ✅ Branch `welcome-news` (`efcb183`) |
-| **1** | News-Fenster MVP: Login-Marker (1×/Tag, nicht bei Reload), `WelcomeNews.tsx` + `NewsCard.tsx`, Rollen-Switch Azubi/Staff, „Alles gut"-Leerzustand | ✅ Branch `welcome-news` (`efcb183`) |
-| **2** | Neue Item-Typen: Berichtsheft-offen, Lernziele learned/confirmed (Delta), Prüfungs-Countdown, kritische Azubis, Azubis-ohne-Bericht, Projekte-rot, Gruppen-Deadlines | ⏳ offen |
-| **3** | Onboarding-Ausbau rollenspezifisch (Profil/Gruppe/Setup-Schritte + News-Vorschau im Wizard) | ⏳ offen · ⚠️ Blocker Q4 (Azubi-Self-Join + Ausbilder-„Azubi anlegen" existiert?) |
+1. Migration `migrate_blob_to_relational.php` — Count-Check vor/nach, Re-Run idempotent
+2. Schema-Reads (`VITE_USE_SCHEMA=true`) — alle 6 Feature-Pfade aus relationalen Routes
+3. RLS live — 2 Ausbilder, Gruppen-Isolation greift
+4. Dual-Write live (`BACKEND_DUAL_WRITE=true`) — relationale Tabellen + `audit_log` gefüllt
+5. Nur unit-getestete PHP-Fixes live gegenprüfen (Server-Gruppen-Guard, Mentor-Server-Guard, Bug-Hunt-PHP-Routes)
+6. N1 — eine echte Digest-Mail über den MTA · SEC1 — Fail2ban + UFW
 
-**Cadence = 1×/Tag, Leerzustand zeigen** (User-Entscheid 08.06). Offene Spec-Fragen: Q3 Delta-Persistenz, Q5 manuelles Wiederöffnen.
-**Nächster Schritt:** Phase 0+1 im Browser reviewen (`git checkout welcome-news && npm run dev`) → Freigabe → Merge+Push → Phase 2.
+**In einer Sitzung machbar, sobald das Deployment steht.**
 
 ---
 
 ## ✅ Abgeschlossen
+
+### „Digitale Werkbank"-Design (`DESIGN-VISION.md`) — abgeschlossen 11.06
+9-Ebenen-Design-System, beta-gated. D1–D6 + Animations-Drehbuch (Anhang C) + Erst-Login-Erlebnis („Werkbank einrichten" + Live-Werksausweis). **Beta zu Version 1.1 graduiert + Default**; 1.0 bleibt wählbar. Akzentfarbe/Theme/Werkstatt-Sound im Profil einstellbar.
+
+### Willkommens-/News-Fenster (`WELCOME-FENSTER-DESIGN.md`) — abgeschlossen 11.06
+Phase 0–3 live: News-Fenster 1×/Tag beim Login, rollenspezifische Aggregation (Berichtsheft/Lernziele/Prüfungs-Countdown/kritische Azubis), rollenspezifischer Onboarding-Wizard, Gruppen-Beitritt per Anfrage.
+
+### Bug-Hunts — laufend, zuletzt 12.06
+Adversarische Analysen: Bug-Hunt 1 (14 Funde), 2 (12), 3 (13 + Datum-Off-by-one-Follow-up) — alle gefixt + live. Vitest 99, PHPUnit 197.
 
 ### UX-/Design-Roadmap (`UX-ROADMAP.md`) — abgeschlossen 07.06
 Multi-Agent-Review → 5 Phasen. **Phase 0 (Quick-Wins/Bugs), 1 (Theming eine Quelle), 2 (Rollen-IA), 4 (Interaktions-Primitive) live auf `main`.** Phase 3 (Mobile/Touch) **out-of-scope** — App nur PC/Laptop.
@@ -50,9 +58,9 @@ Multi-Agent-Review → 5 Phasen. **Phase 0 (Quick-Wins/Bugs), 1 (Theming eine Qu
 | **1** | Live-Verifikation: Schema-Reads / Migration / RLS / Dual-Write gegen echte MariaDB (4 Punkte, 1 Sitzung sobald Deployment steht) | **[Server]** |
 | **2** | N1 — ✅ code-complete (`api/mailer.php` PHPMailer/SMTP + Fallback, `weekly_digest.php` nutzt es, Inhalt in `digest_lib.php` unit-getestet). Nur noch SMTP-Versand live gegen echten MTA verifizieren | [Server] |
 | **3** | SEC1 — Fail2ban + UFW | **[Server]** |
-| **4** | Housekeeping: ~30 silent-catches durchgehen · `nwtgck/actions-netlify@v3` vor **16.06** Node-24-fähig bumpen · S12-Akzeptanzkriterien final abhaken nach Tier 1 | [hier] |
+| **4** | Housekeeping: silent-catches ✅ · Netlify-Action v4 ✅ (16.06-Frist entschärft) · S12-Akzeptanzkriterien final abhaken nach Tier 1 (offen) | [hier] |
 
-**Engpass:** Tier 1 + SEC1 brauchen den echten Ubuntu-Server (`10.14.99.10`). Vom Dev-PC bewegbar: Welcome-News, N1, Housekeeping.
+**Engpass:** Alle Code-Stränge sind durch. Was bleibt (Tier 1–3 + N1-Live-Versand) braucht den echten Ubuntu-Server (`10.14.99.10`).
 
 ---
 
