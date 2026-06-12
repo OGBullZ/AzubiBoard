@@ -86,11 +86,19 @@ export const fmtDate = (d?: string | null): string => {
   }
 };
 
-export const getDeadlineDaysLeft = (deadline?: string | null): number | null => {
-  if (!deadline) return null;
-  const diff = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000);
-  return diff;
+// Tagesdifferenz auf lokalen Mitternachts-Achsen. Reine Datums-Strings
+// ('YYYY-MM-DD') werden sonst als UTC-Mitternacht geparst, während `now` lokal
+// ist → Off-by-one im nächtlichen Zeitfenster (Bug-Hunt 3 #7).
+export const dayDiffLocal = (iso: string | Date, now: Date = new Date()): number => {
+  const a = iso instanceof Date ? new Date(iso)
+    : new Date(typeof iso === 'string' && iso.length === 10 ? `${iso}T00:00:00` : iso);
+  a.setHours(0, 0, 0, 0);
+  const b = new Date(now); b.setHours(0, 0, 0, 0);
+  return Math.round((a.getTime() - b.getTime()) / 86400000);
 };
+
+export const getDeadlineDaysLeft = (deadline?: string | null): number | null =>
+  deadline ? dayDiffLocal(deadline) : null;
 
 // ── ISO-8601 Kalenderwoche ───────────────────────────────────
 // Korrekt für Jahresgrenzen: 29.12.2025 → KW1/2026, 01.01.2024 → KW1/2024

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { User, Goal, GoalProgress, AppState, Id } from '../../types';
-import { C, uid, fmtDate, addActivity } from '../../lib/utils.js';
+import { C, uid, fmtDate, addActivity, dayDiffLocal } from '../../lib/utils.js';
 import { celebrate } from '../../lib/celebrate.js';
 import { useDesign } from '../../lib/hooks.js';
 import { FlapDigits } from '../../components/FlapDigits.jsx';
@@ -37,7 +37,7 @@ function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: string |
   const [editing, setEditing] = useState(false);
   const [val,     setVal]     = useState<string>(examDate || '');
 
-  const days   = examDate ? Math.ceil((+new Date(examDate) - +new Date()) / 86400000) : null;
+  const days   = examDate ? dayDiffLocal(examDate) : null;
   const urgent = days !== null && days <= 90;
   const over   = days !== null && days < 0;
 

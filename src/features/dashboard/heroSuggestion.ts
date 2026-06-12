@@ -1,6 +1,6 @@
 // Hero-Auswahl-Logik „Was jetzt?" (DESIGN-VISION Anhang D.3) — pure, unit-getestet.
 // Priorität: überfällige Aufgabe → heute fällig → Berichtsheft offen → Deadline ≤3 Tage → alles im Plan.
-import { fmtLocalDate } from '../../lib/utils.js';
+import { fmtLocalDate, dayDiffLocal } from '../../lib/utils.js';
 import type { Project, Report, Task, Id } from '../../types';
 
 export type HeroSuggestion = {
@@ -14,7 +14,7 @@ export type HeroSuggestion = {
   daysLeft: number | null;    // für die Gauge (negativ = überfällig)
 };
 
-const dayDiff = (iso: string, now: Date) => Math.ceil((+new Date(iso) - +now) / 86400000);
+const dayDiff = (iso: string, now: Date) => dayDiffLocal(iso, now);
 
 export function isoMondayOf(now: Date): string {
   const d = new Date(now); d.setHours(0, 0, 0, 0);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { User, Project, Task, Report, AppState, Id } from '../../types';
+import { dayDiffLocal } from '../../lib/utils.js';
 
 // ── Notifications ─────────────────────────────────────────────
 // UI-Konstrukt (kein Domain-Typ) — lokal definiert.
@@ -29,7 +30,7 @@ export function useNotifications(data: AppState | null, currentUser: User | null
     (data.projects || []).filter((p: Project) => !p.archived).forEach((project: Project) => {
       (project.tasks || []).forEach((task: Task) => {
         if (task.assignee !== currentUser.id || task.status === 'done' || !task.deadline) return;
-        const d = Math.ceil((+new Date(task.deadline) - +now) / 86400000);
+        const d = dayDiffLocal(task.deadline, now);
         if (d < 0)
           items.push({ id: `task-${task.id}-overdue`, type: 'deadline', severity: 'critical', title: task.text, message: `Überfällig seit ${Math.abs(d)} Tag${Math.abs(d) !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
         else if (d <= 3)
@@ -37,7 +38,7 @@ export function useNotifications(data: AppState | null, currentUser: User | null
       });
 
       if (project.assignees?.includes(currentUser.id) && project.deadline) {
-        const d = Math.ceil((+new Date(project.deadline) - +now) / 86400000);
+        const d = dayDiffLocal(project.deadline, now);
         if (d < 0)
           items.push({ id: `project-${project.id}-overdue`, type: 'project', severity: 'critical', title: project.title, message: 'Projektdeadline überschritten', projectId: project.id });
         else if (d <= 3)

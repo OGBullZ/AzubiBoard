@@ -1,4 +1,4 @@
-import { C, getISOWeek, today, fmtLocalDate, fmtDate } from '../../lib/utils.js';
+import { C, getISOWeek, today, fmtLocalDate, fmtDate, dayDiffLocal } from '../../lib/utils.js';
 import { isMentor } from '../../lib/roles.js';
 import type { User, AppState, Project, Task, Report, Goal, CalendarEvent } from '../../types';
 
@@ -39,7 +39,7 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
   const weekMon = isoMonday(now);
   const week = getISOWeek(today()).week;
   const cards: Card[] = [];
-  const dayDiff = (iso: string) => Math.ceil((+new Date(iso) - +now) / 86400000);
+  const dayDiff = (iso: string) => dayDiffLocal(iso, now);
 
   if (!isStaff) {
     // ── Azubi ──────────────────────────────────────────────
