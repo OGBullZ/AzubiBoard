@@ -137,6 +137,19 @@ if ($method === 'POST' && empty($parts[1] ?? null)) {
         // Gruppen-Mutationen sind Ausbilder-Sache; Azubi darf nur die EIGENE Beitritts-Anfrage
         // stellen/zurückziehen (Bug-Hunt GR-F1: sonst RLS-Bypass via Self-Add in members).
         validate_groups_diff($parsed['groups'] ?? [], $oldData['groups'] ?? [], (string)$auth['sub']);
+
+        // Bug-Hunt 3 #1 (Server): Mentor ist read-only Staff. reports/groups
+        // sind oben schon abgedeckt; hier die restlichen Schreib-Sektionen gegen
+        // den alten Blob abgleichen (tasks/materials/requirements liegen in
+        // projects). Stale-POSTs sind durch die 409-Versionsprüfung oben
+        // ausgeschlossen, daher ist der Sektions-Vergleich verlässlich.
+        if (($auth['role'] ?? '') === 'mentor') {
+            foreach (['projects','calendarEvents','trainingPlan','learningPaths','pathProgress','quizzes','flashcards'] as $sec) {
+                if (json_encode($parsed[$sec] ?? null) !== json_encode($oldData[$sec] ?? null)) {
+                    error('Mentoren haben nur Lesezugriff', 403);
+                }
+            }
+        }
     }
 
     $stmt = db()->prepare("
@@ -247,12 +260,17 @@ if ($method === 'POST' && (($parts[1] ?? null) === 'restore')) {
     $snap = $stmt->fetch();
     if (!$snap) error('Snapshot nicht gefunden', 404);
 
-    // Sicherheits-Snapshot des aktuellen Stands ANLEGEN vor dem Restore
-    // (Tagesschlüssel = "restore-pre-{Y-m-d_H-i-s}")
-    // → in eine separate Sicherheits-Tabelle wäre sauberer, aber wir
-    //   nutzen einfach das gleiche Schema mit synthetischem Day-String
-    //   funktioniert nicht direkt; stattdessen UPDATE app_data:
-    //   restoreten Inhalt als neuen current State setzen.
+    // Bug-Hunt 3 #14: echten Pre-Restore-Snapshot des AKTUELLEN Stands anlegen,
+    // bevor er überschrieben wird. Der Save-Pfad snapshottet nur den ERSTEN
+    // Save des Tages (INSERT IGNORE) → ohne das hier ginge ein seither
+    // geänderter Stand beim Restore verloren. ON DUPLICATE = jüngster Stand gewinnt.
+    $cur = db()->query('SELECT content FROM app_data WHERE id = 1')->fetch();
+    if ($cur) {
+        db()->prepare(
+            "INSERT INTO app_data_history (snapshot_day, content, size_bytes) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE content = VALUES(content), size_bytes = VALUES(size_bytes)"
+        )->execute([date('Y-m-d'), $cur['content'], strlen($cur['content'])]);
+    }
 
     db()->prepare("
         INSERT INTO app_data (id, content) VALUES (1, ?)

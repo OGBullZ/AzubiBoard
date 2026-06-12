@@ -50,7 +50,7 @@ if (!function_exists('safe_date')) {
     function safe_date(?string $d, ?string $context = null): ?string {
         if (!$d) return null;
         $t = strtotime($d);
-        if (!$t) {
+        if ($t === false) {  // Bug-Hunt 3 #13: 0 (Epoch) ist gültig, nur false = Drop
             error_log(sprintf('[migration] safe_date drop: input=%s context=%s', $d, $context ?? '-'));
             return null;
         }
@@ -66,7 +66,7 @@ if (!function_exists('safe_ts')) {
     function safe_ts(?string $d, ?string $context = null): ?string {
         if (!$d) return null;
         $t = strtotime($d);
-        if (!$t) {
+        if ($t === false) {  // Bug-Hunt 3 #13: 0 (Epoch) ist gültig, nur false = Drop
             error_log(sprintf('[migration] safe_ts drop: input=%s context=%s', $d, $context ?? '-'));
             return null;
         }
@@ -503,7 +503,10 @@ if (!function_exists('migrate_learning_paths')) {
         }
 
         // Progress (separat, da pathProgress global ist) — nur "done" wird übernommen.
+        // Bug-Hunt 3 #10: in eine Transaktion wrappen (Atomarität statt Verlass nur auf UNIQUE).
         if (!$dryRun) {
+            $pdo->beginTransaction();
+            try {
             foreach ($progress as $pathBlobId => $nodes) {
                 if (!is_array($nodes)) continue;
                 foreach ($nodes as $nodeBlobId => $state) {
@@ -527,6 +530,11 @@ if (!function_exists('migrate_learning_paths')) {
                         if ($stmt->rowCount() > 0) $stats['learning_path_progress']++;
                     }
                 }
+            }
+            $pdo->commit();
+            } catch (\Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                error_log("[migration] migrate_learning_paths progress rollback: " . $e->getMessage());
             }
         }
 
@@ -614,13 +622,24 @@ if (!function_exists('migrate_training_plan')) {
                 $azubis = $pdo->query("SELECT id FROM users ORDER BY id ASC LIMIT 1")->fetchAll(PDO::FETCH_COLUMN);
             }
             $json = json_encode($plan, JSON_UNESCAPED_UNICODE);
-            foreach ($azubis as $uid) {
-                $pdo->prepare("UPDATE users SET training_plan = ? WHERE id = ?")
-                    ->execute([$json, (int)$uid]);
-                $stats['training_plan_users']++;
+            // Bug-Hunt 3 #10: UPDATEs + Marker atomar — sonst Re-Run-Duplikat bei
+            // Crash zwischen UPDATE und register_map.
+            $pdo->beginTransaction();
+            try {
+                foreach ($azubis as $uid) {
+                    $pdo->prepare("UPDATE users SET training_plan = ? WHERE id = ?")
+                        ->execute([$json, (int)$uid]);
+                    $stats['training_plan_users']++;
+                }
+                // Marker: einmal pro Migration anwenden
+                register_map($pdo, 'training_plan', 'global', 1);
+                $pdo->commit();
+            } catch (\Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                error_log("[migration] migrate_training_plan rollback: " . $e->getMessage());
+                $stats['training_plan_users'] = 0;
+                $stats['skipped']++;
             }
-            // Marker: einmal pro Migration anwenden
-            register_map($pdo, 'training_plan', 'global', 1);
         }
         return $stats;
     }
