@@ -51,7 +51,7 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
 
   const cards = buildNewsCards(data, currentUser, lastConfirmedSeen, confirmedCount);
 
-  const myProjects = (data?.projects || []).filter(p => p.assignees?.includes(currentUser.id as Id));
+  const myProjects = (data?.projects || []).filter(p => p.assignees?.some(a => String(a) === String(currentUser.id)));
   const azubiEmptyAccount = !isStaff && myProjects.length === 0 && cards.length === 0;
 
   const nav = (to: string) => { onClose(); navigate(to); };

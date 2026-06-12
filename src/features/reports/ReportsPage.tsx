@@ -75,10 +75,10 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete, s
   const iso      = getISOWeek(report.week_start);
   const kw       = iso.week;
   const isoYear  = iso.year ?? new Date(report.week_start as string).getFullYear();
-  const canSubmit = report.status === 'draft' && report.user_id === currentUser.id;
+  const canSubmit = report.status === 'draft' && String(report.user_id) === String(currentUser.id);
   const canSign   = ['submitted','reviewed'].includes(report.status as string) && isAusbilder(currentUser);
   const canDelete = isAusbilder(currentUser) ||
-    (report.user_id === currentUser.id && report.status === 'draft');
+    (String(report.user_id) === String(currentUser.id) && report.status === 'draft');
   const weekEnd   = new Date(new Date(report.week_start as string).getTime() + 4 * 86400000).toISOString().split('T')[0];
 
   return (
@@ -171,7 +171,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
   const [aiLoading,   setAiLoading]   = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const isOwner  = !report || report.user_id === currentUser.id;
+  const isOwner  = !report || String(report.user_id) === String(currentUser.id);
   const isReview = isAusbilder(currentUser);
   // Mentor sieht alles wie Review-Modus, aber kann nichts speichern → readOnly forciert.
   // `report &&`-Guard: ein NEUER Bericht (report=null) ist ein Entwurf des Azubi → editierbar
@@ -725,7 +725,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   const [shareOpen,  setShareOpen]  = useState(false);  // J10
   const [justStamped, setJustStamped] = useState<Id | null>(null);  // Beta: Stempel-Aufschlag nach Statuswechsel
 
-  const myReports = currentUser.role === 'azubi' ? reports.filter((r: Report) => r.user_id === currentUser.id) : reports;
+  const myReports = currentUser.role === 'azubi' ? reports.filter((r: Report) => String(r.user_id) === String(currentUser.id)) : reports;
   const q = dSearch.trim().toLowerCase();
   const filtered = myReports
     .filter((r: Report) => filter === 'alle' || r.status === filter)

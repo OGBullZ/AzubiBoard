@@ -608,7 +608,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
   };
 
   const projectLabels = project.labels || [];
-  const assignable = users.filter((u: User) => (project.assignees||[])?.includes(u.id) || u.id === currentUser.id);
+  const assignable = users.filter((u: User) => (project.assignees||[])?.includes(u.id) || String(u.id) === String(currentUser.id));
 
   const updateTask = (taskId: Id, patch: Partial<Task>) => {
     if (patch.status === 'done') {

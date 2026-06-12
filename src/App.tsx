@@ -141,6 +141,9 @@ function DesignSwitch() {
 function applyUserTheme(theme?: string | null) {
   if (!theme) return;
   localStorage.setItem('azubiboard_theme', theme);
+  // Ein in der DB gespeichertes Theme ist eine explizite Wahl → Manual-Marker
+  // setzen, sonst überschreibt der OS-Sync-Handler die Wahl still (Bug-Hunt 3 #2).
+  localStorage.setItem('azubiboard_theme_manual', '1');
   document.documentElement.setAttribute('data-theme', theme);
 }
 
@@ -1581,7 +1584,9 @@ const App = () => {
       try {
         const imported = JSON.parse(ev.target?.result as string);
         if (!imported.users || !Array.isArray(imported.projects)) throw new Error('Ungültiges Format');
-        setData(imported);
+        // Import durch dieselbe Pipeline wie der Bootstrap schicken, sonst landet
+        // ein älteres/fremdes Backup unmigriert im State (Bug-Hunt 3 #6).
+        setData(autoCleanTrash(ensureTrash(migrateData(imported) as any)));
         showToast('✓ Daten importiert');
       } catch { showToast('⚠ Datei konnte nicht importiert werden'); }
     };

@@ -57,7 +57,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
   const visible = active
     .filter(p => {
       // Mentor + Ausbilder sehen alle Projekte; Azubi nur eigene wenn "mine" gewählt
-      if (filter === 'mine' && !(p.assignees||[]).includes(currentUser.id) && !isStaff(currentUser)) return false;
+      if (filter === 'mine' && !(p.assignees||[]).some(a => String(a) === String(currentUser.id)) && !isStaff(currentUser)) return false;
       if (['green','yellow','red'].includes(filter) && p.status !== filter) return false;
       if (dSearch && !p.title.toLowerCase().includes(dSearch.toLowerCase()) && !(p.description || '').toLowerCase().includes(dSearch.toLowerCase())) return false;
       return true;
@@ -83,7 +83,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
 
   const FILTERS: FilterRow[] = [
     ['all',    t('project.filterAll'),     null,  C.ac, active.length],
-    ['mine',   t('project.filterMine'),    null,  C.mu, active.filter(p => (p.assignees||[]).includes(currentUser.id)).length],
+    ['mine',   t('project.filterMine'),    null,  C.mu, active.filter(p => (p.assignees||[]).some(a => String(a) === String(currentUser.id))).length],
     ['green',  t('project.filterDone'),    C.gr,  C.gr, active.filter(p => p.status === 'green').length],
     ['yellow', t('project.filterRunning'), C.yw,  C.yw, active.filter(p => p.status === 'yellow').length],
     ['red',    t('project.filterProblem'), C.cr,  C.cr, active.filter(p => p.status === 'red').length],
