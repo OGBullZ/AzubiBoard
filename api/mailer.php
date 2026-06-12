@@ -10,6 +10,12 @@
 // ============================================================
 
 function send_mail(string $to, string $subject, string $body, string $htmlBody = ''): bool {
+    // Header-Injection-Schutz (Bug-Hunt 3 #4): CRLF im Empfänger würde in der
+    // native mail()-Schiene zusätzliche Header schmuggeln. Ungültige Adresse abweisen.
+    if (preg_match('/[\r\n]/', $to) || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        error_log('[mailer] Ungültige/unsichere Empfängeradresse abgewiesen');
+        return false;
+    }
     if (defined('SMTP_HOST') && SMTP_HOST !== '') {
         return _send_via_phpmailer($to, $subject, $body, $htmlBody);
     }

@@ -217,8 +217,14 @@ if ($method === 'POST' && $id === null) {
              start_date, deadline, netzplan_unit, color)
         VALUES (?,?,?,?,?,?,?,?,?,?)
     ");
+    // RLS (Bug-Hunt 3 #8): group_id nur akzeptieren, wenn der Ersteller
+    // Mitglied dieser Gruppe ist — sonst kein Self-Assignment in fremde Gruppen.
+    $gid = !empty($b['group_id']) ? (int)$b['group_id'] : null;
+    if ($gid !== null && !in_array($gid, user_group_ids(db(), $uid), true)) {
+        $gid = null;
+    }
     $s->execute([
-        !empty($b['group_id']) ? (int)$b['group_id'] : null,
+        $gid,
         $uid,
         $title,
         $b['description'] ?? null,

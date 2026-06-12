@@ -295,7 +295,10 @@ function validate_reports_diff(array $newReports, array $oldReports, int $uid): 
         if (isset($oldById[$id])) {
             $or = $oldById[$id];
             // Bit-genauer Vergleich der für K2 relevanten Felder
-            $relevant = ['title','activities','learnings','status','user_id','week_start','week_number','year','file','sectionComments','review_comment'];
+            // Bug-Hunt 3 #9: Whitelist mit echtem Report-Schema synchronisiert —
+            // sonst kann ein Azubi nicht-gelistete Felder (reviewer_comment/
+            // signed_file_url/file_url) unbemerkt ändern (Diff schlägt nicht an).
+            $relevant = ['title','activities','learnings','status','user_id','week_start','week_number','year','file','file_url','sectionComments','review_comment','reviewer_comment','signed_file_url'];
             $changed = false;
             foreach ($relevant as $f) {
                 $a = $or[$f] ?? null; $b = $nr[$f] ?? null;

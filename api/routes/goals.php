@@ -172,7 +172,11 @@ if ($entity === 'materials') {
         foreach (['name','description','quantity','unit','unit_cost','supplier','ordered','sort_order'] as $f) {
             if (!array_key_exists($f, $b)) continue;
             $fields[] = "`$f` = ?";
-            $vals[]   = $b[$f];
+            // Bug-Hunt 3 #12: gleiche Clamps/Normalisierung wie im POST
+            if ($f === 'quantity')      $vals[] = max(0.01, (float)$b[$f]);
+            elseif ($f === 'unit_cost') $vals[] = max(0, (float)$b[$f]);
+            elseif ($f === 'ordered')   $vals[] = !empty($b[$f]) ? 1 : 0;
+            else                        $vals[] = $b[$f];
         }
         if (!$fields) error('Keine Felder zum Aktualisieren', 400);
         $vals[] = $itemId;
