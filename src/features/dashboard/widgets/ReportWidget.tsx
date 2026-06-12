@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C } from '../../../lib/utils.js';
+import { C, getKW } from '../../../lib/utils.js';
 import { IcoAlert, IcoReport } from '../../../components/Icons.jsx';
 import type { Report } from '../../../types';
 
@@ -30,7 +30,7 @@ function ReportWidgetImpl({ reports, userId, onNavigate }: ReportWidgetProps) {
           <IcoAlert size={13} style={{ color: C.yw, flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.yw }}>Berichtsheft diese Woche fehlt</div>
-            <div style={{ fontSize: 10, color: C.textSecondary }}>Noch nicht für KW {Math.ceil((now.getTime() - new Date(now.getFullYear(),0,1).getTime())/604800000)} erstellt</div>
+            <div style={{ fontSize: 10, color: C.textSecondary }}>Noch nicht für KW {getKW(now)} erstellt</div>
           </div>
         </div>
       )}

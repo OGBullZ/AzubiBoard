@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { C } from '../../../lib/utils.js';
+import { C, getKW } from '../../../lib/utils.js';
 import { Avatar } from '../../../components/UI.jsx';
 import type { User } from '../../../types';
 
@@ -35,7 +35,7 @@ function ZeiterfassungWidgetImpl({ users, projects }: ZeiterfassungWidgetProps) 
   const today = new Date().toISOString().split('T')[0];
 
   const sunStr = (() => { const d = new Date(monStr); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; })();
-  const kwNum  = Math.ceil((new Date(monStr).getTime() - new Date(new Date(monStr).getFullYear(), 0, 1).getTime()) / 604800000);
+  const kwNum  = getKW(monStr);  // ISO-KW statt Naiv-Formel (falsch an Jahresgrenzen)
 
   const azubis = users.filter(u => u.role === 'azubi');
 
