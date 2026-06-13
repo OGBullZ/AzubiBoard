@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, useDraggable } from '@dnd-kit/core';
 import type { User, Task, TimeLogEntry, Label, Material, Requirement, Project, Id } from '../../types';
-import { C, uid, today, fmtDate } from '../../lib/utils.js';
+import { C, uid, today, fmtDate, sameId } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import { useDesign } from '../../lib/hooks.js';
 import { LinksManager } from './LinksManager.jsx';
@@ -608,7 +608,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
   };
 
   const projectLabels = project.labels || [];
-  const assignable = users.filter((u: User) => (project.assignees||[])?.includes(u.id) || String(u.id) === String(currentUser.id));
+  const assignable = users.filter((u: User) => (project.assignees||[])?.includes(u.id) || sameId(u.id, currentUser.id));
 
   const updateTask = (taskId: Id, patch: Partial<Task>) => {
     if (patch.status === 'done') {

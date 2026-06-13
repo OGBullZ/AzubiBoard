@@ -71,6 +71,11 @@ export const UDAYS = { W: 7, T: 1, M: 30 };
 export const uid = (): string =>
   Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-4);
 
+// ── ID-Vergleich ─────────────────────────────────────────────
+// IDs sind je nach Modus string (localStorage/Blob) oder number (API) — daher
+// IMMER über String() vergleichen, nie roh ===. Eine Quelle gegen Drift (Bug-Hunt 3).
+export const sameId = (a: unknown, b: unknown): boolean => String(a) === String(b);
+
 // ── Datums-Helfer ────────────────────────────────────────────
 // Lokales Datum (YYYY-MM-DD) — NICHT toISOString() (UTC), sonst Off-by-one in positiven Zeitzonen 00–02 Uhr.
 export const today = (): string => fmtLocalDate(new Date());

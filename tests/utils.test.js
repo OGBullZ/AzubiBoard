@@ -3,8 +3,22 @@
 import { describe, it, expect } from 'vitest';
 import {
   getISOWeek, getKW, getISOWeekMonday, isoWeekMonday, fmtLocalDate, fmtDate,
-  getDeadlineDaysLeft, addActivity, uid,
+  getDeadlineDaysLeft, addActivity, uid, sameId,
 } from '../src/lib/utils.js';
+
+describe('sameId', () => {
+  // Kernintent: IDs sind je nach Modus string (Blob) oder number (API) — müssen
+  // typ-tolerant verglichen werden, sonst der ID-Mismatch-Bug aus Bug-Hunt 3.
+  it('vergleicht number und string typ-tolerant', () => {
+    expect(sameId(5, '5')).toBe(true);
+    expect(sameId('5', 5)).toBe(true);
+    expect(sameId(5, 5)).toBe(true);
+  });
+  it('unterscheidet verschiedene IDs', () => {
+    expect(sameId(5, 6)).toBe(false);
+    expect(sameId('abc', 'abd')).toBe(false);
+  });
+});
 
 describe('getISOWeek', () => {
   // Ankerpunkte aus ISO 8601 — manuell verifiziert

@@ -6,7 +6,7 @@
 // ============================================================
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Project, Report, Task, CalendarEvent, Id } from '../../types';
-import { C, fmtDate, getISOWeek, today, dayDiffLocal, isoWeekMonday } from '../../lib/utils.js';
+import { C, fmtDate, getISOWeek, today, dayDiffLocal, isoWeekMonday, sameId } from '../../lib/utils.js';
 import { useCountUp } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import { WeekProgress } from './widgets/WeekProgress.jsx';
@@ -30,7 +30,6 @@ type Props = {
 };
 
 const monoCaps: React.CSSProperties = { fontFamily: C.mono, fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: C.mu };
-const sameId = (a: unknown, b: unknown) => String(a) === String(b);
 
 // ── Z1: Blueprint-Werkbank (zeichnet sich beim Mount, Zahnrad dreht idle) ──
 function WerkbankDoodle() {

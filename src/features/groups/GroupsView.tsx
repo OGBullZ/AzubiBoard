@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, uid } from '../../lib/utils.js';
+import { C, uid, sameId } from '../../lib/utils.js';
 import { Avatar, Modal, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import type { User, Project, Id } from '../../types';
@@ -18,8 +18,6 @@ type GroupProject = Project & {
   assignees?: Id[];
 };
 
-// IDs sind je nach Modus string (localStorage) oder number (API) — nie strikt vergleichen.
-const sameId = (a: Id, b: Id) => String(a) === String(b);
 
 type GroupForm = {
   name: string;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { C, getISOWeek, today } from '../../lib/utils.js';
+import { C, getISOWeek, today, sameId } from '../../lib/utils.js';
 import { isMentor } from '../../lib/roles.js';
 import { useDialog, useDesign } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
@@ -51,7 +51,7 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
 
   const cards = buildNewsCards(data, currentUser, lastConfirmedSeen, confirmedCount);
 
-  const myProjects = (data?.projects || []).filter(p => p.assignees?.some(a => String(a) === String(currentUser.id)));
+  const myProjects = (data?.projects || []).filter(p => p.assignees?.some(a => sameId(a, currentUser.id)));
   const azubiEmptyAccount = !isStaff && myProjects.length === 0 && cards.length === 0;
 
   const nav = (to: string) => { onClose(); navigate(to); };
