@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { C, getKW, getISOWeekMonday, fmtLocalDate } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday, fmtLocalDate, firstName } from '../../../lib/utils.js';
 import { Avatar } from '../../../components/UI.jsx';
 import type { User } from '../../../types';
 
@@ -87,7 +87,7 @@ function ZeiterfassungWidgetImpl({ users, projects }: ZeiterfassungWidgetProps) 
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
             <Avatar name={azubi.name} url={azubi.avatar_url} size={18} />
             <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {azubi.name.split(' ')[0]}
+              {firstName(azubi.name)}
             </span>
             <span style={{ fontSize: 12, fontWeight: 800, fontFamily: C.mono, color: total > 0 ? C.gr : C.mu }}>
               {total.toFixed(1)}h

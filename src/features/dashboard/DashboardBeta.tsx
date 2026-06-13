@@ -6,7 +6,7 @@
 // ============================================================
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Project, Report, Task, CalendarEvent, Id } from '../../types';
-import { C, fmtDate, getISOWeek, today, dayDiffLocal, isoWeekMonday, sameId } from '../../lib/utils.js';
+import { C, fmtDate, getISOWeek, today, dayDiffLocal, isoWeekMonday, sameId, firstName } from '../../lib/utils.js';
 import { useCountUp } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import { WeekProgress } from './widgets/WeekProgress.jsx';
@@ -149,7 +149,7 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ flexShrink: 0, padding: '16px 24px 13px', borderBottom: '1px solid var(--c-bd)', background: 'var(--c-sf)', display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: 22, margin: 0 }}>{greeting}, {String(user.name || '').split(' ')[0]}</h1>
+        <h1 style={{ fontSize: 22, margin: 0 }}>{greeting}, {firstName(user.name)}</h1>
         <LiveClock />
         <div style={{ marginLeft: 'auto' }}>
           <Stamp label={`KW ${kw ?? ''} · ${now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`} color="blue" seed={`kw-${kw}`} />
@@ -306,7 +306,7 @@ export function DashboardBeta({ user, projects, reports, calendarEvents, activit
 
   const header = (
     <div style={{ flexShrink: 0, padding: '16px 24px 13px', borderBottom: '1px solid var(--c-bd)', background: 'var(--c-sf)', display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-      <h1 style={{ fontSize: 22, margin: 0 }}>{greeting}, {String(user.name || '').split(' ')[0]}</h1>
+      <h1 style={{ fontSize: 22, margin: 0 }}>{greeting}, {firstName(user.name)}</h1>
       <LiveClock />
       <div style={{ marginLeft: 'auto' }}>
         <Stamp label={`KW ${kw ?? ''} · ${now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`} color="blue" seed={`kw-${kw}`} />

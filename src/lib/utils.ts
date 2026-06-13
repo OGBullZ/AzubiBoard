@@ -76,6 +76,9 @@ export const uid = (): string =>
 // IMMER über String() vergleichen, nie roh ===. Eine Quelle gegen Drift (Bug-Hunt 3).
 export const sameId = (a: unknown, b: unknown): boolean => String(a) === String(b);
 
+// Vorname (erstes Wort) — null-sicher, eine Quelle statt verstreutem name.split(' ')[0].
+export const firstName = (name?: string | null): string => (name || '').trim().split(' ')[0] || (name || '');
+
 // ── Datums-Helfer ────────────────────────────────────────────
 // Lokales Datum (YYYY-MM-DD) — NICHT toISOString() (UTC), sonst Off-by-one in positiven Zeitzonen 00–02 Uhr.
 export const today = (): string => fmtLocalDate(new Date());

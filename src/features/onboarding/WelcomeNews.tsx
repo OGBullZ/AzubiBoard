@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { C, getISOWeek, today, sameId } from '../../lib/utils.js';
+import { C, getISOWeek, today, sameId, firstName as getFirstName } from '../../lib/utils.js';
 import { isMentor } from '../../lib/roles.js';
 import { useDialog, useDesign } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import NewsCard from './NewsCard';
-import { buildNewsCards, firstNameOf } from './welcomeNewsData';
+import { buildNewsCards } from './welcomeNewsData';
 import type { User, AppState, Id, Goal } from '../../types';
 
 type WelcomeNewsProps = {
@@ -26,7 +26,7 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
 
   const isStaff = currentUser.role === 'ausbilder' || currentUser.role === 'mentor';
   const mentor = isMentor(currentUser);
-  const firstName = firstNameOf(currentUser.name);
+  const firstName = getFirstName(currentUser.name);
 
   // Delta-Persistenz für „X Lernziele bestätigt 🎉" (zuletzt gesehene Anzahl pro User).
   const confKey = `azubiboard_news_confirmed_${currentUser.id}`;

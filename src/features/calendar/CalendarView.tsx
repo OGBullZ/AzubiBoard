@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, uid, getKW } from '../../lib/utils.js';
+import { C, uid, getKW, firstName } from '../../lib/utils.js';
 import { useDesign } from '../../lib/hooks.js';
 import { FlapDigits } from '../../components/FlapDigits.jsx';
 import { Avatar, Modal, Field } from '../../components/UI.jsx';
@@ -399,7 +399,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                               <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                                 <Avatar name={w.name} size={18} />
                                 <div>
-                                  <div style={{ fontSize: 11, fontWeight: 600, color: C.br }}>{w.name.split(' ')[0]}</div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: C.br }}>{firstName(w.name)}</div>
                                   <div style={{ fontSize: 9, color: C.mu, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.taskText}</div>
                                 </div>
                                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: w.taskStatus === 'in_progress' ? C.gr : C.yw, flexShrink: 0 }} />

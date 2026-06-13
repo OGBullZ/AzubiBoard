@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { C, sameId } from '../../lib/utils.js';
+import { C, sameId, firstName as getFirstName } from '../../lib/utils.js';
 import { buildNewsCards } from './welcomeNewsData';
 import NewsCard from './NewsCard';
 import { Stamp } from '../../components/Stamp.jsx';
@@ -35,7 +35,7 @@ function StepWelcome({ currentUser }: { currentUser: User }) {
   const isStaff     = isAusbilder || currentUser.role === 'mentor';
   const hour        = new Date().getHours();
   const greeting    = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Hallo' : 'Guten Abend';
-  const firstName   = currentUser.name?.split(' ')[0] || currentUser.name;
+  const firstName   = getFirstName(currentUser.name);
   const roleLabel   = isAusbilder ? 'Ausbilder' : currentUser.role === 'mentor' ? 'Mentor' : 'Azubi';
 
   return (

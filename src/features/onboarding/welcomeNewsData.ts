@@ -1,12 +1,10 @@
-import { C, getISOWeek, today, fmtLocalDate, fmtDate, dayDiffLocal, isoWeekMonday } from '../../lib/utils.js';
+import { C, getISOWeek, today, fmtLocalDate, fmtDate, dayDiffLocal, isoWeekMonday, firstName, sameId } from '../../lib/utils.js';
 import { isMentor } from '../../lib/roles.js';
 import type { User, AppState, Project, Task, Report, Goal, CalendarEvent } from '../../types';
 
 // Reine News-Aggregation (kein React) — getrennt von WelcomeNews.tsx, damit die
 // Komponenten-Datei nur die Komponente exportiert (react-refresh) und die Logik
 // unit-testbar bleibt (tests/welcome-news.test.js).
-
-export const firstNameOf = (name?: string | null) => (name || '').split(' ')[0] || name || '';
 
 // Aggregierte News-Karte. sev steuert die Sortierung (0 critical → 2 info).
 export type Card = { key: string; sev: number; accent: string; accentBg: string; icon: string; label: string; title: string; sub?: string; to?: string };
@@ -40,11 +38,11 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
     const soon: string[] = [];
     active.forEach((p: Project) => {
       (p.tasks || []).forEach((tk: Task) => {
-        if (tk.assignee !== me || tk.status === 'done' || !tk.deadline) return;
+        if (!sameId(tk.assignee, me) || tk.status === 'done' || !tk.deadline) return;
         const d = dayDiff(tk.deadline);
         if (d < 0) overdue.push(tk.text || 'Aufgabe'); else if (d <= 3) soon.push(tk.text || 'Aufgabe');
       });
-      if (p.assignees?.includes(me) && p.deadline) {
+      if (p.assignees?.some(x => sameId(x, me)) && p.deadline) {
         const d = dayDiff(p.deadline);
         if (d < 0) overdue.push(p.title); else if (d <= 3) soon.push(p.title);
       }
@@ -56,11 +54,11 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
       title: soon.length === 1 ? soon[0] : `${soon.length} Aufgaben bald fällig`,
       sub: soon.length === 1 ? 'Fällig in ≤3 Tagen' : `Nächste: „${soon[0]}"`, to: '/calendar' });
 
-    const hasThisWeek = reports.some((r: Report) => r.user_id === me && (r.week_start || '') >= weekMon);
+    const hasThisWeek = reports.some((r: Report) => sameId(r.user_id, me) && (r.week_start || '') >= weekMon);
     if (!hasThisWeek) cards.push({ key: 'report-open', sev: 1, ...ACC.warn, icon: '📝', label: 'Diese Woche',
       title: `Berichtsheft KW ${week ?? ''} noch offen`, sub: 'Wochenbericht fehlt', to: '/reports' });
 
-    const feedback = reports.filter((r: Report) => r.user_id === me && (r.status === 'reviewed' || r.status === 'signed'));
+    const feedback = reports.filter((r: Report) => sameId(r.user_id, me) && (r.status === 'reviewed' || r.status === 'signed'));
     if (feedback.length) cards.push({ key: 'feedback', sev: 2, ...ACC.ok, icon: '✓', label: 'Erledigt',
       title: feedback.length === 1 ? 'Bericht mit Feedback' : `${feedback.length} Berichte mit Feedback`,
       sub: 'Neues Feedback von deinem Ausbilder', to: '/reports' });
@@ -87,8 +85,8 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
       return { a, count: ov.length };
     }).filter((x: { count: number }) => x.count > 2);
     if (critical.length) cards.push({ key: 'critical-azubis', sev: 0, ...ACC.crit, icon: '⚠', label: 'Aufmerksamkeit',
-      title: critical.length === 1 ? `${firstNameOf(critical[0].a.name)} braucht Aufmerksamkeit` : `${critical.length} Azubis brauchen Aufmerksamkeit`,
-      sub: `${firstNameOf(critical[0].a.name)} · ${critical[0].count} Aufgaben überfällig`, to: '/' });
+      title: critical.length === 1 ? `${firstName(critical[0].a.name)} braucht Aufmerksamkeit` : `${critical.length} Azubis brauchen Aufmerksamkeit`,
+      sub: `${firstName(critical[0].a.name)} · ${critical[0].count} Aufgaben überfällig`, to: '/' });
 
     const submitted = reports.filter((r: Report) => r.status === 'submitted')
       .sort((x: Report, y: Report) => (y.week_start || '').localeCompare(x.week_start || ''));
@@ -99,7 +97,7 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
     const missing = azubis.filter((a: User) => !reports.some((r: Report) => r.user_id === a.id && (r.week_start || '') >= weekMon));
     if (missing.length) cards.push({ key: 'missing-report', sev: 1, ...ACC.warn, icon: '📝', label: 'Wochenbericht',
       title: `${missing.length} ${missing.length === 1 ? 'Azubi' : 'Azubis'}: KW ${week ?? ''} fehlt`,
-      sub: missing.length === 1 ? firstNameOf(missing[0].name) : missing.slice(0, 3).map((a: User) => firstNameOf(a.name)).join(', '), to: '/' });
+      sub: missing.length === 1 ? firstName(missing[0].name) : missing.slice(0, 3).map((a: User) => firstName(a.name)).join(', '), to: '/' });
 
     if (!mentor) {
       const goals = (data.trainingPlan?.goals || []) as Goal[];

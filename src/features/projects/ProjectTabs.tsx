@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, useDraggable } from '@dnd-kit/core';
 import type { User, Task, TimeLogEntry, Label, Material, Requirement, Project, Id } from '../../types';
-import { C, uid, today, fmtDate, sameId } from '../../lib/utils.js';
+import { C, uid, today, fmtDate, sameId, firstName } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import { useDesign } from '../../lib/hooks.js';
 import { LinksManager } from './LinksManager.jsx';
@@ -117,7 +117,7 @@ function ZeitTab({ task, onUpdate, currentUser }: { task: Task; onUpdate: (id: I
                 <span style={{ fontSize: 13, fontWeight: 800, color: C.ac, fontFamily: C.mono, minWidth: 38, flexShrink: 0 }}>{entry.hours}h</span>
                 <span style={{ flex: 1, fontSize: 12, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.description || <span style={{ color: C.mu, fontStyle: 'italic' }}>—</span>}</span>
                 <span style={{ fontSize: 10, color: C.mu, fontFamily: C.mono, flexShrink: 0 }}>{fmtDate(entry.date)}</span>
-                {entry.userName && <span style={{ fontSize: 10, color: C.mu, flexShrink: 0, opacity: .7 }}>{entry.userName.split(' ')[0]}</span>}
+                {entry.userName && <span style={{ fontSize: 10, color: C.mu, flexShrink: 0, opacity: .7 }}>{firstName(entry.userName)}</span>}
                 <IconBtn Icon={IcoTrash} onClick={() => removeEntry(entry.id!)} label="Eintrag löschen" danger size={11} />
               </div>
             ))}
@@ -241,7 +241,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
                 <button key={u.id} onClick={() => onUpdate(task.id, { assignee: u.id })} aria-pressed={task.assignee === u.id}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 6, background: task.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${task.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer', transition: 'all .12s' }}>
                   <Avatar name={u.name} size={16} />
-                  <span style={{ color: task.assignee === u.id ? C.ac : C.tx }}>{u.name.split(' ')[0]}</span>
+                  <span style={{ color: task.assignee === u.id ? C.ac : C.tx }}>{firstName(u.name)}</span>
                 </button>
               ))}
             </div>
@@ -676,7 +676,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
               <div style={{ position: 'relative' }}><Avatar name={user!.name} size={18} />
                 <div style={{ position: 'absolute', bottom: -1, right: -1, width: 6, height: 6, borderRadius: '50%', background: C.gr, border: `1px solid ${C.sf2}` }} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: C.br }}>{user!.name.split(' ')[0]}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: C.br }}>{firstName(user!.name)}</span>
               <span style={{ fontSize: 10, color: C.mu, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {task.text}</span>
             </div>
           ))}
@@ -725,7 +725,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
                 <button key={u.id} onClick={() => setNewTask((t: Task) => ({ ...t, assignee: t.assignee === u.id ? null : u.id }))}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 6, background: newTask.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${newTask.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer' }}>
                   <Avatar name={u.name} size={15} />
-                  <span style={{ color: newTask.assignee === u.id ? C.ac : C.tx }}>{u.name.split(' ')[0]}</span>
+                  <span style={{ color: newTask.assignee === u.id ? C.ac : C.tx }}>{firstName(u.name)}</span>
                 </button>
               ))}
             </div>

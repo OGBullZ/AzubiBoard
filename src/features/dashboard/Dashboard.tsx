@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, lazy } from "react";
 import { useTranslation } from 'react-i18next';
 import type { User, Project, Report, Task, TimeLogEntry, CalendarEvent, Id } from '../../types';
-import { C, fmtDate, fmtLocalDate, isoWeekMonday, sameId } from '../../lib/utils.js';
+import { C, fmtDate, fmtLocalDate, isoWeekMonday, sameId, firstName } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoPlay, IcoChevron,
@@ -77,7 +77,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
       <div style={{ flexShrink: 0, padding: '14px 20px 12px', borderBottom: `1px solid var(--c-bd)`, background: 'var(--c-sf)', display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 800, color: C.br, margin: 0 }}>{greeting}, {user.name.split(' ')[0]} 👋</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: C.br, margin: 0 }}>{greeting}, {firstName(user.name)} 👋</h1>
             <LiveClock />
           </div>
           <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2 }}>
@@ -208,7 +208,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
                   style={{ justifyContent: 'space-between', marginBottom: 4, padding: '7px 9px', border: `1px solid color-mix(in srgb, ${C.cr} 15%, transparent)`, borderRadius: 8, background: C.crd }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
-                    <div style={{ fontSize: 10, color: C.textSecondary }}>{users.filter(u => (p.assignees||[]).includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}</div>
+                    <div style={{ fontSize: 10, color: C.textSecondary }}>{users.filter(u => (p.assignees||[]).includes(u.id)).map(u => firstName(u.name)).join(', ')}</div>
                   </div>
                   <IcoChevron size={12} style={{ color: C.cr, flexShrink: 0 }} />
                 </button>
@@ -335,7 +335,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
             <h1 style={{ fontSize: 19, fontWeight: 800, color: C.br, margin: 0, whiteSpace: 'nowrap' }}>
-              {greeting}, {user.name.split(' ')[0]} 👋
+              {greeting}, {firstName(user.name)} 👋
             </h1>
             <LiveClock />
           </div>

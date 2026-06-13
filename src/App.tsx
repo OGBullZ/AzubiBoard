@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useState, useRef, lazy, Suspense } from 'react';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
-import { today, loadSession, clearSession, persistData, addActivity, uid, sameId } from './lib/utils';
+import { today, loadSession, clearSession, persistData, addActivity, uid, sameId, firstName } from './lib/utils';
 import { playStamp } from './lib/sound.js';
 import { ACCENTS } from './lib/prefs.js';
 import { useDebounce, useDialog } from './lib/hooks';
@@ -567,7 +567,7 @@ function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImport, onSh
                     {currentUser?.name?.split(' ').map((w: string) => w[0]).slice(0,2).join('').toUpperCase()}
                   </div>}
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-br)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser?.name?.split(' ')[0]}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-br)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{firstName(currentUser?.name)}</div>
                 <div style={{ fontSize: 9, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5 }}>
                   {currentUser?.role === 'azubi' ? `Azubi · LJ ${currentUser?.apprenticeship_year || 1}` : currentUser?.role === 'mentor' ? 'Mentor' : 'Ausbilder'}
                 </div>
