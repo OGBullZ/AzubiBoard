@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { C, getKW, fmtLocalDate, getISOWeekMonday } from '../../lib/utils.js';
+import { berichtsheftStats } from '../dashboard/reportStats.js';
 import { Avatar, ProgressBar } from '../../components/UI.jsx';
 import { IcoBack, IcoCheck, IcoClock, IcoAlert, IcoFolder, IcoReport, IcoTrendUp } from '../../components/Icons.jsx';
 import type { Report, User } from '../../types';
@@ -125,6 +126,9 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
   if (!azubi) return <div className="card" style={{ margin: 24 }}>Azubi nicht gefunden.</div>;
 
   const reports   = (data?.reports || []).filter(r => r.user_id === azubi.id).sort((a, b) => +new Date(b.week_start ?? 0) - +new Date(a.week_start ?? 0));
+  // Berichtsheft-Vollständigkeit (letzte 12 KW) — welche Wochen fehlen?
+  const bs        = berichtsheftStats(data?.reports || [], azubi.id, new Date(), 12);
+  const missingKw = bs.missing.map(mon => getKW(mon)).filter((k): k is number => k != null);
   const plan      = data?.trainingPlan || { goals: [] };
   const goals     = plan.goals || [];
   const myGoals   = goals.length;
@@ -194,8 +198,24 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
         <StatBox label="Überfällig" value={overdue} color={overdue > 0 ? C.cr : C.mu} />
         <StatBox label="Stunden ges." value={totalHours.toFixed(1)} color={C.yw} sub="geloggt" />
         <StatBox label="Berichte" value={reports.length} color={C.ac} />
+        <StatBox label="Heft-Quote" value={`${bs.have}/${bs.total}`} color={bs.missing.length === 0 ? C.gr : bs.missing.length <= 2 ? C.yw : C.cr} sub="letzte 12 KW" />
         <StatBox label="Projekte" value={projects.length} color={C.mu} />
       </div>
+
+      {/* Fehlende Berichtswochen (Drill-down für den Ausbilder) */}
+      {missingKw.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, borderLeft: `3px solid ${C.yw}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.yw, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 9, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IcoAlert size={13} /> Fehlende Berichtswochen ({missingKw.length} / {bs.total})
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {missingKw.map((kw, i) => (
+              <span key={i} style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.yw, background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 22%, transparent)`, borderRadius: 6, padding: '3px 9px' }}>KW {kw}</span>
+            ))}
+          </div>
+          <div style={{ fontSize: 9, color: C.mu, marginTop: 8 }}>Wochen ohne eingereichten Wochenbericht — relevant für die IHK-Vollständigkeit.</div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'flex-start' }}>
         {/* Stunden-Chart */}
