@@ -30,10 +30,17 @@ Bevor priorisiert wird, eine Grundsatzfrage:
 | **A — Eigen-Tool** | AzubiBoard bleibt das Werkzeug für **einen Betrieb** (deinen). Gruppen reichen zur Trennung. | **M5 (IHK) + AI + Analytics zuerst.** M4 entfällt. Klein, fokussiert, hoher Eigennutzen. |
 | **B — SaaS** | AzubiBoard soll **mehrere Betriebe** bedienen (Mandanten, Self-Service-Onboarding). | **M4 (Multi-Tenant) wird Fundament** und kommt vor fast allem. Großer Architektur-Umbau. |
 
-**Empfehlung:** Richtung **A** — es ist ein Azubi-Lernprojekt mit realem Eigennutzen.
-M5 (echtes IHK-Berichtsheft) bringt sofort Wert; M4 ist nur sinnvoll, wenn du es wirklich
-als Produkt für fremde Betriebe ausrollen willst. Die Roadmap unten folgt Richtung A;
-der Multi-Tenant-Block (V2.3) ist klar abgetrennt für den Fall, dass du auf B umschwenkst.
+**✅ ENTSCHIEDEN (2026-06-13): Richtung A** — AzubiBoard soll real von mehreren Leuten
+(Azubis + Ausbilder, geteilte Daten, server-seitige Prüfung) genutzt werden.
+Damit wird das **Server-Tier (`ZIELE-v1` Tier 1) zur #1-Priorität** und Gate für fast alles
+Weitere. M4 (Multi-Tenant) bleibt vorerst draußen (das wäre Richtung B/SaaS — mehrere
+*Betriebe*; hier geht es um mehrere *Nutzer eines* Betriebs, das deckt die Gruppen-/RLS-Logik
+bereits ab, sie muss nur live).
+
+**⚠️ Offener Blocker für A:** Der Deploy-Ziel-Server `10.14.99.10` ist eine **LAN-IP**.
+Für „mehrere Nutzer" muss geklärt werden, ob alle im selben Netz/VPN sind (dann reicht der
+LAN-Server) oder ob **öffentliches Hosting** nötig ist (dann anderer Host + Domain/HTTPS).
+Das ist die erste zu klärende Frage, bevor die Server-Sitzung startet.
 
 ---
 
