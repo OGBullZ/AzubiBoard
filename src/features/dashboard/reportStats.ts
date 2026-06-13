@@ -5,7 +5,7 @@ import type { Report, Id } from '../../types';
 
 // Tagesstruktur (Mo–Fr) eines Berichts — Schlüssel + Stundensumme. Pure, testbar.
 export const WEEK_DAY_KEYS = ['mo', 'di', 'mi', 'do', 'fr'] as const;
-export const sumDayHours = (days?: Record<string, { text?: string; hours?: number }>): number =>
+export const sumDayHours = (days?: Record<string, { text?: string | null; hours?: number | null }>): number =>
   WEEK_DAY_KEYS.reduce((s, k) => s + (Number(days?.[k]?.hours) || 0), 0);
 
 // Prüfungs-Readiness (0–100) aus 3 Säulen: Berichtsheft 40 %, Lernziele 35 %, Aufgaben 25 %.

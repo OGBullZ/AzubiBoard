@@ -789,6 +789,94 @@ function printJahresmappe(reports: Report[], year: number, showToast?: (msg: str
   else w.onload = () => w.print();
 }
 
+// M5: Kompletter, IHK-einreichbarer Ausbildungsnachweis EINES Azubis als ein Dokument —
+// Deckblatt mit Stammdaten + alle Wochen chronologisch (laufende Nr.) + Unterschriftszeile je Woche.
+// Recherche-Hintergrund: Einreichung bei der IHK = eine signierte Gesamt-PDF (docs/IHK-Spike.md).
+function printVollnachweis(allReports: Report[], user: User, showToast?: (msg: string, opts?: any) => void) {
+  const mine = allReports
+    .filter((r: Report) => sameId(r.user_id, user.id) && r.week_start)
+    .sort((a: Report, b: Report) => (a.week_start || '').localeCompare(b.week_start || ''));
+  if (!mine.length) { showToast?.('⚠ Noch keine Berichte vorhanden'); return; }
+
+  const u = user as User & { company?: string; department?: string };
+  const fmtD = (d?: string | null) => d ? new Date(`${d}T12:00:00`).toLocaleDateString('de-DE') : '';
+  const weekEnd = (ws: string) => new Date(new Date(`${ws}T12:00:00`).getTime() + 4 * 86400000).toLocaleDateString('de-DE');
+  const zeitraum = `${fmtD(mine[0].week_start)} – ${weekEnd(mine[mine.length - 1].week_start as string)}`;
+
+  const dayTable = (r: Report) => {
+    const rows = WEEK_DAYS.filter(([k]) => (r.days?.[k]?.text || r.days?.[k]?.hours));
+    if (!rows.length) return '';
+    return `<table class="days"><tr><th>Tag</th><th>Tätigkeit</th><th class="h">Std.</th></tr>${
+      rows.map(([k, label]) => `<tr><td>${label}</td><td>${esc(r.days?.[k]?.text) || '–'}</td><td class="h">${r.days?.[k]?.hours != null ? esc(r.days[k].hours) : ''}</td></tr>`).join('')
+    }<tr><td colspan="2" class="sum">Summe</td><td class="h sum">${sumDayHours(r.days).toFixed(1)}</td></tr></table>`;
+  };
+
+  const weeks = mine.map((r: Report, i: number) => {
+    const iso = getISOWeek(r.week_start);
+    const kw  = r.week_number ?? iso.week ?? '';
+    const yr  = r.year ?? iso.year ?? '';
+    const body = dayTable(r) || `<pre>${esc(r.activities) || '–'}</pre>`;
+    return `<section class="week">
+      <div class="wk-head"><span class="nr">Nr. ${i + 1}</span><span class="kw">KW ${kw} / ${yr}</span><span class="rng">${fmtD(r.week_start)} – ${weekEnd(r.week_start as string)}</span></div>
+      ${r.title ? `<div class="thema"><b>Thema:</b> ${esc(r.title)}</div>` : ''}
+      <div class="lbl">Durchgeführte betriebliche Tätigkeiten</div>${body}
+      <div class="lbl">Unterweisungen / Lerninhalte / Berufsschule</div><pre>${esc(r.learnings) || '–'}</pre>
+      <div class="sig"><span>Auszubildende/r: ________________</span><span>Ausbilder/in: ________________</span><span>Datum: __________</span></div>
+    </section>`;
+  }).join('');
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast?.('⚠ Popup blockiert – bitte Pop-ups erlauben'); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ausbildungsnachweis – ${esc(user.name)}</title>
+  <style>
+    @page { size: A4; margin: 18mm 15mm 18mm 25mm; }
+    body{font-family:'Times New Roman',Georgia,serif;color:#000;font-size:11pt;line-height:1.45;margin:0}
+    .cover{height:calc(100vh - 60mm);display:flex;flex-direction:column;justify-content:center}
+    .cover h1{font-size:24pt;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid #000;padding-bottom:8px;margin:0 0 6px}
+    .cover .sub{font-size:11pt;color:#444;margin-bottom:32px}
+    .stamm{border:1px solid #000;padding:14px 18px;font-size:11pt}
+    .stamm table{width:100%;border-collapse:collapse}
+    .stamm td{padding:5px 6px;vertical-align:top}
+    .stamm td.l{color:#555;width:38%;font-weight:600}
+    .week{page-break-before:always}
+    .wk-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:8px}
+    .wk-head .nr{font-weight:bold;font-size:10pt;color:#555}
+    .wk-head .kw{font-weight:bold;font-size:13pt}
+    .wk-head .rng{font-size:9pt;color:#555}
+    .thema{margin-bottom:8px}
+    .lbl{font-weight:bold;font-size:10.5pt;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid #777;padding-bottom:2px;margin:12px 0 5px}
+    pre{font-family:'Times New Roman',Georgia,serif;font-size:11pt;white-space:pre-wrap;word-break:break-word;margin:0 0 8px}
+    table.days{width:100%;border-collapse:collapse;font-size:10pt;margin:0 0 8px}
+    table.days th{text-align:left;border-bottom:1px solid #000;padding:3px 6px}
+    table.days td{padding:3px 6px;border-bottom:1px solid #ccc;vertical-align:top}
+    table.days .h{text-align:right;width:13%}
+    table.days .sum{font-weight:bold}
+    .sig{display:flex;justify-content:space-between;gap:14px;margin-top:18px;font-size:9pt;color:#333}
+    .footer{position:fixed;bottom:7mm;left:0;right:0;text-align:center;font-size:8pt;color:#999;font-style:italic}
+    @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact; pre{page-break-inside:avoid} .sig{page-break-inside:avoid} }
+  </style>
+  </head><body>
+    <div class="cover">
+      <h1>Ausbildungsnachweis</h1>
+      <div class="sub">Berichtsheft · ${mine.length} ${mine.length === 1 ? 'Woche' : 'Wochen'} · ${zeitraum}</div>
+      <div class="stamm"><table>
+        <tr><td class="l">Auszubildende/r:</td><td>${esc(user.name) || '–'}</td></tr>
+        ${u.company ? `<tr><td class="l">Ausbildungsbetrieb:</td><td>${esc(u.company)}</td></tr>` : ''}
+        ${u.department ? `<tr><td class="l">Abteilung:</td><td>${esc(u.department)}</td></tr>` : ''}
+        ${user.profession ? `<tr><td class="l">Ausbildungsberuf:</td><td>${esc(user.profession)}</td></tr>` : ''}
+        ${user.apprenticeship_year ? `<tr><td class="l">Ausbildungsjahr:</td><td>${esc(user.apprenticeship_year)}. Lehrjahr</td></tr>` : ''}
+        <tr><td class="l">Berichtszeitraum:</td><td>${zeitraum}</td></tr>
+        <tr><td class="l">Anzahl Nachweise:</td><td>${mine.length}</td></tr>
+      </table></div>
+    </div>
+    ${weeks}
+    <div class="footer">Erstellt mit AzubiBoard · ${new Date().toLocaleDateString('de-DE')} · zur Vorlage bei der IHK (Prüfungsanmeldung)</div>
+  </body></html>`);
+  w.document.close();
+  if (w.document.readyState === 'complete') w.print();
+  else w.onload = () => w.print();
+}
+
 export default function ReportsPage({ currentUser, data, onUpdateData, showToast }: {
   currentUser: User; data: AppState; onUpdateData: (next: AppState) => void; showToast: (msg: string, opts?: any) => void;
 }) {
@@ -913,10 +1001,17 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             </>
           )}
           {currentUser.role === 'azubi' && (
-            <button className="abtn" onClick={() => { setEditing(null); setView('edit'); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-              <IcoPlus size={13} /> {t('report.newReport')}
-            </button>
+            <>
+              <button className="btn" onClick={() => printVollnachweis(reports, currentUser, showToast)}
+                title="Alle Wochen als eine PDF — zur Vorlage bei der IHK (Prüfungsanmeldung)"
+                style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>
+                📑 Kompletter Nachweis
+              </button>
+              <button className="abtn" onClick={() => { setEditing(null); setView('edit'); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                <IcoPlus size={13} /> {t('report.newReport')}
+              </button>
+            </>
           )}
         </div>
       </div>
