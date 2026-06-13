@@ -3,6 +3,7 @@ import type { User, Project, Task, Report, AppState, Id } from '../../types';
 import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';
 import { C, uid, fmtDate, getKW, getISOWeek, isoWeekMonday, addActivity, sameId } from '../../lib/utils.js';
+import { sumDayHours } from '../dashboard/reportStats.js';
 import { useDebounce, useDesign } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import { playStamp } from '../../lib/sound.js';
@@ -50,6 +51,9 @@ const esc = (s: unknown) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const getMonday = (d: string | Date = new Date()) => isoWeekMonday(d);
+
+// Optionale Tagesstruktur (Mo–Fr) — IHK-Tagesform. Labels lokal, Logik in reportStats.
+const WEEK_DAYS: [string, string][] = [['mo','Montag'],['di','Dienstag'],['mi','Mittwoch'],['do','Donnerstag'],['fr','Freitag']];
 
 const TEMPLATES = [
   { label: 'Standard', activities: `Montag:\n- \n\nDienstag:\n- \n\nMittwoch:\n- \n\nDonnerstag:\n- \n\nFreitag:\n- `, learnings: `Was ich diese Woche gelernt habe:\n- \n\nSchwierigkeiten:\n- ` },
@@ -150,6 +154,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
     title:            report?.title            || '',
     activities:       report?.activities       || '',
     learnings:        report?.learnings        || '',
+    days:             report?.days             || {},
     week_start:       report?.week_start       || getMonday(),
     status:           report?.status           || 'draft',
     reviewer_comment: report?.reviewer_comment || '',
@@ -166,6 +171,9 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
   const [reviewing,   setReviewing]   = useState(false);
   const [aiReview,    setAiReview]    = useState<string[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const weekHours = sumDayHours(form.days);
+  const setDay = (k: string, patch: { text?: string; hours?: number }) =>
+    setForm((f: any) => ({ ...f, days: { ...f.days, [k]: { ...(f.days?.[k] || {}), ...patch } } }));
 
   const isOwner  = !report || sameId(report.user_id, currentUser.id);
   const isReview = isAusbilder(currentUser);
@@ -315,6 +323,15 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
     const department = currentUser.department || '';
     // Laufende Nachweis-Nr (IHK-Pflichtangabe): chronologische Position dieser Woche unter den eigenen Berichten.
     const laufendeNr = reports.filter((r: Report) => sameId(r.user_id, currentUser.id) && r.week_start && r.week_start < form.week_start).length + 1;
+    // Tagesstruktur (falls befüllt) → Tages-Tabelle statt Freitext.
+    const dayRows = WEEK_DAYS.filter(([k]) => (form.days?.[k]?.text || form.days?.[k]?.hours));
+    const hasDays = dayRows.length > 0;
+    const totalH  = sumDayHours(form.days);
+    const daysTableHtml = `<table style="width:100%;border-collapse:collapse;font-size:10pt;margin:0 0 10px">
+      <tr><th style="text-align:left;border-bottom:1px solid #000;padding:3px 6px;width:16%">Tag</th><th style="text-align:left;border-bottom:1px solid #000;padding:3px 6px">Tätigkeit</th><th style="text-align:right;border-bottom:1px solid #000;padding:3px 6px;width:13%">Std.</th></tr>
+      ${dayRows.map(([k, label]) => `<tr><td style="padding:3px 6px;vertical-align:top;border-bottom:1px solid #ccc">${label}</td><td style="padding:3px 6px;vertical-align:top;border-bottom:1px solid #ccc;white-space:pre-wrap">${esc(form.days?.[k]?.text) || '–'}</td><td style="padding:3px 6px;text-align:right;border-bottom:1px solid #ccc">${form.days?.[k]?.hours != null ? esc(form.days[k].hours) : ''}</td></tr>`).join('')}
+      <tr><td colspan="2" style="padding:3px 6px;text-align:right;font-weight:bold">Summe</td><td style="padding:3px 6px;text-align:right;font-weight:bold">${totalH.toFixed(1)}</td></tr>
+    </table>`;
 
     if (variant === 'standard') {
       w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berichtsheft KW ${kw} – ${esc(currentUser.name)}</title>
@@ -335,7 +352,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
         <span class="status">${esc(STATUS_REPORT[form.status as keyof typeof STATUS_REPORT]?.l || form.status)}</span>
       </div>
       ${form.title ? `<h2>Thema</h2><p>${esc(form.title)}</p>` : ''}
-      <h2>Durchgeführte Tätigkeiten</h2><pre>${esc(form.activities) || '–'}</pre>
+      <h2>Durchgeführte Tätigkeiten</h2>${hasDays ? daysTableHtml : `<pre>${esc(form.activities) || '–'}</pre>`}
       <h2>Unterweisungen / Lerninhalt</h2><pre>${esc(form.learnings) || '–'}</pre>
       ${form.reviewer_comment ? `<hr><h2>Kommentar des Ausbilders</h2><pre>${esc(form.reviewer_comment)}</pre>` : ''}
       <hr><p style="font-size:11px;color:#999">Erstellt mit AzubiBoard · ${today}</p>
@@ -391,7 +408,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
         </div>
 
         <h2>Durchgeführte betriebliche Tätigkeiten</h2>
-        ${form.activities ? `<pre>${esc(form.activities)}</pre>` : '<p class="empty">(keine Angaben)</p>'}
+        ${hasDays ? daysTableHtml : (form.activities ? `<pre>${esc(form.activities)}</pre>` : '<p class="empty">(keine Angaben)</p>')}
 
         <h2>Unterweisungen / Lerninhalte / Berufsschule</h2>
         ${form.learnings ? `<pre>${esc(form.learnings)}</pre>` : '<p class="empty">(keine Angaben)</p>'}
@@ -614,6 +631,27 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
                   </div>
                 );
               })}
+              {/* Optionale Tagesstruktur (Mo–Fr) + Stunden — IHK-Tagesform */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7 }}>📅 Tagesstruktur (Mo–Fr) · optional</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: weekHours > 0 ? C.ac : C.mu }}>Σ {weekHours.toFixed(1)} h</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {WEEK_DAYS.map(([k, label]) => (
+                    <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ width: 32, fontSize: 11, fontWeight: 700, color: C.mu, flexShrink: 0 }}>{label.slice(0, 2)}</span>
+                      <input value={form.days?.[k]?.text || ''} disabled={!isOwner || readOnly}
+                        onChange={e => setDay(k, { text: e.target.value })}
+                        placeholder={`Tätigkeit am ${label}…`} style={{ flex: 1, fontSize: 12, padding: '5px 9px' }} />
+                      <input type="number" min={0} max={24} step={0.5} value={form.days?.[k]?.hours ?? ''} disabled={!isOwner || readOnly}
+                        onChange={e => setDay(k, { hours: e.target.value === '' ? undefined : Number(e.target.value) })}
+                        placeholder="Std" aria-label={`Stunden ${label}`} style={{ width: 56, fontSize: 12, padding: '5px 7px', textAlign: 'right' }} />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 9, color: C.mu, marginTop: 8, lineHeight: 1.5 }}>Optional — erscheint im IHK-Druck als Tages-Tabelle mit Stundensumme. Leer = der Freitext oben zählt.</div>
+              </div>
             </>
           ) : (
             <div className="card">

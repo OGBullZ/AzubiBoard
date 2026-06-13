@@ -1,6 +1,6 @@
 // tests/report-stats.test.js — Ausbilder-Analytik AN1: Berichtsheft-Vollständigkeit
 import { describe, it, expect } from 'vitest';
-import { berichtsheftStats } from '../src/features/dashboard/reportStats.ts';
+import { berichtsheftStats, sumDayHours } from '../src/features/dashboard/reportStats.ts';
 import { getISOWeekMonday, fmtLocalDate } from '../src/lib/utils.js';
 
 // Wochenmontag (lokal) für „vor n Wochen" relativ zu `now`.
@@ -39,5 +39,14 @@ describe('berichtsheftStats', () => {
     expect(berichtsheftStats([], 7, now, 12).quote).toBe(0);
     const full = Array.from({ length: 12 }, (_, i) => ({ user_id: 7, week_start: monBack(now, i) }));
     expect(berichtsheftStats(full, 7, now, 12).quote).toBe(1);
+  });
+});
+
+describe('sumDayHours', () => {
+  it('summiert Tagesstunden, ignoriert leere/ungültige', () => {
+    expect(sumDayHours({ mo: { hours: 8 }, di: { hours: 7.5 }, fr: { hours: 4 } })).toBe(19.5);
+    expect(sumDayHours({ mo: { text: 'nur Text' }, di: {} })).toBe(0);
+    expect(sumDayHours(undefined)).toBe(0);
+    expect(sumDayHours({})).toBe(0);
   });
 });

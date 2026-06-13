@@ -159,6 +159,8 @@ export const Report = z.object({
   title:          optStr,
   activities:     optStr,
   learnings:      optStr,
+  // Optionale Tagesstruktur (Mo–Fr) als IHK-Tagesform — Alternative zum Freitext.
+  days:           z.record(z.string(), z.object({ text: optStr, hours: optNum })).optional(),
   status:         z.enum(['draft','submitted','reviewed','signed']).optional(),
   submitted_at:   isoTs,
   reviewed_at:    isoTs,
