@@ -18,8 +18,10 @@ import {
 
 import type { User, Project, Task, Report, CalendarEvent, AppState, Id } from './types';
 import AuthPage from './features/auth/AuthPage';
-import Dashboard from './features/dashboard/Dashboard';   // initial Route — eager
-import ProjectPool from './features/projects/ProjectPool';
+// Dashboard + ProjectPool lazy: nicht First-Paint (das ist AuthPage), zogen aber alle
+// Dashboard-Widgets in den Haupt-Chunk → Budget-Headroom (Ebene 9, 170 KB gz).
+const Dashboard   = lazy(() => import('./features/dashboard/Dashboard'));
+const ProjectPool = lazy(() => import('./features/projects/ProjectPool'));
 
 // J13: Code-Splitting — schwergewichtige Routes / Modals lazy laden.
 // Spart ~300 KB im Initial-Bundle, lädt on-demand bei Routen-Wechsel.
