@@ -82,6 +82,29 @@ test('Routen-Sweep eingeloggt als Azubi — kein Blackscreen', async ({ page }) 
   }
 });
 
+test('Interaktions-Smoke: Befehlsdialoge (Ctrl+K / ?) — kein Blackscreen', async ({ page }) => {
+  // Deckt die aus App.tsx extrahierten CommandDialogs (GlobalSearch + ShortcutsHelp)
+  // interaktiv ab — öffnen/schließen via Tastatur, kein Routen-Load.
+  const errors = collectErrors(page);
+  await login(page, 'anna@azubi.de');
+
+  // ?-Shortcuts-Dialog (feuert nur außerhalb von Inputs → Fokus ist nach Login auf body)
+  await page.keyboard.press('?');
+  await expect(page.getByRole('dialog', { name: 'Tastaturkürzel' })).toBeVisible({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Tastaturkürzel' })).toHaveCount(0);
+
+  // Ctrl+K-Suche: öffnen, tippen (lokale Suche), schließen
+  await page.keyboard.press('Control+k');
+  await expect(page.getByRole('dialog', { name: 'Suche' })).toBeVisible({ timeout: 5_000 });
+  await page.locator('div[role="dialog"][aria-label="Suche"] input').fill('projekt');
+  await page.waitForTimeout(400); // Debounce
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Suche' })).toHaveCount(0);
+
+  expect(errors, `JS-Fehler bei Interaktionen:\n${errors.join('\n')}`).toEqual([]);
+});
+
 test('Manifest + Demo-Login im Production-Build verfügbar', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 15_000 });
