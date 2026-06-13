@@ -22,13 +22,13 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 
 ## C · KI-Features
 ⚠️ Alles server-seitig → aktiv erst mit Server-Tier.
-- [ ] **AI3 KI-Prüfungsvorbereitung** — Quiz/Karten aus Thema · bauen [hier], aktiv [Server]
+- [x] **AI3 KI-Prüfungsvorbereitung** (`93fdce2`) — Quiz aus Thema generieren (Ausbilder, server-seitig)
 - [ ] **AI-Lernpfad-Generator** aus Berufsbild · [hier]/[Server]
 - [x] AI4 KI-Feedback auf Berichte (`717ef64`)
 
 ## D · Ausbilder-Werkzeuge
 - [x] **Azubi-Detail Drill-down** (`be0b466`) — fehlende Berichtswochen (KW-Chips) + Heft-Quote
-- [ ] **Prüfungs-Readiness-Score** pro Azubi (Composite) · [hier]
+- [x] **Prüfungs-Readiness-Score** (`6d34f88`) — Composite (Heft 40/Lernziele 35/Aufgaben 25) auf Azubi-Detailseite
 - [ ] **Lernziel-Quote** pro Azubi im Cockpit (Detail zeigt Kompetenz-Ring bereits) · [hier]
 - [x] Berichtsheft-Vollständigkeit pro Azubi im Cockpit (`c63e8bd`)
 
