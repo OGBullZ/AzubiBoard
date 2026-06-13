@@ -33,7 +33,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 - [x] Berichtsheft-Vollständigkeit pro Azubi im Cockpit (`c63e8bd`)
 
 ## E · Architektur & Wartbarkeit
-- [~] **App.tsx weiter entflechten** (1757→1475 Z.) — NotificationBell + GlobalSearch/ShortcutsHelp raus (`8a24a09`,`71ec792`); offen: Sidebar, Root-Handler → Hooks · [hier]
+- [~] **App.tsx weiter entflechten** (1757→1273 Z.) — NotificationBell + GlobalSearch/ShortcutsHelp + Sidebar raus (`8a24a09`,`71ec792`,`00e7ea2`); offen: Root-Handler → Hooks, Page-Wrapper · [hier]
 - [ ] **Dual-Mode-Schuld** — wird durch Richtung A an der Wurzel aufgelöst · [Server]
 - [ ] **Blob↔Schema-`any` tightening** nach Schema-Read-Verifikation · [Server]
 - [x] Notification-UI extrahiert (`8a24a09`) · sameId/isoWeekMonday zentralisiert · firstName zentralisiert
