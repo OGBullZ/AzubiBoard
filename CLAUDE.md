@@ -29,9 +29,14 @@ npm run dev        # Vite Dev-Server → http://localhost:5173/azubiboard/
 npm run typecheck  # tsc --noEmit (strict) — CI-Gate
 npm run lint       # eslint . (deckt .js/.jsx UND .ts/.tsx ab) — CI-Gate
 npm test           # Vitest (78 Tests)
-npm run e2e        # Playwright (6 Tests, braucht Chromium)
+npm run e2e        # Playwright (alle E2E, braucht Chromium)
+npm run e2e:smoke  # Boot-Smoke-Gate: bootet App + sweept alle Routen eingeloggt (kein Blackscreen)
 npm run build      # Produktions-Bundle → dist/ (vite build, prüft KEINE Typen → typecheck separat!)
 ```
+
+**Boot-Smoke vor „review-ready":** `e2e/smoke.spec.js` fängt Laufzeit-/Router-Crashes („Blackscreen"),
+die typecheck/lint/test/build NICHT sehen. Lokal ohne den (auf Windows hängenden) Playwright-Browser-Download:
+`PW_CHANNEL=msedge npm run e2e:smoke` nutzt das installierte Edge. CI nutzt gebündeltes Chromium.
 
 CI (`ci.yml`, unit-Job) fährt: `typecheck → lint → test → build`. PHPUnit/E2E/Lighthouse als eigene Jobs.
 

@@ -21,7 +21,9 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // PW_CHANNEL erlaubt lokal den installierten System-Browser (z.B. 'msedge'),
+    // ohne den schweren Playwright-Browser-Download. CI lässt es ungesetzt → gebündeltes Chromium.
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], channel: process.env.PW_CHANNEL || undefined } },
   ],
 
   webServer: {
