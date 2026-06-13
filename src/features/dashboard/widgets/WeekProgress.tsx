@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, getKW, getISOWeekMonday } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday, fmtLocalDate } from '../../../lib/utils.js';
 import type { Task } from '../../../types';
 
 // Das Widget liest Felder, die das strikte Task-Schema nicht kennt
@@ -31,8 +31,8 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
   const days: DayBucket[] = ['Mo','Di','Mi','Do','Fr'].map((l, i) => {
     const d = new Date(mon);
     d.setDate(mon.getDate() + i);
-    const ds = d.toISOString().split('T')[0];
-    const isToday = ds === now.toISOString().split('T')[0];
+    const ds = fmtLocalDate(d);                  // lokal, nicht UTC — sonst Bucket-Off-by-one in +Zeitzonen
+    const isToday = ds === fmtLocalDate(now);
     const done = tasks.filter(t =>
       (t.status === 'done' || t.done) && t.assignee === userId && t.deadline === ds
     ).length;

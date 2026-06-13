@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, fmtDate, dayDiffLocal } from '../../../lib/utils.js';
+import { C, fmtDate, dayDiffLocal, fmtLocalDate } from '../../../lib/utils.js';
 import { IcoCalendar } from '../../../components/Icons.jsx';
 import { urgencyColor, urgencyLabel } from './_helpers.jsx';
 import type { CalendarEvent, Project } from '../../../types';
@@ -19,7 +19,7 @@ type CalWidgetProps = {
 
 function CalWidgetImpl({ calendarEvents, projects, onNavigate }: CalWidgetProps) {
   const now   = new Date();
-  const today = now.toISOString().split('T')[0];
+  const today = fmtLocalDate(now);   // lokal — sonst zeigt der Filter nachts gestrige Termine als „kommend"
   const source: CalWidgetItem[] = [
     ...calendarEvents,
     ...projects.flatMap(p =>

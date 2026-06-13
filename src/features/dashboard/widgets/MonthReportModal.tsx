@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C } from '../../../lib/utils.js';
+import { C, fmtLocalDate } from '../../../lib/utils.js';
 import { Avatar } from '../../../components/UI.jsx';
 import type { Project, User, Report } from '../../../types';
 
@@ -24,7 +24,7 @@ export function MonthReportModal({ projects, users, reports, onClose }: MonthRep
   const azubis = users.filter(u => u.role === 'azubi');
 
   const monthStart = `${year}-${String(month + 1).padStart(2,'0')}-01`;
-  const monthEnd   = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  const monthEnd   = fmtLocalDate(new Date(year, month + 1, 0));   // lokal — UTC würde den letzten Monatstag abschneiden
 
   const monthName  = new Date(year, month, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 
