@@ -8,6 +8,28 @@ export const WEEK_DAY_KEYS = ['mo', 'di', 'mi', 'do', 'fr'] as const;
 export const sumDayHours = (days?: Record<string, { text?: string; hours?: number }>): number =>
   WEEK_DAY_KEYS.reduce((s, k) => s + (Number(days?.[k]?.hours) || 0), 0);
 
+// Prüfungs-Readiness (0–100) aus 3 Säulen: Berichtsheft 40 %, Lernziele 35 %, Aufgaben 25 %.
+// Säulen ohne Daten (null) werden ausgeklammert und das Gewicht umverteilt — fair bei z. B. 0 Lernzielen.
+export type Readiness = { score: number; label: string; tone: 'green' | 'yellow' | 'red' | 'none' };
+export function readinessScore(parts: { heftQuote?: number | null; goalQuote?: number | null; taskQuote?: number | null }): Readiness {
+  const pillars: [number | null | undefined, number][] = [
+    [parts.heftQuote, 0.40],
+    [parts.goalQuote, 0.35],
+    [parts.taskQuote, 0.25],
+  ];
+  let wSum = 0, qSum = 0;
+  for (const [q, w] of pillars) {
+    if (q == null || Number.isNaN(q)) continue;
+    wSum += w;
+    qSum += w * Math.max(0, Math.min(1, q));
+  }
+  if (wSum === 0) return { score: 0, label: 'keine Daten', tone: 'none' };
+  const score = Math.round((qSum / wSum) * 100);
+  const tone: Readiness['tone'] = score >= 80 ? 'green' : score >= 55 ? 'yellow' : 'red';
+  const label = score >= 80 ? 'Auf Kurs' : score >= 55 ? 'Im Aufbau' : 'Aufmerksamkeit';
+  return { score, label, tone };
+}
+
 export type BerichtsheftStats = { have: number; total: number; missing: string[]; quote: number };
 
 // Über die letzten `weeks` ISO-Kalenderwochen (inkl. der aktuellen): wie viele haben

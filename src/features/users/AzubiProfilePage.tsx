@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { C, getKW, fmtLocalDate, getISOWeekMonday } from '../../lib/utils.js';
-import { berichtsheftStats } from '../dashboard/reportStats.js';
+import { berichtsheftStats, readinessScore } from '../dashboard/reportStats.js';
 import { Avatar, ProgressBar } from '../../components/UI.jsx';
 import { IcoBack, IcoCheck, IcoClock, IcoAlert, IcoFolder, IcoReport, IcoTrendUp } from '../../components/Icons.jsx';
 import type { Report, User } from '../../types';
@@ -140,6 +140,14 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
   const overdue = allTasks.filter(t => t.status !== 'done' && t.deadline && new Date(t.deadline) < new Date()).length;
   const taskPct = allTasks.length > 0 ? Math.round(done / allTasks.length * 100) : 0;
 
+  // Prüfungs-Readiness (Composite: Berichtsheft + Lernziele + Aufgaben)
+  const readiness = readinessScore({
+    heftQuote: bs.quote,
+    goalQuote: myGoals > 0 ? confirmed / myGoals : null,
+    taskQuote: allTasks.length > 0 ? done / allTasks.length : null,
+  });
+  const readinessColor = readiness.tone === 'green' ? C.gr : readiness.tone === 'yellow' ? C.yw : readiness.tone === 'red' ? C.cr : C.mu;
+
   // Total hours logged
   const totalHours = allTasks.flatMap(t => t.timeLog || []).reduce((s, e) => s + (Number(e.hours) || 0), 0);
 
@@ -189,6 +197,19 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
             </div>
           </div>
         )}
+      </div>
+
+      {/* Prüfungs-Readiness (Composite) */}
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, borderLeft: `3px solid ${readinessColor}` }}>
+        <div style={{ position: 'relative', width: 64, height: 64, flexShrink: 0 }}>
+          <Ring pct={readiness.score} color={readinessColor} size={64} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 900, color: readinessColor, fontFamily: C.mono }}>{readiness.score}</div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8 }}>Prüfungs-Readiness</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: readinessColor, marginTop: 2 }}>{readiness.label}</div>
+          <div style={{ fontSize: 10, color: C.mu, marginTop: 3 }}>Berichtsheft {Math.round(bs.quote * 100)}% · Lernziele {myGoals > 0 ? Math.round(confirmed / myGoals * 100) : '–'}% · Aufgaben {taskPct}%</div>
+        </div>
       </div>
 
       {/* Stats grid */}

@@ -1,6 +1,6 @@
 // tests/report-stats.test.js — Ausbilder-Analytik AN1: Berichtsheft-Vollständigkeit
 import { describe, it, expect } from 'vitest';
-import { berichtsheftStats, sumDayHours } from '../src/features/dashboard/reportStats.ts';
+import { berichtsheftStats, sumDayHours, readinessScore } from '../src/features/dashboard/reportStats.ts';
 import { getISOWeekMonday, fmtLocalDate } from '../src/lib/utils.js';
 
 // Wochenmontag (lokal) für „vor n Wochen" relativ zu `now`.
@@ -48,5 +48,22 @@ describe('sumDayHours', () => {
     expect(sumDayHours({ mo: { text: 'nur Text' }, di: {} })).toBe(0);
     expect(sumDayHours(undefined)).toBe(0);
     expect(sumDayHours({})).toBe(0);
+  });
+});
+
+describe('readinessScore', () => {
+  it('gewichtet 3 Säulen (40/35/25)', () => {
+    expect(readinessScore({ heftQuote: 1, goalQuote: 1, taskQuote: 1 }).score).toBe(100);
+    expect(readinessScore({ heftQuote: 0, goalQuote: 0, taskQuote: 0 }).score).toBe(0);
+    // nur Heft (1.0) → 100, da fehlende Säulen das Gewicht umverteilen (nicht als 0 zählen)
+    expect(readinessScore({ heftQuote: 1, goalQuote: null, taskQuote: null }).score).toBe(100);
+  });
+  it('Tonalität: ≥80 grün, ≥55 gelb, sonst rot', () => {
+    expect(readinessScore({ heftQuote: 0.9, goalQuote: 0.9, taskQuote: 0.9 }).tone).toBe('green');
+    expect(readinessScore({ heftQuote: 0.6, goalQuote: 0.6, taskQuote: 0.6 }).tone).toBe('yellow');
+    expect(readinessScore({ heftQuote: 0.2, goalQuote: 0.2, taskQuote: 0.2 }).tone).toBe('red');
+  });
+  it('keine Daten → score 0, tone none', () => {
+    expect(readinessScore({}).tone).toBe('none');
   });
 });
