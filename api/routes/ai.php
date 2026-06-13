@@ -16,6 +16,8 @@ if ($action === 'suggest-goals') {
     ai_suggest_goals($user);
 } elseif ($action === 'fill-report') {
     ai_fill_report($user);
+} elseif ($action === 'review-report') {
+    ai_review_report($user);
 } else {
     error("Unbekannte KI-Aktion '$action'", 404);
 }
@@ -146,4 +148,60 @@ function ai_fill_report(array $user): never {
         'activities' => mb_substr(trim((string)($parsed['activities'] ?? '')), 0, 3000),
         'learnings'  => mb_substr(trim((string)($parsed['learnings']  ?? '')), 0, 1500),
     ]);
+}
+
+// ── AI4: KI-Feedback auf einen Wochenbericht (vor dem Einreichen) ──
+function ai_review_report(array $user): never {
+    if (!CLAUDE_API_KEY) {
+        error('KI-Feature nicht konfiguriert. Bitte CLAUDE_API_KEY in .env setzen.', 503);
+    }
+
+    rate_limit('ai_review_' . $user['id'], 20, 3600); // 20 Calls/Stunde pro Nutzer
+
+    $b = body();
+    $title      = clean_str($b['title']      ?? '', 200,  false) ?? '';
+    $activities = clean_str($b['activities'] ?? '', 4000, false) ?? '';
+    $learnings  = clean_str($b['learnings']  ?? '', 2000, false) ?? '';
+    $profession = clean_str($b['profession'] ?? '', 200,  false) ?? 'Auszubildende/r';
+    $lehrjahr   = clean_int($b['lehrjahr']   ?? 1, 1, 3, 'lehrjahr');
+
+    if (trim($activities) === '' && trim($learnings) === '') {
+        error('Bericht ist leer — nichts zu prüfen.', 400);
+    }
+
+    $systemPrompt = 'Du bist ein wohlwollender Ausbilder, der Wochenberichte (IHK-Ausbildungsnachweis) prüft. '
+        . 'Du gibst konkretes, umsetzbares Feedback, damit der Azubi den Bericht vor dem Einreichen verbessert. '
+        . 'Du ersetzt NICHT die Prüfung durch den echten Ausbilder. '
+        . 'Gib AUSSCHLIESSLICH valides JSON zurück – kein Markdown, kein Code-Block, keine Erklärung.';
+
+    $userPrompt = "Prüfe diesen Wochenbericht eines Azubis (\"{$profession}\", {$lehrjahr}. Lehrjahr).\n\n"
+        . ($title ? "Thema: {$title}\n\n" : '')
+        . "Durchgeführte Tätigkeiten:\n{$activities}\n\n"
+        . "Unterweisungen / Lerninhalte:\n{$learnings}\n\n"
+        . "Gib 2-5 konkrete, freundliche Verbesserungs-Hinweise (Vollständigkeit, Konkretheit, Fachsprache, "
+        . "fehlende Lerninhalte). Wenn der Bericht gut ist, sag das ehrlich (dann 1 positiver Hinweis).\n"
+        . "Jeder Hinweis ist ein kurzer deutscher Satz.\n"
+        . "Gib NUR dieses JSON zurück (nichts davor/danach):\n"
+        . '{"suggestions":["...","..."]}';
+
+    $rawText = claude_call_raw($userPrompt, $systemPrompt, 1024);
+    if ($rawText === null) {
+        error('KI-Anfrage fehlgeschlagen. Bitte erneut versuchen.', 502);
+    }
+
+    $parsed = null;
+    if (preg_match('/\{[\s\S]*"suggestions"[\s\S]*\}/m', $rawText, $m)) {
+        $parsed = json_decode($m[0], true);
+    }
+    if (!is_array($parsed) || !isset($parsed['suggestions']) || !is_array($parsed['suggestions'])) {
+        error('KI-Antwort konnte nicht verarbeitet werden. Bitte erneut versuchen.', 502);
+    }
+
+    // Sanitisieren: max 5 Hinweise, je 300 Zeichen, leere raus.
+    $suggestions = array_values(array_filter(array_map(
+        fn($s) => mb_substr(trim((string)$s), 0, 300),
+        array_slice($parsed['suggestions'], 0, 5)
+    ), fn($s) => $s !== ''));
+
+    respond(['suggestions' => $suggestions]);
 }

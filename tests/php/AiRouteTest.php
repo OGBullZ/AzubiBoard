@@ -68,6 +68,16 @@ final class AiRouteTest extends TestCase
             'ai_fill_report() Funktion muss vorhanden sein');
     }
 
+    public function testReviewReportActionExists(): void
+    {
+        $this->assertStringContainsString('review-report', $this->routeCode,
+            'ai.php muss review-report Aktion enthalten (AI4)');
+        $this->assertStringContainsString('ai_review_report', $this->routeCode,
+            'ai_review_report() Funktion muss vorhanden sein');
+        $this->assertStringContainsString('rate_limit(', $this->routeCode,
+            'ai_review_report muss rate_limit nutzen (Missbrauchsschutz)');
+    }
+
     public function testRouteRequiresHelpersFile(): void
     {
         $this->assertStringContainsString('ai_helpers.php', $this->routeCode,

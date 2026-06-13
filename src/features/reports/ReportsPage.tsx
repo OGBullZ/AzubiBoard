@@ -163,6 +163,8 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
   const [copied,      setCopied]      = useState('');
   const [showOcr,     setShowOcr]     = useState(false);
   const [aiLoading,   setAiLoading]   = useState(false);
+  const [reviewing,   setReviewing]   = useState(false);
+  const [aiReview,    setAiReview]    = useState<string[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isOwner  = !report || sameId(report.user_id, currentUser.id);
@@ -222,6 +224,26 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
       setAiLoading(false);
     }
   }, [form.week_start, projects, kw, currentUser, showToast, t]);
+
+  // AI4: KI-Feedback auf den aktuellen Bericht (vor dem Einreichen).
+  const aiReviewReport = useCallback(async () => {
+    if (!form.activities?.trim() && !form.learnings?.trim()) { showToast('Bericht ist noch leer.'); return; }
+    setReviewing(true); setAiReview(null);
+    try {
+      const r = await dataService.reviewReport({
+        title:      form.title || '',
+        activities: form.activities || '',
+        learnings:  form.learnings || '',
+        profession: currentUser?.profession || '',
+        lehrjahr:   currentUser?.apprenticeship_year || 1,
+      });
+      setAiReview(r.suggestions || []);
+    } catch (e: any) {
+      showToast(`KI-Feedback fehlgeschlagen: ${e.message}`);
+    } finally {
+      setReviewing(false);
+    }
+  }, [form.title, form.activities, form.learnings, currentUser, showToast]);
 
   const copyToClipboard = async (text: string, key: string) => {
     try {
@@ -458,9 +480,28 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
                 {t('report.autofillBtn')}
               </button>
               <button onClick={aiWriteReport} disabled={aiLoading} className="abtn"
-                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, background: C.ac, opacity: aiLoading ? .7 : 1 }}>
+                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, background: C.ac, opacity: aiLoading ? .7 : 1 }}>
                 {aiLoading ? t('report.aiAutofillLoading') : t('report.aiAutofillBtn')}
               </button>
+              <button onClick={aiReviewReport} disabled={reviewing} className="btn"
+                title="Lässt die KI deinen Bericht vor dem Einreichen gegenlesen (ersetzt nicht die Ausbilder-Prüfung)"
+                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, borderColor: C.ac, color: C.ac, opacity: reviewing ? .7 : 1 }}>
+                {reviewing ? '🤖 Prüfe…' : '🤖 KI-Feedback zum Bericht'}
+              </button>
+              {aiReview && (
+                <div style={{ marginBottom: 12, padding: '9px 11px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 25%, transparent)`, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.ac, textTransform: 'uppercase', letterSpacing: .6, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    KI-Feedback
+                    <button onClick={() => setAiReview(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mu, padding: 0, fontSize: 13 }}>×</button>
+                  </div>
+                  {aiReview.length === 0
+                    ? <div style={{ fontSize: 11, color: C.mu }}>Keine Hinweise — sieht gut aus. ✓</div>
+                    : <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: C.br, lineHeight: 1.55, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {aiReview.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>}
+                  <div style={{ fontSize: 9, color: C.mu, marginTop: 7, fontStyle: 'italic' }}>Hinweis: ersetzt nicht die Prüfung durch deinen Ausbilder.</div>
+                </div>
+              )}
               <div style={{ fontSize: 9, color: C.mu, marginBottom: 10, lineHeight: 1.5 }}>
                 {t('report.autofillHint', { kw })}
               </div>

@@ -398,6 +398,23 @@ export const dataService = {
     return res.json(); // { activities, learnings }
   },
 
+  // AI4: KI-Feedback auf einen Wochenbericht — POST /api/ai/review-report
+  async reviewReport({ title = '', activities = '', learnings = '', profession = '', lehrjahr = 1 }: {
+    title?: string; activities?: string; learnings?: string; profession?: string; lehrjahr?: number;
+  }): Promise<{ suggestions: string[] }> {
+    if (!USE_API || !isTokenValid()) throw new Error('API nicht verfügbar');
+    const res = await apiFetch('/ai/review-report', {
+      method: 'POST',
+      body:   JSON.stringify({ title, activities, learnings, profession, lehrjahr }),
+    });
+    if (res.status === 503) throw new Error('KI nicht konfiguriert — CLAUDE_API_KEY in .env setzen');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json(); // { suggestions: string[] }
+  },
+
   // AI2: Claude-API Lernziel-Vorschläge — POST /api/ai/suggest-goals
   async suggestGoals({ profession, lehrjahr, context = '', existingTitles = [], count = 6 }: {
     profession: string; lehrjahr: number; context?: string; existingTitles?: string[]; count?: number;
