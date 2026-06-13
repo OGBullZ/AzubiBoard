@@ -38,6 +38,8 @@ export const User = z.object({
   avatar_url:          optStr,
   phone:               optStr,
   profession:          optStr,
+  company:             optStr,   // Ausbildungsbetrieb (IHK-Stammdaten)
+  department:          optStr,   // Ausbildungsabteilung (IHK-Stammdaten)
   apprenticeship_year: z.number().optional().nullable(),
   training_plan:       z.unknown().optional(),
   active:              z.boolean().optional(),

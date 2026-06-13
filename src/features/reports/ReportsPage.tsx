@@ -137,8 +137,8 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete, s
   );
 }
 
-function ReportEditor({ report, currentUser, projects, onSave, onClose, showToast }: {
-  report: Report | null; currentUser: User; projects: Project[];
+function ReportEditor({ report, currentUser, projects, reports, onSave, onClose, showToast }: {
+  report: Report | null; currentUser: User; projects: Project[]; reports: Report[];
   onSave: (rep: Report) => void; onClose: () => void; showToast: (msg: string, opts?: any) => void;
 }) {
   const { t } = useTranslation();
@@ -289,6 +289,10 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
     // Profil-Felder vom Azubi (falls vorhanden)
     const profession = currentUser.profession || '';
     const azYear     = currentUser.apprenticeship_year ?? '';
+    const company    = currentUser.company || '';
+    const department = currentUser.department || '';
+    // Laufende Nachweis-Nr (IHK-Pflichtangabe): chronologische Position dieser Woche unter den eigenen Berichten.
+    const laufendeNr = reports.filter((r: Report) => sameId(r.user_id, currentUser.id) && r.week_start && r.week_start < form.week_start).length + 1;
 
     if (variant === 'standard') {
       w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berichtsheft KW ${kw} – ${esc(currentUser.name)}</title>
@@ -346,7 +350,7 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
         <div class="header">
           <div>
             <div class="title">Ausbildungsnachweis · Berichtsheft</div>
-            <div class="sub">Kalenderwoche ${kw} / ${isoYear} · ${weekRange}</div>
+            <div class="sub">Nachweis-Nr. ${laufendeNr} · Kalenderwoche ${kw} / ${isoYear} · ${weekRange}</div>
           </div>
           <div style="text-align:right;font-size:9pt;color:#444">Seite 1</div>
         </div>
@@ -354,8 +358,11 @@ function ReportEditor({ report, currentUser, projects, onSave, onClose, showToas
         <div class="stammdaten">
           <table>
             <tr><td class="lbl">Auszubildende/r:</td><td>${esc(currentUser.name) || '–'}</td></tr>
+            ${company ? `<tr><td class="lbl">Ausbildungsbetrieb:</td><td>${esc(company)}</td></tr>` : ''}
+            ${department ? `<tr><td class="lbl">Abteilung:</td><td>${esc(department)}</td></tr>` : ''}
             ${profession ? `<tr><td class="lbl">Ausbildungsberuf:</td><td>${esc(profession)}</td></tr>` : ''}
             ${azYear ? `<tr><td class="lbl">Ausbildungsjahr:</td><td>${esc(azYear)}. Lehrjahr</td></tr>` : ''}
+            <tr><td class="lbl">Nachweis-Nr.:</td><td>${laufendeNr}</td></tr>
             <tr><td class="lbl">Berichtswoche:</td><td>${weekRange}</td></tr>
             ${form.title ? `<tr><td class="lbl">Thema der Woche:</td><td>${esc(form.title)}</td></tr>` : ''}
           </table>
@@ -798,7 +805,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
   if (view === 'edit') {
     return (
       <ReportEditor report={editing} currentUser={currentUser}
-        projects={data.projects || []}
+        projects={data.projects || []} reports={reports}
         onSave={(rep) => { saveReport(rep); setView('list'); }}
         onClose={() => setView('list')} showToast={showToast} />
     );

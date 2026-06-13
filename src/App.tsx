@@ -680,6 +680,8 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
   const [tab, setTab]               = useState('info');
   const [name, setName]             = useState(() => currentUser?.name || '');
   const [profession, setProfession] = useState(() => currentUser?.profession || '');
+  const [company, setCompany]       = useState(() => currentUser?.company || '');
+  const [department, setDepartment] = useState(() => currentUser?.department || '');
   const [year, setYear]             = useState(() => String(currentUser?.apprenticeship_year || 1));
   const [oldPw, setOldPw]           = useState('');
   const [newPw, setNewPw]           = useState('');
@@ -704,9 +706,13 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
     const parsedYear = Number(year);
     if (!trimName) return;
 
+    const trimCompany = company.trim();
+    const trimDept    = department.trim();
     const changes: any = {};
     if (trimName !== currentUser.name)                             changes.name = trimName;
     if (trimProf !== (currentUser.profession || ''))              changes.profession = trimProf;
+    if (isAzubi && trimCompany !== (currentUser.company || ''))    changes.company = trimCompany;
+    if (isAzubi && trimDept !== (currentUser.department || ''))    changes.department = trimDept;
     if (isAzubi && parsedYear !== (currentUser.apprenticeship_year || 1)) changes.apprenticeship_year = parsedYear;
     if (Object.keys(changes).length === 0) return;
 
@@ -841,6 +847,20 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
                   <option value="3">3. Lehrjahr</option>
                 </select>
               </div>
+            )}
+            {isAzubi && (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={labelStyle}>Ausbildungsbetrieb</label>
+                  <input value={company} onChange={e => setCompany(e.target.value)}
+                    placeholder="z. B. Muster GmbH" style={inputStyle} />
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={labelStyle}>Abteilung</label>
+                  <input value={department} onChange={e => setDepartment(e.target.value)}
+                    placeholder="z. B. IT / Anwendungsentwicklung" style={inputStyle} />
+                </div>
+              </>
             )}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>E-Mail</label>
