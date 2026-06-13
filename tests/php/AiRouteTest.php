@@ -78,6 +78,16 @@ final class AiRouteTest extends TestCase
             'ai_review_report muss rate_limit nutzen (Missbrauchsschutz)');
     }
 
+    public function testGenerateQuizActionExists(): void
+    {
+        $this->assertStringContainsString('generate-quiz', $this->routeCode,
+            'ai.php muss generate-quiz Aktion enthalten (AI3)');
+        $this->assertStringContainsString('ai_generate_quiz', $this->routeCode,
+            'ai_generate_quiz() Funktion muss vorhanden sein');
+        $this->assertStringContainsString("in_array(\$user['role'], ['ausbilder', 'mentor'])", $this->routeCode,
+            'generate-quiz muss auf Ausbilder/Mentor beschränkt sein');
+    }
+
     public function testRouteRequiresHelpersFile(): void
     {
         $this->assertStringContainsString('ai_helpers.php', $this->routeCode,

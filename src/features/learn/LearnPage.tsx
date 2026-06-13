@@ -3,6 +3,7 @@ import { C, uid } from '../../lib/utils.js';
 import { useDesign } from '../../lib/hooks.js';
 import { ProgressBar, Modal, Field } from '../../components/UI.jsx';
 import { useAppStore } from '../../lib/store.js';
+import { dataService } from '../../lib/dataService.js';
 import JAVA_QUIZ from '../../data/quiz.json';
 import LernpfadeView from './LernpfadeView.jsx';
 
@@ -429,6 +430,12 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
   const [showAddQ, setShowAddQ]     = useState(false);
   const [qForm, setQForm]           = useState<QForm>(EMPTY_FORM);
   const [editingQ, setEditingQ]     = useState<QuizQuestionData | null>(null);
+  // AI3: KI-Quiz aus Thema
+  const [aiQuizOpen, setAiQuizOpen] = useState(false);
+  const [aiTopic, setAiTopic]       = useState('');
+  const [aiCount, setAiCount]       = useState(5);
+  const [aiBusy, setAiBusy]         = useState(false);
+  const [aiErr, setAiErr]           = useState('');
 
   const [flashGrades, setFlashGrades] = useState<FlashGrade[]>([]);
 
@@ -488,6 +495,34 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
   };
 
   const deleteCustomQ = (id: string | number) => saveCustom(customQuestions.filter(q => q.id !== id));
+
+  // AI3: Quiz-Fragen aus einem Thema generieren und zu den eigenen Fragen hinzufügen.
+  const runGenerateQuiz = async () => {
+    const topic = aiTopic.trim();
+    if (!topic) { setAiErr('Bitte ein Thema eingeben.'); return; }
+    setAiBusy(true); setAiErr('');
+    try {
+      const { questions } = await dataService.generateQuiz({ topic, profession: currentUser?.profession || '', count: aiCount });
+      const letters = ['a', 'b', 'c', 'd'];
+      const mapped: QuizQuestionData[] = (questions || []).map(q => ({
+        id: uid(),
+        question: q.question,
+        category: topic,
+        difficulty: 'mittel',
+        type: 'single',
+        explanation: q.explanation || '',
+        answers: q.answers.map((a, i) => ({ id: letters[i] || String(i), text: a.text, correct: !!a.correct })),
+        custom: true,
+      }));
+      if (!mapped.length) { setAiErr('Keine Fragen erhalten. Bitte erneut versuchen.'); return; }
+      saveCustom([...customQuestions, ...mapped]);
+      setAiQuizOpen(false); setAiTopic('');
+    } catch (e: any) {
+      setAiErr(e.message || 'KI-Anfrage fehlgeschlagen.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   const updateFlashcard = (qId: string | number, grade: number) => {
     if (currentUser?.role === 'mentor') return;
@@ -585,6 +620,10 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
           <div style={{ fontSize: 15, fontWeight: 800, color: C.br }}>Java Quiz</div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div style={{ fontSize: 11, color: C.mu }}>{allQuestions.length} Fragen{customQuestions.length > 0 && ` (${customQuestions.length} eigene)`}</div>
+            {isAusbilder && (
+              <button className="btn" onClick={() => { setAiErr(''); setAiQuizOpen(true); }} title="Prüfungsfragen per KI aus einem Thema erzeugen"
+                style={{ fontSize: 11, padding: '4px 10px', borderColor: C.ac, color: C.ac }}>🤖 KI-Quiz</button>
+            )}
             {isAusbilder && (
               <button className="abtn" onClick={openAdd} style={{ fontSize: 11, padding: '4px 10px' }}>+ Frage hinzufügen</button>
             )}
@@ -700,6 +739,28 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
         </section>
       )}
 
+      {aiQuizOpen && (
+        <Modal title="🤖 KI-Quiz aus Thema" onClose={() => setAiQuizOpen(false)}>
+          <Field label="Thema / Lernfeld">
+            <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} autoFocus
+              placeholder="z. B. OSI-Modell, Datenschutz, SQL-Joins"
+              onKeyDown={e => { if (e.key === 'Enter' && !aiBusy) runGenerateQuiz(); }} />
+          </Field>
+          <Field label="Anzahl Fragen">
+            <select value={aiCount} onChange={e => setAiCount(Number(e.target.value))} style={{ width: '100%', appearance: 'auto' }}>
+              {[3, 5, 8, 10].map(n => <option key={n} value={n}>{n} Fragen</option>)}
+            </select>
+          </Field>
+          {aiErr && <div style={{ fontSize: 12, color: C.cr, marginBottom: 10 }}>{aiErr}</div>}
+          <div style={{ fontSize: 10, color: C.mu, marginBottom: 12, lineHeight: 1.5 }}>
+            Erzeugt Multiple-Choice-Fragen passend zu {currentUser?.profession || 'deinem Beruf'} und legt sie als eigene Fragen an — danach bearbeitbar. (Braucht aktiven Server/KI-Schlüssel.)
+          </div>
+          <button className="abtn" onClick={runGenerateQuiz} disabled={aiBusy || !aiTopic.trim()}
+            style={{ width: '100%', padding: 10, opacity: aiBusy ? .7 : 1 }}>
+            {aiBusy ? 'Generiere…' : `🤖 ${aiCount} Fragen generieren`}
+          </button>
+        </Modal>
+      )}
       {showAddQ && (
         <Modal title={editingQ ? 'Frage bearbeiten' : 'Neue Quiz-Frage erstellen'} onClose={closeModal}>
           <Field label="Frage">

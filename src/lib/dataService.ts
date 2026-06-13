@@ -415,6 +415,23 @@ export const dataService = {
     return res.json(); // { suggestions: string[] }
   },
 
+  // AI3: KI-Prüfungsvorbereitung — Quiz aus Thema · POST /api/ai/generate-quiz
+  async generateQuiz({ topic, profession = '', count = 5, difficulty = 'mittel' }: {
+    topic: string; profession?: string; count?: number; difficulty?: string;
+  }): Promise<{ questions: { question: string; answers: { text: string; correct: boolean }[]; explanation?: string }[] }> {
+    if (!USE_API || !isTokenValid()) throw new Error('API nicht verfügbar');
+    const res = await apiFetch('/ai/generate-quiz', {
+      method: 'POST',
+      body:   JSON.stringify({ topic, profession, count, difficulty }),
+    });
+    if (res.status === 503) throw new Error('KI nicht konfiguriert — CLAUDE_API_KEY in .env setzen');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json(); // { questions: [...] }
+  },
+
   // AI2: Claude-API Lernziel-Vorschläge — POST /api/ai/suggest-goals
   async suggestGoals({ profession, lehrjahr, context = '', existingTitles = [], count = 6 }: {
     profession: string; lehrjahr: number; context?: string; existingTitles?: string[]; count?: number;

@@ -18,6 +18,9 @@ if ($action === 'suggest-goals') {
     ai_fill_report($user);
 } elseif ($action === 'review-report') {
     ai_review_report($user);
+} elseif ($action === 'generate-quiz') {
+    if (!in_array($user['role'], ['ausbilder', 'mentor'])) error('Keine Berechtigung', 403);
+    ai_generate_quiz($user);
 } else {
     error("Unbekannte KI-Aktion '$action'", 404);
 }
@@ -204,4 +207,72 @@ function ai_review_report(array $user): never {
     ), fn($s) => $s !== ''));
 
     respond(['suggestions' => $suggestions]);
+}
+
+// ── AI3: Quiz-Fragen aus einem Thema generieren (Prüfungsvorbereitung) ──
+function ai_generate_quiz(array $user): never {
+    if (!CLAUDE_API_KEY) {
+        error('KI-Feature nicht konfiguriert. Bitte CLAUDE_API_KEY in .env setzen.', 503);
+    }
+
+    rate_limit('ai_quiz_' . $user['id'], 10, 3600); // 10 Calls/Stunde pro Nutzer
+
+    $b = body();
+    $topic      = clean_str($b['topic']      ?? '', 200, false) ?? '';
+    $profession = clean_str($b['profession'] ?? '', 200, false) ?? 'Auszubildende/r';
+    $count      = clean_int($b['count']      ?? 5, 1, 10, 'count');
+    $difficulty = clean_str($b['difficulty'] ?? 'mittel', 20, false) ?? 'mittel';
+    if (trim($topic) === '') error('Thema erforderlich', 400);
+
+    $systemPrompt = 'Du bist Prüfungsexperte für die deutsche Berufsausbildung (IHK). '
+        . 'Du erstellst faire Multiple-Choice-Prüfungsfragen mit genau einer korrekten Antwort. '
+        . 'Gib AUSSCHLIESSLICH valides JSON zurück – kein Markdown, kein Code-Block, keine Erklärung.';
+
+    $userPrompt = "Erstelle {$count} Multiple-Choice-Prüfungsfragen zum Thema \"{$topic}\" "
+        . "für eine/n \"{$profession}\" (Schwierigkeit: {$difficulty}).\n\n"
+        . "Anforderungen:\n"
+        . "- Jede Frage hat genau 4 Antwortmöglichkeiten, GENAU EINE ist korrekt.\n"
+        . "- Fachlich korrekt, prüfungsnah, deutsch.\n"
+        . "- Kurze Erklärung zur richtigen Antwort.\n"
+        . "Gib NUR dieses JSON zurück (nichts davor/danach):\n"
+        . '{"questions":[{"question":"...","answers":[{"text":"...","correct":true},{"text":"...","correct":false},{"text":"...","correct":false},{"text":"...","correct":false}],"explanation":"..."}]}';
+
+    $rawText = claude_call_raw($userPrompt, $systemPrompt, 3072);
+    if ($rawText === null) {
+        error('KI-Anfrage fehlgeschlagen. Bitte erneut versuchen.', 502);
+    }
+
+    $parsed = null;
+    if (preg_match('/\{[\s\S]*"questions"[\s\S]*\}/m', $rawText, $m)) {
+        $parsed = json_decode($m[0], true);
+    }
+    if (!is_array($parsed) || !isset($parsed['questions']) || !is_array($parsed['questions'])) {
+        error('KI-Antwort konnte nicht verarbeitet werden. Bitte erneut versuchen.', 502);
+    }
+
+    // Sanitisieren: max $count Fragen, je 2–4 nicht-leere Antworten, genau-eine-korrekt erzwungen.
+    $questions = [];
+    foreach (array_slice($parsed['questions'], 0, $count) as $q) {
+        $text = mb_substr(trim((string)($q['question'] ?? '')), 0, 500);
+        if ($text === '') continue;
+        $answers = [];
+        $correctSeen = false;
+        foreach (array_slice((array)($q['answers'] ?? []), 0, 4) as $a) {
+            $at = mb_substr(trim((string)($a['text'] ?? '')), 0, 300);
+            if ($at === '') continue;
+            $isCorrect = !empty($a['correct']) && !$correctSeen;
+            if ($isCorrect) $correctSeen = true;
+            $answers[] = ['text' => $at, 'correct' => $isCorrect];
+        }
+        if (count($answers) < 2) continue;
+        if (!$correctSeen) $answers[0]['correct'] = true; // Fallback: erste Antwort korrekt
+        $questions[] = [
+            'question'    => $text,
+            'answers'     => $answers,
+            'explanation' => mb_substr(trim((string)($q['explanation'] ?? '')), 0, 500),
+        ];
+    }
+    if (empty($questions)) error('Keine verwertbaren Fragen erzeugt. Bitte erneut versuchen.', 502);
+
+    respond(['questions' => $questions]);
 }
