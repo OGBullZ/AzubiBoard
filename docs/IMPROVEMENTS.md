@@ -14,7 +14,8 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 - [ ] **PHPUnit-Suite-Overlap** beheben (phpunit.xml `all` vs `routes`) · [hier]
 
 ## B · Kernzweck: Berichtsheft & IHK
-- [ ] **M5a IHK-Recherche-Spike** — BLok / Online-Berichtsheft / Import-Formate: Anbindung oder Export? · [hier]
+- [x] **M5a IHK-Recherche-Spike** (`docs/IHK-Spike.md`) — **Ergebnis: Export, keine API.** Einreichung = signierte Gesamt-PDF ins IHK-Prüfungsportal; offizielles IHK-Digital-Berichtsheft wird 31.12.2026 abgeschaltet → Drittanbieter (AzubiBoard passt). M5c (Direkt-API) entfällt.
+- [ ] **M5: Kompletter Ausbildungsnachweis als eine PDF** — alle KW chronologisch + Deckblatt/Stammdaten + Unterschriftenseite (= die einreichbare Datei) · [hier] · **nächster M5-Schritt**
 - [x] **Tages-Struktur Mo–Fr + Stunden** (`b0cd2c3`) — optionale Tageseinträge + IHK-Tages-Tabelle im Druck
 - [ ] **Berichtsheft-Editor-UX** — KW prominent, Pflichtfeld-Hinweise, Vorschau · [hier]
 - [ ] **company/department ins Onboarding** (bisher nur Profil) · [hier]
