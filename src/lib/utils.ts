@@ -131,6 +131,10 @@ export function getISOWeekMonday(input?: string | Date | null): Date | null {
   return d;
 }
 
+// ISO-Wochenmontag als lokales YYYY-MM-DD (DST-sicher) — Wrapper um getISOWeekMonday.
+// Eine Quelle für die früher in ~8 Dateien inline duplizierte Berechnung.
+export const isoWeekMonday = (input?: string | Date | null): string => fmtLocalDate(getISOWeekMonday(input));
+
 // Lokales Datum als YYYY-MM-DD ohne UTC-Shift
 export function fmtLocalDate(d?: string | Date | null): string {
   if (!d) return '';

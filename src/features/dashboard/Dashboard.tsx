@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, lazy } from "react";
 import { useTranslation } from 'react-i18next';
 import type { User, Project, Report, Task, TimeLogEntry, CalendarEvent, Id } from '../../types';
-import { C, fmtDate, fmtLocalDate } from '../../lib/utils.js';
+import { C, fmtDate, fmtLocalDate, isoWeekMonday } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoPlay, IcoChevron,
@@ -111,7 +111,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               const pct        = totalTasks > 0 ? Math.round(doneTotal / totalTasks * 100) : 0;
 
               // Bericht dieser Woche (ISO-Wochenmontag, lokal — DST-sicher)
-              const weekMon    = (() => { const d = new Date(now); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return fmtLocalDate(d); })();
+              const weekMon    = isoWeekMonday(now);
               const myReports  = reports.filter(r => r.user_id === a.id).sort((x,y) => (y.week_start||'').localeCompare(x.week_start||''));
               const lastReport = myReports[0] || null;
               const hasThisWeek = myReports.some(r => (r.week_start||'') >= weekMon);

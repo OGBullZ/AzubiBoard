@@ -2,7 +2,7 @@
 // Schwerpunkt: ISO-Wochen, Datums-Helfer, addActivity (waren Quelle der Sprint-1-Bugs).
 import { describe, it, expect } from 'vitest';
 import {
-  getISOWeek, getKW, getISOWeekMonday, fmtLocalDate, fmtDate,
+  getISOWeek, getKW, getISOWeekMonday, isoWeekMonday, fmtLocalDate, fmtDate,
   getDeadlineDaysLeft, addActivity, uid,
 } from '../src/lib/utils.js';
 
@@ -60,6 +60,15 @@ describe('getISOWeekMonday', () => {
   it('Sonntag → liefert Montag DIESER Woche (nicht nächste)', () => {
     const m = getISOWeekMonday('2026-06-07'); // Sonntag
     expect(m.getDate()).toBe(1);   // 1. Juni 2026 (Mo)
+  });
+});
+
+describe('isoWeekMonday', () => {
+  // Kanonischer ISO-String-Wrapper — ersetzt ~8 inline duplizierte Montags-Berechnungen.
+  it('liefert lokales YYYY-MM-DD des Wochenmontags', () => {
+    expect(isoWeekMonday(new Date(2026, 5, 3))).toBe('2026-06-01'); // Mittwoch → Mo 01.06.
+    expect(isoWeekMonday(new Date(2026, 5, 7))).toBe('2026-06-01'); // Sonntag → Mo DIESER Woche
+    expect(isoWeekMonday(new Date(2026, 5, 1))).toBe('2026-06-01'); // Montag → sich selbst
   });
 });
 

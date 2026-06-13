@@ -6,7 +6,7 @@
 // ============================================================
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Project, Report, Task, CalendarEvent, Id } from '../../types';
-import { C, fmtDate, getISOWeek, today, dayDiffLocal } from '../../lib/utils.js';
+import { C, fmtDate, getISOWeek, today, dayDiffLocal, isoWeekMonday } from '../../lib/utils.js';
 import { useCountUp } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import { WeekProgress } from './widgets/WeekProgress.jsx';
@@ -14,7 +14,7 @@ import { CalWidget } from './widgets/CalWidget.jsx';
 import { ActivityFeed } from './widgets/ActivityFeed.jsx';
 import { LearnWidget } from './widgets/LearnWidget.jsx';
 import { LiveClock } from './widgets/_helpers.jsx';
-import { buildHeroSuggestion, isoMondayOf } from './heroSuggestion.js';
+import { buildHeroSuggestion } from './heroSuggestion.js';
 
 type Props = {
   user: any;
@@ -130,7 +130,7 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
     .sort((a: Report, b: Report) => (a.week_start || '').localeCompare(b.week_start || '')), [reports]);
   const problems = useMemo(() => active.filter((p: Project) => p.status === 'red'), [active]);
   const openRequests = useMemo(() => (groups || []).reduce((s, g) => s + (g.requests || []).length, 0), [groups]);
-  const weekMon = isoMondayOf(now);
+  const weekMon = isoWeekMonday(now);
   const kw = getISOWeek(today()).week;
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Guten Morgen' : hour < 17 ? 'Hallo' : 'Guten Abend';
@@ -254,7 +254,7 @@ export function DashboardBeta({ user, projects, reports, calendarEvents, activit
     let n = 0;
     const d = new Date(now);
     for (let i = 0; i < 99; i++) {
-      if (!weeks.has(isoMondayOf(d))) break;
+      if (!weeks.has(isoWeekMonday(d))) break;
       n++; d.setDate(d.getDate() - 7);
     }
     return n;
@@ -393,7 +393,7 @@ export function DashboardBeta({ user, projects, reports, calendarEvents, activit
             <div className="card">
               <div style={{ ...monoCaps, marginBottom: 8 }}>Berichtsheft KW {kw ?? ''}</div>
               {(() => {
-                const weekMon = isoMondayOf(now);
+                const weekMon = isoWeekMonday(now);
                 const rep = ownReports.find((r: Report) => (r.week_start || '') >= weekMon);
                 if (!rep) return (
                   <button className="btn" style={{ width: '100%', justifyContent: 'center', borderColor: `color-mix(in srgb, ${C.yw} 50%, transparent)`, color: C.yw }} onClick={() => onNavigate('/reports')}>

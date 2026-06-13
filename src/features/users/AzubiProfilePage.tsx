@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { C, getKW, fmtLocalDate } from '../../lib/utils.js';
+import { C, getKW, fmtLocalDate, getISOWeekMonday } from '../../lib/utils.js';
 import { Avatar, ProgressBar } from '../../components/UI.jsx';
 import { IcoBack, IcoCheck, IcoClock, IcoAlert, IcoFolder, IcoReport, IcoTrendUp } from '../../components/Icons.jsx';
 import type { Report, User } from '../../types';
@@ -113,7 +113,7 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
       const d = new Date(now);
       d.setHours(0, 0, 0, 0);
       d.setDate(d.getDate() - (7 - i) * 7);
-      const mon = new Date(d); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+      const mon = getISOWeekMonday(d)!;
       const fri = new Date(mon); fri.setDate(fri.getDate() + 6);
       const ms = fmtLocalDate(mon);
       const me = fmtLocalDate(fri);

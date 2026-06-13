@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import type { ComponentType, CSSProperties, ReactNode, SVGProps } from "react";
 import { C } from '../../../lib/utils.js';
+import { useCountUp } from '../../../lib/hooks.js';
 import { IcoPlay, IcoCheck, IcoPause, IcoBlock } from '../../../components/Icons.jsx';
 import { SectionHeader } from '../../../components/UI.jsx';
 
@@ -15,23 +16,6 @@ export function LiveClock() {
       {t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
     </span>
   );
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useCountUp(target: number) {
-  const [v, setV] = useState(0);
-  useEffect(() => {
-    if (!target) return;
-    let cur = 0;
-    const step = Math.max(1, Math.ceil(target / 30));
-    const i = setInterval(() => {
-      cur = Math.min(cur + step, target);
-      setV(cur);
-      if (cur >= target) clearInterval(i);
-    }, 20);
-    return () => clearInterval(i);
-  }, [target]);
-  return v;
 }
 
 type RingProps = {

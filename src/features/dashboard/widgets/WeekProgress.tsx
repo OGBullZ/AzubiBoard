@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, getKW } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday } from '../../../lib/utils.js';
 import type { Task } from '../../../types';
 
 // Das Widget liest Felder, die das strikte Task-Schema nicht kennt
@@ -26,9 +26,7 @@ type DayBucket = {
 
 function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
   const now   = new Date();
-  const mon   = new Date(now);
-  mon.setDate(mon.getDate() - ((now.getDay() + 6) % 7));
-  mon.setHours(0, 0, 0, 0);
+  const mon   = getISOWeekMonday(now)!;
 
   const days: DayBucket[] = ['Mo','Di','Mi','Do','Fr'].map((l, i) => {
     const d = new Date(mon);

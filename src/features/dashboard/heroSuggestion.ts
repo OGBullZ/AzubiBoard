@@ -1,6 +1,6 @@
 // Hero-Auswahl-Logik „Was jetzt?" (DESIGN-VISION Anhang D.3) — pure, unit-getestet.
 // Priorität: überfällige Aufgabe → heute fällig → Berichtsheft offen → Deadline ≤3 Tage → alles im Plan.
-import { fmtLocalDate, dayDiffLocal } from '../../lib/utils.js';
+import { dayDiffLocal, isoWeekMonday } from '../../lib/utils.js';
 import type { Project, Report, Task, Id } from '../../types';
 
 export type HeroSuggestion = {
@@ -15,12 +15,6 @@ export type HeroSuggestion = {
 };
 
 const dayDiff = (iso: string, now: Date) => dayDiffLocal(iso, now);
-
-export function isoMondayOf(now: Date): string {
-  const d = new Date(now); d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return fmtLocalDate(d);
-}
 
 export function buildHeroSuggestion(projects: Project[], reports: Report[], userId: Id, now = new Date()): HeroSuggestion {
   const active = (projects || []).filter((p: Project) => !p.archived);
@@ -43,7 +37,7 @@ export function buildHeroSuggestion(projects: Project[], reports: Report[], user
       cta: 'Anpacken', to: `project:${p.id}`, projectId: p.id, taskId: t.id, daysLeft: 0 };
   }
 
-  const weekMon = isoMondayOf(now);
+  const weekMon = isoWeekMonday(now);
   const hasThisWeek = (reports || []).some((r: Report) => r.user_id === userId && (r.week_start || '') >= weekMon);
   if (!hasThisWeek) {
     return { kind: 'report', title: 'Wochenbericht schreiben', sub: 'Das Berichtsheft dieser Woche ist noch offen',

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, getKW } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday } from '../../../lib/utils.js';
 import { IcoAlert, IcoReport } from '../../../components/Icons.jsx';
 import type { Report } from '../../../types';
 
@@ -16,10 +16,7 @@ function ReportWidgetImpl({ reports, userId, onNavigate }: ReportWidgetProps) {
   const sub    = mine.filter(r => r.status === 'submitted').length;
   const draft  = mine.filter(r => r.status === 'draft').length;
 
-  const now = new Date();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
+  const monday = getISOWeekMonday(new Date())!;
   const thisWeekReport  = mine.find(r => !!r.week_start && new Date(r.week_start) >= monday);
   const thisWeekMissing = !thisWeekReport;
 
@@ -30,7 +27,7 @@ function ReportWidgetImpl({ reports, userId, onNavigate }: ReportWidgetProps) {
           <IcoAlert size={13} style={{ color: C.yw, flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.yw }}>Berichtsheft diese Woche fehlt</div>
-            <div style={{ fontSize: 10, color: C.textSecondary }}>Noch nicht für KW {getKW(now)} erstellt</div>
+            <div style={{ fontSize: 10, color: C.textSecondary }}>Noch nicht für KW {getKW(monday)} erstellt</div>
           </div>
         </div>
       )}

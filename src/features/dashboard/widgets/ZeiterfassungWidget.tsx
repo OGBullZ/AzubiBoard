@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { C, getKW } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday, fmtLocalDate } from '../../../lib/utils.js';
 import { Avatar } from '../../../components/UI.jsx';
 import type { User } from '../../../types';
 
@@ -25,16 +25,17 @@ type Breakdown = { title: string; hours: number };
 type Row = { azubi: User; total: number; breakdown: Breakdown[] };
 
 function ZeiterfassungWidgetImpl({ users, projects }: ZeiterfassungWidgetProps) {
+  // Lokale Achsen (DST-sicher): timeLog-Datümer werden mit today() = lokal geschrieben,
+  // daher müssen Wochengrenzen ebenfalls lokal sein — toISOString() (UTC) wäre off-by-one nachts.
   const getMonStr = (offset = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() - ((d.getDay()+6)%7) + offset * 7);
-    d.setHours(0,0,0,0);
-    return d.toISOString().split('T')[0];
+    const mon = getISOWeekMonday(new Date())!;
+    mon.setDate(mon.getDate() + offset * 7);
+    return fmtLocalDate(mon);
   };
   const [monStr, setMonStr] = useState<string>(() => getMonStr(0));
-  const today = new Date().toISOString().split('T')[0];
+  const today = fmtLocalDate(new Date());
 
-  const sunStr = (() => { const d = new Date(monStr); d.setDate(d.getDate()+6); return d.toISOString().split('T')[0]; })();
+  const sunStr = (() => { const d = new Date(monStr + 'T12:00:00'); d.setDate(d.getDate()+6); return fmtLocalDate(d); })();
   const kwNum  = getKW(monStr);  // ISO-KW statt Naiv-Formel (falsch an Jahresgrenzen)
 
   const azubis = users.filter(u => u.role === 'azubi');

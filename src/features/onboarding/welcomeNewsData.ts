@@ -1,17 +1,10 @@
-import { C, getISOWeek, today, fmtLocalDate, fmtDate, dayDiffLocal } from '../../lib/utils.js';
+import { C, getISOWeek, today, fmtLocalDate, fmtDate, dayDiffLocal, isoWeekMonday } from '../../lib/utils.js';
 import { isMentor } from '../../lib/roles.js';
 import type { User, AppState, Project, Task, Report, Goal, CalendarEvent } from '../../types';
 
 // Reine News-Aggregation (kein React) — getrennt von WelcomeNews.tsx, damit die
 // Komponenten-Datei nur die Komponente exportiert (react-refresh) und die Logik
 // unit-testbar bleibt (tests/welcome-news.test.js).
-
-// ISO-Wochenmontag lokal (DST-sicher, identisch zu Dashboard.tsx Z.108)
-export function isoMonday(now: Date): string {
-  const d = new Date(now); d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return fmtLocalDate(d);
-}
 
 export const firstNameOf = (name?: string | null) => (name || '').split(' ')[0] || name || '';
 
@@ -36,7 +29,7 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
   const mentor = isMentor(currentUser);
   const active = (data.projects || []).filter((p: Project) => !p.archived);
   const reports = data.reports || [];
-  const weekMon = isoMonday(now);
+  const weekMon = isoWeekMonday(now);
   const week = getISOWeek(today()).week;
   const cards: Card[] = [];
   const dayDiff = (iso: string) => dayDiffLocal(iso, now);

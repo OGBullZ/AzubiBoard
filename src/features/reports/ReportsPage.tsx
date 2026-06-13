@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import type { User, Project, Task, Report, AppState, Id } from '../../types';
 import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';
-import { C, uid, fmtDate, getKW, getISOWeek, fmtLocalDate, addActivity } from '../../lib/utils.js';
+import { C, uid, fmtDate, getKW, getISOWeek, isoWeekMonday, addActivity } from '../../lib/utils.js';
 import { useDebounce, useDesign } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import { playStamp } from '../../lib/sound.js';
@@ -49,13 +49,7 @@ const STATUS_REPORT = {
 const esc = (s: unknown) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-function getMonday(d = new Date()) {
-  // ISO-Montag, lokal (DST-sicher)
-  const dt = d instanceof Date ? new Date(d) : new Date(d);
-  dt.setHours(0, 0, 0, 0);
-  dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
-  return fmtLocalDate(dt);
-}
+const getMonday = (d: string | Date = new Date()) => isoWeekMonday(d);
 
 const TEMPLATES = [
   { label: 'Standard', activities: `Montag:\n- \n\nDienstag:\n- \n\nMittwoch:\n- \n\nDonnerstag:\n- \n\nFreitag:\n- `, learnings: `Was ich diese Woche gelernt habe:\n- \n\nSchwierigkeiten:\n- ` },
