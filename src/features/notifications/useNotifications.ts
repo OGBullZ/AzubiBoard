@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { User, Project, Task, Report, AppState, Id } from '../../types';
-import { dayDiffLocal } from '../../lib/utils.js';
+import { dayDiffLocal, sameId } from '../../lib/utils.js';
 
 // ── Notifications ─────────────────────────────────────────────
 // UI-Konstrukt (kein Domain-Typ) — lokal definiert.
@@ -29,7 +29,7 @@ export function useNotifications(data: AppState | null, currentUser: User | null
 
     (data.projects || []).filter((p: Project) => !p.archived).forEach((project: Project) => {
       (project.tasks || []).forEach((task: Task) => {
-        if (task.assignee !== currentUser.id || task.status === 'done' || !task.deadline) return;
+        if (!sameId(task.assignee, currentUser.id) || task.status === 'done' || !task.deadline) return;
         const d = dayDiffLocal(task.deadline, now);
         if (d < 0)
           items.push({ id: `task-${task.id}-overdue`, type: 'deadline', severity: 'critical', title: task.text, message: `Überfällig seit ${Math.abs(d)} Tag${Math.abs(d) !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
@@ -51,7 +51,7 @@ export function useNotifications(data: AppState | null, currentUser: User | null
         items.push({ id: `report-${r.id}-submitted`, type: 'report', severity: 'info', title: 'Bericht zur Prüfung', message: `${r.user_name || 'Azubi'} · KW ${r.week_number}/${r.year}` });
       });
     } else {
-      (data.reports || []).filter((r: Report) => r.user_id === currentUser.id && (r.status === 'reviewed' || r.status === 'signed')).forEach((r: Report) => {
+      (data.reports || []).filter((r: Report) => sameId(r.user_id, currentUser.id) && (r.status === 'reviewed' || r.status === 'signed')).forEach((r: Report) => {
         items.push({ id: `report-${r.id}-${r.status}`, type: 'report', severity: 'info', title: r.status === 'signed' ? 'Bericht unterschrieben' : 'Bericht geprüft', message: `KW ${r.week_number}/${r.year} · Feedback verfügbar` });
       });
     }

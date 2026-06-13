@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, lazy } from "react";
 import { useTranslation } from 'react-i18next';
 import type { User, Project, Report, Task, TimeLogEntry, CalendarEvent, Id } from '../../types';
-import { C, fmtDate, fmtLocalDate, isoWeekMonday } from '../../lib/utils.js';
+import { C, fmtDate, fmtLocalDate, isoWeekMonday, sameId } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoPlay, IcoChevron,
@@ -279,7 +279,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
   const allTasks = useMemo<DashboardTask[]>(() =>
     projects.flatMap(p =>
       (p.tasks||[])
-        .filter((t: Task) => t.assignee === user.id && t.status !== 'done')
+        .filter((t: Task) => sameId(t.assignee, user.id) && t.status !== 'done')
         .map((t: Task): DashboardTask => ({
           ...t,
           projectTitle: p.title,

@@ -51,6 +51,12 @@ export default defineConfig([
       // Boundary-any ist im Projekt bewusst+dokumentiert (JS-Boundaries store/trash/dataService,
       // Blob↔Schema-Divergenz, Consumer-eigene Typen). tsc --noEmit (strict) ist das Typ-Gate.
       '@typescript-eslint/no-explicit-any': 'off',
+      // ID-Mismatch-Schutz: currentUser.id ist je nach Modus string (Blob) oder number (API).
+      // Roh === gegen gespeicherte IDs = der wiederkehrende Bug aus den Bug-Hunts → sameId() erzwingen.
+      'no-restricted-syntax': ['error', {
+        selector: "BinaryExpression[operator=/^[!=]==$/] > MemberExpression[property.name='id'][object.name='currentUser']",
+        message: 'currentUser.id mit sameId() vergleichen, nicht roh ===/!== — IDs sind je nach Modus string oder number (Bug-Hunt 3).',
+      }],
     },
   },
   {
