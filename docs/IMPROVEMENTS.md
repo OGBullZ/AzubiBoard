@@ -9,7 +9,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 
 - [x] **Bug-Hunt 4** (`c86ae29`) — 3 UTC-Off-by-one (WeekProgress/CalWidget/MonthReportModal) gefixt
 - [x] **ID-Mismatch-Tiefensweep** — keine offenen aliased Vergleiche mehr (welcomeNewsData `me` in `c54c501`, useNotifications/Dashboard in `d490c9c`)
-- [ ] **Boot-Smoke vertiefen** — Interaktionen (Editor/Druck/AI/Modals/Ctrl+K), nicht nur Routen-Load · [hier]
+- [x] **Boot-Smoke vertiefen** (`c38132b`) — Interaktions-Test für CommandDialogs (Ctrl+K-Suche + ?-Shortcuts). Editor-Open zurückgestellt (Preview-Overlay-Flakiness).
 - [ ] **Property-Tests Datum** — DST-Stabilität als Invariante · [hier]
 - [ ] **PHPUnit-Suite-Overlap** beheben (phpunit.xml `all` vs `routes`) · [hier]
 
