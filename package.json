@@ -24,7 +24,6 @@
     "@fontsource/chakra-petch": "^5.2.7",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@sentry/react": "^10.52.0",
-    "firebase": "^12.14.0",
     "i18next": "^26.0.10",
     "pdfjs-dist": "^5.7.284",
     "qrcode": "^1.5.4",
