@@ -15,6 +15,7 @@ import { ActivityFeed } from './widgets/ActivityFeed.jsx';
 import { LearnWidget } from './widgets/LearnWidget.jsx';
 import { LiveClock } from './widgets/_helpers.jsx';
 import { buildHeroSuggestion } from './heroSuggestion.js';
+import { berichtsheftStats } from './reportStats.js';
 
 type Props = {
   user: any;
@@ -124,6 +125,13 @@ function Stat({ label, value, color }: { label: string; value: number; color?: s
 export function AusbilderCockpitBeta({ user, projects, users, reports, calendarEvents, activityLog, groups, onOpenProject, onNavigate }: Props) {
   const now = new Date();
   const azubis = useMemo(() => (users || []).filter((u: User) => u.role === 'azubi'), [users]);
+  // AN1: Berichtsheft-Vollständigkeit pro Azubi (letzte 12 KW) — Lücken vor der IHK-Prüfung sehen.
+  const bsMap = useMemo(() => {
+    const m: Record<string, ReturnType<typeof berichtsheftStats>> = {};
+    for (const a of azubis) m[String(a.id)] = berichtsheftStats(reports || [], a.id, new Date(), 12);
+    return m;
+  }, [azubis, reports]);
+  const bsGaps = useMemo(() => azubis.filter((a: User) => (bsMap[String(a.id)]?.missing.length ?? 0) > 0).length, [azubis, bsMap]);
   const active = useMemo(() => (projects || []).filter((p: Project) => !p.archived), [projects]);
   const pending = useMemo(() => (reports || []).filter((r: Report) => r.status === 'submitted')
     .sort((a: Report, b: Report) => (a.week_start || '').localeCompare(b.week_start || '')), [reports]);
@@ -177,6 +185,7 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
           <div>
             <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <span className="section-header-title" style={{ ...monoCaps, color: C.tx }}>Azubis [{azubis.length}]</span>
+              {bsGaps > 0 && <span title="Azubis mit fehlenden Wochenberichten (letzte 12 KW)" style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.yw, marginLeft: 'auto' }}>⚠ {bsGaps} mit Heft-Lücken</span>}
             </div>
             {azubis.length === 0 && <div style={{ fontSize: 12, color: C.mu, fontStyle: 'italic' }}>Noch keine Azubis angelegt.</div>}
             {azubis.map((a: User) => {
@@ -186,13 +195,16 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
               const myRep = (reports || []).filter((r: Report) => sameId(r.user_id, a.id) && (r.week_start || '') >= weekMon)
                 .sort((x: Report, y: Report) => (y.week_start || '').localeCompare(x.week_start || ''))[0];
               const ampel = overdue > 2 ? C.cr : overdue > 0 || !myRep ? C.yw : C.gr;
+              const bs = bsMap[String(a.id)];
               return (
                 <button key={a.id} className="card" onClick={() => onNavigate(`azubi/${a.id}`)}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 14px', marginBottom: 8, cursor: 'pointer', textAlign: 'left' }}>
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: ampel, boxShadow: `0 0 8px ${ampel}`, flexShrink: 0 }} aria-label="Status" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 10, color: C.mu, marginTop: 2 }}>LJ {(a as any).apprenticeship_year || 1} · {myTasks.length} offen{overdue ? ` · ${overdue} überfällig` : ''}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 10, color: C.mu, marginTop: 2 }}>LJ {(a as any).apprenticeship_year || 1} · {myTasks.length} offen{overdue ? ` · ${overdue} überfällig` : ''}
+                      {bs && <span title={`Berichtshefte letzte ${bs.total} KW`} style={{ color: bs.missing.length === 0 ? C.gr : bs.missing.length <= 2 ? C.yw : C.cr }}> · 📋 {bs.have}/{bs.total} KW</span>}
+                    </div>
                   </div>
                   {myRep && repMap[myRep.status as string]
                     ? <Stamp label={repMap[myRep.status as string].l} color={repMap[myRep.status as string].c} seed={myRep.id} />
