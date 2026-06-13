@@ -15,7 +15,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 
 ## B · Kernzweck: Berichtsheft & IHK
 - [x] **M5a IHK-Recherche-Spike** (`docs/IHK-Spike.md`) — **Ergebnis: Export, keine API.** Einreichung = signierte Gesamt-PDF ins IHK-Prüfungsportal; offizielles IHK-Digital-Berichtsheft wird 31.12.2026 abgeschaltet → Drittanbieter (AzubiBoard passt). M5c (Direkt-API) entfällt.
-- [ ] **M5: Kompletter Ausbildungsnachweis als eine PDF** — alle KW chronologisch + Deckblatt/Stammdaten + Unterschriftenseite (= die einreichbare Datei) · [hier] · **nächster M5-Schritt**
+- [x] **M5: Kompletter Ausbildungsnachweis als eine PDF** (`6f60503`) — Deckblatt + alle KW chronologisch (lfd. Nr., Tages-Tabelle, Unterschriftszeile/Woche). Azubi-Button „📑 Kompletter Nachweis".
 - [x] **Tages-Struktur Mo–Fr + Stunden** (`b0cd2c3`) — optionale Tageseinträge + IHK-Tages-Tabelle im Druck
 - [ ] **Berichtsheft-Editor-UX** — KW prominent, Pflichtfeld-Hinweise, Vorschau · [hier]
 - [ ] **company/department ins Onboarding** (bisher nur Profil) · [hier]
