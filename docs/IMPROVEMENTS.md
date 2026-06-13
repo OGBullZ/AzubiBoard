@@ -7,15 +7,15 @@
 ## A · Korrektheit & Robustheit
 Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs, allein heute 7 latente.
 
-- [ ] **Bug-Hunt 4** — adversarische 4. Fehleranalyse · [hier]
-- [ ] **ID-Mismatch-Tiefensweep** — alle aliased `currentUser.id`-Vergleiche (nicht nur `me`), stored-ids gegen Login-ids · [hier]
-- [ ] **Boot-Smoke vertiefen** — Interaktionen (Editor/Druck/AI/Modals), nicht nur Routen-Load · [hier]
+- [x] **Bug-Hunt 4** (`c86ae29`) — 3 UTC-Off-by-one (WeekProgress/CalWidget/MonthReportModal) gefixt
+- [x] **ID-Mismatch-Tiefensweep** — keine offenen aliased Vergleiche mehr (welcomeNewsData `me` in `c54c501`, useNotifications/Dashboard in `d490c9c`)
+- [ ] **Boot-Smoke vertiefen** — Interaktionen (Editor/Druck/AI/Modals/Ctrl+K), nicht nur Routen-Load · [hier]
 - [ ] **Property-Tests Datum** — DST-Stabilität als Invariante · [hier]
 - [ ] **PHPUnit-Suite-Overlap** beheben (phpunit.xml `all` vs `routes`) · [hier]
 
 ## B · Kernzweck: Berichtsheft & IHK
 - [ ] **M5a IHK-Recherche-Spike** — BLok / Online-Berichtsheft / Import-Formate: Anbindung oder Export? · [hier]
-- [ ] **Tages-Struktur Mo–Fr + Stunden** — strukturierte Tageseinträge statt Freitext · [hier]
+- [x] **Tages-Struktur Mo–Fr + Stunden** (`b0cd2c3`) — optionale Tageseinträge + IHK-Tages-Tabelle im Druck
 - [ ] **Berichtsheft-Editor-UX** — KW prominent, Pflichtfeld-Hinweise, Vorschau · [hier]
 - [ ] **company/department ins Onboarding** (bisher nur Profil) · [hier]
 - [x] IHK-Export: Ausbildungsbetrieb/Abteilung/laufende Nachweis-Nr (`d4a154a`)
@@ -27,13 +27,13 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 - [x] AI4 KI-Feedback auf Berichte (`717ef64`)
 
 ## D · Ausbilder-Werkzeuge
-- [ ] **Azubi-Detail Drill-down** — welche KW genau fehlen · [hier]
-- [ ] **Prüfungs-Readiness-Score** pro Azubi · [hier]
-- [ ] **Lernziel-Quote** pro Azubi im Cockpit · [hier]
+- [x] **Azubi-Detail Drill-down** (`be0b466`) — fehlende Berichtswochen (KW-Chips) + Heft-Quote
+- [ ] **Prüfungs-Readiness-Score** pro Azubi (Composite) · [hier]
+- [ ] **Lernziel-Quote** pro Azubi im Cockpit (Detail zeigt Kompetenz-Ring bereits) · [hier]
 - [x] Berichtsheft-Vollständigkeit pro Azubi im Cockpit (`c63e8bd`)
 
 ## E · Architektur & Wartbarkeit
-- [ ] **App.tsx weiter entflechten** (1612 Z.) — GlobalSearch/ShortcutsHelp/Sidebar/Root-Handler → Module/Hooks · [hier]
+- [~] **App.tsx weiter entflechten** (1757→1475 Z.) — NotificationBell + GlobalSearch/ShortcutsHelp raus (`8a24a09`,`71ec792`); offen: Sidebar, Root-Handler → Hooks · [hier]
 - [ ] **Dual-Mode-Schuld** — wird durch Richtung A an der Wurzel aufgelöst · [Server]
 - [ ] **Blob↔Schema-`any` tightening** nach Schema-Read-Verifikation · [Server]
 - [x] Notification-UI extrahiert (`8a24a09`) · sameId/isoWeekMonday zentralisiert · firstName zentralisiert
