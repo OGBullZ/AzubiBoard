@@ -76,6 +76,15 @@ if ($method === 'POST' && $id === null) {
     // Kein Azubi darf für andere erstellen
     $reportUserId = ($role === 'ausbilder' && !empty($b['user_id'])) ? (int)$b['user_id'] : $uid;
 
+    // RLS: Ausbilder darf nur für Azubis aus geteilten Gruppen anlegen (spiegelt die
+    // Lese-Isolation; vorher konnte ein Ausbilder per user_id Reports cross-group erzeugen).
+    if ($reportUserId !== $uid) {
+        $gf  = with_group_filter_users(db(), $auth, 'id');
+        $chk = db()->prepare("SELECT 1 FROM users WHERE id = ? AND {$gf['clause']} LIMIT 1");
+        $chk->execute([$reportUserId, ...$gf['params']]);
+        if (!$chk->fetchColumn()) error('Kein Zugriff auf diesen Nutzer', 403);
+    }
+
     $s = db()->prepare("
         INSERT INTO reports
             (user_id, week_start, week_number, year, title, activities, learnings, status)

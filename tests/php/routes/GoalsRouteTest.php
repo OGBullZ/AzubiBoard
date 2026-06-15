@@ -46,4 +46,21 @@ final class GoalsRouteTest extends TestCase
         $this->assertStringContainsString('requirements', $this->code, 'goals.php muss requirements-Tabelle adressieren');
         $this->assertStringContainsString('materials',    $this->code, 'goals.php muss materials-Tabelle adressieren');
     }
+
+    public function testAusbilderIsGroupScopedNotFullBypass(): void
+    {
+        // Bug-Hunt 5: goals_project_access() gab Ausbildern bedingungslos `return true`
+        // → Cross-Gruppen-Leck auf requirements/materials fremder Projekte (anders als
+        // project_visible() in projects.php). Muss denselben Gruppen-Filter anwenden.
+        $this->assertDoesNotMatchRegularExpression(
+            '/===?\s*[\'"]ausbilder[\'"]\s*\)\s*return\s+true/',
+            $this->code,
+            'goals_project_access() darf für Ausbilder nicht bedingungslos `return true` — Gruppen-Isolation würde umgangen'
+        );
+        $this->assertStringContainsString(
+            'with_group_filter',
+            $this->code,
+            'goals_project_access() muss with_group_filter auf projects.group_id anwenden'
+        );
+    }
 }

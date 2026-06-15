@@ -32,7 +32,7 @@ function ai_suggest_goals(array $user): never {
         error('KI-Feature nicht konfiguriert. Bitte CLAUDE_API_KEY in .env setzen.', 503);
     }
 
-    rate_limit('ai_suggest_' . $user['id'], 20, 3600); // 20 Calls/Stunde pro Nutzer
+    rate_limit('ai_suggest_' . $user['sub'], 20, 3600); // 20 Calls/Stunde pro Nutzer
 
     $b = body();
 
@@ -86,7 +86,7 @@ function ai_fill_report(array $user): never {
         error('KI-Feature nicht konfiguriert. Bitte CLAUDE_API_KEY in .env setzen.', 503);
     }
 
-    rate_limit('ai_fillreport_' . $user['id'], 15, 3600); // 15 Calls/Stunde pro Nutzer
+    rate_limit('ai_fillreport_' . $user['sub'], 15, 3600); // 15 Calls/Stunde pro Nutzer
 
     $b = body();
 
@@ -159,7 +159,7 @@ function ai_review_report(array $user): never {
         error('KI-Feature nicht konfiguriert. Bitte CLAUDE_API_KEY in .env setzen.', 503);
     }
 
-    rate_limit('ai_review_' . $user['id'], 20, 3600); // 20 Calls/Stunde pro Nutzer
+    rate_limit('ai_review_' . $user['sub'], 20, 3600); // 20 Calls/Stunde pro Nutzer
 
     $b = body();
     $title      = clean_str($b['title']      ?? '', 200,  false) ?? '';
@@ -215,7 +215,7 @@ function ai_generate_quiz(array $user): never {
         error('KI-Feature nicht konfiguriert. Bitte CLAUDE_API_KEY in .env setzen.', 503);
     }
 
-    rate_limit('ai_quiz_' . $user['id'], 10, 3600); // 10 Calls/Stunde pro Nutzer
+    rate_limit('ai_quiz_' . $user['sub'], 10, 3600); // 10 Calls/Stunde pro Nutzer
 
     $b = body();
     $topic      = clean_str($b['topic']      ?? '', 200, false) ?? '';

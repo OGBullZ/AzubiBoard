@@ -29,7 +29,15 @@ if (!in_array($entity, ['requirements','materials'])) {
 
 // ── Projektzugriff prüfen ─────────────────────────────────────
 function goals_project_access(PDO $pdo, int $projectId, int $userId, string $role): bool {
-    if ($role === 'ausbilder') return true;
+    if ($role === 'ausbilder') {
+        // RLS analog project_visible(): Ausbilder nur auf Projekte eigener Gruppen
+        // (ohne Gruppen-Mitgliedschaft → Klausel 1=1, kein Regress). Vorher: return true
+        // → Cross-Gruppen-Leak auf requirements/materials fremder Projekte.
+        $gf = with_group_filter($pdo, ['sub' => $userId, 'role' => $role], 'group_id');
+        $s = $pdo->prepare("SELECT 1 FROM projects WHERE id = ? AND {$gf['clause']} LIMIT 1");
+        $s->execute([$projectId, ...$gf['params']]);
+        return (bool)$s->fetchColumn();
+    }
     $s = $pdo->prepare("SELECT 1 FROM project_assignments WHERE project_id=? AND user_id=? LIMIT 1");
     $s->execute([$projectId, $userId]);
     return (bool)$s->fetchColumn();

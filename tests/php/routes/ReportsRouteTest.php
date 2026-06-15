@@ -77,6 +77,23 @@ final class ReportsRouteTest extends TestCase
         );
     }
 
+    public function testAusbilderCannotCreateReportCrossGroup(): void
+    {
+        // Bug-Hunt 5: POST setzt $reportUserId aus $b['user_id'] (Ausbilder), prüfte aber
+        // NICHT, ob der Ziel-Azubi in einer geteilten Gruppe liegt → Cross-Gruppen-Anlage.
+        // Schreibseite muss dieselbe Isolation wie die Leseseite erzwingen.
+        $this->assertMatchesRegularExpression(
+            '/\$reportUserId\s*!==?\s*\$uid/',
+            $this->code,
+            'POST muss prüfen, ob fremde user_id != eigene ist, bevor angelegt wird'
+        );
+        $this->assertMatchesRegularExpression(
+            '/with_group_filter_users\([^)]*\)\s*;.*FROM users WHERE id/s',
+            $this->code,
+            'POST muss die Ziel-user_id gegen with_group_filter_users absichern (sonst Cross-Group-Anlage)'
+        );
+    }
+
     public function testAzubiCannotEditAfterDraft(): void
     {
         // K2 (#7): sobald ein Report NICHT mehr 'draft' ist, darf ein Nicht-Ausbilder

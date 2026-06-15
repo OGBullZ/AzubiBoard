@@ -112,6 +112,18 @@ final class AiRouteTest extends TestCase
             'ai.php muss rate_limit() aufrufen');
     }
 
+    public function testRateLimitKeyIsPerUserViaSub(): void
+    {
+        // Bug-Hunt 5: Das JWT-Payload (require_auth) enthält nur sub/name/email/role,
+        // KEIN 'id'. Der frühere Bucket-Key 'ai_*_' . $user['id'] kollabierte daher zu
+        // einem globalen Limit über alle Nutzer (DoS + unkontrollierte API-Kosten).
+        // Der Per-User-Bucket muss $user['sub'] verwenden.
+        $this->assertStringContainsString("\$user['sub']", $this->routeCode,
+            "Rate-Limit-Bucket muss \$user['sub'] (vorhanden im JWT) als Per-User-Schlüssel nutzen");
+        $this->assertStringNotContainsString("\$user['id']", $this->routeCode,
+            "\$user['id'] existiert im JWT-Payload nicht → Rate-Limit wäre global statt pro Nutzer");
+    }
+
     // ── CLAUDE_API_KEY Konstante ─────────────────────────────────
 
     public function testClaudeApiKeyConstantDefined(): void
