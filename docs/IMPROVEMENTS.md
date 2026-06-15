@@ -4,9 +4,18 @@
 > Legende: **[hier]** = ohne Server baubar · **[Server]** = braucht Ubuntu-Tier-1 (Richtung A).
 > Strategie steht in `ROADMAP-v2.md` (Richtung A: echtes Multi-User, Server kommt auf Signal).
 
+## ⭐ Optimierungsplan (15. Juni 2026) — Reihenfolge nach ROI/Risiko, alles [hier]
+
+1. **P1 Korrektheit** (höchster ROI, belegt) — **Bug-Hunt 5** (→ Abschnitt A, AKTIV) + Property-Tests Datum.
+2. **P2 UX & Politur** — Design-Graduierung (v1 deprecaten, braucht User-Go) · Berichtsheft-Editor-UX · company/department ins Onboarding · a11y Pass 3.
+3. **P3 Architektur** — App.tsx Root-Handler → Hooks + Page-Wrapper · PHPUnit-Suite-Overlap.
+4. **P4 Performance** (geringe Marge, Chunk 154 KB) — Lighthouse-Schwellen als Gate (→ Abschnitt G).
+> [Server]-Items (any-Tightening, Dual-Mode, Server-Tier) bewusst zurückgestellt bis Server-Signal.
+
 ## A · Korrektheit & Robustheit
 Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs, allein heute 7 latente.
 
+- [~] **Bug-Hunt 5** (P1, AKTIV 15.06.) — adversarische Fehleranalyse FE+PHP, Funde gruppiert fixen je grüne Gates
 - [x] **Bug-Hunt 4** (`c86ae29`) — 3 UTC-Off-by-one (WeekProgress/CalWidget/MonthReportModal) gefixt
 - [x] **ID-Mismatch-Tiefensweep** — keine offenen aliased Vergleiche mehr (welcomeNewsData `me` in `c54c501`, useNotifications/Dashboard in `d490c9c`)
 - [x] **Boot-Smoke vertiefen** (`c38132b`) — Interaktions-Test für CommandDialogs (Ctrl+K-Suche + ?-Shortcuts). Editor-Open zurückgestellt (Preview-Overlay-Flakiness).
@@ -45,6 +54,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 
 ## G · Performance
 - [x] **Bundle-Headroom** (`68006f8`) — Dashboard+ProjectPool lazy → Haupt-Chunk 169.83 → **154.53 KB gz** (~9 % Luft)
+- [ ] **Lighthouse-Schwellen als CI-Gate** (P4, Q2) — feste Mindestwerte + ggf. Route-Prefetch für lazy Chunks · [hier]
 
 ## H · Betrieb & Server (Richtung A — auf Signal)
 - [ ] **Server-Tier** Migration/RLS/Dual-Write/Schema-Reads/AI/N1 live (`docs/Server-Tier-Checkliste.md`) · [Server]
