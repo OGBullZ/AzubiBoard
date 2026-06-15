@@ -15,7 +15,7 @@
 ## A · Korrektheit & Robustheit
 Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs, allein heute 7 latente.
 
-- [~] **Bug-Hunt 5** (P1, AKTIV 15.06.) — adversarische Fehleranalyse FE+PHP, Funde gruppiert fixen je grüne Gates
+- [x] **Bug-Hunt 5** (P1, 15.06., `534df65`/`501604f`/`dbf6d67`/`21f2810`) — 7 verifizierte Funde gefixt: ID-Typ-Vergleiche→sameId (heroSuggestion/useNotifications/AzubiProfile), Stale-data-Race in 13 App.tsx-Handlern→funktionale setData, Print-XSS MonthReportModal, PHP ai-rate-limit/goals-RLS/reports-cross-group. Vitest 110, PHPUnit 133, Boot-Smoke 5/5.
 - [x] **Bug-Hunt 4** (`c86ae29`) — 3 UTC-Off-by-one (WeekProgress/CalWidget/MonthReportModal) gefixt
 - [x] **ID-Mismatch-Tiefensweep** — keine offenen aliased Vergleiche mehr (welcomeNewsData `me` in `c54c501`, useNotifications/Dashboard in `d490c9c`)
 - [x] **Boot-Smoke vertiefen** (`c38132b`) — Interaktions-Test für CommandDialogs (Ctrl+K-Suche + ?-Shortcuts). Editor-Open zurückgestellt (Preview-Overlay-Flakiness).
