@@ -3,6 +3,10 @@ import { C, fmtLocalDate } from '../../../lib/utils.js';
 import { Avatar } from '../../../components/UI.jsx';
 import type { Project, User, Report } from '../../../types';
 
+// Azubi-Name ist nutzergeneriert → vor dem Schreiben ins Druck-Popup escapen (sonst Stored XSS im same-origin window).
+const esc = (s: unknown) => String(s ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 type MonthReportModalProps = {
   projects: Project[];
   users: User[];
@@ -77,7 +81,7 @@ export function MonthReportModal({ projects, users, reports, onClose }: MonthRep
     <h1>Monatsreport – ${monthName}</h1>
     <table><thead><tr><th>Azubi</th><th>Stunden</th><th>Aufgaben ✓</th><th>Berichte</th><th>Status</th></tr></thead>
     <tbody>${rows.map(r => `<tr>
-      <td>${r.azubi.name}</td>
+      <td>${esc(r.azubi.name)}</td>
       <td>${r.hours.toFixed(1)}h</td>
       <td>${r.done}</td>
       <td>${r.reports.length}</td>
