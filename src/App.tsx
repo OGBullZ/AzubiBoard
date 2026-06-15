@@ -265,12 +265,12 @@ function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
   // Phase 2: Mentor = nur lesend. Alle Projekt-Schreibpfade laufen durch diesen choke point.
   const handleUpdate = useCallback((projectId: string, updates: any) => {
     if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
-    setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
-  }, [data, setData, currentUser, showToast]);
+    setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) } : prev);
+  }, [setData, currentUser, showToast]);
 
   const handleArchive = useCallback((projectId: string) => {
     const snapshot = data;
-    setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) });
+    setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) } : prev);
     showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });  // Phase 4: Undo konsistent zur Listen-Archivierung
   }, [data, setData, showToast]);
 
@@ -357,7 +357,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       if (USE_API) await dataService.updateProfile(changes);
       const updatedUser = { ...currentUser, ...changes };
       setCurrentUser(updatedUser);
-      if (data) setData({ ...data, users: (data.users || []).map((u: User) => sameId(u.id, currentUser.id) ? { ...u, ...changes } : u) });
+      setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => sameId(u.id, currentUser.id) ? { ...u, ...changes } : u) } : prev);
       toast('✓ Profil gespeichert');
     } catch (e: any) { toast('⚠ ' + e.message); }
     finally { setSaving(false); }
@@ -390,7 +390,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       const { avatar_url } = await dataService.uploadAvatar(file);
       const updatedUser = { ...currentUser, avatar_url };
       setCurrentUser(updatedUser);
-      if (data) setData({ ...data, users: (data.users || []).map((u: User) => sameId(u.id, currentUser.id) ? { ...u, avatar_url } : u) });
+      setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => sameId(u.id, currentUser.id) ? { ...u, avatar_url } : u) } : prev);
       toast('✓ Profilbild gespeichert');
     } catch (err: any) { toast('⚠ ' + err.message); }
     finally { setSaving(false); e.target.value = ''; }
@@ -588,7 +588,7 @@ function GroupsPage({ showToast }: { showToast: ShowToast }) {
   const currentUser = store.currentUser as User | null;
   const setData = store.setData;
   // groups: GroupsView-eigener Group-Typ (nicht in types.ts) → any belassen.
-  const handleUpdateGroups = useCallback((groups: any) => setData({ ...data, groups }), [data, setData]);
+  const handleUpdateGroups = useCallback((groups: any) => setData((prev: any) => prev ? { ...prev, groups } : prev), [setData]);
   // groups/projects: GroupsView erwartet eigene Group/GroupProject-Typen (enger als AppState-Blob) → cast.
   return <GroupsView groups={(data?.groups||[]) as any} users={data?.users||[]} projects={(data?.projects||[]) as any} onUpdateGroups={handleUpdateGroups} showToast={showToast} canManage={currentUser?.role === 'ausbilder'} />;
 }
@@ -599,7 +599,7 @@ function AzubiProfileWrapper() {
   const store = useAppStore();
   const data = store.data as AppState | null;
   const currentUser = store.currentUser as User | null;
-  const azubi = (data?.users || []).find((u: User) => u.id === id);
+  const azubi = (data?.users || []).find((u: User) => sameId(u.id, id));
   // data-Prop bleibt locker: AzubiProfilePage erwartet eigenen ProfileData-Typ, nicht AppState.
   return <AzubiProfilePage azubi={azubi} data={data as any} currentUser={currentUser} onBack={() => navigate(-1)} />;
 }
@@ -609,7 +609,7 @@ function UsersPage({ showToast }: { showToast: ShowToast }) {
   const data = store.data as AppState | null;
   const setData = store.setData;
   // users: UsersView-eigener UserWithAuth-Typ (password etc.) → any belassen.
-  const handleUpdate = useCallback((users: any) => setData({ ...data, users }), [data, setData]);
+  const handleUpdate = useCallback((users: any) => setData((prev: any) => prev ? { ...prev, users } : prev), [setData]);
   return <UsersView users={(data?.users || []) as any} onUpdateUsers={handleUpdate} showToast={showToast} />;
 }
 
@@ -623,8 +623,8 @@ function DashboardPage({ onNewProject, showToast }: { onNewProject: () => void; 
   // Phase 2: Mentor = nur lesend (z.B. Task-Toggle in ProjectCard).
   const handleUpdate = useCallback((projectId: string, updates: any) => {
     if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
-    setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) });
-  }, [data, setData, currentUser, showToast]);
+    setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) } : prev);
+  }, [setData, currentUser, showToast]);
   return (
     <Dashboard user={currentUser} projects={data?.projects||[]} users={data?.users||[]} reports={data?.reports||[]} calendarEvents={data?.calendarEvents||[]}
       activityLog={data?.activityLog||[]} groups={(data as any)?.groups||[]}
@@ -651,7 +651,7 @@ function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; s
       calendarEvents: [],
       tasks: (src.tasks || []).map((t: Task) => ({ ...t, id: `t_${Math.random().toString(36).slice(2)}`, status: 'open', done: false })),
     };
-    setData({ ...data, projects: [...(data?.projects||[]), copy] });
+    setData((prev: any) => prev ? { ...prev, projects: [...(prev.projects||[]), copy] } : prev);
     showToast('✓ Projekt dupliziert');
   };
   return (
@@ -666,17 +666,17 @@ function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; s
           // softDelete: trash.js (JS-Boundary) → data/currentUser als any.
           setData(softDelete(data as any, 'projects', project, currentUser));
         } else {
-          setData({ ...data, projects: (data?.projects||[]).filter((p: Project) => p.id !== id) });
+          setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).filter((p: Project) => p.id !== id) } : prev);
         }
         showToast('🗑 Projekt → Papierkorb (30 Tage)', { undo: () => setData(snapshot as any) });
       }}
       onArchive={(id: Id) => {
         if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
         const snapshot = data;
-        setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: true } : p) });
+        setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: true } : p) } : prev);
         showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });
       }}
-      onUnarchive={(id: Id) => { if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; } setData({ ...data, projects: (data?.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: false } : p) }); showToast('Projekt wiederhergestellt'); }}
+      onUnarchive={(id: Id) => { if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; } setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: false } : p) } : prev); showToast('Projekt wiederhergestellt'); }}
       onDuplicate={duplicate}
     />
   );
@@ -1058,8 +1058,7 @@ const App = () => {
   const handleCreate = useCallback((projectData: any) => {
     if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
     const newProject = { ...projectData, id: `proj_${Date.now()}`, tasks: [], steps: [], calendarEvents: [], archived: false };
-    const withProject = { ...data, projects: [...(data?.projects || []), newProject] };
-    const withActivity = addActivity(withProject, {
+    setData((prev: any) => addActivity({ ...prev, projects: [...(prev?.projects || []), newProject] }, {
       type: 'project_created',
       userId: currentUser?.id,
       userName: currentUser?.name,
@@ -1067,11 +1066,10 @@ const App = () => {
       projectId: newProject.id,
       projectTitle: newProject.title,
       action: `${currentUser?.name} hat Projekt "${newProject.title}" erstellt`,
-    });
-    setData(withActivity);
+    }));
     setShowModal(false);
     showToast('✓ Projekt erstellt');
-  }, [data, setData, showToast, currentUser]);
+  }, [setData, showToast, currentUser]);
 
   // Daten-Export
   const handleExport = useCallback(() => {
@@ -1145,9 +1143,8 @@ const App = () => {
           onLogin={handleLogin}
           users={data?.users || []}
           onRegister={async (newUser: User) => {
-            const withUser = { ...data, users: [...(data?.users || []), newUser] };
             // Gruppen-Beitritt läuft nach dem Login per Anfrage (Onboarding-Wizard) → hier keine Gruppe.
-            const withActivity = addActivity(withUser, {
+            setData((prev: any) => addActivity({ ...prev, users: [...(prev?.users || []), newUser] }, {
               type: 'user_registered',
               userId: newUser.id,
               userName: newUser.name,
@@ -1155,8 +1152,7 @@ const App = () => {
               projectId: null,
               projectTitle: null,
               action: `${newUser.name} hat sich registriert`,
-            });
-            setData(withActivity);
+            }));
             setCurrentUser(newUser);
             // In API-Modus: frische Nutzerliste nach Registrierung laden
             if (USE_API) {
