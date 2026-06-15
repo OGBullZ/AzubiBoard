@@ -1,6 +1,6 @@
 // Hero-Auswahl-Logik „Was jetzt?" (DESIGN-VISION Anhang D.3) — pure, unit-getestet.
 // Priorität: überfällige Aufgabe → heute fällig → Berichtsheft offen → Deadline ≤3 Tage → alles im Plan.
-import { dayDiffLocal, isoWeekMonday } from '../../lib/utils.js';
+import { dayDiffLocal, isoWeekMonday, sameId } from '../../lib/utils.js';
 import type { Project, Report, Task, Id } from '../../types';
 
 export type HeroSuggestion = {
@@ -20,7 +20,7 @@ export function buildHeroSuggestion(projects: Project[], reports: Report[], user
   const active = (projects || []).filter((p: Project) => !p.archived);
   const myTasks = active.flatMap((p: Project) =>
     (p.tasks || [])
-      .filter((t: Task) => t.assignee === userId && t.status !== 'done' && t.deadline)
+      .filter((t: Task) => sameId(t.assignee, userId) && t.status !== 'done' && t.deadline)
       .map((t: Task) => ({ t, p, d: dayDiff(t.deadline as string, now) })));
 
   const overdue = myTasks.filter(x => x.d < 0).sort((a, b) => a.d - b.d);
@@ -38,7 +38,7 @@ export function buildHeroSuggestion(projects: Project[], reports: Report[], user
   }
 
   const weekMon = isoWeekMonday(now);
-  const hasThisWeek = (reports || []).some((r: Report) => r.user_id === userId && (r.week_start || '') >= weekMon);
+  const hasThisWeek = (reports || []).some((r: Report) => sameId(r.user_id, userId) && (r.week_start || '') >= weekMon);
   if (!hasThisWeek) {
     return { kind: 'report', title: 'Wochenbericht schreiben', sub: 'Das Berichtsheft dieser Woche ist noch offen',
       cta: 'Bericht anlegen', to: '/reports', daysLeft: 5 - ((now.getDay() + 6) % 7 + 1) };

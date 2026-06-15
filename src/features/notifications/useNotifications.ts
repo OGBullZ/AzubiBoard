@@ -37,7 +37,7 @@ export function useNotifications(data: AppState | null, currentUser: User | null
           items.push({ id: `task-${task.id}-soon`, type: 'deadline', severity: 'warning', title: task.text, message: d === 0 ? 'Heute fällig' : `Fällig in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
       });
 
-      if (project.assignees?.includes(currentUser.id) && project.deadline) {
+      if (project.assignees?.some(a => sameId(a, currentUser.id)) && project.deadline) {
         const d = dayDiffLocal(project.deadline, now);
         if (d < 0)
           items.push({ id: `project-${project.id}-overdue`, type: 'project', severity: 'critical', title: project.title, message: 'Projektdeadline überschritten', projectId: project.id });

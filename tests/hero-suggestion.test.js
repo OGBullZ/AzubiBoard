@@ -35,4 +35,14 @@ describe('buildHeroSuggestion — Prioritätskette (Anhang D.3)', () => {
     ];
     expect(buildHeroSuggestion(proj(tasks), reportOk, 1).kind).toBe('clear');
   });
+
+  // Warum: currentUser.id ist im API-Modus number, im Blob string — ein roher ===-Vergleich
+  // ließe die eigene überfällige Aufgabe bzw. den eigenen Bericht durchrutschen (Hero komplett falsch).
+  it('matcht eigene Aufgabe/Bericht trotz string↔number-ID-Mischung (API vs Blob)', () => {
+    const overdue = proj([{ id: 'T1', text: 'API', assignee: 1, status: 'open', deadline: isoDay(-2) }]);
+    expect(buildHeroSuggestion(overdue, [], '1').kind).toBe('overdue');           // userId string, assignee number
+    const reportNum = [{ id: 'R', user_id: '1', week_start: isoDay(0) }];
+    expect(buildHeroSuggestion([], reportNum, 1).kind).toBe('clear');             // userId number, user_id string → Bericht erkannt
+    expect(buildHeroSuggestion([], [], 1).kind).toBe('report');                  // kein Bericht → offen
+  });
 });
