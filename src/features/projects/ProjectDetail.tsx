@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { CSSProperties, ComponentType, ReactNode } from "react";
 import type { User, Task, Label, Project, Id, Material, Requirement } from '../../types';
-import { C, uid, fmtDate } from '../../lib/utils.js';
+import { C, uid, fmtDate, sameId } from '../../lib/utils.js';
 import { StatusBadge, Avatar, ProgressBar, Modal, Field, IconBtn } from '../../components/UI.jsx';
 import { TasksTab, MaterialsTab, RequirementsTab, StepsTab } from './ProjectTabs.jsx';
 import { NetzplanTab, GanttTab } from './NetzplanGantt.jsx';
@@ -130,7 +130,7 @@ function CommentsSection({ project, currentUser, onUpdate }: { project: any; cur
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.br }}>{c.authorName}</span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <time style={{ fontSize: 10, color: C.mu }}>{new Date(c.date).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</time>
-                  {(c.authorId === currentUser?.id || currentUser?.role === 'ausbilder') && (
+                  {(sameId(c.authorId, currentUser?.id) || currentUser?.role === 'ausbilder') && (
                     <button onClick={() => remove(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: C.mu, lineHeight: 1 }} title="Kommentar löschen"><IcoTrash size={11} /></button>
                   )}
                 </div>

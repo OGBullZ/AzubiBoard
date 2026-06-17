@@ -56,6 +56,11 @@ export default defineConfig([
       'no-restricted-syntax': ['error', {
         selector: "BinaryExpression[operator=/^[!=]==$/] > MemberExpression[property.name='id'][object.name='currentUser']",
         message: 'currentUser.id mit sameId() vergleichen, nicht roh ===/!== — IDs sind je nach Modus string oder number (Bug-Hunt 3).',
+      }, {
+        // currentUser?.id (Optional-Chaining) ist ein ChainExpression-Kind, nicht direkt unter der BinaryExpression
+        // → der Selector oben greift nicht. Zweiter Selector schließt das Schlupfloch (Bug-Hunt 6).
+        selector: "BinaryExpression[operator=/^[!=]==$/] > ChainExpression > MemberExpression[property.name='id'][object.name='currentUser']",
+        message: 'currentUser?.id mit sameId() vergleichen, nicht roh ===/!== — IDs sind je nach Modus string oder number (Bug-Hunt 3).',
       }],
     },
   },
