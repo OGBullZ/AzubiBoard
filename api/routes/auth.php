@@ -489,8 +489,12 @@ if ($method === 'POST' && $sub_action === 'avatar') {
         if (file_exists($oldFile)) @unlink($oldFile);
     }
 
-    // Neuen Dateinamen erzeugen und Datei verschieben
-    $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION) ?: 'jpg');
+    // Neuen Dateinamen erzeugen und Datei verschieben.
+    // Endung aus dem VALIDIERTEN MIME-Typ ableiten, NICHT aus dem User-Dateinamen:
+    // sonst koennte ein Polyglot (gueltiges Bild + PHP-Code) als .php in uploads/
+    // landen und bei mod_php-Servern ausgefuehrt werden (RCE).
+    $extByMime = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+    $ext      = $extByMime[$mime] ?? 'jpg';
     $filename = 'avatar_' . $auth['sub'] . '_' . time() . '.' . $ext;
     $dest     = UPLOAD_DIR . $filename;
     if (!move_uploaded_file($file['tmp_name'], $dest))

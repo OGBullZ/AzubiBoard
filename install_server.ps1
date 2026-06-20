@@ -352,6 +352,15 @@ if ($DryRun) {
     Dry "uploads/ anlegen + fuer 'Users' beschreibbar machen"
 } else {
 New-Item -ItemType Directory -Path "$appPath\uploads" -Force | Out-Null
+# uploads/ enthaelt nur User-Bilder - Skript-Ausfuehrung hart unterbinden (Polyglot-RCE-Schutz)
+$uploadsHtaccess = @"
+# AzubiBoard: uploads/ enthaelt nur User-Bilder - niemals Skripte ausfuehren/ausliefern
+<FilesMatch "\.(php|phtml|php[0-9]|phps|pht|cgi|pl|py|asp|aspx|sh|exe)$">
+    Require all denied
+</FilesMatch>
+RemoveHandler .php .phtml .phps .cgi .pl
+"@
+Set-Utf8NoBom "$appPath\uploads\.htaccess" $uploadsHtaccess
 robocopy "$buildDir\dist"     $appPath          /E /NFL /NDL /NJH /NJS /NP | Out-Null
 robocopy "$buildDir\api"      "$appPath\api"    /E /NFL /NDL /NJH /NJS /NP | Out-Null
 robocopy "$buildDir\database" "$appPath\database" /E /NFL /NDL /NJH /NJS /NP | Out-Null

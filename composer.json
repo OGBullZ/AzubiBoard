@@ -16,7 +16,7 @@
         }
     },
     "scripts": {
-        "test:php": "phpunit --colors=always",
+        "test:php": "phpunit --colors=always --testsuite=all",
         "test:php:smoke": "phpunit --colors=always --testsuite=smoke"
     },
     "config": {

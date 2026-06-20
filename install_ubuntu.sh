@@ -149,6 +149,15 @@ hdr "3/9 Dateien deployen"
 # App-Ordner anlegen
 mkdir -p "$APP_DIR/uploads"
 
+# uploads/ enthält nur User-Bilder – Skript-Ausführung hart unterbinden (Polyglot-RCE-Schutz)
+cat > "$APP_DIR/uploads/.htaccess" << 'UPHT'
+# AzubiBoard: uploads/ enthaelt nur User-Bilder - niemals Skripte ausfuehren/ausliefern
+<FilesMatch "\.(php|phtml|php[0-9]|phps|pht|cgi|pl|py|asp|aspx|sh|exe)$">
+    Require all denied
+</FilesMatch>
+RemoveHandler .php .phtml .phps .cgi .pl
+UPHT
+
 # dist/ → App-Root
 info "Frontend-Dateien kopieren..."
 cp -r "$REPO_DIR/dist/." "$APP_DIR/"
