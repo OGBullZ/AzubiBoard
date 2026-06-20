@@ -5,6 +5,29 @@
 
 ---
 
+## Schnellweg — autonomer USB-Installer (empfohlen)
+
+Statt der manuellen Schritte unten: **`install_server.ps1`** erledigt alles in einem Lauf
+(XAMPP installieren, Apache+MariaDB als Dienste, Node + Frontend-Build, .env generieren,
+DB+Schema, Apache-Config, Firewall, tägliche DB-Sicherung).
+
+**Vorbereitung des Sticks:**
+1. Das ganze Projekt auf den USB-Stick kopieren (mit `install_server.ps1` im Stammordner).
+2. Die echte **`xampp-windows-x64-8.2.x-installer.exe`** daneben legen (von apachefriends.org).
+   → Der Installer findet sie automatisch und installiert offline (zuverlässiger als Download).
+
+**Auf dem Server:**
+- Rechtsklick auf `install_server.ps1` → **„Mit PowerShell ausführen"** (hebt sich selbst auf Admin).
+- Optionen: `-Interactive` (Werte abfragen statt würfeln), `-DbRootPass <pass>` (falls MariaDB-root
+  ein Passwort hat), `-AdminEmail <mail>`, `-SkipBackupTask`. Details im Kopf des Skripts.
+
+Am Ende zeigt das Skript die App-URL + den SQL-Befehl für die Ausbilder-Rolle. Läuft Internet/IIS
+auf Port 80 oder root mit Passwort, warnt das Skript mit konkreter Lösung statt blind zu scheitern.
+
+Die manuelle Anleitung unten bleibt als **Fallback / zum Verständnis** erhalten.
+
+---
+
 ## Übersicht (was wir installieren)
 
 | Software | Wozu | Download |
