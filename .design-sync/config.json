@@ -1,0 +1,40 @@
+{
+  "projectId": "cbeb1acf-5f3f-466d-9c97-6d46ff84ba7a",
+  "shape": "package",
+  "pkg": "netzplan",
+  "globalName": "AzubiBoardUI",
+  "srcDir": "src",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": "src/index.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "extraEntries": ["./.design-sync/_ds-provider.tsx"],
+  "provider": { "component": "DesignRoot" },
+  "extraFonts": [
+    "node_modules/@fontsource-variable/archivo/index.css",
+    "node_modules/@fontsource/chakra-petch/600.css",
+    "node_modules/@fontsource/chakra-petch/700.css",
+    "node_modules/@fontsource/jetbrains-mono/400.css",
+    "node_modules/@fontsource/jetbrains-mono/700.css"
+  ],
+  "overrides": {
+    "Modal": { "cardMode": "single", "viewport": "560x460", "primaryStory": "Default" },
+    "Toast": { "cardMode": "single", "viewport": "440x150", "primaryStory": "WithUndo" },
+    "EmptyState": { "cardMode": "column" },
+    "Field": { "cardMode": "column" },
+    "SectionHeader": { "cardMode": "column" }
+  },
+  "componentSrcMap": {
+    "Toast": "src/components/UI.tsx",
+    "StatusBadge": "src/components/UI.tsx",
+    "Avatar": "src/components/UI.tsx",
+    "Modal": "src/components/UI.tsx",
+    "Field": "src/components/UI.tsx",
+    "ProgressBar": "src/components/UI.tsx",
+    "StatCard": "src/components/UI.tsx",
+    "EmptyState": "src/components/UI.tsx",
+    "SectionHeader": "src/components/UI.tsx",
+    "ThemeToggle": "src/components/UI.tsx",
+    "IconBtn": "src/components/UI.tsx",
+    "Divider": "src/components/UI.tsx"
+  }
+}
