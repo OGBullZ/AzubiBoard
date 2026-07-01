@@ -49,7 +49,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 - [x] Notification-UI extrahiert (`8a24a09`) · sameId/isoWeekMonday zentralisiert · firstName zentralisiert
 
 ## F · UX & Politur
-- [ ] **Design-Graduierung** — v1 deprecaten (zwei Designs = Wartungslast) · [hier]
+- [x] ~~**Design-Graduierung** — v1 deprecaten~~ **ENTFÄLLT per User-Entscheid (02.07.):** beide Designs bleiben wählbar (1.0 + 1.1 „Werkbank" als Default). Wartungslast bewusst akzeptiert.
 - [ ] **a11y-Audit Pass 3** · [hier]
 
 ## G · Performance
