@@ -1,6 +1,6 @@
 # AzubiBoard — Verbesserungs-Backlog
 
-> Stand: 13. Juni 2026 · lebende Liste. Erledigtes wird abgehakt (✅).
+> Stand: 1. Juli 2026 · lebende Liste. Erledigtes wird abgehakt (✅).
 > Legende: **[hier]** = ohne Server baubar · **[Server]** = braucht Ubuntu-Tier-1 (Richtung A).
 > Strategie steht in `ROADMAP-v2.md` (Richtung A: echtes Multi-User, Server kommt auf Signal).
 
@@ -20,14 +20,14 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 - [x] **ID-Mismatch-Tiefensweep** — keine offenen aliased Vergleiche mehr (welcomeNewsData `me` in `c54c501`, useNotifications/Dashboard in `d490c9c`)
 - [x] **Boot-Smoke vertiefen** (`c38132b`) — Interaktions-Test für CommandDialogs (Ctrl+K-Suche + ?-Shortcuts). Editor-Open zurückgestellt (Preview-Overlay-Flakiness).
 - [x] **Property-Tests Datum** (P1, 15.06.) — `tests/date-properties.test.js` (fast-check): DST-Stabilität als Invariante in Europe/Berlin. dayDiffLocal = Kalendertag-Delta unabhängig von Uhrzeit/Zeitumstellung; alle 7 Tage einer ISO-Woche = selbe KW; fmtLocalDate-Round-Trip; +explizite DST-Grenztage 2026 + Fail-Loud-TZ-Guard.
-- [ ] **PHPUnit-Suite-Overlap** beheben (phpunit.xml `all` vs `routes`) · [hier]
+- [x] **PHPUnit-Suite-Overlap** behoben (01.07., `917d016`) — `defaultTestSuite="all"`: bare phpunit läuft jede Datei genau 1× (133 Tests, Exit 0), Named-Suites bleiben.
 
 ## B · Kernzweck: Berichtsheft & IHK
 - [x] **M5a IHK-Recherche-Spike** (`docs/IHK-Spike.md`) — **Ergebnis: Export, keine API.** Einreichung = signierte Gesamt-PDF ins IHK-Prüfungsportal; offizielles IHK-Digital-Berichtsheft wird 31.12.2026 abgeschaltet → Drittanbieter (AzubiBoard passt). M5c (Direkt-API) entfällt.
 - [x] **M5: Kompletter Ausbildungsnachweis als eine PDF** (`6f60503`) — Deckblatt + alle KW chronologisch (lfd. Nr., Tages-Tabelle, Unterschriftszeile/Woche). Azubi-Button „📑 Kompletter Nachweis".
 - [x] **Tages-Struktur Mo–Fr + Stunden** (`b0cd2c3`) — optionale Tageseinträge + IHK-Tages-Tabelle im Druck
-- [ ] **Berichtsheft-Editor-UX** — KW prominent, Pflichtfeld-Hinweise, Vorschau · [hier]
-- [ ] **company/department ins Onboarding** (bisher nur Profil) · [hier]
+- [x] **Berichtsheft-Editor-UX** (01.07., `799f43d`) — KW+ISO-Jahr prominent im Header (inkl. Jahreswechsel-Fix), Pflicht-Tag am Tätigkeitsbericht, Vorschau-Tab (Druck-Ansicht inline)
+- [x] **company/department ins Onboarding** (01.07., `50f3a57`) — im Azubi-Profil-Schritt erfassbar
 - [x] IHK-Export: Ausbildungsbetrieb/Abteilung/laufende Nachweis-Nr (`d4a154a`)
 
 ## C · KI-Features
@@ -39,7 +39,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 ## D · Ausbilder-Werkzeuge
 - [x] **Azubi-Detail Drill-down** (`be0b466`) — fehlende Berichtswochen (KW-Chips) + Heft-Quote
 - [x] **Prüfungs-Readiness-Score** (`6d34f88`) — Composite (Heft 40/Lernziele 35/Aufgaben 25) auf Azubi-Detailseite
-- [ ] **Lernziel-Quote** pro Azubi im Cockpit (Detail zeigt Kompetenz-Ring bereits) · [hier]
+- [x] **Lernziel-Quote** pro Azubi im Cockpit (01.07., `a1c166f`) — 🎯 x/y-Chip in den Azubi-Reihen (Semantik = Kompetenz-Ring)
 - [x] Berichtsheft-Vollständigkeit pro Azubi im Cockpit (`c63e8bd`)
 
 ## E · Architektur & Wartbarkeit
