@@ -194,17 +194,23 @@ function StepWorkbench({ currentUser }: { currentUser: User }) {
 // ── Azubi: Profil vervollständigen ────────────────────────────
 function StepProfile({ currentUser, onUpdateProfile }: { currentUser: User; onUpdateProfile: (c: Partial<User>) => void }) {
   const [profession, setProfession] = useState(currentUser.profession || '');
+  const [company,    setCompany]    = useState(currentUser.company || '');
+  const [department, setDepartment] = useState(currentUser.department || '');
   const [year,       setYear]       = useState(String(currentUser.apprenticeship_year || 1));
   const [phone,      setPhone]      = useState(currentUser.phone || '');
   const [saved,      setSaved]      = useState(false);
 
   const dirty = profession.trim() !== (currentUser.profession || '') ||
+                company.trim() !== (currentUser.company || '') ||
+                department.trim() !== (currentUser.department || '') ||
                 Number(year) !== (currentUser.apprenticeship_year || 1) ||
                 phone.trim() !== (currentUser.phone || '');
 
   const save = () => {
     onUpdateProfile({
       profession: profession.trim() || undefined,
+      company: company.trim() || undefined,
+      department: department.trim() || undefined,
       apprenticeship_year: Number(year),
       phone: phone.trim() || undefined,
     });
@@ -213,11 +219,19 @@ function StepProfile({ currentUser, onUpdateProfile }: { currentUser: User; onUp
 
   return (
     <div style={{ padding: '4px 0 12px' }}>
-      <StepHeading icon="🧑‍🎓" title="Dein Profil" sub="Beruf & Lehrjahr helfen, dir die passenden Lernziele zu zeigen. Alles optional." />
+      <StepHeading icon="🧑‍🎓" title="Dein Profil" sub="Beruf & Lehrjahr steuern deine Lernziele; Betrieb & Abteilung landen auf dem IHK-Nachweis. Alles optional." />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <label style={labelStyle} htmlFor="ob-prof">Ausbildungsberuf</label>
           <input id="ob-prof" style={inputStyle} value={profession} onChange={e => { setProfession(e.target.value); setSaved(false); }} placeholder="z.B. Fachinformatiker/in" />
+        </div>
+        <div>
+          <label style={labelStyle} htmlFor="ob-company">Ausbildungsbetrieb</label>
+          <input id="ob-company" style={inputStyle} value={company} onChange={e => { setCompany(e.target.value); setSaved(false); }} placeholder="z. B. Muster GmbH — steht auf deinem IHK-Nachweis" />
+        </div>
+        <div>
+          <label style={labelStyle} htmlFor="ob-dept">Abteilung</label>
+          <input id="ob-dept" style={inputStyle} value={department} onChange={e => { setDepartment(e.target.value); setSaved(false); }} placeholder="z. B. IT / Anwendungsentwicklung" />
         </div>
         <div>
           <label style={labelStyle} htmlFor="ob-year">Lehrjahr</label>
