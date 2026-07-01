@@ -50,7 +50,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 
 ## F · UX & Politur
 - [x] ~~**Design-Graduierung** — v1 deprecaten~~ **ENTFÄLLT per User-Entscheid (02.07.):** beide Designs bleiben wählbar (1.0 + 1.1 „Werkbank" als Default). Wartungslast bewusst akzeptiert.
-- [ ] **a11y-Audit Pass 3** · [hier]
+- [x] **a11y-Audit Pass 3** (02.07., `181c937`) — axe-core WCAG A+AA über alle Routen/Themes/Rollen: 20 Violation-Gruppen → **0**. Text-Token-System (--c-*-text, --c-on-ac), --c-mu-AA, Label-Fixes, dunkle Schrift auf Akzent-Buttons (User-Entscheid). **Neues CI-Gate `e2e/a11y.spec.js`** hält den Stand.
 
 ## G · Performance
 - [x] **Bundle-Headroom** (`68006f8`) — Dashboard+ProjectPool lazy → Haupt-Chunk 169.83 → **154.53 KB gz** (~9 % Luft)
