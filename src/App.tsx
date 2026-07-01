@@ -627,7 +627,7 @@ function DashboardPage({ onNewProject, showToast }: { onNewProject: () => void; 
   }, [setData, currentUser, showToast]);
   return (
     <Dashboard user={currentUser} projects={data?.projects||[]} users={data?.users||[]} reports={data?.reports||[]} calendarEvents={data?.calendarEvents||[]}
-      activityLog={data?.activityLog||[]} groups={(data as any)?.groups||[]}
+      activityLog={data?.activityLog||[]} groups={(data as any)?.groups||[]} trainingPlan={(data as any)?.trainingPlan}
       onOpenProject={(id: string) => navigate(`/project/${id}`)} onUpdateProject={handleUpdate} onNewProject={onNewProject} onNavigate={(path: string) => navigate('/' + path.replace(/^\//, ''))} />
   );
 }

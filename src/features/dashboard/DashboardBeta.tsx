@@ -25,6 +25,7 @@ type Props = {
   calendarEvents?: CalendarEvent[];
   activityLog?: unknown[];
   groups?: { id: Id; members?: Id[]; requests?: Id[] }[];
+  trainingPlan?: any; // Blob-Form { goals: [{ progress: { [userId]: { status } } }] }
   onOpenProject: (id: any) => void;
   onUpdateProject?: (id: any, patch: any) => void;
   onNavigate: (route: string) => void;
@@ -122,7 +123,7 @@ function Stat({ label, value, color }: { label: string; value: number; color?: s
 }
 
 // ── Ausbilder-/Mentor-Cockpit (Anhang D.4): Hero = Eingangskorb, Azubi-Reihen ──
-export function AusbilderCockpitBeta({ user, projects, users, reports, calendarEvents, activityLog, groups, onOpenProject, onNavigate }: Props) {
+export function AusbilderCockpitBeta({ user, projects, users, reports, calendarEvents, activityLog, groups, trainingPlan, onOpenProject, onNavigate }: Props) {
   const now = new Date();
   const azubis = useMemo(() => (users || []).filter((u: User) => u.role === 'azubi'), [users]);
   // AN1: Berichtsheft-Vollständigkeit pro Azubi (letzte 12 KW) — Lücken vor der IHK-Prüfung sehen.
@@ -132,6 +133,9 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
     return m;
   }, [azubis, reports]);
   const bsGaps = useMemo(() => azubis.filter((a: User) => (bsMap[String(a.id)]?.missing.length ?? 0) > 0).length, [azubis, bsMap]);
+  // Lernziel-Quote pro Azubi (bestätigte Ziele / alle Ziele) — gleiche Semantik wie Kompetenz-Ring der Detailseite.
+  const goals: any[] = trainingPlan?.goals || [];
+  const goalQuote = (a: User) => goals.filter((g: any) => g.progress?.[a.id]?.status === 'confirmed').length;
   const active = useMemo(() => (projects || []).filter((p: Project) => !p.archived), [projects]);
   const pending = useMemo(() => (reports || []).filter((r: Report) => r.status === 'submitted')
     .sort((a: Report, b: Report) => (a.week_start || '').localeCompare(b.week_start || '')), [reports]);
@@ -204,6 +208,7 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
                     <div style={{ fontFamily: C.mono, fontSize: 10, color: C.mu, marginTop: 2 }}>LJ {(a as any).apprenticeship_year || 1} · {myTasks.length} offen{overdue ? ` · ${overdue} überfällig` : ''}
                       {bs && <span title={`Berichtshefte letzte ${bs.total} KW`} style={{ color: bs.missing.length === 0 ? C.gr : bs.missing.length <= 2 ? C.yw : C.cr }}> · 📋 {bs.have}/{bs.total} KW</span>}
+                      {goals.length > 0 && (() => { const c = goalQuote(a); return <span title={`Bestätigte Lernziele`} style={{ color: c === goals.length ? C.gr : C.mu }}> · 🎯 {c}/{goals.length}</span>; })()}
                     </div>
                   </div>
                   {myRep && repMap[myRep.status as string]

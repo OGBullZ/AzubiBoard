@@ -48,6 +48,7 @@ type DashboardProps = {
   calendarEvents?: CalendarEvent[];
   activityLog?: unknown[];
   groups?: any[];
+  trainingPlan?: any; // Blob-Form { goals: [{ progress: { [userId]: { status } } }] }
   onNewProject?: () => void;
   onOpenProject: (id: any) => void;
   onUpdateProject?: (id: any, patch: any) => void;
