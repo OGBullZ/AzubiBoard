@@ -445,12 +445,18 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }} className="anim">
       <div style={{ background: 'var(--c-sf)', borderBottom: `1px solid var(--c-bd)`, padding: '10px 20px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button className="btn" onClick={onClose} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}><IcoBack size={12} /> {t('common.back')}</button>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>{report ? t('report.editTitle', { kw }) : t('report.newTitle')}</div>
-          {report?.status && <div style={{ fontSize: 10, color: STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.c, fontWeight: 700 }}>● {STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.l}</div>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* KW prominent (Backlog B: Editor-UX) — ISO-Wochenjahr, nicht Kalenderjahr des Montags */}
+          <div style={{ fontFamily: C.mono, fontSize: 17, fontWeight: 800, color: C.ac, letterSpacing: '.04em', whiteSpace: 'nowrap' }} title="Berichtswoche">
+            KW {kw ?? '–'}<span style={{ color: C.mu, fontWeight: 700 }}> · {getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear()}</span>
+          </div>
+          <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {report ? t('report.editTitle', { kw }) : t('report.newTitle')}
+            {report?.status && <span style={{ color: STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.c }}> · ● {STATUS_REPORT_I18N[report.status as keyof typeof STATUS_REPORT_I18N]?.l}</span>}
+          </div>
         </div>
         <div role="tablist" style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, gap: 3 }}>
-          {([['text', t('report.tabText'), IcoDoc], ['upload', t('report.tabPdf'), IcoReport]] as [string, string, any][]).map(([k, l, Icon]) => (
+          {([['text', t('report.tabText'), IcoDoc], ['preview', 'Vorschau', IcoSearch], ['upload', t('report.tabPdf'), IcoReport]] as [string, string, any][]).map(([k, l, Icon]) => (
             <button key={k} onClick={() => setTab(k)} role="tab" aria-selected={tab === k}
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', background: tab === k ? C.ac : 'transparent', color: tab === k ? '#fff' : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
               <Icon size={12} />{l}
@@ -486,7 +492,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
             <Field label={t('report.weekTitle')}>
               <input value={form.title} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="z.B. Projektarbeit Woche 3" />
             </Field>
-            <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>KW {kw} · {new Date(form.week_start).getFullYear()}</div>
+            <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>KW {kw} · {getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear()}</div>
           </div>
 
           {isOwner && !readOnly && tab === 'text' && (
@@ -573,9 +579,9 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
           {tab === 'text' ? (
             <>
               {[
-                { key: 'activities', num: '01', label: t('report.activitySection'), Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200 },
-                { key: 'learnings',  num: '02', label: t('report.learningSection'),  Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160 },
-              ].map(({ key, num, label, Icon, color, ph, minH }) => {
+                { key: 'activities', num: '01', label: t('report.activitySection'), Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200, required: true },
+                { key: 'learnings',  num: '02', label: t('report.learningSection'),  Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160, required: false },
+              ].map(({ key, num, label, Icon, color, ph, minH, required }) => {
                 const comments = (form.sectionComments?.[key] || []);
                 const addComment = () => {
                   const txt = newComment[key]?.trim();
@@ -595,6 +601,10 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
                           ? <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.mu }}>{num}</span>
                           : <Icon size={13} style={{ color }} />}
                         <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7, ...(design === 'beta' ? { fontFamily: C.mono, letterSpacing: '.14em' } : {}) }}>{label}</span>
+                        {/* Pflichtfeld-Hinweis (Backlog B): Tätigkeiten müssen vor dem Einreichen befüllt sein */}
+                        {required && !form[key]?.trim() && !readOnly && (
+                          <span title="Vor dem Einreichen ausfüllen" style={{ fontSize: 9, background: C.crd, color: C.cr, borderRadius: 4, padding: '1px 6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5 }}>Pflicht</span>
+                        )}
                         {comments.length > 0 && <span style={{ fontSize: 9, background: C.ywd, color: C.yw, borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>{comments.length} Kommentar{comments.length !== 1 ? 'e' : ''}</span>}
                       </div>
                       <button onClick={() => copyToClipboard(form[key], key)} className="btn" style={{ fontSize: 10, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -653,6 +663,54 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
                 <div style={{ fontSize: 9, color: C.mu, marginTop: 8, lineHeight: 1.5 }}>Optional — erscheint im IHK-Druck als Tages-Tabelle mit Stundensumme. Leer = der Freitext oben zählt.</div>
               </div>
             </>
+          ) : tab === 'preview' ? (
+            /* Vorschau (Backlog B: Editor-UX) — der Bericht wie er gedruckt/eingereicht aussieht */
+            <div className="card" style={{ padding: '26px 32px', maxWidth: 760 }}>
+              {(() => {
+                const isoYear = getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear();
+                const weekEnd = new Date(new Date(form.week_start).getTime() + 4 * 86400000);
+                const dayRows = WEEK_DAYS.filter(([k]) => (form.days?.[k]?.text || form.days?.[k]?.hours != null));
+                return (
+                  <>
+                    <div style={{ borderBottom: `2px solid ${C.bd}`, paddingBottom: 12, marginBottom: 18 }}>
+                      <div style={{ fontSize: 19, fontWeight: 800, color: C.br }}>Ausbildungsnachweis – KW {kw} / {isoYear}</div>
+                      <div style={{ fontSize: 12, color: C.mu, marginTop: 4 }}>
+                        <strong style={{ color: C.tx }}>{currentUser.name}</strong> · {new Date(form.week_start).toLocaleDateString('de-DE')} – {weekEnd.toLocaleDateString('de-DE')}
+                        {form.title?.trim() ? <> · {form.title}</> : null}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>{t('report.activitySection')}</div>
+                    <div style={{ fontSize: 13, lineHeight: 1.7, color: C.tx, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 18 }}>
+                      {form.activities?.trim() || <span style={{ color: C.cr, fontStyle: 'italic' }}>Noch leer — Pflicht vor dem Einreichen.</span>}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>{t('report.learningSection')}</div>
+                    <div style={{ fontSize: 13, lineHeight: 1.7, color: C.tx, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: dayRows.length ? 18 : 0 }}>
+                      {form.learnings?.trim() || <span style={{ color: C.mu, fontStyle: 'italic' }}>–</span>}
+                    </div>
+                    {dayRows.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>Tagesstruktur</div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                          <tbody>
+                            {dayRows.map(([k, label]) => (
+                              <tr key={k}>
+                                <td style={{ padding: '4px 8px 4px 0', color: C.mu, fontWeight: 700, verticalAlign: 'top', width: 90, borderBottom: `1px solid ${C.bd}` }}>{label}</td>
+                                <td style={{ padding: '4px 8px', whiteSpace: 'pre-wrap', borderBottom: `1px solid ${C.bd}` }}>{form.days?.[k]?.text || '–'}</td>
+                                <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', fontFamily: C.mono, width: 50, borderBottom: `1px solid ${C.bd}` }}>{form.days?.[k]?.hours ?? ''}</td>
+                              </tr>
+                            ))}
+                            <tr><td colSpan={2} style={{ padding: '5px 8px 0 0', textAlign: 'right', fontWeight: 700 }}>Σ</td><td style={{ padding: '5px 0 0 8px', textAlign: 'right', fontFamily: C.mono, fontWeight: 700 }}>{weekHours.toFixed(1)} h</td></tr>
+                          </tbody>
+                        </table>
+                      </>
+                    )}
+                    <div style={{ fontSize: 10, color: C.mu, marginTop: 20, borderTop: `1px solid ${C.bd}`, paddingTop: 10 }}>
+                      So erscheint der Bericht im Druck — für die IHK-Fassung mit Stammdaten &amp; Unterschriftsfeldern „{t('report.printIHK')}" nutzen.
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           ) : (
             <div className="card">
               <div style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
