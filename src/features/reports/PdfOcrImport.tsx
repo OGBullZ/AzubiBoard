@@ -146,7 +146,7 @@ export function PdfOcrImport({ existingFile, onImport, onClose }: PdfOcrImportPr
             Lade ein Foto oder einen Scan deines handschriftlichen Berichtshefts hoch.
             Der Text wird automatisch erkannt und als Vorschlag ins Formular eingefügt.
             <br />
-            <span style={{ color: C.yw, fontWeight: 600 }}>Genauigkeit ca. 70–85 % bei Druckschrift, weniger bei Handschrift.</span>
+            <span style={{ color: C.ywT, fontWeight: 600 }}>Genauigkeit ca. 70–85 % bei Druckschrift, weniger bei Handschrift.</span>
           </div>
 
           {existingFile && (
@@ -160,7 +160,7 @@ export function PdfOcrImport({ existingFile, onImport, onClose }: PdfOcrImportPr
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.br }}>{existingFile.name}</div>
                   <div style={{ fontSize: 11, color: C.mu }}>{(existingFile.size / 1024).toFixed(0)} KB</div>
                 </div>
-                <span style={{ marginLeft: 'auto', fontSize: 11, color: C.ac, fontWeight: 700 }}>Scannen →</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: C.acT, fontWeight: 700 }}>Scannen →</span>
               </button>
             </div>
           )}
@@ -198,7 +198,7 @@ export function PdfOcrImport({ existingFile, onImport, onClose }: PdfOcrImportPr
 
       {step === 'error' && (
         <div style={{ background: 'var(--c-crd)', border: `1px solid ${C.cr}`, borderRadius: 9, padding: '14px 16px', marginBottom: 14 }}>
-          <div style={{ fontSize: 13, color: C.cr, fontWeight: 700, marginBottom: 6 }}>✗ Fehler</div>
+          <div style={{ fontSize: 13, color: C.crT, fontWeight: 700, marginBottom: 6 }}>✗ Fehler</div>
           <div style={{ fontSize: 12, color: C.tx }}>{msg}</div>
           <button className="btn" onClick={() => { setStep('idle'); setMsg(''); }} style={{ marginTop: 12 }}>← Zurück</button>
         </div>
@@ -206,7 +206,7 @@ export function PdfOcrImport({ existingFile, onImport, onClose }: PdfOcrImportPr
 
       {step === 'done' && result && (
         <>
-          <div style={{ background: 'var(--st-green-bg)', border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)`, borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 12, color: C.gr, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ background: 'var(--st-green-bg)', border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)`, borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 12, color: C.grT, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             ✓ OCR abgeschlossen — bitte den Vorschlag prüfen und ggf. korrigieren
           </div>
 
@@ -216,7 +216,7 @@ export function PdfOcrImport({ existingFile, onImport, onClose }: PdfOcrImportPr
                 style={{ padding: '4px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
                   background: preview === v ? C.acd : C.sf2,
                   border: `1px solid ${preview === v ? C.ac : C.bd2}`,
-                  color: preview === v ? C.ac : C.mu }}>
+                  color: preview === v ? C.acT : C.mu }}>
                 {v === 'parsed' ? 'Erkannte Abschnitte' : 'Roher OCR-Text'}
               </button>
             ))}

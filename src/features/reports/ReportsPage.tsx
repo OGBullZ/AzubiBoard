@@ -91,7 +91,7 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete, s
           <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>KW {kw} · {isoYear}</div>
           <div style={{ fontSize: 11, color: C.mu, marginTop: 2 }}>{fmtDate(report.week_start)} – {fmtDate(weekEnd)}</div>
           {isStaff(currentUser) && report.user_name && (
-            <div style={{ fontSize: 11, color: C.ac, marginTop: 3, fontWeight: 600 }}>{report.user_name}</div>
+            <div style={{ fontSize: 11, color: C.acT, marginTop: 3, fontWeight: 600 }}>{report.user_name}</div>
           )}
         </div>
         {design === 'beta' && report.status !== 'draft'
@@ -104,7 +104,7 @@ function ReportCard({ report, currentUser, onOpen, onSubmit, onSign, onDelete, s
       )}
 
       {report.file && typeof report.file === 'object' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.ac, marginBottom: 7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.acT, marginBottom: 7 }}>
           <IcoDoc size={11} /> {report.file.name}
           <span style={{ color: C.mu }}>({((report.file.size || 0) / 1024).toFixed(0)} KB)</span>
         </div>
@@ -447,7 +447,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
         <button className="btn" onClick={onClose} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}><IcoBack size={12} /> {t('common.back')}</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* KW prominent (Backlog B: Editor-UX) — ISO-Wochenjahr, nicht Kalenderjahr des Montags */}
-          <div style={{ fontFamily: C.mono, fontSize: 17, fontWeight: 800, color: C.ac, letterSpacing: '.04em', whiteSpace: 'nowrap' }} title="Berichtswoche">
+          <div style={{ fontFamily: C.mono, fontSize: 17, fontWeight: 800, color: C.acT, letterSpacing: '.04em', whiteSpace: 'nowrap' }} title="Berichtswoche">
             KW {kw ?? '–'}<span style={{ color: C.mu, fontWeight: 700 }}> · {getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear()}</span>
           </div>
           <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -458,21 +458,21 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
         <div role="tablist" style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, gap: 3 }}>
           {([['text', t('report.tabText'), IcoDoc], ['preview', 'Vorschau', IcoSearch], ['upload', t('report.tabPdf'), IcoReport]] as [string, string, any][]).map(([k, l, Icon]) => (
             <button key={k} onClick={() => setTab(k)} role="tab" aria-selected={tab === k}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', background: tab === k ? C.ac : 'transparent', color: tab === k ? '#fff' : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', background: tab === k ? C.ac : 'transparent', color: tab === k ? C.onAc : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
               <Icon size={12} />{l}
             </button>
           ))}
         </div>
         <button className="btn" onClick={printReport} title="Einfaches PDF (1 Seite)" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>{t('report.printSimple')}</button>
-        <button className="btn" onClick={printReportIHK} title="IHK-konform mit Stammdaten + Unterschriftenfeldern" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>{t('report.printIHK')}</button>
+        <button className="btn" onClick={printReportIHK} title="IHK-konform mit Stammdaten + Unterschriftenfeldern" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: 'var(--c-ac)', color: 'var(--c-ac-text)' }}>{t('report.printIHK')}</button>
         {isOwner && !readOnly && (
           <button className="btn" onClick={() => setShowOcr(true)} title="Handschriftliches Berichtsheft per OCR einscannen"
-            style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: `color-mix(in srgb, ${C.yw} 50%, transparent)`, color: C.yw }}>
+            style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, borderColor: `color-mix(in srgb, ${C.yw} 50%, transparent)`, color: C.ywT }}>
             {t('report.ocrImport')}
           </button>
         )}
         {readOnly && !isReview && (
-          <div style={{ padding: '5px 12px', background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 31%, transparent)`, borderRadius: 7, fontSize: 11, color: C.yw, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+          <div style={{ padding: '5px 12px', background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 31%, transparent)`, borderRadius: 7, fontSize: 11, color: C.ywT, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
             {t('report.locked')}
           </div>
         )}
@@ -487,7 +487,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
             <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.metadataLabel')}</div>
             <Field label={t('report.weekStart')}>
               <input type="date" value={form.week_start} max={new Date().toISOString().split('T')[0]} disabled={!isOwner || readOnly} onChange={e => { setWsError(''); setForm((f: any) => ({ ...f, week_start: e.target.value })); }} />
-              {wsError && <div role="alert" style={{ fontSize: 11, color: C.cr, marginTop: 4 }}>{wsError}</div>}
+              {wsError && <div role="alert" style={{ fontSize: 11, color: C.crT, marginTop: 4 }}>{wsError}</div>}
             </Field>
             <Field label={t('report.weekTitle')}>
               <input value={form.title} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="z.B. Projektarbeit Woche 3" />
@@ -508,12 +508,12 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
               </button>
               <button onClick={aiReviewReport} disabled={reviewing} className="btn"
                 title="Lässt die KI deinen Bericht vor dem Einreichen gegenlesen (ersetzt nicht die Ausbilder-Prüfung)"
-                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, borderColor: C.ac, color: C.ac, opacity: reviewing ? .7 : 1 }}>
+                style={{ fontSize: 11, width: '100%', justifyContent: 'flex-start', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, borderColor: C.ac, color: C.acT, opacity: reviewing ? .7 : 1 }}>
                 {reviewing ? '🤖 Prüfe…' : '🤖 KI-Feedback zum Bericht'}
               </button>
               {aiReview && (
                 <div style={{ marginBottom: 12, padding: '9px 11px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 25%, transparent)`, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.ac, textTransform: 'uppercase', letterSpacing: .6, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.acT, textTransform: 'uppercase', letterSpacing: .6, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     KI-Feedback
                     <button onClick={() => setAiReview(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mu, padding: 0, fontSize: 13 }}>×</button>
                   </div>
@@ -579,8 +579,8 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
           {tab === 'text' ? (
             <>
               {[
-                { key: 'activities', num: '01', label: t('report.activitySection'), Icon: IcoDoc, color: C.ac, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200, required: true },
-                { key: 'learnings',  num: '02', label: t('report.learningSection'),  Icon: IcoNote, color: C.yw, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160, required: false },
+                { key: 'activities', num: '01', label: t('report.activitySection'), Icon: IcoDoc, color: C.acT, ph: 'Beschreibe deine Tätigkeiten der Woche...', minH: 200, required: true },
+                { key: 'learnings',  num: '02', label: t('report.learningSection'),  Icon: IcoNote, color: C.ywT, ph: 'Was hast du diese Woche gelernt? Neue Erkenntnisse?', minH: 160, required: false },
               ].map(({ key, num, label, Icon, color, ph, minH, required }) => {
                 const comments = (form.sectionComments?.[key] || []);
                 const addComment = () => {
@@ -603,9 +603,9 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
                         <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7, ...(design === 'beta' ? { fontFamily: C.mono, letterSpacing: '.14em' } : {}) }}>{label}</span>
                         {/* Pflichtfeld-Hinweis (Backlog B): Tätigkeiten müssen vor dem Einreichen befüllt sein */}
                         {required && !form[key]?.trim() && !readOnly && (
-                          <span title="Vor dem Einreichen ausfüllen" style={{ fontSize: 9, background: C.crd, color: C.cr, borderRadius: 4, padding: '1px 6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5 }}>Pflicht</span>
+                          <span title="Vor dem Einreichen ausfüllen" style={{ fontSize: 9, background: C.crd, color: C.crT, borderRadius: 4, padding: '1px 6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5 }}>Pflicht</span>
                         )}
-                        {comments.length > 0 && <span style={{ fontSize: 9, background: C.ywd, color: C.yw, borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>{comments.length} Kommentar{comments.length !== 1 ? 'e' : ''}</span>}
+                        {comments.length > 0 && <span style={{ fontSize: 9, background: C.ywd, color: C.ywT, borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>{comments.length} Kommentar{comments.length !== 1 ? 'e' : ''}</span>}
                       </div>
                       <button onClick={() => copyToClipboard(form[key], key)} className="btn" style={{ fontSize: 10, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
                         {copied === key ? <><IcoCheck size={10} /> {t('common.copied')}</> : t('common.copy')}
@@ -620,7 +620,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
                         <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 7 }}>{t('report.reviewerComments')}</div>
                         {comments.map((c: any) => (
                           <div key={c.id} style={{ display: 'flex', gap: 8, padding: '6px 9px', background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 15%, transparent)`, borderRadius: 7, marginBottom: 5 }}>
-                            <IcoNote size={11} style={{ color: C.yw, flexShrink: 0, marginTop: 2 }} />
+                            <IcoNote size={11} style={{ color: C.ywT, flexShrink: 0, marginTop: 2 }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 11, color: C.br, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.text}</div>
                               <div style={{ fontSize: 9, color: C.mu, marginTop: 3 }}>{c.reviewerName} · {new Date(c.ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
@@ -645,7 +645,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7 }}>📅 Tagesstruktur (Mo–Fr) · optional</span>
-                  <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: weekHours > 0 ? C.ac : C.mu }}>Σ {weekHours.toFixed(1)} h</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: weekHours > 0 ? C.acT : C.mu }}>Σ {weekHours.toFixed(1)} h</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {WEEK_DAYS.map(([k, label]) => (
@@ -681,7 +681,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>{t('report.activitySection')}</div>
                     <div style={{ fontSize: 13, lineHeight: 1.7, color: C.tx, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 18 }}>
-                      {form.activities?.trim() || <span style={{ color: C.cr, fontStyle: 'italic' }}>Noch leer — Pflicht vor dem Einreichen.</span>}
+                      {form.activities?.trim() || <span style={{ color: C.crT, fontStyle: 'italic' }}>Noch leer — Pflicht vor dem Einreichen.</span>}
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>{t('report.learningSection')}</div>
                     <div style={{ fontSize: 13, lineHeight: 1.7, color: C.tx, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: dayRows.length ? 18 : 0 }}>
@@ -714,7 +714,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
           ) : (
             <div className="card">
               <div style={{ fontSize: 12, fontWeight: 700, color: C.tx, textTransform: 'uppercase', letterSpacing: .7, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <IcoReport size={13} style={{ color: C.ac }} /> {t('report.pdfUploadTitle')}
+                <IcoReport size={13} style={{ color: C.acT }} /> {t('report.pdfUploadTitle')}
               </div>
               <div
                 style={{ border: `2px dashed ${C.bd2}`, borderRadius: 10, padding: '32px 20px', textAlign: 'center', background: 'var(--c-sf3)', cursor: 'pointer', transition: 'border-color .15s, background .15s' }}
@@ -730,7 +730,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
               {form.file && typeof form.file === 'object' && (
                 <div style={{ marginTop: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, marginBottom: 10 }}>
-                    <IcoDoc size={16} style={{ color: C.ac, flexShrink: 0 }} />
+                    <IcoDoc size={16} style={{ color: C.acT, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.file.name}</div>
                       <div style={{ fontSize: 10, color: C.mu }}>{((form.file.size || 0) / 1024).toFixed(0)} KB</div>
@@ -747,8 +747,8 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
               {form.file && typeof form.file === 'string' && (
                 <div style={{ marginTop: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8 }}>
-                    <IcoDoc size={16} style={{ color: C.ac, flexShrink: 0 }} />
-                    <a href={form.file} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.ac, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Hochgeladene Datei öffnen</a>
+                    <IcoDoc size={16} style={{ color: C.acT, flexShrink: 0 }} />
+                    <a href={form.file} target="_blank" rel="noopener noreferrer" style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.acT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Hochgeladene Datei öffnen</a>
                     {isOwner && !readOnly && (
                       <button onClick={() => setForm((f: any) => ({ ...f, file: null }))} className="del" style={{ fontSize: 14 }}>×</button>
                     )}
@@ -1062,7 +1062,7 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
             <>
               <button className="btn" onClick={() => printVollnachweis(reports, currentUser, showToast)}
                 title="Alle Wochen als eine PDF — zur Vorlage bei der IHK (Prüfungsanmeldung)"
-                style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, borderColor: 'var(--c-ac)', color: 'var(--c-ac)' }}>
+                style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, borderColor: 'var(--c-ac)', color: 'var(--c-ac-text)' }}>
                 📑 Kompletter Nachweis
               </button>
               <button className="abtn" onClick={() => { setEditing(null); setView('edit'); }}

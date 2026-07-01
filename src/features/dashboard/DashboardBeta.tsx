@@ -189,7 +189,7 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
           <div>
             <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <span className="section-header-title" style={{ ...monoCaps, color: C.tx }}>Azubis [{azubis.length}]</span>
-              {bsGaps > 0 && <span title="Azubis mit fehlenden Wochenberichten (letzte 12 KW)" style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.yw, marginLeft: 'auto' }}>⚠ {bsGaps} mit Heft-Lücken</span>}
+              {bsGaps > 0 && <span title="Azubis mit fehlenden Wochenberichten (letzte 12 KW)" style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.ywT, marginLeft: 'auto' }}>⚠ {bsGaps} mit Heft-Lücken</span>}
             </div>
             {azubis.length === 0 && <div style={{ fontSize: 12, color: C.mu, fontStyle: 'italic' }}>Noch keine Azubis angelegt.</div>}
             {azubis.map((a: User) => {
@@ -207,15 +207,15 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
                     <div style={{ fontFamily: C.mono, fontSize: 10, color: C.mu, marginTop: 2 }}>LJ {(a as any).apprenticeship_year || 1} · {myTasks.length} offen{overdue ? ` · ${overdue} überfällig` : ''}
-                      {bs && <span title={`Berichtshefte letzte ${bs.total} KW`} style={{ color: bs.missing.length === 0 ? C.gr : bs.missing.length <= 2 ? C.yw : C.cr }}> · 📋 {bs.have}/{bs.total} KW</span>}
-                      {goals.length > 0 && (() => { const c = goalQuote(a); return <span title={`Bestätigte Lernziele`} style={{ color: c === goals.length ? C.gr : C.mu }}> · 🎯 {c}/{goals.length}</span>; })()}
+                      {bs && <span title={`Berichtshefte letzte ${bs.total} KW`} style={{ color: bs.missing.length === 0 ? C.grT : bs.missing.length <= 2 ? C.ywT : C.crT }}> · 📋 {bs.have}/{bs.total} KW</span>}
+                      {goals.length > 0 && (() => { const c = goalQuote(a); return <span title={`Bestätigte Lernziele`} style={{ color: c === goals.length ? C.grT : C.mu }}> · 🎯 {c}/{goals.length}</span>; })()}
                     </div>
                   </div>
                   {myRep && repMap[myRep.status as string]
                     ? <Stamp label={repMap[myRep.status as string].l} color={repMap[myRep.status as string].c} seed={myRep.id} />
                     : myRep
                       ? <span className="tag" style={{ background: 'var(--c-sf2)', color: C.mu }}>● Entwurf</span>
-                      : <span className="tag" style={{ background: C.ywd, color: C.yw }}>KW {kw ?? ''} fehlt</span>}
+                      : <span className="tag" style={{ background: C.ywd, color: C.ywT }}>KW {kw ?? ''} fehlt</span>}
                 </button>
               );
             })}
@@ -227,7 +227,7 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
                 {problems.map((p: Project) => (
                   <button key={p.id} className="row-btn" onClick={() => onOpenProject(p.id)} style={{ justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: C.br }}>{p.title}</span>
-                    <span style={{ color: C.cr }}>→</span>
+                    <span style={{ color: C.crT }}>→</span>
                   </button>
                 ))}
               </div>
@@ -236,7 +236,7 @@ export function AusbilderCockpitBeta({ user, projects, users, reports, calendarE
               <button className="card" onClick={() => onNavigate('/groups')} style={{ cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 18 }} aria-hidden="true">🙋</span>
                 <span style={{ flex: 1, fontSize: 13, color: C.br, fontWeight: 600 }}>{openRequests} offene Beitritts-Anfrage{openRequests !== 1 ? 'n' : ''}</span>
-                <span style={{ color: C.ac }}>→</span>
+                <span style={{ color: C.acT }}>→</span>
               </button>
             )}
             <div className="card">
@@ -333,7 +333,7 @@ export function DashboardBeta({ user, projects, reports, calendarEvents, activit
           <div className="card card--punched" style={{ width: 'min(440px, 92%)', padding: '16px 18px 16px 30px', ['--i' as string]: 2 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <span style={monoCaps}>Einrichtung</span>
-              <span style={{ ...monoCaps, color: C.ac }}>{doneSteps}/{steps.length}</span>
+              <span style={{ ...monoCaps, color: C.acT }}>{doneSteps}/{steps.length}</span>
             </div>
             {steps.map((s, i) => (
               <button key={s.label} onClick={() => onNavigate(s.to)}
@@ -342,7 +342,7 @@ export function DashboardBeta({ user, projects, reports, calendarEvents, activit
                   ? <Stamp label="✓" color="green" seed={s.label} />
                   : <span style={{ width: 26, height: 18, border: `1.5px dashed ${C.bd2}`, borderRadius: 3, flexShrink: 0 }} aria-hidden="true" />}
                 <span style={{ flex: 1, fontSize: 13, color: s.done ? C.mu : C.br, textDecoration: s.done ? 'line-through' : 'none' }}>{s.label}</span>
-                {!s.done && <span style={{ color: C.ac, fontSize: 12 }}>→</span>}
+                {!s.done && <span style={{ color: C.acT, fontSize: 12 }}>→</span>}
               </button>
             ))}
           </div>
@@ -412,7 +412,7 @@ export function DashboardBeta({ user, projects, reports, calendarEvents, activit
                 const weekMon = isoWeekMonday(now);
                 const rep = ownReports.find((r: Report) => (r.week_start || '') >= weekMon);
                 if (!rep) return (
-                  <button className="btn" style={{ width: '100%', justifyContent: 'center', borderColor: `color-mix(in srgb, ${C.yw} 50%, transparent)`, color: C.yw }} onClick={() => onNavigate('/reports')}>
+                  <button className="btn" style={{ width: '100%', justifyContent: 'center', borderColor: `color-mix(in srgb, ${C.yw} 50%, transparent)`, color: C.ywT }} onClick={() => onNavigate('/reports')}>
                     Noch offen — anlegen →
                   </button>
                 );

@@ -12,7 +12,7 @@ export function LiveClock() {
   const [t, setT] = useState(new Date());
   useEffect(() => { const i = setInterval(() => setT(new Date()), 1000); return () => clearInterval(i); }, []);
   return (
-    <span style={{ fontFamily: C.mono, fontSize: 14, color: C.ac, fontWeight: 700, letterSpacing: 1.5, userSelect: 'none' }}>
+    <span style={{ fontFamily: C.mono, fontSize: 14, color: C.acT, fontWeight: 700, letterSpacing: 1.5, userSelect: 'none' }}>
       {t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
     </span>
   );

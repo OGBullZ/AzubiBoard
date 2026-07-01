@@ -12,11 +12,11 @@ import {
 } from '../../components/Icons.jsx';
 
 const TASK_STATUS: Record<string, { label: string; color: string; bg: string; Icon: any }> = {
-  in_progress: { label: 'In Bearbeitung', color: C.ac,  bg: 'var(--c-acd)',      Icon: IcoPlay   },
+  in_progress: { label: 'In Bearbeitung', color: C.acT,  bg: 'var(--c-acd)',      Icon: IcoPlay   },
   not_started: { label: 'Nicht begonnen', color: C.mu,  bg: 'var(--c-sf2)',      Icon: IcoCheck  },
-  waiting:     { label: 'Wartend',        color: C.yw,  bg: 'var(--c-ywd)',      Icon: IcoPause  },
-  blocked:     { label: 'Blockiert',      color: C.cr,  bg: 'var(--c-crd)',      Icon: IcoBlock  },
-  done:        { label: 'Erledigt',       color: C.gr,  bg: 'var(--st-green-bg)', Icon: IcoCheck },
+  waiting:     { label: 'Wartend',        color: C.ywT,  bg: 'var(--c-ywd)',      Icon: IcoPause  },
+  blocked:     { label: 'Blockiert',      color: C.crT,  bg: 'var(--c-crd)',      Icon: IcoBlock  },
+  done:        { label: 'Erledigt',       color: C.grT,  bg: 'var(--st-green-bg)', Icon: IcoCheck },
 };
 const STATUS_ORDER = ['in_progress','not_started','waiting','blocked','done'];
 const PRIORITY: Record<string, { l: string; c: string }> = {
@@ -101,7 +101,7 @@ function ZeitTab({ task, onUpdate, currentUser }: { task: Task; onUpdate: (id: I
         <div style={{ marginBottom: 9 }}>
           <ProgressBar value={pct} color={pct > 100 ? C.cr : C.ac} height={5} />
           <div style={{ fontSize: 10, color: C.mu, marginTop: 3, display: 'flex', justifyContent: 'space-between' }}>
-            <span>Geloggt: <strong style={{ color: pct > 100 ? C.cr : C.ac, fontFamily: C.mono }}>{totalLogged.toFixed(1)}h</strong></span>
+            <span>Geloggt: <strong style={{ color: pct > 100 ? C.crT : C.acT, fontFamily: C.mono }}>{totalLogged.toFixed(1)}h</strong></span>
             {estimated > 0 && <span>{pct}% von {estimated}h</span>}
           </div>
         </div>
@@ -114,7 +114,7 @@ function ZeitTab({ task, onUpdate, currentUser }: { task: Task; onUpdate: (id: I
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {[...timeLog].reverse().map(entry => (
               <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 6, background: C.sf2, border: `1px solid ${C.bd}` }}>
-                <span style={{ fontSize: 13, fontWeight: 800, color: C.ac, fontFamily: C.mono, minWidth: 38, flexShrink: 0 }}>{entry.hours}h</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: C.acT, fontFamily: C.mono, minWidth: 38, flexShrink: 0 }}>{entry.hours}h</span>
                 <span style={{ flex: 1, fontSize: 12, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.description || <span style={{ color: C.mu, fontStyle: 'italic' }}>—</span>}</span>
                 <span style={{ fontSize: 10, color: C.mu, fontFamily: C.mono, flexShrink: 0 }}>{fmtDate(entry.date)}</span>
                 {entry.userName && <span style={{ fontSize: 10, color: C.mu, flexShrink: 0, opacity: .7 }}>{firstName(entry.userName)}</span>}
@@ -174,15 +174,15 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
             </span>
             <span style={{ fontSize: 9, color: pr.c, fontWeight: 700 }}>{pr.l}</span>
             {task.deadline && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontFamily: C.mono, color: over ? C.cr : C.mu, fontWeight: over ? 700 : 400 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontFamily: C.mono, color: over ? C.crT : C.mu, fontWeight: over ? 700 : 400 }}>
                 <IcoClock size={9} />{over ? '⚠ ' : ''}{fmtDate(task.deadline)}
               </span>
             )}
-            {task.note     && <IcoNote size={10} style={{ color: C.ac }} />}
-            {task.doc      && <IcoDoc  size={10} style={{ color: C.gr }} />}
-            {task.protocol && <IcoMic  size={10} style={{ color: C.yw }} />}
+            {task.note     && <IcoNote size={10} style={{ color: C.acT }} />}
+            {task.doc      && <IcoDoc  size={10} style={{ color: C.grT }} />}
+            {task.protocol && <IcoMic  size={10} style={{ color: C.ywT }} />}
             {lc > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9, color: C.ac, fontFamily: C.mono, background: C.acd, borderRadius: 4, padding: '1px 5px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9, color: C.acT, fontFamily: C.mono, background: C.acd, borderRadius: 4, padding: '1px 5px' }}>
                 <IcoLink size={9} />{lc}
               </span>
             )}
@@ -191,7 +191,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
               const est    = Number(task.estimatedHours) || 0;
               const over   = est > 0 && logged > est;
               return (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9, fontFamily: C.mono, color: over ? C.cr : C.mu, background: over ? C.crd : C.sf3, border: `1px solid ${over ? `color-mix(in srgb, ${C.cr} 19%, transparent)` : C.bd}`, borderRadius: 4, padding: '1px 5px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9, fontFamily: C.mono, color: over ? C.crT : C.mu, background: over ? C.crd : C.sf3, border: `1px solid ${over ? `color-mix(in srgb, ${C.cr} 19%, transparent)` : C.bd}`, borderRadius: 4, padding: '1px 5px' }}>
                   <IcoClock size={9} />{logged.toFixed(1)}{est > 0 ? `/${est}h` : 'h'}
                 </span>
               );
@@ -234,14 +234,14 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
             <label>Zuweisen</label>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
               <button onClick={() => onUpdate(task.id, { assignee: null })}
-                style={{ fontSize: 11, padding: '3px 9px', borderRadius: 6, background: !task.assignee ? C.acd : C.sf2, border: `1px solid ${!task.assignee ? C.ac : C.bd2}`, color: !task.assignee ? C.ac : C.mu, cursor: 'pointer' }}>
+                style={{ fontSize: 11, padding: '3px 9px', borderRadius: 6, background: !task.assignee ? C.acd : C.sf2, border: `1px solid ${!task.assignee ? C.ac : C.bd2}`, color: !task.assignee ? C.acT : C.mu, cursor: 'pointer' }}>
                 Niemand
               </button>
               {users.map((u: User) => (
                 <button key={u.id} onClick={() => onUpdate(task.id, { assignee: u.id })} aria-pressed={task.assignee === u.id}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 6, background: task.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${task.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer', transition: 'all .12s' }}>
                   <Avatar name={u.name} size={16} />
-                  <span style={{ color: task.assignee === u.id ? C.ac : C.tx }}>{firstName(u.name)}</span>
+                  <span style={{ color: task.assignee === u.id ? C.acT : C.tx }}>{firstName(u.name)}</span>
                 </button>
               ))}
             </div>
@@ -303,12 +303,12 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { t
       <div role="tablist" style={{ display: 'flex', gap: 2, marginBottom: 0, flexWrap: 'wrap' }}>
         {TABS.map(t => (
           <button key={t.k} onClick={() => setActive(t.k)} role="tab" aria-selected={active === t.k}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === t.k ? `2px solid ${C.ac}` : '2px solid transparent', background: active === t.k ? C.acd : 'transparent', color: active === t.k ? C.ac : C.mu, transition: 'all .12s' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === t.k ? `2px solid ${C.ac}` : '2px solid transparent', background: active === t.k ? C.acd : 'transparent', color: active === t.k ? C.acT : C.mu, transition: 'all .12s' }}>
             <t.Icon size={10} />{t.l}{t.val ? ' •' : ''}
           </button>
         ))}
         <button onClick={() => setActive('links')} role="tab" aria-selected={active === 'links'}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === 'links' ? `2px solid ${C.ac}` : '2px solid transparent', background: active === 'links' ? C.acd : 'transparent', color: active === 'links' ? C.ac : C.mu, transition: 'all .12s' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === 'links' ? `2px solid ${C.ac}` : '2px solid transparent', background: active === 'links' ? C.acd : 'transparent', color: active === 'links' ? C.acT : C.mu, transition: 'all .12s' }}>
           <IcoLink size={10} />Links{lc > 0 ? ` (${lc})` : ''}
         </button>
         {tabBtn('zeit',
@@ -318,7 +318,7 @@ function ContentTabs({ task, onUpdate, projectMaterials = [], currentUser }: { t
         )}
         {projectMaterials.length > 0 && (
           <button onClick={() => setActive('materials')}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === 'materials' ? `2px solid ${C.yw}` : '2px solid transparent', background: active === 'materials' ? C.ywd : 'transparent', color: active === 'materials' ? C.yw : C.mu, transition: 'all .12s' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 700, border: 'none', borderBottom: active === 'materials' ? `2px solid ${C.yw}` : '2px solid transparent', background: active === 'materials' ? C.ywd : 'transparent', color: active === 'materials' ? C.ywT : C.mu, transition: 'all .12s' }}>
             <IcoMaterial size={10} />Material
           </button>
         )}
@@ -436,7 +436,7 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: {
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 9, fontWeight: 700, color: pr.c }}>{pr.l}</span>
         {task.deadline && (
-          <span style={{ fontSize: 9, fontFamily: C.mono, color: over ? C.cr : C.mu, fontWeight: over ? 700 : 400 }}>
+          <span style={{ fontSize: 9, fontFamily: C.mono, color: over ? C.crT : C.mu, fontWeight: over ? 700 : 400 }}>
             {over ? '⚠ ' : ''}{fmtDate(task.deadline)}
           </span>
         )}
@@ -456,7 +456,7 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: {
           )}
         </div>
         <button onClick={() => onRemove(task.id)}
-          style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, background: 'transparent', color: C.cr, cursor: 'pointer', fontWeight: 700 }}>×</button>
+          style={{ padding: '2px 7px', fontSize: 10, borderRadius: 4, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, background: 'transparent', color: C.crT, cursor: 'pointer', fontWeight: 700 }}>×</button>
       </div>
     </div>
   );
@@ -481,7 +481,7 @@ function DraggableCard({ task, users, statusIdx, totalCols, onUpdate, onRemove, 
       {stamped && (
         <span className="stamp-in" aria-hidden="true"
           style={{ position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%',
-            border: '2px solid var(--c-gr)', color: 'var(--c-gr)', background: 'var(--c-sf)',
+            border: '2px solid var(--c-gr)', color: 'var(--c-gr-text)', background: 'var(--c-sf)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 12, fontWeight: 800, zIndex: 2, ['--stamp-rot' as string]: '-8deg' }}>✓</span>
       )}
@@ -670,7 +670,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
     <div className="anim">
       {activeWorkers.length > 0 && (
         <div style={{ background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 16%, transparent)`, borderRadius: 8, padding: '7px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: C.ac, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><IcoPlay size={11} /> Aktiv:</span>
+          <span style={{ fontSize: 11, color: C.acT, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><IcoPlay size={11} /> Aktiv:</span>
           {activeWorkers.map(({ task, user }: { task: Task; user?: User }) => (
             <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.sf2, borderRadius: 6, padding: '3px 8px', border: `1px solid color-mix(in srgb, ${C.ac} 13%, transparent)` }}>
               <div style={{ position: 'relative' }}><Avatar name={user!.name} size={18} />
@@ -690,7 +690,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
             <div style={{ display: 'flex', background: C.sf3, borderRadius: 6, padding: 2, border: `1px solid ${C.bd}`, gap: 2 }}>
               {[['list','☰ Liste'],['kanban','⊞ Kanban']].map(([m, l]) => (
                 <button key={m} onClick={() => setViewMode(m)}
-                  style={{ padding: '3px 9px', borderRadius: 4, border: 'none', background: viewMode === m ? C.ac : 'transparent', color: viewMode === m ? '#fff' : C.mu, fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all .12s' }}>
+                  style={{ padding: '3px 9px', borderRadius: 4, border: 'none', background: viewMode === m ? C.ac : 'transparent', color: viewMode === m ? C.onAc : C.mu, fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all .12s' }}>
                   {l}
                 </button>
               ))}
@@ -704,7 +704,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.mu, marginBottom: 3 }}>
               <span>Gesamt</span>
-              <span style={{ fontFamily: C.mono, color: pct === 100 ? C.gr : C.ac, fontWeight: 700 }}>{done}/{total} ({pct}%)</span>
+              <span style={{ fontFamily: C.mono, color: pct === 100 ? C.grT : C.acT, fontWeight: 700 }}>{done}/{total} ({pct}%)</span>
             </div>
             <ProgressBar value={pct} color={pct === 100 ? C.gr : C.ac} height={5} />
           </div>
@@ -725,7 +725,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
                 <button key={u.id} onClick={() => setNewTask((t: Task) => ({ ...t, assignee: t.assignee === u.id ? null : u.id }))}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 6, background: newTask.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${newTask.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer' }}>
                   <Avatar name={u.name} size={15} />
-                  <span style={{ color: newTask.assignee === u.id ? C.ac : C.tx }}>{firstName(u.name)}</span>
+                  <span style={{ color: newTask.assignee === u.id ? C.acT : C.tx }}>{firstName(u.name)}</span>
                 </button>
               ))}
             </div>
@@ -740,7 +740,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .7, marginRight: 2 }}>Filter:</span>
           <button onClick={() => setFilterLabel(null)}
-            style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `1px solid ${!filterLabel ? C.ac : C.bd2}`, background: !filterLabel ? C.acd : C.sf2, color: !filterLabel ? C.ac : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
+            style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 5, border: `1px solid ${!filterLabel ? C.ac : C.bd2}`, background: !filterLabel ? C.acd : C.sf2, color: !filterLabel ? C.acT : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
             Alle
           </button>
           {projectLabels.map((lb: Label) => (
@@ -760,7 +760,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
           : <>
               {selection.size > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', marginBottom: 8, background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.ac, marginRight: 4 }}>{selection.size} ausgewählt</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.acT, marginRight: 4 }}>{selection.size} ausgewählt</span>
                   {STATUS_ORDER.map(s => {
                     const st = TASK_STATUS[s];
                     return (
@@ -776,7 +776,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
                     Alle wählen
                   </button>
                   <button onClick={bulkDelete}
-                    style={{ padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, background: `color-mix(in srgb, ${C.cr} 7%, transparent)`, color: C.cr, cursor: 'pointer' }}>
+                    style={{ padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, background: `color-mix(in srgb, ${C.cr} 7%, transparent)`, color: C.crT, cursor: 'pointer' }}>
                     🗑 Löschen
                   </button>
                   <button onClick={clearSelection}

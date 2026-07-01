@@ -34,6 +34,13 @@ export const C = {
   grd:  'var(--c-grd)',
   crd:  'var(--c-crd)',
   ywd:  'var(--c-ywd)',
+  // a11y Pass 3: Akzent/Status ALS TEXTFARBE — AA-sichere Varianten (Beta-Light dunkler,
+  // Beta-Dark = Vollton, 1.0 = Vollton). Für background/border weiter ac/gr/cr/yw nutzen.
+  acT:  'var(--c-ac-text)',
+  grT:  'var(--c-gr-text)',
+  crT:  'var(--c-cr-text)',
+  ywT:  'var(--c-yw-text)',
+  onAc: 'var(--c-on-ac)',  // Schrift AUF Akzentfläche (Beta dunkel, 1.0 weiß)
 
   // Aliase für Kompatibilität
   textPrimary:   'var(--c-br)',

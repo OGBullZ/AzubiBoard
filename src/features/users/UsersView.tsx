@@ -153,7 +153,7 @@ export function UsersView({ users, onUpdateUsers, showToast }: UsersViewProps) {
           <h1 style={{ fontSize: 18, fontWeight: 800, color: C.br, margin: 0 }}>Nutzerverwaltung</h1>
           <div style={{ fontSize: 11, color: C.mu, marginTop: 3 }}>
             {azubis.length} Azubis
-            {USE_API && <span style={{ marginLeft: 6, color: C.gr }}>· API-Modus (MySQL)</span>}
+            {USE_API && <span style={{ marginLeft: 6, color: C.grT }}>· API-Modus (MySQL)</span>}
           </div>
         </div>
         <button className="abtn" onClick={openNew}>+ Neuer Azubi</button>
@@ -172,10 +172,10 @@ export function UsersView({ users, onUpdateUsers, showToast }: UsersViewProps) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, color: C.br }}>{u.name}</div>
-                      {inactive && <span className="tag" style={{ background: C.crd, color: C.cr, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, fontSize: 9 }}>Inaktiv</span>}
+                      {inactive && <span className="tag" style={{ background: C.crd, color: C.crT, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, fontSize: 9 }}>Inaktiv</span>}
                     </div>
                     <div style={{ fontSize: 11, color: C.mu, marginBottom: 6 }}>{u.email}</div>
-                    <span className="tag" style={{ background: C.acd, color: C.ac, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, fontSize: 10 }}>
+                    <span className="tag" style={{ background: C.acd, color: C.acT, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, fontSize: 10 }}>
                       Lehrjahr {u.apprenticeship_year || 1}
                     </span>
                   </div>
@@ -183,7 +183,7 @@ export function UsersView({ users, onUpdateUsers, showToast }: UsersViewProps) {
                 <div style={{ display: 'flex', gap: 6, marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.bd}` }}>
                   <button className="btn" onClick={() => openEdit(u)} style={{ flex: 1, fontSize: 11, padding: '6px 0', justifyContent: 'center' }}>Bearbeiten</button>
                   <button onClick={() => toggleActive(u)}
-                    style={{ flex: 1, fontSize: 11, padding: '6px 0', borderRadius: 7, border: `1px solid ${inactive ? `color-mix(in srgb, ${C.gr} 38%, transparent)` : `color-mix(in srgb, ${C.yw} 38%, transparent)`}`, background: inactive ? 'var(--st-green-bg)' : C.ywd, color: inactive ? C.gr : C.yw, cursor: 'pointer', fontWeight: 600 }}>
+                    style={{ flex: 1, fontSize: 11, padding: '6px 0', borderRadius: 7, border: `1px solid ${inactive ? `color-mix(in srgb, ${C.gr} 38%, transparent)` : `color-mix(in srgb, ${C.yw} 38%, transparent)`}`, background: inactive ? 'var(--st-green-bg)' : C.ywd, color: inactive ? C.grT : C.ywT, cursor: 'pointer', fontWeight: 600 }}>
                     {inactive ? '✓ Aktivieren' : '⏸ Deaktivieren'}
                   </button>
                 </div>

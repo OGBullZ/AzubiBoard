@@ -14,10 +14,10 @@ type Link = {
 };
 
 const LINK_TYPES: Record<LinkType, { l: string; color: string }> = {
-  tutorial:  { l: 'Tutorial',       color: C.ac  },
-  video:     { l: 'Video',           color: C.cr  },
-  doc:       { l: 'Dokumentation',   color: C.gr  },
-  tool:      { l: 'Tool',            color: C.yw  },
+  tutorial:  { l: 'Tutorial',       color: C.acT  },
+  video:     { l: 'Video',           color: C.crT  },
+  doc:       { l: 'Dokumentation',   color: C.grT  },
+  tool:      { l: 'Tool',            color: C.ywT  },
   example:   { l: 'Beispiel',        color: '#a371f7' },
   other:     { l: 'Sonstiges',       color: C.mu  },
 };
@@ -76,7 +76,7 @@ function LinkRow({ link, onRemove, readOnly }: LinkRowProps) {
       )}
       {hov && (
         <a href={safeUrl(link.url)} target="_blank" rel="noopener noreferrer"
-          style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: C.ac, textDecoration: 'none', flexShrink: 0 }}>
+          style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: C.acT, textDecoration: 'none', flexShrink: 0 }}>
           <IcoExternalLink size={12} />
         </a>
       )}
@@ -124,11 +124,11 @@ export function LinksManager({ links = [], onUpdate, readOnly = false, compact: 
         <IcoLink size={13} style={{ color: C.mu }} />
         <span style={{ fontSize: 11, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, flex: 1 }}>
           Links & Ressourcen
-          {links.length > 0 && <span style={{ color: C.ac, fontWeight: 400, marginLeft: 5 }}>({links.length})</span>}
+          {links.length > 0 && <span style={{ color: C.acT, fontWeight: 400, marginLeft: 5 }}>({links.length})</span>}
         </span>
         {!readOnly && (
           <button onClick={() => setShowForm(s => !s)}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, border: `1px solid ${showForm ? `color-mix(in srgb, ${C.cr} 38%, transparent)` : `color-mix(in srgb, ${C.ac} 31%, transparent)`}`, background: showForm ? C.crd : C.acd, color: showForm ? C.cr : C.ac, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .12s' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, border: `1px solid ${showForm ? `color-mix(in srgb, ${C.cr} 38%, transparent)` : `color-mix(in srgb, ${C.ac} 31%, transparent)`}`, background: showForm ? C.crd : C.acd, color: showForm ? C.crT : C.acT, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .12s' }}>
             {showForm ? <IcoX size={11} /> : <IcoPlus size={11} />}
             {showForm ? 'Abbrechen' : 'Link'}
           </button>
@@ -157,7 +157,7 @@ export function LinksManager({ links = [], onUpdate, readOnly = false, compact: 
                 onKeyDown={e => e.key === 'Enter' && add()}
                 placeholder="https://docs.oracle.com/…"
                 style={{ borderColor: urlErr ? C.cr : undefined }} />
-              {urlErr && <div style={{ fontSize: 10, color: C.cr, marginTop: 2 }}>{urlErr}</div>}
+              {urlErr && <div style={{ fontSize: 10, color: C.crT, marginTop: 2 }}>{urlErr}</div>}
             </div>
             <div>
               <label>Titel (optional)</label>

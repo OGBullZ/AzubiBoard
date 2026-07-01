@@ -81,6 +81,8 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
       }
     });
 
+  // a11y Pass 3: aktive Chips — Vollton für Punkt/Border, Text-Token für Schrift (AA im Light-Mode)
+  const chipText: Record<string, string> = { [C.ac]: C.acT, [C.gr]: C.grT, [C.yw]: C.ywT, [C.cr]: C.crT, [C.mu]: C.mu };
   const FILTERS: FilterRow[] = [
     ['all',    t('project.filterAll'),     null,  C.ac, active.length],
     ['mine',   t('project.filterMine'),    null,  C.mu, active.filter(p => (p.assignees||[]).some(a => sameId(a, currentUser.id))).length],
@@ -102,9 +104,9 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {FILTERS.map(([v, l, dot, c, cnt]) => (
               <button key={v} className="btn" onClick={() => setFilter(v)} aria-pressed={filter === v}
-                style={{ fontSize: 11, padding: '5px 10px', background: filter === v ? c + '18' : '', borderColor: filter === v ? c : '', color: filter === v ? c : C.tx }}>
+                style={{ fontSize: 11, padding: '5px 10px', background: filter === v ? `color-mix(in srgb, ${c} 10%, transparent)` : '', borderColor: filter === v ? c : '', color: filter === v ? chipText[c] : C.tx }}>
                 {dot && <div style={{ width: 6, height: 6, borderRadius: '50%', background: dot }} />}
-                {l} <span style={{ fontSize: 9, fontFamily: C.mono, opacity: .6 }}>({cnt})</span>
+                {l} <span style={{ fontSize: 9, fontFamily: C.mono }}>({cnt})</span>
               </button>
             ))}
           </div>
@@ -123,12 +125,12 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
           )}
           <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 7, padding: 2, gap: 2, border: `1px solid var(--c-bd)` }}>
             <button onClick={() => setViewMode('grid')}
-              style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'grid' ? C.ac : 'transparent', color: viewMode === 'grid' ? '#fff' : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
+              style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'grid' ? C.ac : 'transparent', color: viewMode === 'grid' ? C.onAc : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
               <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/><rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/></svg>
               {t('project.viewGrid')}
             </button>
             <button onClick={() => setViewMode('table')}
-              style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'table' ? C.ac : 'transparent', color: viewMode === 'table' ? '#fff' : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
+              style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'table' ? C.ac : 'transparent', color: viewMode === 'table' ? C.onAc : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
               <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="14" height="3" rx="1"/><rect x="0" y="5" width="14" height="3" rx="1"/><rect x="0" y="10" width="14" height="3" rx="1"/></svg>
               {t('project.viewList')}
             </button>
@@ -191,13 +193,13 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                         {au.length > 4 && <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--c-bd2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: C.textSecondary, marginLeft: -6 }}>+{au.length-4}</div>}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', fontFamily: C.mono, fontSize: 11, color: over ? C.cr : C.mu, fontWeight: over ? 700 : 400 }}>
+                    <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', fontFamily: C.mono, fontSize: 11, color: over ? C.crT : C.mu, fontWeight: over ? 700 : 400 }}>
                       {p.deadline ? (over ? '⚠ ' : '') + fmtDate(p.deadline) : '–'}
                     </td>
                     <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', fontFamily: C.mono, fontSize: 11, color: C.textSecondary }}>
                       {done}/{(p.tasks||[]).length}
                       {(p.tasks||[]).filter(t => t.status === 'in_progress').length > 0 &&
-                        <span style={{ color: C.ac, marginLeft: 6 }}>▶{(p.tasks||[]).filter(t => t.status === 'in_progress').length}</span>}
+                        <span style={{ color: C.acT, marginLeft: 6 }}>▶{(p.tasks||[]).filter(t => t.status === 'in_progress').length}</span>}
                     </td>
                     {isAusbilder(currentUser) && (
                       <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
@@ -244,10 +246,10 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
                     <p style={{ fontSize: 14, color: C.textSecondary, margin: '0 0 9px', lineHeight: 1.55, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.description}</p>
                   )}
                   <div style={{ display: 'flex', gap: 7, marginBottom: 9, flexWrap: 'wrap', alignItems: 'center' }}>
-                    {grp    && <span style={{ fontSize: 10, color: C.ac, display: 'flex', alignItems: 'center', gap: 3 }}><IcoFolder size={10} />{grp.name}</span>}
+                    {grp    && <span style={{ fontSize: 10, color: C.acT, display: 'flex', alignItems: 'center', gap: 3 }}><IcoFolder size={10} />{grp.name}</span>}
                     {lc > 0 && <span style={{ fontSize: 10, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 3 }}><IcoLink size={10} />{lc}</span>}
-                    {activ > 0 && <span style={{ fontSize: 9, color: C.ac, fontFamily: C.mono, background: C.acd, borderRadius: 4, padding: '1px 5px' }}>▶ {activ}</span>}
-                    {p.deadline && <time dateTime={p.deadline} style={{ fontSize: 10, color: new Date(p.deadline) < new Date() ? C.cr : C.mu, display: 'flex', alignItems: 'center', gap: 3, marginLeft: 'auto' }}><IcoClock size={10} />{fmtDate(p.deadline)}</time>}
+                    {activ > 0 && <span style={{ fontSize: 9, color: C.acT, fontFamily: C.mono, background: C.acd, borderRadius: 4, padding: '1px 5px' }}>▶ {activ}</span>}
+                    {p.deadline && <time dateTime={p.deadline} style={{ fontSize: 10, color: new Date(p.deadline) < new Date() ? C.crT : C.mu, display: 'flex', alignItems: 'center', gap: 3, marginLeft: 'auto' }}><IcoClock size={10} />{fmtDate(p.deadline)}</time>}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: pct !== null ? 8 : 0 }}>
                     <div style={{ display: 'flex' }}>

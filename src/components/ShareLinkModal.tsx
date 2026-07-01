@@ -84,7 +84,7 @@ export default function ShareLinkModal({ kind, title, data, onClose }: ShareLink
                 </select>
               </label>
               {error && (
-                <div style={{ padding: 9, background: 'rgba(255,59,48,.08)', border: '1px solid rgba(255,59,48,.35)', borderRadius: 7, fontSize: 11, color: C.cr }}>
+                <div style={{ padding: 9, background: 'rgba(255,59,48,.08)', border: '1px solid rgba(255,59,48,.35)', borderRadius: 7, fontSize: 11, color: C.crT }}>
                   ⚠ {error}
                 </div>
               )}
@@ -98,7 +98,7 @@ export default function ShareLinkModal({ kind, title, data, onClose }: ShareLink
             </>
           ) : (
             <>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-gr)' }}>✓ Link bereit zum Teilen</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-gr-text)' }}>✓ Link bereit zum Teilen</div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input value={link.url} readOnly onFocus={e => e.target.select()}
                   style={{ flex: 1, padding: '8px 10px', fontSize: 11, fontFamily: C.mono, border: '1px solid var(--c-bd2)', borderRadius: 7, background: 'var(--c-sf2)', color: 'var(--c-tx)' }} />

@@ -82,7 +82,7 @@ export default function TrashPage({ data, currentUser, onUpdateData, showToast }
     <div style={{ padding: 20, maxWidth: 900, margin: '0 auto' }} className="anim">
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: C.br, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <IcoTrash size={18} style={{ color: C.cr }} />
+          <IcoTrash size={18} style={{ color: C.crT }} />
           Papierkorb
         </div>
         <div style={{ fontSize: 12, color: C.mu, marginTop: 3 }}>
@@ -100,13 +100,13 @@ export default function TrashPage({ data, currentUser, onUpdateData, showToast }
               style={{
                 padding: '8px 14px', fontSize: 12, fontWeight: 700,
                 border: 'none', background: 'transparent',
-                color: active ? C.ac : C.mu,
+                color: active ? C.acT : C.mu,
                 borderBottom: `2px solid ${active ? C.ac : 'transparent'}`,
                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
               }}>
               <M.Icon size={12} />
               {M.label}
-              <span style={{ background: active ? C.acd : C.sf2, color: active ? C.ac : C.mu, padding: '1px 7px', borderRadius: 9, fontSize: 10, fontFamily: C.mono }}>{counts[t]}</span>
+              <span style={{ background: active ? C.acd : C.sf2, color: active ? C.acT : C.mu, padding: '1px 7px', borderRadius: 9, fontSize: 10, fontFamily: C.mono }}>{counts[t]}</span>
             </button>
           );
         })}
@@ -130,16 +130,16 @@ export default function TrashPage({ data, currentUser, onUpdateData, showToast }
                   <div style={{ fontSize: 11, color: C.mu, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {sub && <span>{sub}</span>}
                     <span>Gelöscht von {it.deletedByName || '?'} · {fmtDate(it.deletedAt?.slice(0,10))}</span>
-                    <span style={{ color: days <= 3 ? C.yw : C.mu }}>· noch {days} Tag{days === 1 ? '' : 'e'}</span>
+                    <span style={{ color: days <= 3 ? C.ywT : C.mu }}>· noch {days} Tag{days === 1 ? '' : 'e'}</span>
                   </div>
                 </div>
                 <button onClick={() => restore(it.id)}
-                  style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, border: `1px solid ${C.ac}`, background: 'transparent', color: C.ac, borderRadius: 6, cursor: 'pointer', flexShrink: 0 }}>
+                  style={{ padding: '5px 11px', fontSize: 11, fontWeight: 700, border: `1px solid ${C.ac}`, background: 'transparent', color: C.acT, borderRadius: 6, cursor: 'pointer', flexShrink: 0 }}>
                   ↻ Wiederherstellen
                 </button>
                 {isAusbilder && (
                   <button onClick={() => setPurgeId(it.id)} aria-label="Endgültig löschen"
-                    style={{ padding: '5px 9px', fontSize: 13, border: `1px solid color-mix(in srgb, ${C.cr} 33%, transparent)`, background: 'transparent', color: C.cr, borderRadius: 6, cursor: 'pointer', flexShrink: 0 }}>
+                    style={{ padding: '5px 9px', fontSize: 13, border: `1px solid color-mix(in srgb, ${C.cr} 33%, transparent)`, background: 'transparent', color: C.crT, borderRadius: 6, cursor: 'pointer', flexShrink: 0 }}>
                     ✕
                   </button>
                 )}

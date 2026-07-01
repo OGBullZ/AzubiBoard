@@ -58,7 +58,7 @@ function NotificationPermissionRow() {
     <label style={{ padding: '7px 14px', borderBottom: '1px solid var(--c-bd)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--c-mu)' }}>
       <input type="checkbox" checked={enabled} onChange={toggle} />
       <span style={{ flex: 1 }}>Browser-Push aktiv</span>
-      <span style={{ fontSize: 9, color: 'var(--c-gr)' }}>● {enabled ? 'AN' : 'AUS'}</span>
+      <span style={{ fontSize: 9, color: 'var(--c-gr-text)' }}>● {enabled ? 'AN' : 'AUS'}</span>
     </label>
   );
 }
@@ -134,7 +134,7 @@ export function NotificationBell({ collapsed }: { collapsed: boolean }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid var(--c-bd)', flexShrink: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-br)' }}>Benachrichtigungen</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {unreadCount > 0 && <button onClick={markAllRead} style={{ fontSize: 11, color: 'var(--c-ac)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Alle gelesen</button>}
+              {unreadCount > 0 && <button onClick={markAllRead} style={{ fontSize: 11, color: 'var(--c-ac-text)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Alle gelesen</button>}
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-mu)', padding: 0, display: 'flex', alignItems: 'center' }}><IcoX size={14} /></button>
             </div>
           </div>

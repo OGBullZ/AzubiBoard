@@ -38,21 +38,21 @@ function relTime(ts: string | number | null | undefined): string {
 }
 
 const ACTIVITY_CONFIG: Record<string, { icon: string; color: string }> = {
-  project_created:  { icon: '📁', color: C.ac  },
-  task_done:        { icon: '✅', color: C.gr  },
-  task_created:     { icon: '➕', color: C.yw  },
+  project_created:  { icon: '📁', color: C.acT  },
+  task_done:        { icon: '✅', color: C.grT  },
+  task_created:     { icon: '➕', color: C.ywT  },
   user_registered:  { icon: '👤', color: '#a371f7' },
   // Reports
-  report_saved:     { icon: '📝', color: C.ac  },
-  report_submitted: { icon: '📤', color: C.yw  },
-  report_signed:    { icon: '✍️', color: C.gr  },
+  report_saved:     { icon: '📝', color: C.acT  },
+  report_submitted: { icon: '📤', color: C.ywT  },
+  report_signed:    { icon: '✍️', color: C.grT  },
   // Training-Plan
-  goal_added:       { icon: '🎯', color: C.ac  },
-  goal_learned:     { icon: '💡', color: C.yw  },
-  goal_confirmed:   { icon: '🏆', color: C.gr  },
+  goal_added:       { icon: '🎯', color: C.acT  },
+  goal_learned:     { icon: '💡', color: C.ywT  },
+  goal_confirmed:   { icon: '🏆', color: C.grT  },
   goal_updated:     { icon: '✏️', color: C.mu  },
-  goal_deleted:     { icon: '🗑️', color: C.cr  },
-  goals_imported:   { icon: '📥', color: C.ac  },
+  goal_deleted:     { icon: '🗑️', color: C.crT  },
+  goals_imported:   { icon: '📥', color: C.acT  },
 };
 
 function activityText(entry: ActivityEntry): ReactNode {

@@ -182,12 +182,12 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ position: 'relative', width: 56, height: 56 }}>
               <Ring pct={myGoals > 0 ? Math.round(confirmed / myGoals * 100) : 0} color={C.gr} />
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, color: C.gr }}>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, color: C.grT }}>
                 {myGoals > 0 ? Math.round(confirmed / myGoals * 100) : 0}%
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: C.gr, fontWeight: 700 }}>Kompetenzen</div>
+              <div style={{ fontSize: 11, color: C.grT, fontWeight: 700 }}>Kompetenzen</div>
               <div style={{ fontSize: 10, color: C.mu }}>{confirmed}/{myGoals} bestätigt</div>
               {confirmed === myGoals && (
                 <div className="meisterstueck" style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.14em', marginTop: 3 }}>
@@ -226,12 +226,12 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
       {/* Fehlende Berichtswochen (Drill-down für den Ausbilder) */}
       {missingKw.length > 0 && (
         <div className="card" style={{ marginBottom: 16, borderLeft: `3px solid ${C.yw}` }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.yw, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 9, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.ywT, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 9, display: 'flex', alignItems: 'center', gap: 6 }}>
             <IcoAlert size={13} /> Fehlende Berichtswochen ({missingKw.length} / {bs.total})
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {missingKw.map((kw, i) => (
-              <span key={i} style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.yw, background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 22%, transparent)`, borderRadius: 6, padding: '3px 9px' }}>KW {kw}</span>
+              <span key={i} style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.ywT, background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 22%, transparent)`, borderRadius: 6, padding: '3px 9px' }}>KW {kw}</span>
             ))}
           </div>
           <div style={{ fontSize: 9, color: C.mu, marginTop: 8 }}>Wochen ohne eingereichten Wochenbericht — relevant für die IHK-Vollständigkeit.</div>
@@ -298,7 +298,7 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
             <div style={{ fontSize: 11, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 10 }}>🎓 Lernziele</div>
             <div style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.mu, marginBottom: 4 }}>
-                <span>Bestätigt</span><span style={{ color: C.gr, fontWeight: 700 }}>{confirmed}/{myGoals}</span>
+                <span>Bestätigt</span><span style={{ color: C.grT, fontWeight: 700 }}>{confirmed}/{myGoals}</span>
               </div>
               <ProgressBar value={myGoals > 0 ? Math.round(confirmed / myGoals * 100) : 0} height={6} color={C.gr} />
               <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 10, color: C.mu }}>
@@ -309,7 +309,7 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
             {/* Recent confirmed goals */}
             {goals.filter(g => g.progress?.[azubi.id]?.status === 'confirmed').slice(0,5).map(g => (
               <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <span style={{ fontSize: 13, color: C.gr }}>✓</span>
+                <span style={{ fontSize: 13, color: C.grT }}>✓</span>
                 <span style={{ fontSize: 12, color: C.br }}>{g.title}</span>
                 <span style={{ fontSize: 10, color: C.mu, marginLeft: 'auto' }}>LJ{g.year}/Q{g.quarter}</span>
               </div>

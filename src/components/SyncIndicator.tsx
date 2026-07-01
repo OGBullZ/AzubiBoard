@@ -59,10 +59,10 @@ export default function SyncIndicator() {
 
   const cfg = {
     syncing: { icon: '⟳', label: t('sync.syncing'),  color: 'var(--c-mu)', spin: true  },
-    success: { icon: '✓', label: t('sync.saved'),    color: 'var(--c-gr)', spin: false },
-    error:   { icon: '⚠', label: t('sync.error'),    color: 'var(--c-yw)', spin: false },
-    fatal:   { icon: '⚠', label: t('sync.fatal'),    color: 'var(--c-cr)', spin: false },
-    offline: { icon: '⚡', label: t('sync.offline'),  color: 'var(--c-yw)', spin: false },
+    success: { icon: '✓', label: t('sync.saved'),    color: 'var(--c-gr-text)', spin: false },
+    error:   { icon: '⚠', label: t('sync.error'),    color: 'var(--c-yw-text)', spin: false },
+    fatal:   { icon: '⚠', label: t('sync.fatal'),    color: 'var(--c-cr-text)', spin: false },
+    offline: { icon: '⚡', label: t('sync.offline'),  color: 'var(--c-yw-text)', spin: false },
   }[state.kind];
 
   // Anhang C: Zahnrad dreht mechanisch (steps-8) bei inflight, steht bei Fehler abrupt

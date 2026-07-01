@@ -113,7 +113,7 @@ function CommentsSection({ project, currentUser, onUpdate }: { project: any; cur
   return (
     <section className="card" style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
-        <IcoChat size={14} style={{ color: C.ac }} />
+        <IcoChat size={14} style={{ color: C.acT }} />
         <label style={{ fontSize: 12, fontWeight: 700, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, margin: 0 }}>
           Kommentare ({comments.length})
         </label>
@@ -234,11 +234,11 @@ function BurndownTab({ project }: { project: any }) {
         </div>
         <div>
           <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 2 }}>Abgeschlossen</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: C.gr, fontFamily: C.mono }}>{doneCount}</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: C.grT, fontFamily: C.mono }}>{doneCount}</div>
         </div>
         <div>
           <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 2 }}>Fortschritt</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: donePct === 100 ? C.gr : C.ac, fontFamily: C.mono }}>{donePct}%</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: donePct === 100 ? C.grT : C.acT, fontFamily: C.mono }}>{donePct}%</div>
         </div>
         <div style={{ flex: 1, display: 'flex', gap: 14, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.mu }}>
@@ -285,9 +285,9 @@ function BurndownTab({ project }: { project: any }) {
           <line x1={PAD.l} x2={W - PAD.r} y1={H - PAD.b} y2={H - PAD.b} stroke={C.bd2} strokeWidth={1} />
         </svg>
         <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center', fontSize: 10, color: C.mu }}>
-          <span style={{ color: C.yw }}>│</span> Heute ·
+          <span style={{ color: C.ywT }}>│</span> Heute ·
           <span style={{ color: C.bd2 }}>- -</span> Ideallinie ·
-          <span style={{ color: C.ac }}>──</span> Tatsächlicher Fortschritt
+          <span style={{ color: C.acT }}>──</span> Tatsächlicher Fortschritt
         </div>
       </div>
     </div>
@@ -317,7 +317,7 @@ function StatCard({ label, value, sub, color, Icon, onClick, hint }: StatCardPro
       <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: C.mono, marginBottom: 6 }}>{value}</div>
       {sub && <div style={{ fontSize: 10, color: C.mu }}>{sub}</div>}
       {hint && hov && (
-        <div style={{ position: 'absolute', bottom: 6, right: 10, fontSize: 9, color: C.ac, fontWeight: 700 }}>
+        <div style={{ position: 'absolute', bottom: 6, right: 10, fontSize: 9, color: C.acT, fontWeight: 700 }}>
           {hint} →
         </div>
       )}
@@ -353,14 +353,14 @@ function MaterialsPopup({ project, onUpdate, onClose }: { project: any; onUpdate
             <span style={{ fontWeight: 600, color: C.br }}>{m.name}</span>
             <span style={{ fontFamily: C.mono, color: C.mu }}>{m.qty}×</span>
             <span style={{ fontFamily: C.mono, color: C.mu }}>{(m.cost || 0).toFixed(2)} €</span>
-            <span style={{ fontFamily: C.mono, color: C.ac, fontWeight: 700 }}>{((m.qty || 1) * (m.cost || 0)).toFixed(2)} €</span>
+            <span style={{ fontFamily: C.mono, color: C.acT, fontWeight: 700 }}>{((m.qty || 1) * (m.cost || 0)).toFixed(2)} €</span>
             <button className="del" onClick={() => remove(m.id)} style={{ fontSize: 13 }}>×</button>
           </div>
         ))}
         {project.materials.length > 0 && (
           <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: C.mu }}>Gesamt</span>
-            <span style={{ fontSize: 16, fontWeight: 800, color: C.yw, fontFamily: C.mono }}>{total.toFixed(2)} €</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: C.ywT, fontFamily: C.mono }}>{total.toFixed(2)} €</span>
           </div>
         )}
       </div>
@@ -485,7 +485,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
 
       {/* Phase 2: Mentor = nur lesend (Schreibpfade sind am onUpdate-choke-point gesperrt) */}
       {currentUser?.role === 'mentor' && (
-        <div style={{ background: 'var(--c-ywd)', color: C.yw, borderBottom: `1px solid color-mix(in srgb, ${C.yw} 21%, transparent)`, padding: '6px 18px', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ background: 'var(--c-ywd)', color: C.ywT, borderBottom: `1px solid color-mix(in srgb, ${C.yw} 21%, transparent)`, padding: '6px 18px', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
           🔒 Mentor-Ansicht — nur lesend
         </div>
       )}
@@ -502,8 +502,8 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
             <StatusBadge status={project.status} />
-            {isOverdue && <span className="tag" style={{ background: 'var(--c-crd)', color: C.cr, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)` }}>⚠ Überfällig</span>}
-            {activeCount > 0 && <span style={{ fontSize: 9, color: C.ac, background: C.acd, borderRadius: 4, padding: '2px 7px', fontFamily: C.mono, fontWeight: 800 }}>▶ {activeCount} aktiv</span>}
+            {isOverdue && <span className="tag" style={{ background: 'var(--c-crd)', color: C.crT, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)` }}>⚠ Überfällig</span>}
+            {activeCount > 0 && <span style={{ fontSize: 9, color: C.acT, background: C.acd, borderRadius: 4, padding: '2px 7px', fontFamily: C.mono, fontWeight: 800 }}>▶ {activeCount} aktiv</span>}
             {!editMode ? (
               <>
                 {currentUser?.role !== 'mentor' && (
@@ -548,10 +548,10 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
         <nav style={{ display: 'flex', gap: 2, overflowX: 'auto' }}>
           {TABS.map(t => (
             <button key={t.k} role="tab" aria-selected={tab === t.k} onClick={() => setTab(t.k)}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 7, fontSize: 11, fontWeight: 700, border: 'none', background: tab === t.k ? C.acd : 'transparent', color: tab === t.k ? C.ac : C.mu, flexShrink: 0, transition: 'all .12s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 7, fontSize: 11, fontWeight: 700, border: 'none', background: tab === t.k ? C.acd : 'transparent', color: tab === t.k ? C.acT : C.mu, flexShrink: 0, transition: 'all .12s' }}>
               <t.Icon size={12} />{t.l}
-              {t.k === 'tasks' && activeCount > 0 && <span style={{ fontSize: 9, background: C.ac, color: '#fff', borderRadius: 5, padding: '0 4px', fontFamily: C.mono }}>▶</span>}
-              {t.k === 'overview' && linkCount > 0 && <span style={{ fontSize: 9, background: C.ac, color: '#fff', borderRadius: 5, padding: '0 4px', fontFamily: C.mono }}>{linkCount}</span>}
+              {t.k === 'tasks' && activeCount > 0 && <span style={{ fontSize: 9, background: C.ac, color: C.onAc, borderRadius: 5, padding: '0 4px', fontFamily: C.mono }}>▶</span>}
+              {t.k === 'overview' && linkCount > 0 && <span style={{ fontSize: 9, background: C.ac, color: C.onAc, borderRadius: 5, padding: '0 4px', fontFamily: C.mono }}>{linkCount}</span>}
             </button>
           ))}
         </nav>
@@ -588,8 +588,8 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                           onClick={() => uf('assignees', sel ? form.assignees.filter((x: Id) => x !== u.id) : [...form.assignees, u.id])}
                           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 7, background: sel ? C.acd : 'var(--c-sf2)', border: `1px solid ${sel ? C.ac : 'var(--c-bd2)'}`, cursor: 'pointer', transition: 'all .12s' }}>
                           <Avatar name={u.name} size={18} />
-                          <span style={{ fontSize: 12, fontWeight: 600, color: sel ? C.ac : C.tx }}>{u.name}</span>
-                          {sel && <IcoCheck size={11} style={{ color: C.ac }} />}
+                          <span style={{ fontSize: 12, fontWeight: 600, color: sel ? C.acT : C.tx }}>{u.name}</span>
+                          {sel && <IcoCheck size={11} style={{ color: C.acT }} />}
                         </button>
                       );
                     })}
@@ -665,7 +665,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}>
                 <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   Zeitraum
-                  {!editMode && <span style={{ fontSize: 9, color: C.ac, fontWeight: 700 }}>Bearbeiten →</span>}
+                  {!editMode && <span style={{ fontSize: 9, color: C.acT, fontWeight: 700 }}>Bearbeiten →</span>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 11, color: C.mu }}>Start</span>
@@ -673,7 +673,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 11, color: C.mu }}>Deadline</span>
-                  <time style={{ fontSize: 11, fontFamily: C.mono, color: isOverdue ? C.cr : C.tx }}>{fmtDate(project.deadline) || '–'}</time>
+                  <time style={{ fontSize: 11, fontFamily: C.mono, color: isOverdue ? C.crT : C.tx }}>{fmtDate(project.deadline) || '–'}</time>
                 </div>
               </div>
 
@@ -683,10 +683,10 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
                 <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: linkCount > 0 ? 8 : 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   Links
-                  <span style={{ fontSize: 9, color: C.ac, fontWeight: 700 }}>{linkCount > 0 ? `${linkCount} · Bearbeiten →` : '+ Hinzufügen →'}</span>
+                  <span style={{ fontSize: 9, color: C.acT, fontWeight: 700 }}>{linkCount > 0 ? `${linkCount} · Bearbeiten →` : '+ Hinzufügen →'}</span>
                 </div>
                 {linkCount > 0 && (project.links || []).slice(0, 3).map((l: any) => (
-                  <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', fontSize: 11, color: C.ac, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', fontSize: 11, color: C.acT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <IcoLink size={10} style={{ flexShrink: 0 }} />
                     {l.title || l.url}
                   </div>

@@ -8,7 +8,7 @@
   z-index: 10000;
   padding: 8px 14px;
   background: var(--c-ac);
-  color: #fff;
+  color: var(--c-on-ac);
   border-radius: 7px;
   font-size: 13px;
   font-weight: 700;
@@ -67,6 +67,12 @@ body {
   --c-crd:  rgba(255, 59, 48, 0.1);
   --c-yw:   #FF9500;
   --c-ywd:  rgba(255, 149, 0, 0.1);
+  /* a11y Pass 3: Text-Varianten — 1.0 = Volltöne (unverändert), Beta überschreibt AA-sicher */
+  --c-ac-text: var(--c-ac);
+  --c-gr-text: var(--c-gr);
+  --c-cr-text: var(--c-cr);
+  --c-yw-text: var(--c-yw);
+  --c-on-ac: #fff;                                      /* Schrift AUF Akzentfläche (Beta: dunkel) */
   --st-green-bg: #07130a;
   --shadow:    0 4px 16px rgba(0,0,0,.5);
   --shadow-lg: 0 8px 40px rgba(0,0,0,.65);
@@ -89,7 +95,7 @@ body {
   --petrol-950: #0B0F0E; --petrol-900: #111715; --petrol-850: #161E1B; --petrol-800: #1C2522;
   --line-1: #243029; --line-2: #2F3D36;
   --ink-hi: #F2F0E9; --ink-tx: #C9CCC4; --ink-mu: #86918A;
-  --stamp-red: #D14437; --stamp-blue: #4D7FBF; --stamp-green: #3E9B68;
+  --stamp-red: #D14437; --stamp-blue: #5A8AC6; --stamp-green: #3E9B68; /* a11y Pass 3: Blau 4D7FBF→5A8AC6 (AA auf --c-sf) */
 
   /* ── Semantik (Werkstatt-Dark) — überschreibt die 1.0-Token-NAMEN, Konsumenten unverändert ── */
   --c-bg:  var(--petrol-950);
@@ -105,11 +111,14 @@ body {
   /* Akzent: per User wählbar via [data-accent] (Default Orange). Picker in ProfilePage. */
   --c-ac:  #FF6A1A;                                     /* Signal-Orange */
   --c-ac-press: #E55708;
-  --c-ac-text: #FFB78A;                                 /* AA-taugliche Text-Variante auf Dunkel */
+  --c-ac-text: #FF6A1A;                                 /* Akzent ALS TEXT: dunkel = Vollton (AA ≥5.4 auf allen Flächen), Light überschreibt */
   --c-acd: color-mix(in srgb, #FF6A1A 12%, transparent);
   --c-gr: #37C871; --c-grd: color-mix(in srgb, #37C871 12%, transparent);
   --c-cr: #F45B4E; --c-crd: color-mix(in srgb, #F45B4E 12%, transparent);
   --c-yw: #FFB224; --c-ywd: color-mix(in srgb, #FFB224 12%, transparent);
+  /* a11y Pass 3: Status ALS TEXT — dunkel = Volltöne (AA ok), Papier-Light überschreibt mit dunkleren Varianten */
+  --c-gr-text: #37C871; --c-cr-text: #F45B4E; --c-yw-text: #FFB224;
+  --c-on-ac: #1A1D1C;                                   /* dunkle Schrift auf Akzent (User-Entscheid 02.07., AA bei allen 3 Akzenten) */
   --st-green-bg: #0C1A12;
   --c-data: #3FD2C7;                                    /* Daten/Sync — nie Orange */
   --c-grid: color-mix(in srgb, #3FD2C7 4%, transparent);
@@ -128,11 +137,11 @@ body {
 
 /* Akzent-Varianten (User-Einstellung, nur Beta) */
 [data-design="beta"][data-accent="amber"] {
-  --c-ac: #FFB224; --c-ac-press: #E09A0E; --c-ac-text: #FFD27A;
+  --c-ac: #FFB224; --c-ac-press: #E09A0E; --c-ac-text: #FFB224;
   --c-acd: color-mix(in srgb, #FFB224 12%, transparent);
 }
 [data-design="beta"][data-accent="cyan"] {
-  --c-ac: #3FD2C7; --c-ac-press: #26B5AA; --c-ac-text: #8FE8E1;
+  --c-ac: #3FD2C7; --c-ac-press: #26B5AA; --c-ac-text: #3FD2C7;
   --c-acd: color-mix(in srgb, #3FD2C7 12%, transparent);
 }
 [data-design="beta"][data-accent="amber"][data-theme="light"] { --c-ac-text: #8A5C00; }
@@ -146,11 +155,14 @@ body {
   --c-sf3: #F1EDE3;
   --c-tx:  #2A3A35;
   --c-br:  #16211D;
-  --c-mu:  #6E7B74;
+  --c-mu:  #5E6B64;                                      /* a11y Pass 3: 6E7B74→5E6B64, AA ≥4.5 auch auf --c-sf3 (axe rundet 4.50 auf 4.49 ab) */
   --c-bd:  #C9CFC4;
   --c-bd2: #A9B2A9;
   --c-bd-soft: color-mix(in srgb, #C9CFC4 50%, transparent);
-  --c-ac-text: #C24A08;                                  /* auf Papier: dunkleres Orange für Text */
+  --c-ac-text: #B34205;                                  /* auf Papier: dunkleres Orange für Text (AA ≥4.9) */
+  /* a11y Pass 3: Status als Text auf Papier — Volltöne (2–3:1) fallen durch AA */
+  --c-gr-text: #1E7A46; --c-cr-text: #C0392B; --c-yw-text: #8A5C00;
+  --stamp-red: #C0392B; --stamp-blue: #3B639A; --stamp-green: #1E7A46;
   --c-acd: color-mix(in srgb, #FF6A1A 10%, transparent);
   --st-green-bg: #E9F4EC;
   --c-grid: color-mix(in srgb, #2C5E9E 7%, transparent); /* Millimeterpapier-Blau */
@@ -206,6 +218,9 @@ body {
   border-radius: var(--r-1);
   box-shadow: 0 2px 0 color-mix(in srgb, var(--c-ac-press) 80%, black);
   font-weight: 600;
+  /* a11y Pass 3 (User-Entscheid 02.07.): dunkle Schrift auf Akzent — Weiß auf Signal-Orange = 2.9:1,
+     --c-on-ac #1A1D1C = 5.9:1 (und AA bei Amber/Cyan). Industrielabel-Look, passt zur Werkbank. */
+  color: var(--c-on-ac);
 }
 [data-design="beta"] .abtn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--c-ac) 88%, white);

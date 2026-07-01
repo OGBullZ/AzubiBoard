@@ -27,9 +27,9 @@ const addDays = (dt: Date | string | number, n: number) => { const d = new Date(
 const fmtShort = (dt: Date) => `${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}`;
 
 const EV_TYPES: Record<string, { label: string; color: string; bg: string }> = {
-  event:       { label: 'Termin',      color: C.ac,      bg: C.acd         },
-  deadline:    { label: 'Deadline',    color: C.cr,      bg: C.crd         },
-  reminder:    { label: 'Erinnerung',  color: C.yw,      bg: C.ywd         },
+  event:       { label: 'Termin',      color: C.acT,      bg: C.acd         },
+  deadline:    { label: 'Deadline',    color: C.crT,      bg: C.crd         },
+  reminder:    { label: 'Erinnerung',  color: C.ywT,      bg: C.ywd         },
   hospitation: { label: 'Hospitation', color: '#a371f7', bg: '#a371f720'   },
   meeting:     { label: 'Besprechung', color: '#f78166', bg: '#f7816620'   },
   schoolday:   { label: 'Schultag',    color: '#3fb950', bg: '#3fb95018'   },
@@ -253,7 +253,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', background: C.sf2, border: `1px solid ${C.bd2}`, borderRadius: 7, overflow: 'hidden' }}>
             {['month','week'].map(mode => (
-              <button key={mode} onClick={() => setViewMode(mode)} style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: viewMode === mode ? C.ac : 'transparent', color: viewMode === mode ? '#fff' : C.mu, transition: 'all .15s' }}>
+              <button key={mode} onClick={() => setViewMode(mode)} style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: viewMode === mode ? C.ac : 'transparent', color: viewMode === mode ? C.onAc : C.mu, transition: 'all .15s' }}>
                 {mode === 'month' ? '☰ Monat' : '▦ Woche'}
               </button>
             ))}
@@ -328,7 +328,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                   onClick={() => startNew({ date: ds, label: `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}` })}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startNew({ date: ds, label: `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}` }); } }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: today_ ? C.ac : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: today_ ? 12 : 11, fontWeight: today_ ? 800 : 500, color: today_ ? '#fff' : C.mu }}>{day}</div>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: today_ ? C.ac : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: today_ ? 12 : 11, fontWeight: today_ ? 800 : 500, color: today_ ? C.onAc : C.mu }}>{day}</div>
                     {workers.length > 0 && <div style={{ display: 'flex' }}>{workers.slice(0,3).map((w,i) => <div key={w.id} style={{ marginLeft: i>0?-4:0, width:7, height:7, borderRadius:'50%', background: w.taskStatus==='in_progress'?C.gr:C.yw, border:`1px solid ${C.sf2}` }} />)}</div>}
                   </div>
                   {ev.map(e => {
@@ -368,7 +368,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
                     {day && (
                       <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: today_ ? C.ac : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: today_ ? 12 : 11, fontWeight: today_ ? 800 : 500, color: today_ ? '#fff' : C.mu }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: today_ ? C.ac : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: today_ ? 12 : 11, fontWeight: today_ ? 800 : 500, color: today_ ? C.onAc : C.mu }}>
                             {day}
                           </div>
                           {workers.length > 0 && (
@@ -449,7 +449,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
       {editEv && editForm && (
         <Modal title="Termin bearbeiten" onClose={() => { setEditEv(null); setEditForm(null); }}>
           <div style={{ fontSize: 11, color: C.mu, marginBottom: 12 }}>
-            {editEv.date} {editEv._project && <span style={{ color: C.ac }}>· {editEv._project}</span>}
+            {editEv.date} {editEv._project && <span style={{ color: C.acT }}>· {editEv._project}</span>}
           </div>
           <Field label="Typ">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
@@ -475,7 +475,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
           </Field>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button className="abtn" onClick={saveEdit} style={{ flex: 1, padding: 11 }} disabled={!editForm.title.trim()}>Speichern</button>
-            <button onClick={() => setConfirmDel(editEv)} style={{ padding: '11px 16px', borderRadius: 8, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, color: C.cr, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Löschen</button>
+            <button onClick={() => setConfirmDel(editEv)} style={{ padding: '11px 16px', borderRadius: 8, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, color: C.crT, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Löschen</button>
           </div>
         </Modal>
       )}

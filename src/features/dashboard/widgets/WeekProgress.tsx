@@ -56,7 +56,7 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
         <span style={{ fontSize: 10, color: C.textSecondary }}>
           KW {getKW(now) ?? ''}
         </span>
-        <span style={{ fontSize: 13, fontFamily: C.mono, color: weekDone === weekTotal && weekTotal > 0 ? C.gr : C.ac, fontWeight: 700 }}>
+        <span style={{ fontSize: 13, fontFamily: C.mono, color: weekDone === weekTotal && weekTotal > 0 ? C.grT : C.acT, fontWeight: 700 }}>
           {weekDone} / {weekTotal} diese Woche
         </span>
       </div>
@@ -75,7 +75,7 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
                   <div className="wp-bar" style={{ position: 'absolute', bottom: barH, left: 0, right: 0, height: Math.max(2, Math.round((d.open / Math.max(d.total, 1)) * maxH)), background: `color-mix(in srgb, ${C.cr} 50%, transparent)`, borderRadius: '3px 3px 0 0', ['--i' as string]: di }} />
                 )}
               </div>
-              <span style={{ fontSize: 9, fontWeight: d.isToday ? 800 : 500, color: d.isToday ? C.ac : C.mu, textTransform: 'uppercase', letterSpacing: .5 }}>{d.l}</span>
+              <span style={{ fontSize: 9, fontWeight: d.isToday ? 800 : 500, color: d.isToday ? C.acT : C.mu, textTransform: 'uppercase', letterSpacing: .5 }}>{d.l}</span>
             </div>
           );
         })}

@@ -89,7 +89,7 @@ function ZeiterfassungWidgetImpl({ users, projects }: ZeiterfassungWidgetProps) 
             <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {firstName(azubi.name)}
             </span>
-            <span style={{ fontSize: 12, fontWeight: 800, fontFamily: C.mono, color: total > 0 ? C.gr : C.mu }}>
+            <span style={{ fontSize: 12, fontWeight: 800, fontFamily: C.mono, color: total > 0 ? C.grT : C.mu }}>
               {total.toFixed(1)}h
             </span>
           </div>

@@ -70,7 +70,7 @@ export default function ConflictDialog({ payload, onAcceptServer, onForceMine, o
         boxShadow: '0 20px 60px rgba(0,0,0,.6)',
       }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--c-bd)' }}>
-          <div id="conflict-title" style={{ fontSize: 15, fontWeight: 800, color: 'var(--c-cr)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div id="conflict-title" style={{ fontSize: 15, fontWeight: 800, color: 'var(--c-cr-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span aria-hidden="true">⚠</span> Speicher-Konflikt
           </div>
           <div style={{ fontSize: 12, color: 'var(--c-mu)', marginTop: 4 }}>
@@ -94,8 +94,8 @@ export default function ConflictDialog({ payload, onAcceptServer, onForceMine, o
                   {diffs.map(d => (
                     <tr key={d.k}>
                       <td style={{ padding: '3px 6px' }}>{d.k}</td>
-                      <td style={{ padding: '3px 6px', textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color: 'var(--c-ac)' }}>{d.client}</td>
-                      <td style={{ padding: '3px 6px', textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color: 'var(--c-yw)' }}>{d.server}</td>
+                      <td style={{ padding: '3px 6px', textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color: 'var(--c-ac-text)' }}>{d.client}</td>
+                      <td style={{ padding: '3px 6px', textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color: 'var(--c-yw-text)' }}>{d.server}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -110,7 +110,7 @@ export default function ConflictDialog({ payload, onAcceptServer, onForceMine, o
           <button onClick={() => wrap(onAcceptServer)} disabled={acting}
             style={{
               padding: '9px 12px', borderRadius: 7, border: '1px solid var(--c-yw)',
-              background: 'rgba(255,149,0,.08)', color: 'var(--c-yw)', fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
+              background: 'rgba(255,149,0,.08)', color: 'var(--c-yw-text)', fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
             }}>
             ✓ <strong>Server-Version übernehmen</strong> (empfohlen)<br/>
             <span style={{ fontWeight: 400, color: 'var(--c-mu)', fontSize: 11 }}>Deine ungespeicherten Änderungen gehen verloren.</span>
@@ -119,7 +119,7 @@ export default function ConflictDialog({ payload, onAcceptServer, onForceMine, o
           <button onClick={() => wrap(onForceMine)} disabled={acting}
             style={{
               padding: '9px 12px', borderRadius: 7, border: '1px solid var(--c-cr)',
-              background: 'rgba(255,59,48,.08)', color: 'var(--c-cr)', fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
+              background: 'rgba(255,59,48,.08)', color: 'var(--c-cr-text)', fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
             }}>
             ⚡ <strong>Meine Version erzwingen</strong><br/>
             <span style={{ fontWeight: 400, color: 'var(--c-mu)', fontSize: 11 }}>Server-Änderungen werden überschrieben.</span>

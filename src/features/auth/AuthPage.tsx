@@ -168,7 +168,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
                   style={{ width: '100%', padding: '12px 16px', fontSize: 18, letterSpacing: 4, textAlign: 'center', fontFamily: C.mono, border: `1px solid ${C.bd2}`, borderRadius: 8, background: C.sf, color: C.br, boxSizing: 'border-box' }} />
               </div>
               {err && (
-                <div role="alert" style={{ fontSize: 13, color: C.cr, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div role="alert" style={{ fontSize: 13, color: C.crT, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
                   <span aria-hidden="true">⚠</span> {err}
                 </div>
               )}
@@ -189,7 +189,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
             {([['login', t('auth.login')], ['register', t('auth.register')]] as const).map(([m, l]) => (
               <button key={m} role="tab" aria-selected={mode === m}
                 onClick={() => { setMode(m); setErr(''); }}
-                style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none', background: mode === m ? C.ac : 'transparent', color: mode === m ? '#fff' : C.mu, transition: 'all .15s', letterSpacing: .3 }}>
+                style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none', background: mode === m ? C.ac : 'transparent', color: mode === m ? C.onAc : C.mu, transition: 'all .15s', letterSpacing: .3 }}>
                 {l}
               </button>
             ))}
@@ -231,7 +231,7 @@ export default function AuthPage({ onLogin, users, onRegister }: AuthPageProps) 
             </div>
 
             {err && (
-              <div role="alert" style={{ fontSize: 13, color: C.cr, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <div role="alert" style={{ fontSize: 13, color: C.crT, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)`, borderRadius: 7, padding: '9px 12px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span aria-hidden="true">⚠</span> <span style={{ flex: 1 }}>{err}</span>
                 {design === 'beta' && mode === 'login' && <Stamp label="Abgelehnt" color="red" stamped seed={err} />}
               </div>

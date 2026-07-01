@@ -37,7 +37,7 @@ export function Toast({ payload, onDismiss }: ToastProps) {
           onClick={() => { undo(); onDismiss?.(); }}
           aria-label={t('ui.undoAction')}
           style={{
-            background: 'transparent', border: '1px solid var(--c-ac)', color: 'var(--c-ac)',
+            background: 'transparent', border: '1px solid var(--c-ac)', color: 'var(--c-ac-text)',
             borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700,
             cursor: 'pointer', textTransform: 'uppercase', letterSpacing: .6,
             flexShrink: 0
@@ -269,7 +269,7 @@ export function SectionHeader({ title, count, Icon, action, onAction, size = 'sm
         {title}{count !== undefined && <span style={{ color: C.mu, fontWeight: 400, marginLeft: 5 }}>({count})</span>}
       </div>
       {badge && (
-        <span style={{ fontSize: 9, background: badge.bg || C.acd, color: badge.c || C.ac, borderRadius: 5, padding: '1px 6px', fontFamily: C.mono, fontWeight: 700 }}>
+        <span style={{ fontSize: 9, background: badge.bg || C.acd, color: badge.c || C.acT, borderRadius: 5, padding: '1px 6px', fontFamily: C.mono, fontWeight: 700 }}>
           {badge.text}
         </span>
       )}
@@ -294,7 +294,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
       style={{ width: 34, height: 20, borderRadius: 10, border: `1px solid ${C.bd2}`, background: dark ? C.sf2 : C.acd, cursor: 'pointer', position: 'relative', transition: 'background .2s', flexShrink: 0, padding: 0, display: 'flex', alignItems: 'center' }}>
       <div style={{ position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: dark ? C.mu : C.ac, left: dark ? 2 : 18, top: 2, transition: 'left .18s, background .18s' }} />
       <span style={{ position: 'absolute', left: 3, display: 'flex', opacity: dark ? .9 : .3, color: C.mu }}><IcoMoon size={9} /></span>
-      <span style={{ position: 'absolute', right: 3, display: 'flex', opacity: dark ? .3 : .9, color: C.ac }}><IcoSun size={9} /></span>
+      <span style={{ position: 'absolute', right: 3, display: 'flex', opacity: dark ? .3 : .9, color: C.acT }}><IcoSun size={9} /></span>
     </button>
   );
 }

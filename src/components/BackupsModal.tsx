@@ -112,7 +112,7 @@ export default function BackupsModal({ onClose, onRestore, showToast }: BackupsM
           </div>
 
           <button onClick={downloadCurrent} disabled={acting}
-            style={{ width: '100%', marginBottom: 14, padding: '8px 12px', fontSize: 11, fontWeight: 700, border: '1px solid var(--c-ac)', background: 'transparent', color: 'var(--c-ac)', borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            style={{ width: '100%', marginBottom: 14, padding: '8px 12px', fontSize: 11, fontWeight: 700, border: '1px solid var(--c-ac)', background: 'transparent', color: 'var(--c-ac-text)', borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             ⬇ Aktuellen Stand herunterladen (.json)
           </button>
 
@@ -137,7 +137,7 @@ export default function BackupsModal({ onClose, onRestore, showToast }: BackupsM
                     ⬇ JSON
                   </button>
                   <button onClick={() => setConfirm(b.snapshot_day)} disabled={acting}
-                    style={{ padding: '5px 9px', fontSize: 10, border: '1px solid var(--c-yw)', background: 'transparent', color: 'var(--c-yw)', borderRadius: 6, cursor: 'pointer', flexShrink: 0, fontWeight: 700 }}>
+                    style={{ padding: '5px 9px', fontSize: 10, border: '1px solid var(--c-yw)', background: 'transparent', color: 'var(--c-yw-text)', borderRadius: 6, cursor: 'pointer', flexShrink: 0, fontWeight: 700 }}>
                     ↻ Restore
                   </button>
                 </div>

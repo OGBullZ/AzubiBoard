@@ -88,9 +88,9 @@ function FlashcardReview({ cards, onGrade, onFinish }: {
   };
 
   const RATINGS = [
-    { label: 'Nochmal', grade: 0, color: C.cr, bg: 'var(--c-crd)' },
-    { label: 'Gut',     grade: 4, color: C.ac, bg: C.acd    },
-    { label: 'Perfekt', grade: 5, color: C.gr, bg: 'var(--st-green-bg)' },
+    { label: 'Nochmal', grade: 0, color: C.crT, bg: 'var(--c-crd)' },
+    { label: 'Gut',     grade: 4, color: C.acT, bg: C.acd    },
+    { label: 'Perfekt', grade: 5, color: C.grT, bg: 'var(--st-green-bg)' },
   ];
 
   return (
@@ -115,18 +115,18 @@ function FlashcardReview({ cards, onGrade, onFinish }: {
           );
           const antwort = (
             <>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.gr, textTransform: 'uppercase', letterSpacing: .8 }}>✓ Antwort</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.grT, textTransform: 'uppercase', letterSpacing: .8 }}>✓ Antwort</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: correctAnswers.length > 0 ? 12 : 0 }}>
                 {correctAnswers.map(a => (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 13px', background: 'var(--st-green-bg)', border: `1px solid ${C.gr}`, borderRadius: 8 }}>
-                    <span style={{ color: C.gr, fontWeight: 800, flexShrink: 0 }}>✓</span>
+                    <span style={{ color: C.grT, fontWeight: 800, flexShrink: 0 }}>✓</span>
                     <span style={{ fontSize: 13, color: C.br, fontFamily: a.text.includes('(') ? C.mono : C.sans }}>{a.text}</span>
                   </div>
                 ))}
               </div>
               {card.explanation && (
                 <div style={{ background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, padding: '10px 13px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.ac, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>Erklärung</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.acT, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>Erklärung</div>
                   <div style={{ fontSize: 12, color: C.tx, lineHeight: 1.65 }}>{card.explanation}</div>
                 </div>
               )}
@@ -183,7 +183,7 @@ function FlashcardDone({ total, grades, onBack }: {
       <div style={{ textAlign: 'center', maxWidth: 400, margin: '0 auto' }}>
         <div style={{ fontSize: 56, marginBottom: 16 }}>{pct >= 75 ? '🎉' : '💪'}</div>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: C.br, marginBottom: 8 }}>Session abgeschlossen!</h2>
-        <div style={{ fontSize: 36, fontWeight: 800, color: pct >= 75 ? C.gr : C.yw, fontFamily: C.mono, marginBottom: 4 }}>{good}/{total}</div>
+        <div style={{ fontSize: 36, fontWeight: 800, color: pct >= 75 ? C.grT : C.ywT, fontFamily: C.mono, marginBottom: 4 }}>{good}/{total}</div>
         <div style={{ fontSize: 13, color: C.mu, marginBottom: 24 }}>Karten gewusst</div>
         <div style={{ marginBottom: 28 }}><ProgressBar value={pct} color={pct >= 75 ? C.gr : C.yw} height={8} label={`${pct}%`} /></div>
         <button className="abtn" onClick={onBack} style={{ padding: '10px 28px' }}>← Zum Lernbereich</button>
@@ -238,7 +238,7 @@ function QuizQuestion({ q, onAnswer, answered, selected }: {
       <div style={{ marginBottom: 18 }}>
         <pre style={{ fontFamily: C.sans, fontSize: 14, fontWeight: 600, color: C.br, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0 }}>{q.question}</pre>
         {isMultiple && !answered && (
-          <div style={{ fontSize: 11, color: C.ac, marginTop: 6, background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 6, padding: '4px 10px', display: 'inline-block' }}>Mehrere Antworten möglich</div>
+          <div style={{ fontSize: 11, color: C.acT, marginTop: 6, background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 6, padding: '4px 10px', display: 'inline-block' }}>Mehrere Antworten möglich</div>
         )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
@@ -248,7 +248,7 @@ function QuizQuestion({ q, onAnswer, answered, selected }: {
             <div style={{ width: 20, height: 20, borderRadius: isMultiple ? 5 : '50%', border: `2px solid ${answered ? (a.correct ? C.gr : selected?.includes(a.id) ? C.cr : C.bd2) : C.bd2}`, background: answered && a.correct ? C.gr : answered && selected?.includes(a.id) && !a.correct ? C.cr : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s' }}>
               {answered && a.correct && <span style={{ color: '#fff', fontSize: 11, fontWeight: 800 }}>✓</span>}
               {answered && selected?.includes(a.id) && !a.correct && <span style={{ color: '#fff', fontSize: 11, fontWeight: 800 }}>✗</span>}
-              {!answered && isMultiple && multi.includes(a.id) && <span style={{ color: C.ac, fontSize: 11, fontWeight: 800 }}>✓</span>}
+              {!answered && isMultiple && multi.includes(a.id) && <span style={{ color: C.acT, fontSize: 11, fontWeight: 800 }}>✓</span>}
             </div>
             <span style={{ fontSize: 13, fontWeight: 500, color: C.tx, fontFamily: a.text.includes('(') && a.text.includes(')') ? C.mono : C.sans, lineHeight: 1.5 }}>{a.text}</span>
           </button>
@@ -259,7 +259,7 @@ function QuizQuestion({ q, onAnswer, answered, selected }: {
       )}
       {answered && q.explanation && (
         <div style={{ background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 9, padding: '12px 15px', animation: 'fadeUp .2s ease' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.ac, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 5 }}>Erklärung</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.acT, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 5 }}>Erklärung</div>
           <div style={{ fontSize: 13, color: C.tx, lineHeight: 1.65 }}>{q.explanation}</div>
         </div>
       )}
@@ -373,19 +373,19 @@ function CodingChallenge({ challenge, onBack }: {
             </div>
             {showHint && (
               <div style={{ background: C.ywd, border: `1px solid color-mix(in srgb, ${C.yw} 25%, transparent)`, borderRadius: 9, padding: '10px 14px', marginBottom: 12, animation: 'fadeUp .2s ease' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.yw, marginBottom: 4 }}>💡 Hinweis</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.ywT, marginBottom: 4 }}>💡 Hinweis</div>
                 <div style={{ fontSize: 13, color: C.tx }}>{challenge.hint}</div>
               </div>
             )}
             {showSol && (
               <div style={{ background: C.sf3, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 9, padding: '12px 14px', animation: 'fadeUp .2s ease' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.ac, marginBottom: 8 }}>✓ Musterlösung</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.acT, marginBottom: 8 }}>✓ Musterlösung</div>
                 <pre style={{ fontSize: 12, color: C.br, fontFamily: C.mono, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{challenge.solution}</pre>
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button className="btn" onClick={() => setShowHint(s => !s)} style={{ fontSize: 11 }}>{showHint ? '🙈 Hinweis verbergen' : '💡 Hinweis anzeigen'}</button>
-              <button className="btn" onClick={() => setShowSol(s => !s)} style={{ fontSize: 11, color: C.yw, borderColor: `color-mix(in srgb, ${C.yw} 38%, transparent)` }}>{showSol ? 'Lösung verbergen' : '📖 Lösung anzeigen'}</button>
+              <button className="btn" onClick={() => setShowSol(s => !s)} style={{ fontSize: 11, color: C.ywT, borderColor: `color-mix(in srgb, ${C.yw} 38%, transparent)` }}>{showSol ? 'Lösung verbergen' : '📖 Lösung anzeigen'}</button>
             </div>
           </div>
           <div>
@@ -401,10 +401,10 @@ function CodingChallenge({ challenge, onBack }: {
             {result && (
               <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: result.passed ? 'var(--st-green-bg)' : 'var(--c-crd)', border: `1px solid ${result.passed ? C.gr : C.cr}`, animation: 'fadeUp .2s ease' }}>
                 {result.passed ? (
-                  <div style={{ color: C.gr, fontWeight: 700, fontSize: 14 }}>✓ Super! Dein Code enthält alle nötigen Elemente.</div>
+                  <div style={{ color: C.grT, fontWeight: 700, fontSize: 14 }}>✓ Super! Dein Code enthält alle nötigen Elemente.</div>
                 ) : (
                   <div>
-                    <div style={{ color: C.cr, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>✗ Noch nicht ganz. Folgendes fehlt oder ist falsch:</div>
+                    <div style={{ color: C.crT, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>✗ Noch nicht ganz. Folgendes fehlt oder ist falsch:</div>
                     {result.missing.map(m => <div key={m} style={{ fontSize: 12, color: C.tx, fontFamily: C.mono, padding: '2px 0' }}>• {m}</div>)}
                   </div>
                 )}
@@ -608,7 +608,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
                 onClick={() => setView('paths')}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = C.ac; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = C.bd; }}>
-                <span style={{ fontSize: 12, color: C.ac, fontWeight: 700 }}>Alle {total} →</span>
+                <span style={{ fontSize: 12, color: C.acT, fontWeight: 700 }}>Alle {total} →</span>
               </div>
             </div>
           );
@@ -622,7 +622,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
             <div style={{ fontSize: 11, color: C.mu }}>{allQuestions.length} Fragen{customQuestions.length > 0 && ` (${customQuestions.length} eigene)`}</div>
             {isAusbilder && (
               <button className="btn" onClick={() => { setAiErr(''); setAiQuizOpen(true); }} title="Prüfungsfragen per KI aus einem Thema erzeugen"
-                style={{ fontSize: 11, padding: '4px 10px', borderColor: C.ac, color: C.ac }}>🤖 KI-Quiz</button>
+                style={{ fontSize: 11, padding: '4px 10px', borderColor: C.ac, color: C.acT }}>🤖 KI-Quiz</button>
             )}
             {isAusbilder && (
               <button className="abtn" onClick={openAdd} style={{ fontSize: 11, padding: '4px 10px' }}>+ Frage hinzufügen</button>
@@ -633,13 +633,13 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: C.mu, fontWeight: 700, marginRight: 2 }}>Kategorie:</span>
             {['Alle', ...CATS].map(c => (
-              <button key={c} onClick={() => setCat(c)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: `1px solid ${catFilter === c ? C.ac : C.bd2}`, background: catFilter === c ? C.acd : C.sf2, color: catFilter === c ? C.ac : C.mu, cursor: 'pointer', transition: 'all .15s' }}>{c}</button>
+              <button key={c} onClick={() => setCat(c)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: `1px solid ${catFilter === c ? C.ac : C.bd2}`, background: catFilter === c ? C.acd : C.sf2, color: catFilter === c ? C.acT : C.mu, cursor: 'pointer', transition: 'all .15s' }}>{c}</button>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: C.mu, fontWeight: 700, marginRight: 2 }}>Schwierigkeit:</span>
             {['Alle', 'easy', 'medium', 'hard'].map(d => (
-              <button key={d} onClick={() => setDiff(d)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: `1px solid ${diffFilter === d ? C.ac : C.bd2}`, background: diffFilter === d ? C.acd : C.sf2, color: diffFilter === d ? C.ac : C.mu, cursor: 'pointer', transition: 'all .15s' }}>
+              <button key={d} onClick={() => setDiff(d)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: `1px solid ${diffFilter === d ? C.ac : C.bd2}`, background: diffFilter === d ? C.acd : C.sf2, color: diffFilter === d ? C.acT : C.mu, cursor: 'pointer', transition: 'all .15s' }}>
                 {d === 'Alle' ? 'Alle' : DIFF[d]?.l}
               </button>
             ))}
@@ -659,7 +659,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
               <div style={{ fontSize: 24, marginBottom: 8 }}>{card.icon}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.br, marginBottom: 3 }}>{card.l}</div>
               <div style={{ fontSize: 11, color: C.mu }}>{card.desc}</div>
-              <div style={{ fontSize: 10, color: C.ac, marginTop: 6, fontFamily: C.mono }}>{Math.min(10, card.q.length)} Fragen</div>
+              <div style={{ fontSize: 10, color: C.acT, marginTop: 6, fontFamily: C.mono }}>{Math.min(10, card.q.length)} Fragen</div>
             </button>
           ))}
         </div>
@@ -677,8 +677,8 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
           {[
-            { label: 'Fällig heute',    value: dueCards.length,                        color: dueCards.length > 0 ? C.yw : C.gr },
-            { label: 'Bereits gelernt', value: learnedCount,                            color: C.ac },
+            { label: 'Fällig heute',    value: dueCards.length,                        color: dueCards.length > 0 ? C.ywT : C.grT },
+            { label: 'Bereits gelernt', value: learnedCount,                            color: C.acT },
             { label: 'Gesamt',          value: allQuestions.length,                     color: C.mu },
           ].map(s => (
             <div key={s.label} className="card" style={{ padding: '12px 14px', textAlign: 'center' }}>
@@ -692,7 +692,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
             {reviewCards.length} Karte{reviewCards.length !== 1 ? 'n' : ''} lernen →
           </button>
         ) : (
-          <div style={{ padding: '12px 16px', background: 'var(--st-green-bg)', border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)`, borderRadius: 9, fontSize: 13, color: C.gr, fontWeight: 600 }}>
+          <div style={{ padding: '12px 16px', background: 'var(--st-green-bg)', border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)`, borderRadius: 9, fontSize: 13, color: C.grT, fontWeight: 600 }}>
             ✓ Alle Karten für heute gelernt – komm morgen wieder!
           </div>
         )}
@@ -711,7 +711,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
                 <span className="tag" style={{ background: DIFF[c.difficulty]?.c + '20', color: DIFF[c.difficulty]?.c, border: `1px solid ${DIFF[c.difficulty]?.c}40`, flexShrink: 0 }}>{DIFF[c.difficulty]?.l}</span>
               </div>
               <div style={{ fontSize: 12, color: C.mu, lineHeight: 1.6, marginBottom: 10 }}>{c.description.split('\n')[0]}</div>
-              <div style={{ fontSize: 10, color: C.ac, fontFamily: C.mono }}>{c.category}</div>
+              <div style={{ fontSize: 10, color: C.acT, fontFamily: C.mono }}>{c.category}</div>
             </div>
           ))}
         </div>
@@ -751,7 +751,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
               {[3, 5, 8, 10].map(n => <option key={n} value={n}>{n} Fragen</option>)}
             </select>
           </Field>
-          {aiErr && <div style={{ fontSize: 12, color: C.cr, marginBottom: 10 }}>{aiErr}</div>}
+          {aiErr && <div style={{ fontSize: 12, color: C.crT, marginBottom: 10 }}>{aiErr}</div>}
           <div style={{ fontSize: 10, color: C.mu, marginBottom: 12, lineHeight: 1.5 }}>
             Erzeugt Multiple-Choice-Fragen passend zu {currentUser?.profession || 'deinem Beruf'} und legt sie als eigene Fragen an — danach bearbeitbar. (Braucht aktiven Server/KI-Schlüssel.)
           </div>
@@ -800,7 +800,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
                       ? { ...a, correct: j === i }
                       : j === i ? { ...a, correct: !a.correct } : a)
                   }))} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
-                    background: ans.correct ? C.acd : C.sf2, border: `1px solid ${ans.correct ? C.ac : C.bd2}`, color: ans.correct ? C.ac : C.mu }}>
+                    background: ans.correct ? C.acd : C.sf2, border: `1px solid ${ans.correct ? C.ac : C.bd2}`, color: ans.correct ? C.acT : C.mu }}>
                     {ans.correct ? '✓ Korrekt' : 'Markieren'}
                   </button>
                 </div>

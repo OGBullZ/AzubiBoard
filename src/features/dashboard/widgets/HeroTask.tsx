@@ -36,7 +36,7 @@ function HeroTaskImpl({ task, onToggle, onOpen, onUpdateNote, emptyAccount, onFi
   if (!task) return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '20px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.gr} 15%, transparent)`, background: `color-mix(in srgb, ${C.gr} 3%, transparent)` }}>
       <div style={{ fontSize: 28, opacity: .6 }}>✓</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: C.gr }}>Alles erledigt!</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: C.grT }}>Alles erledigt!</div>
       <div style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 1.6 }}>Keine offenen oder überfälligen Aufgaben</div>
     </div>
   );

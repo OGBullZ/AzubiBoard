@@ -48,7 +48,7 @@ function StepWelcome({ currentUser }: { currentUser: User }) {
       </h1>
       <div style={{ fontSize: 14, color: C.mu, marginBottom: 28, lineHeight: 1.6 }}>
         Schön, dass du dabei bist. Du bist als{' '}
-        <span style={{ color: C.ac, fontWeight: 700 }}>{roleLabel}</span>{' '}
+        <span style={{ color: C.acT, fontWeight: 700 }}>{roleLabel}</span>{' '}
         eingeloggt. In wenigen Schritten bist du startklar.
       </div>
 
@@ -140,7 +140,7 @@ function StepWorkbench({ currentUser }: { currentUser: User }) {
       <div className="ausweis-card" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px 14px 24px', borderRadius: 10, background: C.sf2, border: `1px solid ${C.bd2}`, overflow: 'hidden', marginBottom: 20, boxShadow: 'var(--shadow-xs)' }}>
         <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 8, bottom: 8, width: 5, borderRadius: '0 3px 3px 0', background: role.stripe }} />
         <span aria-hidden="true" style={{ position: 'absolute', right: 14, top: 10, width: 8, height: 8, borderRadius: '50%', background: C.bg, border: `1px solid ${C.bd2}` }} />
-        <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--c-acd)', color: 'var(--c-ac)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>{initials}</div>
+        <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--c-acd)', color: 'var(--c-ac-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>{initials}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 9, color: C.mu, fontFamily: C.mono, letterSpacing: '.16em', marginBottom: 2 }}>WERKSAUSWEIS · NR. {badgeNr(currentUser.id)}</div>
           <div style={{ fontSize: 16, fontWeight: 800, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.name}</div>
@@ -170,7 +170,7 @@ function StepWorkbench({ currentUser }: { currentUser: User }) {
           {([['dark', '🌙', 'Werkstatt'], ['light', '📄', 'Papier'], ['system', '🖥️', 'Wie System']] as const).map(([v, ico, lab]) => (
             <button key={v} type="button" className="btn" onClick={() => pickTheme(v)} aria-pressed={theme === v}
               style={{ flex: 1, justifyContent: 'center', padding: '9px 0', fontSize: 12,
-                ...(theme === v ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)', background: 'var(--c-acd)' } : {}) }}>
+                ...(theme === v ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac-text)', background: 'var(--c-acd)' } : {}) }}>
               {ico} {lab}
             </button>
           ))}
@@ -182,7 +182,7 @@ function StepWorkbench({ currentUser }: { currentUser: User }) {
         <span style={labelStyle}>Geräusche</span>
         <button type="button" className="btn" onClick={toggleSound} aria-pressed={sound}
           style={{ width: '100%', justifyContent: 'center', padding: '10px 0', fontSize: 12,
-            ...(sound ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)' } : {}) }}>
+            ...(sound ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac-text)' } : {}) }}>
           {sound ? '🔊 Werkstatt-Sounds an' : '🔇 Werkstatt-Sounds aus'}
         </button>
         <div style={{ fontSize: 11, color: C.mu, marginTop: 6 }}>Dezenter Stempel-Klack bei Aktionen — standardmäßig aus.</div>
@@ -279,9 +279,9 @@ function StepRequestGroup({ currentUser, data, onRequestGroup }: { currentUser: 
                   <div style={{ fontSize: 11, color: C.mu }}>{(g.members || []).length} Mitglied(er)</div>
                 </div>
                 {isMember
-                  ? <span style={{ fontSize: 11, fontWeight: 700, color: C.gr }}>✓ Mitglied</span>
+                  ? <span style={{ fontSize: 11, fontWeight: 700, color: C.grT }}>✓ Mitglied</span>
                   : isPending
-                    ? <span style={{ fontSize: 11, fontWeight: 700, color: C.ac }}>Anfrage gesendet</span>
+                    ? <span style={{ fontSize: 11, fontWeight: 700, color: C.acT }}>Anfrage gesendet</span>
                     : <button className="btn" onClick={() => send(g.id)} style={{ fontSize: 11, padding: '6px 12px' }}>Beitritt anfragen</button>}
               </div>
             );
@@ -396,8 +396,8 @@ function StepNewsPreview({ currentUser, data, kind }: { currentUser: User; data:
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '20px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.gr} 15%, transparent)`, background: `color-mix(in srgb, ${C.gr} 3%, transparent)` }}>
-          <div style={{ fontSize: 28, color: C.gr }} aria-hidden="true">✓</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.gr }}>Alles im grünen Bereich!</div>
+          <div style={{ fontSize: 28, color: C.grT }} aria-hidden="true">✓</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.grT }}>Alles im grünen Bereich!</div>
           <div style={{ fontSize: 12, color: C.mu, textAlign: 'center' }}>Sobald es offene Punkte gibt, erscheinen sie hier.</div>
         </div>
       )}
@@ -499,13 +499,13 @@ export default function OnboardingWizard({
           <div style={{ flex: 1 }} />
           {isLast && role === 'ausbilder' && (
             <button className="btn" onClick={() => { onDone(); onNewProject?.(); }}
-              style={{ padding: '10px 18px', color: C.ac, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)`, fontSize: 13 }}>
+              style={{ padding: '10px 18px', color: C.acT, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)`, fontSize: 13 }}>
               + Erstes Projekt
             </button>
           )}
           {isLast && role === 'azubi' && onFirstReport && (
             <button className="btn" onClick={() => { onDone(); onFirstReport(); }}
-              style={{ padding: '10px 18px', color: C.ac, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)`, fontSize: 13 }}>
+              style={{ padding: '10px 18px', color: C.acT, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)`, fontSize: 13 }}>
               + Erster Bericht
             </button>
           )}

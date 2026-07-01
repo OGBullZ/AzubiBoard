@@ -203,7 +203,7 @@ export default function ImportGoalsModal({ existingGoals = [], onImport, onClose
             <button key={k} onClick={() => setTab(k)}
               style={{
                 padding: '7px 14px', fontSize: 12, fontWeight: 700, border: 'none',
-                background: 'transparent', color: tab === k ? C.ac : C.mu,
+                background: 'transparent', color: tab === k ? C.acT : C.mu,
                 borderBottom: `2px solid ${tab === k ? C.ac : 'transparent'}`,
                 cursor: 'pointer', marginBottom: -1,
               }}>{l}</button>
@@ -269,7 +269,7 @@ export default function ImportGoalsModal({ existingGoals = [], onImport, onClose
 
           {/* Preview */}
           {parsed.errors.length > 0 && (
-            <div style={{ padding: 9, background: 'rgba(255,59,48,.08)', border: '1px solid rgba(255,59,48,.35)', borderRadius: 7, fontSize: 11, color: C.cr }}>
+            <div style={{ padding: 9, background: 'rgba(255,59,48,.08)', border: '1px solid rgba(255,59,48,.35)', borderRadius: 7, fontSize: 11, color: C.crT }}>
               <strong>{parsed.errors.length} Problem(e):</strong>
               <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
                 {parsed.errors.slice(0, 8).map((e, i) => <li key={i}>{e}</li>)}
@@ -284,7 +284,7 @@ export default function ImportGoalsModal({ existingGoals = [], onImport, onClose
                   Vorschau: {finalGoals.length} Lernziel{finalGoals.length === 1 ? '' : 'e'}
                 </span>
                 {skippedCount > 0 && (
-                  <span style={{ fontSize: 11, color: C.yw }}>
+                  <span style={{ fontSize: 11, color: C.ywT }}>
                     · {skippedCount} Duplikat{skippedCount === 1 ? '' : 'e'} übersprungen
                   </span>
                 )}

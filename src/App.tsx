@@ -101,7 +101,7 @@ function DesignSwitch() {
         {[['v1', '1.0'], ['beta', '1.1 ✦']].map(([val, lab]) => (
           <button key={val} className="btn" onClick={() => apply('design', val, setDesign)} aria-pressed={design === val}
             style={{ flex: 1, justifyContent: 'center', padding: '9px',
-              ...(design === val ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)', background: 'var(--c-acd)' } : {}) }}>
+              ...(design === val ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac-text)', background: 'var(--c-acd)' } : {}) }}>
             {lab}
           </button>
         ))}
@@ -123,7 +123,7 @@ function DesignSwitch() {
       {design === 'beta' && (
         <button className="btn" onClick={toggleSound} aria-pressed={sound}
           style={{ width: '100%', marginTop: 10, padding: '9px', justifyContent: 'center',
-            ...(sound ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac)' } : {}) }}>
+            ...(sound ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac-text)' } : {}) }}>
           {sound ? '🔊 Werkstatt-Sounds an' : '🔇 Werkstatt-Sounds aus'}
         </button>
       )}
@@ -400,7 +400,7 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
     <button key={key} onClick={() => setTab(key)} role="tab" aria-selected={tab === key}
       style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none',
         background: tab === key ? 'var(--c-ac)' : 'transparent',
-        color: tab === key ? '#fff' : 'var(--c-mu)', transition: 'all .15s' }}>
+        color: tab === key ? 'var(--c-on-ac)' : 'var(--c-mu)', transition: 'all .15s' }}>
       {label}
     </button>
   );
@@ -443,8 +443,8 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {[
-          { label: 'Aktive Projekte',  value: myProjects.length,                                                                                     color: 'var(--c-ac)' },
-          { label: 'Offene Aufgaben',  value: myProjects.flatMap((p: Project) => p.tasks||[]).filter((t: Task) => sameId(t.assignee, currentUser.id) && t.status !== 'done').length, color: 'var(--c-yw)' },
+          { label: 'Aktive Projekte',  value: myProjects.length,                                                                                     color: 'var(--c-ac-text)' },
+          { label: 'Offene Aufgaben',  value: myProjects.flatMap((p: Project) => p.tasks||[]).filter((t: Task) => sameId(t.assignee, currentUser.id) && t.status !== 'done').length, color: 'var(--c-yw-text)' },
         ].map(s => (
           <div key={s.label} className="card" style={{ borderLeft: `3px solid ${s.color}`, padding: '10px 14px' }}>
             <div style={{ fontSize: 10, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{s.label}</div>
@@ -464,8 +464,8 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
         {tab === 'info' && (
           <div>
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Anzeigename</label>
-              <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+              <label style={labelStyle} htmlFor="prof-name">Anzeigename</label>
+              <input id="prof-name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Ausbildungsberuf</label>
@@ -499,8 +499,8 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
               </>
             )}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>E-Mail</label>
-              <input value={currentUser.email} disabled
+              <label style={labelStyle} htmlFor="prof-email">E-Mail</label>
+              <input id="prof-email" value={currentUser.email} disabled
                 style={{ ...inputStyle, border: '1px solid var(--c-bd)', background: 'var(--c-sf3)', color: 'var(--c-mu)', opacity: .7 }} />
             </div>
             <button className="abtn" onClick={saveProfile} disabled={saving || !name.trim()}
@@ -510,11 +510,11 @@ function ProfilePage({ showToast }: { showToast: ShowToast }) {
             <button className="btn" onClick={() => {
               if (currentUser?.id) localStorage.removeItem(`azubiboard_onboarded_${currentUser.id}`);
               window.dispatchEvent(new Event('azubiboard:show-onboarding'));
-            }} style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac)', borderColor: 'var(--c-ac)60' }}>
+            }} style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac-text)', borderColor: 'var(--c-ac)60' }}>
               🎓 Einführungs-Wizard erneut anzeigen
             </button>
             <button className="btn" onClick={() => window.dispatchEvent(new Event('azubiboard:show-news'))}
-              style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac)', borderColor: 'var(--c-ac)60' }}>
+              style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac-text)', borderColor: 'var(--c-ac)60' }}>
               📰 Tagesübersicht anzeigen
             </button>
             <DesignSwitch />

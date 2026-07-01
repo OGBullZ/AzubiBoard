@@ -38,13 +38,13 @@ function TaskQueueImpl({ tasks, onToggle, onOpen }: TaskQueueProps) {
             </button>
             <button onClick={() => onOpen(t.projectId)} style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {t.status === 'in_progress' && <span style={{ fontSize: 8, color: C.ac, marginRight: 3 }}>▶</span>}
+                {t.status === 'in_progress' && <span style={{ fontSize: 8, color: C.acT, marginRight: 3 }}>▶</span>}
                 {t.text}
               </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 1, alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: C.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 100 }}>{t.projectTitle}</span>
-                {t.deadline && <span style={{ fontSize: 9, fontFamily: C.mono, color: t.isOverdue ? C.cr : C.mu, flexShrink: 0, fontWeight: t.isOverdue ? 700 : 400 }}>{t.isOverdue ? '⚠ ' : ''}{fmtDate(t.deadline)}</span>}
-                {(t.links || []).length > 0 && <IcoLink size={9} style={{ color: C.ac, flexShrink: 0 } as CSSProperties} />}
+                {t.deadline && <span style={{ fontSize: 9, fontFamily: C.mono, color: t.isOverdue ? C.crT : C.mu, flexShrink: 0, fontWeight: t.isOverdue ? 700 : 400 }}>{t.isOverdue ? '⚠ ' : ''}{fmtDate(t.deadline)}</span>}
+                {(t.links || []).length > 0 && <IcoLink size={9} style={{ color: C.acT, flexShrink: 0 } as CSSProperties} />}
                 {t.note && <IcoNote size={9} style={{ color: C.textSecondary, flexShrink: 0 } as CSSProperties} />}
               </div>
             </button>

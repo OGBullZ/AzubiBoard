@@ -123,7 +123,7 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
               {np.nodes.map(n => <option key={n.id} value={n.id}>{n.id}: {n.name.slice(0, 12)}</option>)}
             </select>
           </div>
-          {cycErr && <div role="alert" style={{ fontSize: 11, color: C.cr, marginBottom: 7, padding: '5px 8px', background: C.crd, borderRadius: 5 }}>{cycErr}</div>}
+          {cycErr && <div role="alert" style={{ fontSize: 11, color: C.crT, marginBottom: 7, padding: '5px 8px', background: C.crd, borderRadius: 5 }}>{cycErr}</div>}
           <button className="abtn" onClick={addEdge} style={{ width: '100%', fontSize: 11 }}>+ Verbinden</button>
         </div>
 
@@ -135,7 +135,7 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
               <div style={{ padding: '7px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div aria-hidden="true" style={{ width: 17, height: 17, borderRadius: 4, background: bc + '20', border: `1px solid ${bc}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: bc, fontFamily: C.mono, flexShrink: 0 }}>{n.id}</div>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, color: C.br, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.name}</div>
-                <span style={{ fontSize: 9, fontFamily: C.mono, color: ic ? C.cr : C.yw, flexShrink: 0 }}>GP:{n.gp}</span>
+                <span style={{ fontSize: 9, fontFamily: C.mono, color: ic ? C.crT : C.ywT, flexShrink: 0 }}>GP:{n.gp}</span>
                 <button className="icn" onClick={() => setEditN(editN === n.id ? null : n.id)} aria-label="Bearbeiten" style={{ fontSize: 11 }}>✎</button>
                 <button className="del" onClick={() => removeNode(n.id)} aria-label={`Vorgang ${n.name} löschen`} style={{ fontSize: 12 }}>×</button>
               </div>
@@ -162,7 +162,7 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
             const ic = critSet.has(e.from) && critSet.has(e.to);
             return (
               <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: `1px solid var(--c-bd-soft)`, fontSize: 11, fontFamily: C.mono }}>
-                <span style={{ color: ic ? C.cr : C.ac }}>{e.from} → {e.to}</span>
+                <span style={{ color: ic ? C.crT : C.acT }}>{e.from} → {e.to}</span>
                 <button className="del" onClick={() => removeEdge(e.id)} aria-label={`Verbindung ${e.from} → ${e.to} löschen`} style={{ fontSize: 11 }}>×</button>
               </div>
             );
@@ -172,7 +172,7 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
 
         <div className="card" style={{ borderLeft: `3px solid ${C.cr}` }}>
           <div style={{ fontSize: 10, color: C.mu, marginBottom: 3 }}>Gesamtdauer</div>
-          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: C.mono, color: C.cr }}>{totalDur} {np.unit}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: C.mono, color: C.crT }}>{totalDur} {np.unit}</div>
           <div style={{ fontSize: 10, color: C.mu, marginTop: 4 }}>Kritischer Pfad: {laid.filter(n => n.gp === 0).map(n => n.id).join(' → ')}</div>
         </div>
 
@@ -423,15 +423,15 @@ export function GanttTab({ project }: GanttTabProps) {
       <div style={{ padding: '9px 16px', background: C.sf, borderBottom: `1px solid ${C.bd}`, display: 'flex', gap: 20, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: C.tx }}>{unitLabel}-Plan</div>
         <div style={{ display: 'flex', gap: 14, fontSize: 11, color: C.mu, flexWrap: 'wrap' }}>
-          {ps && <span>Start: <time dateTime={project.startDate} style={{ color: C.ac, fontFamily: C.mono }}>{ps.toLocaleDateString('de-DE')}</time></span>}
-          {endDate && <span>Ende: <time style={{ color: C.ac, fontFamily: C.mono }}>{endDate.toLocaleDateString('de-DE')}</time></span>}
-          <span>Dauer: <span style={{ color: C.ac, fontFamily: C.mono }}>{totalDur} {unitLabel}</span></span>
+          {ps && <span>Start: <time dateTime={project.startDate} style={{ color: C.acT, fontFamily: C.mono }}>{ps.toLocaleDateString('de-DE')}</time></span>}
+          {endDate && <span>Ende: <time style={{ color: C.acT, fontFamily: C.mono }}>{endDate.toLocaleDateString('de-DE')}</time></span>}
+          <span>Dauer: <span style={{ color: C.acT, fontFamily: C.mono }}>{totalDur} {unitLabel}</span></span>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, fontSize: 10, color: C.mu }}>
-          <span><span style={{ color: C.cr }}>■</span> Kritisch (GP=0)</span>
-          <span><span style={{ color: C.ac }}>■</span> Unkritisch</span>
-          <span><span style={{ color: C.yw }}>▭</span> Puffer</span>
-          {todayOff !== null && <span><span style={{ color: C.ac }}>│</span> Heute</span>}
+          <span><span style={{ color: C.crT }}>■</span> Kritisch (GP=0)</span>
+          <span><span style={{ color: C.acT }}>■</span> Unkritisch</span>
+          <span><span style={{ color: C.ywT }}>▭</span> Puffer</span>
+          {todayOff !== null && <span><span style={{ color: C.acT }}>│</span> Heute</span>}
           <span style={{ opacity: .5 }}>⠿ Zeile ziehen</span>
         </div>
       </div>
@@ -474,7 +474,7 @@ export function GanttTab({ project }: GanttTabProps) {
                 const isT = todayOff === i;
                 return (
                   <div key={i} style={{ width: CW, flexShrink: 0, borderRight: `1px solid var(--c-bd-soft)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: isT ? C.acd : 'transparent', transition: 'background .15s' }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: isT ? C.ac : `color-mix(in srgb, ${C.ac} 50%, transparent)`, fontFamily: C.mono }}>{np.unit}{i}</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: isT ? C.acT : `color-mix(in srgb, ${C.ac} 50%, transparent)`, fontFamily: C.mono }}>{np.unit}{i}</div>
                     <div style={{ fontSize: 8, color: isT ? `color-mix(in srgb, ${C.ac} 80%, transparent)` : C.mu, fontFamily: C.mono, marginTop: 1 }}>
                       {d ? d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '–'}
                     </div>
@@ -507,7 +507,7 @@ export function GanttTab({ project }: GanttTabProps) {
                   <div title={`${n.name}\n${startD?.toLocaleDateString('de-DE')} → ${endD?.toLocaleDateString('de-DE')}\nDauer: ${n.d} ${np.unit} · Puffer: ${n.gp} ${np.unit}`}
                     style={{ position: 'absolute', left: barLeft, top: '50%', transform: 'translateY(-50%)', width: barW, height: 22, background: ic ? `${bc}35` : `${bc}22`, border: `1.5px solid ${bc}`, borderRadius: 5, display: 'flex', alignItems: 'center', paddingLeft: 7, overflow: 'hidden', boxShadow: ic ? `0 0 8px ${bc}25` : 'none' }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: bc, whiteSpace: 'nowrap', fontFamily: C.mono }}>{n.d}{np.unit}</span>
-                    {n.gp > 0 && <span style={{ fontSize: 9, color: C.yw, marginLeft: 5, opacity: .8 }}>+{n.gp}</span>}
+                    {n.gp > 0 && <span style={{ fontSize: 9, color: C.ywT, marginLeft: 5, opacity: .8 }}>+{n.gp}</span>}
                   </div>
                   {bufW > 0 && (
                     <div style={{ position: 'absolute', left: barLeft + barW, top: '50%', transform: 'translateY(-50%)', width: bufW, height: 10, background: `color-mix(in srgb, ${C.yw} 9%, transparent)`, border: `1px dashed color-mix(in srgb, ${C.yw} 31%, transparent)`, borderRadius: 3 }}

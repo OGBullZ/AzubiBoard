@@ -95,7 +95,7 @@ function ProjectCardImpl({ project, users, onClick, onUpdate }: ProjectCardProps
           title="Zum Projekt öffnen">
           <Ring pct={pct} size={42} stroke={4} color={pct === 100 ? C.gr : C.ac} />
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: pct === 100 ? C.gr : C.ac, fontFamily: C.mono, lineHeight: 1 }}>{pct}</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: pct === 100 ? C.grT : C.acT, fontFamily: C.mono, lineHeight: 1 }}>{pct}</span>
           </div>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -104,7 +104,7 @@ function ProjectCardImpl({ project, users, onClick, onUpdate }: ProjectCardProps
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
             <StatusBadge status={project.status} />
-            {active > 0 && <span style={{ fontSize: 9, color: C.ac, background: C.acd, borderRadius: 4, padding: '1px 5px', fontFamily: C.mono, fontWeight: 700 }}>▶ {active}</span>}
+            {active > 0 && <span style={{ fontSize: 9, color: C.acT, background: C.acd, borderRadius: 4, padding: '1px 5px', fontFamily: C.mono, fontWeight: 700 }}>▶ {active}</span>}
             {project.deadline && (() => {
               const diff = dayDiffLocal(project.deadline);
               return diff <= 14 ? <span style={{ fontSize: 9, color: urgencyColor(diff), fontFamily: C.mono, fontWeight: 700 }}>{urgencyLabel(diff)}</span> : null;
@@ -154,7 +154,7 @@ function ProjectCardImpl({ project, users, onClick, onUpdate }: ProjectCardProps
                     {t.status === 'in_progress' && <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.ac }} />}
                   </button>
                   <span style={{ fontSize: 14, color: C.textPrimary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {t.status === 'in_progress' && <span style={{ fontSize: 8, color: C.ac, marginRight: 3 }}>▶</span>}
+                    {t.status === 'in_progress' && <span style={{ fontSize: 8, color: C.acT, marginRight: 3 }}>▶</span>}
                     {t.text}
                   </span>
                   {t.deadline && <span style={{ fontSize: 9, fontFamily: C.mono, color: C.textSecondary, flexShrink: 0 }}>{fmtDate(t.deadline)}</span>}
@@ -184,7 +184,7 @@ function ProjectCardImpl({ project, users, onClick, onUpdate }: ProjectCardProps
             </div>
           )}
           <button onClick={e => { e.stopPropagation(); onClick?.(); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: C.ac, fontSize: 11, fontWeight: 700, padding: '2px 0' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: C.acT, fontSize: 11, fontWeight: 700, padding: '2px 0' }}>
             <IcoChevron size={11} /> Vollständig öffnen
           </button>
         </div>

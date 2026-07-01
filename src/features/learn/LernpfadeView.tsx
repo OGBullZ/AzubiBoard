@@ -89,7 +89,7 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
           <div style={{ display: 'flex', gap: 6 }}>
             <button className="btn" onClick={onEditPath} style={{ fontSize: 11, padding: '4px 10px' }}>✎ Pfad</button>
             <button className="btn" onClick={onAiSuggest}
-              style={{ fontSize: 11, padding: '4px 10px', color: C.ac, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)` }}
+              style={{ fontSize: 11, padding: '4px 10px', color: C.acT, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)` }}
               title="KI-Lernziele vorschlagen">🤖 KI</button>
             <button className="abtn" onClick={onAddNode} style={{ fontSize: 11, padding: '4px 10px' }}>+ Lernziel</button>
           </div>
@@ -148,7 +148,7 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: textColor, marginBottom: node.description ? 3 : 0 }}>
                         {node.title}
-                        {done && <span style={{ marginLeft: 8, fontSize: 10, color: C.gr, fontWeight: 600 }}>Abgeschlossen</span>}
+                        {done && <span style={{ marginLeft: 8, fontSize: 10, color: C.grT, fontWeight: 600 }}>Abgeschlossen</span>}
                         {locked && <span style={{ marginLeft: 8, fontSize: 10, color: C.mu, fontWeight: 600 }}>Gesperrt</span>}
                       </div>
                       {node.description && <div style={{ fontSize: 12, color: C.mu, lineHeight: 1.5 }}>{node.description}</div>}
@@ -157,7 +157,7 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
                           Voraussetzung: {node.prereqs.map((pid: Id) => {
                             const pre = path.nodes.find((n: LearningPathNode) => n.id === pid);
                             return pre ? (
-                              <span key={pid} style={{ marginRight: 6, color: progress[pid]?.completed ? C.gr : C.yw }}>
+                              <span key={pid} style={{ marginRight: 6, color: progress[pid]?.completed ? C.grT : C.ywT }}>
                                 {progress[pid]?.completed ? '✓' : '○'} {pre.title}
                               </span>
                             ) : null;
@@ -202,7 +202,7 @@ function NodeModal({ node, done, onComplete, onClose }: NodeModalProps) {
         <span className="tag" style={{ background: C.sf2, color: C.mu, border: `1px solid ${C.bd}` }}>
           {TYPE_ICON[node.type as string]} {node.type === 'article' ? 'Artikel' : node.type === 'link' ? 'Link' : node.type === 'quiz' ? 'Quiz' : 'Aufgabe'}
         </span>
-        {done && <span className="tag" style={{ background: 'var(--st-green-bg)', color: C.gr, border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)` }}>✓ Abgeschlossen</span>}
+        {done && <span className="tag" style={{ background: 'var(--st-green-bg)', color: C.grT, border: `1px solid color-mix(in srgb, ${C.gr} 25%, transparent)` }}>✓ Abgeschlossen</span>}
       </div>
 
       {node.description && (
@@ -211,7 +211,7 @@ function NodeModal({ node, done, onComplete, onClose }: NodeModalProps) {
 
       {node.content && node.type === 'link' && (
         <a href={node.content} target="_blank" rel="noreferrer"
-          style={{ display: 'block', padding: '10px 14px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, fontSize: 13, color: C.ac, marginBottom: 16, wordBreak: 'break-all' }}>
+          style={{ display: 'block', padding: '10px 14px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8, fontSize: 13, color: C.acT, marginBottom: 16, wordBreak: 'break-all' }}>
           🔗 {node.content}
         </a>
       )}
@@ -520,7 +520,7 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.mu }}>
                       <span>{stats.done} / {stats.total} Lernziele</span>
-                      <span style={{ color: stats.pct === 100 ? C.gr : color, fontWeight: 700 }}>{stats.pct}%</span>
+                      <span style={{ color: stats.pct === 100 ? C.grT : color, fontWeight: 700 }}>{stats.pct}%</span>
                     </div>
                   </div>
                 );

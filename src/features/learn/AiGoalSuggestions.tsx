@@ -110,7 +110,7 @@ export default function AiGoalSuggestions({ lehrjahr, existingTitles = [], onAdd
           </Field>
 
           {err && (
-            <div style={{ background: 'var(--c-crd)', border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: C.cr, marginBottom: 12 }}>
+            <div style={{ background: 'var(--c-crd)', border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: C.crT, marginBottom: 12 }}>
               ⚠ {err}
             </div>
           )}
@@ -135,7 +135,7 @@ export default function AiGoalSuggestions({ lehrjahr, existingTitles = [], onAdd
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ fontSize: 13, color: C.mu }}>
               <span style={{ fontWeight: 700, color: C.br }}>{suggestions.length}</span> Vorschläge ·{' '}
-              <span style={{ color: C.ac }}>{lehrjahr}. Lehrjahr</span>
+              <span style={{ color: C.acT }}>{lehrjahr}. Lehrjahr</span>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn" onClick={() => setSelected(new Set(suggestions.map((_, i) => i)))}

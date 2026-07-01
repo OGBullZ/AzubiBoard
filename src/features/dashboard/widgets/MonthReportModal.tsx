@@ -134,8 +134,8 @@ export function MonthReportModal({ projects, users, reports, onClose }: MonthRep
                     <Avatar name={r.azubi.name} url={r.azubi.avatar_url} size={22} />
                     <span style={{ fontSize: 13, fontWeight: 600, color: C.br }}>{r.azubi.name}</span>
                   </div>
-                  <div style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: r.hours > 0 ? C.gr : C.mu }}>{r.hours.toFixed(1)}h</div>
-                  <div style={{ fontFamily: C.mono, fontSize: 13, color: r.done > 0 ? C.ac : C.mu }}>{r.done}</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: r.hours > 0 ? C.grT : C.mu }}>{r.hours.toFixed(1)}h</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 13, color: r.done > 0 ? C.acT : C.mu }}>{r.done}</div>
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                     {r.reports.length === 0 ? <span style={{ fontSize: 10, color: C.mu }}>–</span> : r.reports.slice(0,3).map(rep => {
                       const clr = ({ draft: C.mu, submitted: C.ac, reviewed: C.yw, signed: C.gr } as Record<string, string>)[rep.status || ''] || C.mu;
@@ -147,8 +147,8 @@ export function MonthReportModal({ projects, users, reports, onClose }: MonthRep
               ))}
               <div style={{ padding: '9px 14px', borderTop: `1px solid ${C.bd}`, display: 'flex', gap: 20 }}>
                 <span style={{ fontSize: 11, color: C.mu }}>Gesamt:</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.gr, fontFamily: C.mono }}>{rows.reduce((s,r) => s+r.hours,0).toFixed(1)}h</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.ac, fontFamily: C.mono }}>{rows.reduce((s,r) => s+r.done,0)} Aufgaben</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.grT, fontFamily: C.mono }}>{rows.reduce((s,r) => s+r.hours,0).toFixed(1)}h</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.acT, fontFamily: C.mono }}>{rows.reduce((s,r) => s+r.done,0)} Aufgaben</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.mu, fontFamily: C.mono }}>{rows.reduce((s,r) => s+r.reports.length,0)} Berichte</span>
               </div>
             </div>

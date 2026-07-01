@@ -31,8 +31,8 @@ function DeadlineWidgetImpl({ projects, userId, isAusbilder, onOpen }: DeadlineW
   );
 
   const groups = [
-    { label: 'Heute & Überfällig', items: items.filter(i => i.diff <= 0), color: C.cr },
-    { label: 'Diese Woche',        items: items.filter(i => i.diff > 0 && i.diff <= 7),  color: C.yw },
+    { label: 'Heute & Überfällig', items: items.filter(i => i.diff <= 0), color: C.crT },
+    { label: 'Diese Woche',        items: items.filter(i => i.diff > 0 && i.diff <= 7),  color: C.ywT },
     { label: 'Nächste Woche',      items: items.filter(i => i.diff > 7 && i.diff <= 14), color: C.textSecondary },
     { label: 'Später',             items: items.filter(i => i.diff > 14),                color: C.textSecondary },
   ].filter(g => g.items.length > 0);

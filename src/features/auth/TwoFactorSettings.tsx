@@ -89,7 +89,7 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
   if (recovery) {
     return (
       <div style={{ padding: 14, background: C.sf2, border: `1px solid color-mix(in srgb, ${C.gr} 33%, transparent)`, borderRadius: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.gr, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.grT, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           ✓ 2FA erfolgreich aktiviert
         </div>
         <div style={{ fontSize: 12, color: C.tx, marginBottom: 10, lineHeight: 1.55 }}>
@@ -145,7 +145,7 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
         <input value={code} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCode(e.target.value)} placeholder="123456" maxLength={10}
           inputMode="numeric" autoComplete="one-time-code"
           style={{ width: '100%', padding: '10px 14px', fontSize: 17, letterSpacing: 4, textAlign: 'center', fontFamily: C.mono, border: `1px solid ${C.bd2}`, borderRadius: 7, background: C.sf, color: C.br, marginBottom: 10, boxSizing: 'border-box' }} />
-        {err && <div style={{ fontSize: 11, color: C.cr, marginBottom: 8 }}>⚠ {err}</div>}
+        {err && <div style={{ fontSize: 11, color: C.crT, marginBottom: 8 }}>⚠ {err}</div>}
         <div style={{ display: 'flex', gap: 7, justifyContent: 'flex-end' }}>
           <button onClick={() => { setStage('idle'); setSecret(null); setQrUrl(null); setCode(''); setErr(null); }} className="btn" style={{ fontSize: 11 }} disabled={busy}>Abbrechen</button>
           <button onClick={verifySetup} className="abtn" style={{ fontSize: 11 }} disabled={busy}>
@@ -168,7 +168,7 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
         <input value={code} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCode(e.target.value)} placeholder="123456 oder Recovery-Code" maxLength={11}
           inputMode="numeric" autoComplete="one-time-code"
           style={{ width: '100%', padding: '10px 14px', fontSize: 15, letterSpacing: 2, textAlign: 'center', fontFamily: C.mono, border: `1px solid ${C.bd2}`, borderRadius: 7, background: C.sf, color: C.br, marginBottom: 10, boxSizing: 'border-box' }} />
-        {err && <div style={{ fontSize: 11, color: C.cr, marginBottom: 8 }}>⚠ {err}</div>}
+        {err && <div style={{ fontSize: 11, color: C.crT, marginBottom: 8 }}>⚠ {err}</div>}
         <div style={{ display: 'flex', gap: 7, justifyContent: 'flex-end' }}>
           <button onClick={() => { setStage('idle'); setPw(''); setCode(''); setErr(null); }} className="btn" style={{ fontSize: 11 }} disabled={busy}>Abbrechen</button>
           <button onClick={disable2FA} disabled={busy}
@@ -193,11 +193,11 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
               : 'Nicht aktiv — empfohlen für Ausbilder-Accounts'}
           </div>
         </div>
-        <span style={{ fontSize: 10, color: status.enabled ? C.gr : C.mu, fontWeight: 700, textTransform: 'uppercase' }}>
+        <span style={{ fontSize: 10, color: status.enabled ? C.grT : C.mu, fontWeight: 700, textTransform: 'uppercase' }}>
           ● {status.enabled ? 'AN' : 'AUS'}
         </span>
       </div>
-      {err && <div style={{ fontSize: 11, color: C.cr, marginBottom: 8 }}>⚠ {err}</div>}
+      {err && <div style={{ fontSize: 11, color: C.crT, marginBottom: 8 }}>⚠ {err}</div>}
       <div style={{ display: 'flex', gap: 7 }}>
         {!status.enabled && (
           <button onClick={startSetup} className="abtn" style={{ fontSize: 11 }} disabled={busy}>
@@ -206,7 +206,7 @@ export default function TwoFactorSettings({ showToast }: TwoFactorSettingsProps)
         )}
         {status.enabled && (
           <button onClick={() => setStage('disable')} className="btn"
-            style={{ fontSize: 11, color: C.cr, borderColor: `color-mix(in srgb, ${C.cr} 33%, transparent)` }}>
+            style={{ fontSize: 11, color: C.crT, borderColor: `color-mix(in srgb, ${C.cr} 33%, transparent)` }}>
             Deaktivieren …
           </button>
         )}

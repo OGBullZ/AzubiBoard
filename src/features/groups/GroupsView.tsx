@@ -83,7 +83,7 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div>
                     <h2 style={{ fontSize: 14, fontWeight: 800, color: C.br, margin: 0, marginBottom: 5 }}>{g.name}</h2>
-                    <span className="tag" style={{ background: C.acd, color: C.ac, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)` }}>
+                    <span className="tag" style={{ background: C.acd, color: C.acT, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)` }}>
                       {g.type === 'team' ? '👥 Team' : '🏢 Abteilung'}
                     </span>
                   </div>
@@ -92,7 +92,7 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
 
                 {canManage && (g.requests || []).length > 0 && (
                   <div style={{ marginBottom: 12, padding: '9px 10px', background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, borderRadius: 8 }}>
-                    <div style={{ fontSize: 10, color: C.ac, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 800, marginBottom: 7 }}>
+                    <div style={{ fontSize: 10, color: C.acT, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 800, marginBottom: 7 }}>
                       Offene Beitritts-Anfragen ({(g.requests || []).length})
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -131,7 +131,7 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
                               <div style={{ fontSize: 10, color: C.mu }}>{u.email}</div>
                             </div>
                             {activeCount > 0 && (
-                              <span style={{ fontSize: 9, fontWeight: 700, background: C.acd, color: C.ac, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, padding: '2px 6px', borderRadius: 5, fontFamily: C.mono }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, background: C.acd, color: C.acT, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)`, padding: '2px 6px', borderRadius: 5, fontFamily: C.mono }}>
                                 {activeCount} Proj.
                               </span>
                             )}
@@ -169,10 +169,10 @@ export function GroupsView({ groups, users, projects, onUpdateGroups, showToast,
                   style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 11px', borderRadius: 8, background: form.members.includes(u.id) ? C.acd : C.sf2, border: `1px solid ${form.members.includes(u.id) ? C.ac : C.bd2}`, cursor: 'pointer', transition: 'all .15s', textAlign: 'left' }}>
                   <Avatar name={u.name} size={26} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: form.members.includes(u.id) ? C.ac : C.br }}>{u.name}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: form.members.includes(u.id) ? C.acT : C.br }}>{u.name}</div>
                     <div style={{ fontSize: 10, color: C.mu }}>{u.email}</div>
                   </div>
-                  {form.members.includes(u.id) && <span style={{ color: C.ac, fontSize: 14 }}>✓</span>}
+                  {form.members.includes(u.id) && <span style={{ color: C.acT, fontSize: 14 }}>✓</span>}
                 </button>
               ))}
             </div>

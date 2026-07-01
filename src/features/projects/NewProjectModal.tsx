@@ -92,10 +92,10 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
           return (
             <div key={s} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 26, height: 26, borderRadius: '50%', background: done ? C.gr : active ? C.ac : 'var(--c-sf3)', border: `2px solid ${done ? C.gr : active ? C.ac : 'var(--c-bd2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: (done || active) ? '#fff' : C.mu, transition: 'all .2s', flexShrink: 0 }}>
+                <div style={{ width: 26, height: 26, borderRadius: '50%', background: done ? C.gr : active ? C.ac : 'var(--c-sf3)', border: `2px solid ${done ? C.gr : active ? C.ac : 'var(--c-bd2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: (done || active) ? C.onAc : C.mu, transition: 'all .2s', flexShrink: 0 }}>
                   {done ? '✓' : n}
                 </div>
-                <span style={{ fontSize: 10, fontWeight: active ? 700 : 400, color: active ? C.ac : done ? C.gr : C.mu, whiteSpace: 'nowrap' }}>{s}</span>
+                <span style={{ fontSize: 10, fontWeight: active ? 700 : 400, color: active ? C.acT : done ? C.grT : C.mu, whiteSpace: 'nowrap' }}>{s}</span>
               </div>
               {i < STEPS.length - 1 && (
                 <div style={{ flex: 1, height: 2, background: done ? C.gr : 'var(--c-bd2)', margin: '0 6px', marginTop: -14, transition: 'background .3s' }} />
@@ -105,7 +105,7 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
         })}
       </div>
 
-      {err && <div role="alert" style={{ fontSize: 12, color: C.cr, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, borderRadius: 7, padding: '8px 12px', marginBottom: 14 }}>⚠ {err}</div>}
+      {err && <div role="alert" style={{ fontSize: 12, color: C.crT, background: C.crd, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, borderRadius: 7, padding: '8px 12px', marginBottom: 14 }}>⚠ {err}</div>}
 
       {step === 1 && (
         <div style={{ animation: 'fadeUp .15s ease', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -156,10 +156,10 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
                     style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 13px', borderRadius: 10, background: sel ? C.acd : 'var(--c-sf2)', border: `2px solid ${sel ? C.ac : 'var(--c-bd2)'}`, cursor: 'pointer', transition: 'all .12s', textAlign: 'left' }}>
                     <Avatar name={u2.name} size={34} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: sel ? C.ac : C.br }}>{u2.name}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: sel ? C.acT : C.br }}>{u2.name}</div>
                       <div style={{ fontSize: 10, color: C.mu }}>{u2.email} · LJ {u2.apprenticeship_year || 1}</div>
                     </div>
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${sel ? C.ac : 'var(--c-bd2)'}`, background: sel ? C.ac : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 11, fontWeight: 800, color: '#fff', transition: 'all .12s' }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${sel ? C.ac : 'var(--c-bd2)'}`, background: sel ? C.ac : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 11, fontWeight: 800, color: C.onAc, transition: 'all .12s' }}>
                       {sel ? '✓' : ''}
                     </div>
                   </button>
@@ -221,8 +221,8 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
             </div>
             {form.links.map(l => (
               <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '3px 0', borderBottom: `1px solid var(--c-bd)22` }}>
-                <span style={{ fontSize: 10, color: C.ac }}>🔗</span>
-                <span style={{ flex: 1, color: C.ac, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title || l.url}</span>
+                <span style={{ fontSize: 10, color: C.acT }}>🔗</span>
+                <span style={{ flex: 1, color: C.acT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title || l.url}</span>
                 <button className="del" onClick={() => u('links', form.links.filter(x => x.id !== l.id))} style={{ fontSize: 12 }}>×</button>
               </div>
             ))}

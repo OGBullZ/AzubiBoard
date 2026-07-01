@@ -62,7 +62,7 @@ function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: string |
         <div style={{ textAlign: 'center', minWidth: 80 }}>
           {design === 'beta' && !over
             ? <FlapDigits value={String(Math.max(0, days)).padStart(3, '0')} label="Tage bis zur Prüfung" />
-            : <div style={{ fontSize: 32, fontWeight: 900, color: over ? C.cr : urgent ? C.yw : C.gr, fontFamily: C.mono, lineHeight: 1 }}>
+            : <div style={{ fontSize: 32, fontWeight: 900, color: over ? C.crT : urgent ? C.ywT : C.grT, fontFamily: C.mono, lineHeight: 1 }}>
                 {over ? 'Past' : days}
               </div>}
           {!over && <div style={{ fontSize: 10, color: C.mu, marginTop: design === 'beta' ? 4 : 0 }}>Tage</div>}
@@ -91,7 +91,7 @@ function GoalForm({ initial, onSave, onCancel }: { initial?: Goal; onSave: (goal
   const valid = form.title.trim().length > 0;
   return (
     <div className="card" style={{ marginBottom: 10, background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)` }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: C.ac, marginBottom: 10, textTransform: 'uppercase', letterSpacing: .8 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: C.acT, marginBottom: 10, textTransform: 'uppercase', letterSpacing: .8 }}>
         {initial ? 'Lernziel bearbeiten' : 'Neues Lernziel'}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 160px', gap: 8, marginBottom: 8 }}>
@@ -186,12 +186,12 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
         )}
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: !isAusbilder && myStatus === 'confirmed' ? C.gr : C.br, textDecoration: !isAusbilder && myStatus === 'confirmed' ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: !isAusbilder && myStatus === 'confirmed' ? C.grT : C.br, textDecoration: !isAusbilder && myStatus === 'confirmed' ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {goal.title}
           </div>
           <div style={{ fontSize: 10, color: C.mu, marginTop: 1 }}>
             <span style={{ padding: '1px 6px', borderRadius: 3, background: C.sf3, border: `1px solid ${C.bd}`, marginRight: 5 }}>{goal.category}</span>
-            {isAusbilder && learnedCount > 0 && <span style={{ color: C.ac }}>● {learnedCount} gelernt</span>}
+            {isAusbilder && learnedCount > 0 && <span style={{ color: C.acT }}>● {learnedCount} gelernt</span>}
             {!isAusbilder && myStatus !== 'open' && <span style={{ color: myCfg.c, fontWeight: 700 }}>{myCfg.l}</span>}
           </div>
         </div>
@@ -210,7 +210,7 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
             <button onClick={() => onEdit(goal)} title="Bearbeiten"
               style={{ width: 24, height: 24, borderRadius: 5, border: `1px solid ${C.bd2}`, background: C.sf3, color: C.mu, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✏</button>
             <button onClick={() => onDelete(goal.id)} title="Löschen"
-              style={{ width: 24, height: 24, borderRadius: 5, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, background: 'transparent', color: C.cr, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              style={{ width: 24, height: 24, borderRadius: 5, border: `1px solid color-mix(in srgb, ${C.cr} 19%, transparent)`, background: 'transparent', color: C.crT, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
         )}
       </div>
@@ -255,7 +255,7 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
                         style={{ fontSize: 10, padding: '2px 8px', background: C.gr, borderColor: C.gr }}>✓ Bestätigen</button>
                     )}
                     {st === 'confirmed' && (
-                      <button onClick={() => confirmUser(a.id)} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, border: `1px solid ${C.gr}`, background: 'transparent', color: C.gr, cursor: 'pointer' }}>Rücksetzen</button>
+                      <button onClick={() => confirmUser(a.id)} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, border: `1px solid ${C.gr}`, background: 'transparent', color: C.grT, cursor: 'pointer' }}>Rücksetzen</button>
                     )}
                     {st === 'open' && (
                       <span style={{ fontSize: 10, color: C.mu }}>–</span>
@@ -428,8 +428,8 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
           <div style={{ width: 200 }}>
             <ProgressBar value={myPct} color={myPct === 100 ? C.gr : C.ac} height={7} />
             <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 10, color: C.mu }}>
-              <span style={{ color: C.ac }}>◑ {myLearned} gelernt</span>
-              <span style={{ color: C.gr }}>● {myConfirmed} bestätigt</span>
+              <span style={{ color: C.acT }}>◑ {myLearned} gelernt</span>
+              <span style={{ color: C.grT }}>● {myConfirmed} bestätigt</span>
             </div>
           </div>
         )}
@@ -454,12 +454,12 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
         <span style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .8 }}>Jahr:</span>
         {['all', '1', '2', '3'].map(v => (
           <button key={v} onClick={() => setFilterY(v)}
-            style={{ padding: '3px 10px', fontSize: 11, borderRadius: 5, border: `1px solid ${filterY === v ? C.ac : C.bd2}`, background: filterY === v ? C.acd : C.sf2, color: filterY === v ? C.ac : C.mu, cursor: 'pointer' }}>
+            style={{ padding: '3px 10px', fontSize: 11, borderRadius: 5, border: `1px solid ${filterY === v ? C.ac : C.bd2}`, background: filterY === v ? C.acd : C.sf2, color: filterY === v ? C.acT : C.mu, cursor: 'pointer' }}>
             {v === 'all' ? 'Alle' : `${v}. LJ`}
           </button>
         ))}
         <span style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .8, marginLeft: 8 }}>Kategorie:</span>
-        <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} aria-label="Nach Kategorie filtern"
           style={{ padding: '3px 8px', fontSize: 11, borderRadius: 5, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu }}>
           <option value="all">Alle</option>
           {CATS.map(c => <option key={c} value={c}>{c}</option>)}

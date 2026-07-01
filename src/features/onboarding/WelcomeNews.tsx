@@ -123,16 +123,16 @@ export default function WelcomeNews({ data, currentUser, onClose, navigate }: We
             </div>
           ) : isStaff ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '24px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.gr} 15%, transparent)`, background: `color-mix(in srgb, ${C.gr} 3%, transparent)` }}>
-              <div style={{ fontSize: 28, color: C.gr }} aria-hidden="true">✓</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: C.gr }}>Alles unter Kontrolle</div>
+              <div style={{ fontSize: 28, color: C.grT }} aria-hidden="true">✓</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: C.grT }}>Alles unter Kontrolle</div>
               <div style={{ fontSize: 13, color: C.mu, textAlign: 'center', lineHeight: 1.6 }}>
                 Keine Berichte zu prüfen — alle Azubis im Plan.
               </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '24px 16px', borderRadius: 10, border: `1px solid color-mix(in srgb, ${C.gr} 15%, transparent)`, background: `color-mix(in srgb, ${C.gr} 3%, transparent)` }}>
-              <div style={{ fontSize: 28, color: C.gr }} aria-hidden="true">✓</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: C.gr }}>Alles im grünen Bereich!</div>
+              <div style={{ fontSize: 28, color: C.grT }} aria-hidden="true">✓</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: C.grT }}>Alles im grünen Bereich!</div>
               <div style={{ fontSize: 13, color: C.mu, textAlign: 'center', lineHeight: 1.6 }}>
                 Keine offenen Aufgaben, dein Bericht ist abgegeben.
               </div>

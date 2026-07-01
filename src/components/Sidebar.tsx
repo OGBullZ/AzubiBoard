@@ -110,13 +110,14 @@ export function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImpor
         {navGroups.map((group, gi) => (
           <div key={group.label} style={{ marginTop: gi === 0 ? 0 : 8 }}>
             {!collapsed && (
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: 1, padding: '6px 10px 4px', opacity: .7 }}>{group.label}</div>
+              /* a11y Pass 3: opacity .7 drückte --c-mu unter AA (2.6:1) — mu ist bereits gedämpft */
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: 1, padding: '6px 10px 4px' }}>{group.label}</div>
             )}
             {group.items.map(({ to, label, Icon: NavIcon }) => {
               const active = path === to || (to !== '/dashboard' && path.startsWith(to));
               return (
                 <button key={to} onClick={() => handleNav(to)} title={collapsed ? label : undefined}
-                  style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '9px' : '8px 10px', borderRadius: 8, border: 'none', background: active ? 'var(--c-acd)' : 'transparent', color: active ? 'var(--c-ac)' : 'var(--c-mu)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', marginBottom: 1, transition: 'all .12s', borderLeft: active ? '2px solid var(--c-ac)' : '2px solid transparent' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 9, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '9px' : '8px 10px', borderRadius: 8, border: 'none', background: active ? 'var(--c-acd)' : 'transparent', color: active ? 'var(--c-ac-text)' : 'var(--c-mu)', fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', marginBottom: 1, transition: 'all .12s', borderLeft: active ? '2px solid var(--c-ac)' : '2px solid transparent' }}
                   onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--c-sf2)'; e.currentTarget.style.color = 'var(--c-br)'; }}}
                   onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-mu)'; }}}>
                   <NavIcon size={14} />
@@ -203,7 +204,7 @@ export function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImpor
         </button>
 
         <button onClick={onLogout} title="Abmelden"
-          style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 7, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '8px' : '7px 10px', borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--c-cr)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 7, justifyContent: collapsed ? 'center' : 'flex-start', width: '100%', padding: collapsed ? '8px' : '7px 10px', borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--c-cr-text)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--c-crd)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
           <IcoLogout size={13} />
