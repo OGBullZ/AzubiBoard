@@ -60,7 +60,7 @@ function LabelsManager({ project, onUpdate }: { project: Project; onUpdate: Upda
           placeholder="Label-Name…" style={{ flex: '1 1 100px', minWidth: 80, fontSize: 12 }} />
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           {LABEL_PRESETS.map(c => (
-            <button key={c} onClick={() => setColor(c)}
+            <button key={c} onClick={() => setColor(c)} aria-label={`Label-Farbe ${c}`} aria-pressed={color === c}
               style={{ width: 18, height: 18, borderRadius: '50%', background: c, border: `2.5px solid ${color === c ? '#fff' : 'transparent'}`, outline: color === c ? `2px solid ${c}` : 'none', cursor: 'pointer', transition: 'outline .1s', padding: 0 }} />
           ))}
         </div>
@@ -74,7 +74,7 @@ function LabelsManager({ project, onUpdate }: { project: Project; onUpdate: Upda
           {labels.map((lb: Label) => (
             <div key={lb.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 5, background: lb.color + '22', border: `1.5px solid ${lb.color}60` }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color || undefined, display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: lb.color || undefined }}>{lb.name}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-br)' }}>{lb.name}</span>
               <button onClick={() => setDelLabel(lb)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: lb.color || undefined, fontSize: 13, lineHeight: 1, padding: '0 1px', opacity: .7, fontWeight: 700 }} title="Löschen">×</button>
             </div>
@@ -286,7 +286,7 @@ function BurndownTab({ project }: { project: any }) {
         </svg>
         <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center', fontSize: 10, color: C.mu }}>
           <span style={{ color: C.ywT }}>│</span> Heute ·
-          <span style={{ color: C.bd2 }}>- -</span> Ideallinie ·
+          <span style={{ color: C.mu }}>- -</span> Ideallinie ·
           <span style={{ color: C.acT }}>──</span> Tatsächlicher Fortschritt
         </div>
       </div>
@@ -412,7 +412,7 @@ function RequirementsPopup({ project, onUpdate, onClose }: { project: any; onUpd
       )}
       {project.requirements.map((r: Requirement) => (
         <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--c-sf3)', border: `1px solid ${r.done ? `color-mix(in srgb, ${C.gr} 19%, transparent)` : 'var(--c-bd)'}`, borderRadius: 7, marginBottom: 5 }}>
-          <button onClick={() => toggle(r.id)} style={{ width: 17, height: 17, borderRadius: 4, border: `2px solid ${r.done ? C.gr : 'var(--c-bd2)'}`, background: r.done ? C.gr : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .12s' }}>
+          <button onClick={() => toggle(r.id)} aria-label={r.done ? `${r.text} als offen markieren` : `${r.text} als erfüllt markieren`} style={{ width: 17, height: 17, borderRadius: 4, border: `2px solid ${r.done ? C.gr : 'var(--c-bd2)'}`, background: r.done ? C.gr : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .12s' }}>
             {r.done && <IcoCheck size={9} style={{ color: '#fff' }} />}
           </button>
           <span style={{ flex: 1, fontSize: 13, color: r.done ? C.mu : C.br, textDecoration: r.done ? 'line-through' : 'none' }}>{r.text}</span>
@@ -545,7 +545,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
           </div>
         )}
 
-        <nav style={{ display: 'flex', gap: 2, overflowX: 'auto' }}>
+        <nav role="tablist" aria-label="Projektbereiche" style={{ display: 'flex', gap: 2, overflowX: 'auto' }}>
           {TABS.map(t => (
             <button key={t.k} role="tab" aria-selected={tab === t.k} onClick={() => setTab(t.k)}
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 7, fontSize: 11, fontWeight: 700, border: 'none', background: tab === t.k ? C.acd : 'transparent', color: tab === t.k ? C.acT : C.mu, flexShrink: 0, transition: 'all .12s' }}>
@@ -652,7 +652,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 label="Materialkosten"
                 value={`${totalCost.toFixed(2)} €`}
                 sub={`${project.materials.length} Position(en)`}
-                color={C.yw}
+                color={C.ywT}
                 Icon={IcoMaterial}
                 onClick={() => setPopup('materials')}
                 hint="Bearbeiten" />

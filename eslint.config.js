@@ -61,6 +61,16 @@ export default defineConfig([
         // → der Selector oben greift nicht. Zweiter Selector schließt das Schlupfloch (Bug-Hunt 6).
         selector: "BinaryExpression[operator=/^[!=]==$/] > ChainExpression > MemberExpression[property.name='id'][object.name='currentUser']",
         message: 'currentUser?.id mit sameId() vergleichen, nicht roh ===/!== — IDs sind je nach Modus string oder number (Bug-Hunt 3).',
+      }, {
+        // Bug-Hunt 7: die Regel oben fängt nur currentUser.id — Alias-Vergleiche (t.assignee === a.id,
+        // u.id === task.assignee) blieben unerkannt. User-Referenz-Felder sind daher generell geschützt:
+        // sie tragen im Blob string- und im API-Modus number-IDs.
+        selector: "BinaryExpression[operator=/^[!=]==$/] > MemberExpression[property.name=/^(assignee|user_id|userId|authorId)$/]",
+        message: 'User-Referenz-Felder (assignee/user_id/userId/authorId) mit sameId() vergleichen, nicht roh ===/!== — string/number-Drift zwischen Blob und API (Bug-Hunt 7).',
+      }, {
+        // Optional-Chaining-Variante (t?.assignee === …) — analog zum currentUser-Schlupfloch aus Bug-Hunt 6.
+        selector: "BinaryExpression[operator=/^[!=]==$/] > ChainExpression > MemberExpression[property.name=/^(assignee|user_id|userId|authorId)$/]",
+        message: 'User-Referenz-Felder (assignee/user_id/userId/authorId) mit sameId() vergleichen, nicht roh ===/!== — string/number-Drift zwischen Blob und API (Bug-Hunt 7).',
       }],
     },
   },

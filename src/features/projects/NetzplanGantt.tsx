@@ -181,7 +181,7 @@ export function NetzplanTab({ project, onUpdate }: NetzplanTabProps) {
 
       <div ref={contR} className="np-surface"
         style={{ flex: 1, background: C.bg, border: `1px solid ${C.bd}`, borderRadius: 10, overflow: 'hidden', position: 'relative', cursor: isDrag ? 'grabbing' : panR.current ? 'grab' : 'default' }}
-        role="img" aria-label="Netzplan Diagramm"
+        role="group" aria-label="Netzplan Diagramm"
         onWheel={e => { e.preventDefault(); setZoom(z => Math.min(Math.max(z * (e.deltaY > 0 ? .9 : 1.1), .1), 4)); }}
         onMouseDown={e => { if (e.altKey || e.button === 1) { e.preventDefault(); rectR.current = contR.current?.getBoundingClientRect() ?? null; panR.current = { sx: e.clientX - pan.x, sy: e.clientY - pan.y }; } }}
         onMouseMove={e => {
@@ -412,7 +412,7 @@ export function GanttTab({ project }: GanttTabProps) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', color: C.mu }}>
         <div style={{ fontSize: 28, marginBottom: 12, opacity: .3 }}>📊</div>
-        <div style={{ fontSize: 13, opacity: .5 }}>Zuerst Vorgänge im Netzplan erstellen</div>
+        <div style={{ fontSize: 13, color: C.mu }}>Zuerst Vorgänge im Netzplan erstellen</div>
       </div>
     );
   }

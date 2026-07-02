@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, getKW, getISOWeekMonday, fmtLocalDate } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday, fmtLocalDate, sameId } from '../../../lib/utils.js';
 import type { Task } from '../../../types';
 
 // Das Widget liest Felder, die das strikte Task-Schema nicht kennt
@@ -34,10 +34,10 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
     const ds = fmtLocalDate(d);                  // lokal, nicht UTC — sonst Bucket-Off-by-one in +Zeitzonen
     const isToday = ds === fmtLocalDate(now);
     const done = tasks.filter(t =>
-      (t.status === 'done' || t.done) && t.assignee === userId && t.deadline === ds
+      (t.status === 'done' || t.done) && sameId(t.assignee, userId) && t.deadline === ds
     ).length;
     const open = tasks.filter(t =>
-      t.status !== 'done' && !t.done && t.assignee === userId && t.deadline === ds
+      t.status !== 'done' && !t.done && sameId(t.assignee, userId) && t.deadline === ds
     ).length;
     return { l, d, ds, isToday, done, open, total: done + open };
   });
@@ -47,7 +47,7 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
     const ds = t.deadline;
     if (!ds) return false;
     const td = new Date(ds + 'T12:00:00');
-    return td >= mon && td < new Date(mon.getTime() + 7 * 86400000) && t.assignee === userId;
+    return td >= mon && td < new Date(mon.getTime() + 7 * 86400000) && sameId(t.assignee, userId);
   }).length;
 
   return (

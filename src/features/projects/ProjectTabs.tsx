@@ -20,8 +20,8 @@ const TASK_STATUS: Record<string, { label: string; color: string; bg: string; Ic
 };
 const STATUS_ORDER = ['in_progress','not_started','waiting','blocked','done'];
 const PRIORITY: Record<string, { l: string; c: string }> = {
-  high:   { l: 'Hoch',    c: C.cr },
-  medium: { l: 'Mittel',  c: C.yw },
+  high:   { l: 'Hoch',    c: C.crT },
+  medium: { l: 'Mittel',  c: C.ywT },
   low:    { l: 'Niedrig', c: C.mu },
 };
 
@@ -31,7 +31,7 @@ function mkTask(overrides: Partial<Task> = {}): Task {
 
 function LabelChip({ label, tiny = false }: { label: Label; tiny?: boolean }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: tiny ? 9 : 10, fontWeight: 700, color: '#fff', background: label.color || undefined, borderRadius: 4, padding: tiny ? '1px 5px' : '2px 7px', lineHeight: 1.3 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: tiny ? 9 : 10, fontWeight: 700, color: 'var(--c-br)', background: label.color ? `color-mix(in srgb, ${label.color} 24%, var(--c-sf2))` : undefined, border: label.color ? `1px solid color-mix(in srgb, ${label.color} 45%, transparent)` : undefined, borderRadius: 4, padding: tiny ? '1px 5px' : '2px 7px', lineHeight: 1.3 }}>
       {label.name}
     </span>
   );
@@ -140,7 +140,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   selected?: boolean;
   onToggleSelect?: (id: Id) => void;
 }) {
-  const assignee   = users.find((u: User) => u.id === task.assignee);
+  const assignee   = users.find((u: User) => sameId(u.id, task.assignee));
   const st         = TASK_STATUS[task.status ?? 'not_started'] || TASK_STATUS.not_started;
   const pr         = PRIORITY[task.priority ?? 'medium']  || PRIORITY.medium;
   const over       = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
@@ -150,22 +150,23 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   return (
     <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? `color-mix(in srgb, ${C.ac} 44%, transparent)` : isOpen ? `color-mix(in srgb, ${st.color} 31%, transparent)` : C.bd}`, background: selected ? 'var(--c-acd)' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer' }}
-        onClick={onToggle} role="button" tabIndex={0} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onToggle()}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer' }} onClick={onToggle}>
 
         {/* Bulk-Checkbox */}
         {onToggleSelect && (
-          <input type="checkbox" checked={!!selected} onChange={e => { e.stopPropagation(); onToggleSelect(task.id); }} onClick={e => e.stopPropagation()}
+          <input type="checkbox" checked={!!selected} aria-label={`${task.text || 'Aufgabe'} auswählen`} onChange={e => { e.stopPropagation(); onToggleSelect(task.id); }} onClick={e => e.stopPropagation()}
             style={{ width: 14, height: 14, flexShrink: 0, cursor: 'pointer', accentColor: C.ac }} />
         )}
 
         <button onClick={e => { e.stopPropagation(); onUpdate(task.id, { status: task.status === 'done' ? 'not_started' : 'done' }); }}
+          aria-label={task.status === 'done' ? 'Als offen markieren' : 'Als erledigt markieren'}
           style={{ width: 19, height: 19, borderRadius: 5, border: `2px solid ${st.color}`, background: task.status === 'done' ? C.gr : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .12s' }}>
           {task.status === 'done' && <IcoCheck size={10} style={{ color: '#fff' }} />}
         </button>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: task.status === 'done' ? C.mu : C.br, textDecoration: task.status === 'done' ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div role="button" tabIndex={0} aria-expanded={isOpen} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onToggle())}
+            style={{ fontSize: 13, fontWeight: 600, color: task.status === 'done' ? C.mu : C.br, textDecoration: task.status === 'done' ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {task.text || <span style={{ color: C.mu, fontStyle: 'italic' }}>Kein Titel</span>}
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -238,10 +239,10 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
                 Niemand
               </button>
               {users.map((u: User) => (
-                <button key={u.id} onClick={() => onUpdate(task.id, { assignee: u.id })} aria-pressed={task.assignee === u.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 6, background: task.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${task.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer', transition: 'all .12s' }}>
+                <button key={u.id} onClick={() => onUpdate(task.id, { assignee: u.id })} aria-pressed={sameId(task.assignee, u.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 6, background: sameId(task.assignee, u.id) ? C.acd : C.sf2, border: `1px solid ${sameId(task.assignee, u.id) ? C.ac : C.bd2}`, cursor: 'pointer', transition: 'all .12s' }}>
                   <Avatar name={u.name} size={16} />
-                  <span style={{ color: task.assignee === u.id ? C.acT : C.tx }}>{firstName(u.name)}</span>
+                  <span style={{ color: sameId(task.assignee, u.id) ? C.acT : C.tx }}>{firstName(u.name)}</span>
                 </button>
               ))}
             </div>
@@ -258,7 +259,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
                       const ids = task.labelIds || [];
                       onUpdate(task.id, { labelIds: active ? ids.filter((x: Id) => x !== lb.id) : [...ids, lb.id] });
                     }}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, border: `2px solid ${active ? lb.color : C.bd2}`, background: active ? lb.color + '22' : C.sf2, color: active ? (lb.color || undefined) : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, border: `2px solid ${active ? lb.color : C.bd2}`, background: active ? lb.color + '22' : C.sf2, color: active ? C.br : C.mu, cursor: 'pointer', transition: 'all .12s' }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: lb.color || undefined, display: 'inline-block', flexShrink: 0 }} />
                       {lb.name}
                       {active && <IcoCheck size={10} style={{ color: lb.color || undefined }} />}
@@ -423,7 +424,7 @@ function KanbanCard({ task, users, statusIdx, totalCols, onUpdate, onRemove }: {
   onUpdate: (id: Id, patch: Partial<Task>) => void;
   onRemove: (id: Id) => void;
 }) {
-  const assignee = users.find((u: User) => u.id === task.assignee);
+  const assignee = users.find((u: User) => sameId(u.id, task.assignee));
   const pr  = PRIORITY[task.priority ?? 'medium'] || PRIORITY.medium;
   const st  = TASK_STATUS[task.status ?? 'not_started'] || TASK_STATUS.not_started;
   const over = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
@@ -663,7 +664,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
 
   const activeWorkers = (project.tasks||[])
     .filter((t: Task) => t.status === 'in_progress' && t.assignee)
-    .map((t: Task) => ({ task: t, user: users.find((u: User) => u.id === t.assignee) }))
+    .map((t: Task) => ({ task: t, user: users.find((u: User) => sameId(u.id, t.assignee)) }))
     .filter((x: { task: Task; user?: User }) => x.user);
 
   return (
@@ -722,10 +723,10 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
             </div>
             <div style={{ display: 'flex', gap: 5, marginBottom: 7, flexWrap: 'wrap' }}>
               {assignable.map((u: User) => (
-                <button key={u.id} onClick={() => setNewTask((t: Task) => ({ ...t, assignee: t.assignee === u.id ? null : u.id }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 6, background: newTask.assignee === u.id ? C.acd : C.sf2, border: `1px solid ${newTask.assignee === u.id ? C.ac : C.bd2}`, cursor: 'pointer' }}>
+                <button key={u.id} onClick={() => setNewTask((t: Task) => ({ ...t, assignee: sameId(t.assignee, u.id) ? null : u.id }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 6, background: sameId(newTask.assignee, u.id) ? C.acd : C.sf2, border: `1px solid ${sameId(newTask.assignee, u.id) ? C.ac : C.bd2}`, cursor: 'pointer' }}>
                   <Avatar name={u.name} size={15} />
-                  <span style={{ color: newTask.assignee === u.id ? C.acT : C.tx }}>{firstName(u.name)}</span>
+                  <span style={{ color: sameId(newTask.assignee, u.id) ? C.acT : C.tx }}>{firstName(u.name)}</span>
                 </button>
               ))}
             </div>
@@ -843,15 +844,15 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
           <div><label>Bezeichnung</label><input value={form.name} onChange={e => setForm((f)=>({...f,name:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="z.B. HDMI-Kabel" /></div>
           <div>
             <label>Aufgabe</label>
-            <select value={form.taskId} onChange={e => setForm((f)=>({...f,taskId:e.target.value}))} style={{ appearance:'auto' }}>
+            <select value={form.taskId} aria-label="Aufgabe zuordnen" onChange={e => setForm((f)=>({...f,taskId:e.target.value}))} style={{ appearance:'auto' }}>
               <option value="">— keine Aufgabe —</option>
               {tasks.map((t: Task) => <option key={t.id} value={t.id}>{t.text || 'Unbenannte Aufgabe'}</option>)}
             </select>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '70px 90px auto', gap: 8, alignItems: 'flex-end' }}>
-          <div><label>Menge</label><input type="number" min="1" value={form.qty} onChange={e=>setForm((f)=>({...f,qty:e.target.value}))} /></div>
-          <div><label>Kosten €</label><input type="number" min="0" step="0.01" value={form.cost} onChange={e=>setForm((f)=>({...f,cost:e.target.value}))} /></div>
+          <div><label>Menge</label><input type="number" min="1" aria-label="Menge" value={form.qty} onChange={e=>setForm((f)=>({...f,qty:e.target.value}))} /></div>
+          <div><label>Kosten €</label><input type="number" min="0" step="0.01" aria-label="Kosten in Euro" value={form.cost} onChange={e=>setForm((f)=>({...f,cost:e.target.value}))} /></div>
           <button className="abtn" onClick={add} style={{ alignSelf:'flex-end',padding:'7px 12px' }}>+ Hinzufügen</button>
         </div>
       </div>
@@ -912,7 +913,7 @@ export function RequirementsTab({ project, onUpdate }: { project: Project; onUpd
       )}
       {(project.requirements||[]).map((r: Requirement) => (
         <div key={r.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',background:C.sf2,border:`1px solid ${r.done?`color-mix(in srgb, ${C.gr} 16%, transparent)`:C.bd}`,borderRadius:7,marginBottom:4,transition:'border-color .15s'}}>
-          <button onClick={()=>toggle(r.id)} style={{width:18,height:18,borderRadius:4,border:`2px solid ${r.done?C.gr:C.bd2}`,background:r.done?C.gr:'transparent',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .12s'}}>
+          <button onClick={()=>toggle(r.id)} aria-label={r.done ? `${r.text} als offen markieren` : `${r.text} als erfüllt markieren`} style={{width:18,height:18,borderRadius:4,border:`2px solid ${r.done?C.gr:C.bd2}`,background:r.done?C.gr:'transparent',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .12s'}}>
             {r.done && <IcoCheck size={10} style={{color:'#fff'}} />}
           </button>
           <div style={{flex:1,fontSize:13,color:r.done?C.mu:C.br,textDecoration:r.done?'line-through':'none'}}>{r.text}</div>
@@ -939,7 +940,7 @@ export function StepsTab({ project, onUpdate }: { project: Project; onUpdate: (i
       <div className="card" style={{marginBottom:12}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 145px',gap:8,marginBottom:8}}>
           <div><label>Titel</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Was wurde getan?" /></div>
-          <div><label>Datum</label><input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} /></div>
+          <div><label>Datum</label><input type="date" aria-label="Datum" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} /></div>
         </div>
         <label>Notiz / Erkenntnisse</label>
         <textarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="Begründungen, Methoden, Erkenntnisse…" />

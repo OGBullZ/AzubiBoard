@@ -55,9 +55,9 @@ export const C = {
 
 // ── Status-Konfiguration ─────────────────────────────────────
 export const ST = {
-  green:  { label: 'Abgeschlossen',   bg: 'var(--st-green-bg)',    c: C.gr },
-  yellow: { label: 'In Bearbeitung', bg: 'var(--c-ywd)',          c: C.yw },
-  red:    { label: 'Problem',        bg: 'var(--c-crd)',          c: C.cr },
+  green:  { label: 'Abgeschlossen',   bg: 'var(--st-green-bg)',    c: C.gr, cT: C.grT },
+  yellow: { label: 'In Bearbeitung', bg: 'var(--c-ywd)',          c: C.yw, cT: C.ywT },
+  red:    { label: 'Problem',        bg: 'var(--c-crd)',          c: C.cr, cT: C.crT },
 };
 
 // Platzhalter – werden in manchen Importen referenziert

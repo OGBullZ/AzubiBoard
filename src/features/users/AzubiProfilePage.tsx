@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { C, getKW, fmtLocalDate, getISOWeekMonday } from '../../lib/utils.js';
+import { C, getKW, fmtLocalDate, getISOWeekMonday, sameId } from '../../lib/utils.js';
 import { berichtsheftStats, readinessScore } from '../dashboard/reportStats.js';
 import { Avatar, ProgressBar } from '../../components/UI.jsx';
 import { IcoBack, IcoCheck, IcoClock, IcoAlert, IcoFolder, IcoReport, IcoTrendUp } from '../../components/Icons.jsx';
@@ -105,7 +105,7 @@ type AzubiProfilePageProps = {
 export default function AzubiProfilePage({ azubi, data, currentUser: _currentUser, onBack }: AzubiProfilePageProps) {
   // Hooks IMMER vor Early-Return aufrufen (Rules of Hooks).
   const projects  = useMemo(() => (data?.projects || []).filter(p => !p.archived && (p.assignees || []).includes(azubi?.id as string | number)), [data?.projects, azubi?.id]);
-  const allTasks  = useMemo(() => projects.flatMap(p => (p.tasks || []).filter(t => t.assignee === azubi?.id)), [projects, azubi?.id]);
+  const allTasks  = useMemo(() => projects.flatMap(p => (p.tasks || []).filter(t => sameId(t.assignee, azubi?.id))), [projects, azubi?.id]);
 
   // Last 8 weeks of hours (DST-sicher via lokalen Daten + ISO-Wochenmontag)
   const weeksData = useMemo<WeekDatum[]>(() => {
@@ -125,7 +125,7 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
 
   if (!azubi) return <div className="card" style={{ margin: 24 }}>Azubi nicht gefunden.</div>;
 
-  const reports   = (data?.reports || []).filter(r => r.user_id === azubi.id).sort((a, b) => +new Date(b.week_start ?? 0) - +new Date(a.week_start ?? 0));
+  const reports   = (data?.reports || []).filter(r => sameId(r.user_id, azubi.id)).sort((a, b) => +new Date(b.week_start ?? 0) - +new Date(a.week_start ?? 0));
   // Berichtsheft-Vollständigkeit (letzte 12 KW) — welche Wochen fehlen?
   const bs        = berichtsheftStats(data?.reports || [], azubi.id, new Date(), 12);
   const missingKw = bs.missing.map(mon => getKW(mon)).filter((k): k is number => k != null);
@@ -257,7 +257,7 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
           {projects.length === 0
             ? <div style={{ fontSize: 12, color: C.mu }}>Keine Projekte.</div>
             : projects.map(p => {
-                const ptasks = (p.tasks || []).filter(t => t.assignee === azubi.id);
+                const ptasks = (p.tasks || []).filter(t => sameId(t.assignee, azubi.id));
                 const pdone  = ptasks.filter(t => t.status === 'done').length;
                 const ppct   = ptasks.length > 0 ? Math.round(pdone / ptasks.length * 100) : 0;
                 return (

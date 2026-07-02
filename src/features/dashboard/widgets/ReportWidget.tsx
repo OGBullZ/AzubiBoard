@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, getKW, getISOWeekMonday } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday, sameId } from '../../../lib/utils.js';
 import { IcoAlert, IcoReport } from '../../../components/Icons.jsx';
 import type { Report } from '../../../types';
 
@@ -10,7 +10,7 @@ type ReportWidgetProps = {
 };
 
 function ReportWidgetImpl({ reports, userId, onNavigate }: ReportWidgetProps) {
-  const mine   = reports.filter(r => r.user_id === userId);
+  const mine   = reports.filter(r => sameId(r.user_id, userId));
   const total  = mine.length;
   const signed = mine.filter(r => r.status === 'signed').length;
   const sub    = mine.filter(r => r.status === 'submitted').length;

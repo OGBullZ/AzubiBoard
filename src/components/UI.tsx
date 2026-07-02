@@ -57,7 +57,7 @@ type StatusBadgeProps = {
 export function StatusBadge({ status }: StatusBadgeProps) {
   const s = (status && ST[status]) || ST.yellow;
   return (
-    <span className="tag" role="status" style={{ background: s.bg, color: s.c, border: `1px solid ${s.c}35`, padding: '6px 12px', fontSize: 12, fontWeight: 600 }} aria-label={`Status: ${s.label}`}>
+    <span className="tag" role="status" style={{ background: s.bg, color: s.cT, border: `1px solid color-mix(in srgb, ${s.c} 21%, transparent)`, padding: '6px 12px', fontSize: 12, fontWeight: 600 }} aria-label={`Status: ${s.label}`}>
       ● {s.label}
     </span>
   );

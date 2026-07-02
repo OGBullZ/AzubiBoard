@@ -81,7 +81,7 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
 
     const critical = azubis.map((a: User) => {
       const ov = active.filter((p: Project) => p.assignees?.includes(a.id))
-        .flatMap((p: Project) => (p.tasks || []).filter((tk: Task) => tk.assignee === a.id && tk.status !== 'done' && tk.deadline && dayDiff(tk.deadline) < 0));
+        .flatMap((p: Project) => (p.tasks || []).filter((tk: Task) => sameId(tk.assignee, a.id) && tk.status !== 'done' && tk.deadline && dayDiff(tk.deadline) < 0));
       return { a, count: ov.length };
     }).filter((x: { count: number }) => x.count > 2);
     if (critical.length) cards.push({ key: 'critical-azubis', sev: 0, ...ACC.crit, icon: '⚠', label: 'Aufmerksamkeit',
@@ -94,7 +94,7 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
       title: `${submitted.length} ${submitted.length === 1 ? 'Berichtsheft wartet' : 'Berichtshefte warten'} auf Prüfung`,
       sub: `Neueste: ${submitted[0].user_name || 'Azubi'} · KW ${submitted[0].week_number}`, to: '/reports' });
 
-    const missing = azubis.filter((a: User) => !reports.some((r: Report) => r.user_id === a.id && (r.week_start || '') >= weekMon));
+    const missing = azubis.filter((a: User) => !reports.some((r: Report) => sameId(r.user_id, a.id) && (r.week_start || '') >= weekMon));
     if (missing.length) cards.push({ key: 'missing-report', sev: 1, ...ACC.warn, icon: '📝', label: 'Wochenbericht',
       title: `${missing.length} ${missing.length === 1 ? 'Azubi' : 'Azubis'}: KW ${week ?? ''} fehlt`,
       sub: missing.length === 1 ? firstName(missing[0].name) : missing.slice(0, 3).map((a: User) => firstName(a.name)).join(', '), to: '/' });

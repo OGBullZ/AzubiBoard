@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { C, getKW, getISOWeekMonday, fmtLocalDate, firstName } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday, fmtLocalDate, firstName, sameId } from '../../../lib/utils.js';
 import { Avatar } from '../../../components/UI.jsx';
 import type { User } from '../../../types';
 
@@ -42,7 +42,7 @@ function ZeiterfassungWidgetImpl({ users, projects }: ZeiterfassungWidgetProps) 
 
   const rows: Row[] = azubis.map(a => {
     const breakdown = projects.filter(p => !p.archived).reduce<Breakdown[]>((acc, p) => {
-      const h = (p.tasks||[]).filter(t => t.assignee === a.id)
+      const h = (p.tasks||[]).filter(t => sameId(t.assignee, a.id))
         .flatMap(t => (t.timeLog||[]).filter(e => e.date != null && e.date >= monStr && e.date <= sunStr))
         .reduce((s, e) => s + (Number(e.hours)||0), 0);
       if (h > 0) acc.push({ title: p.title, hours: h });
