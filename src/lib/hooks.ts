@@ -1,5 +1,30 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { RefObject } from 'react';
+
+// ── Global Toast (Root-Verdrahtung in App.tsx, Anzeige via components/UI Toast) ──
+export type ToastState = null | string | { msg: string; undo: (() => void) | null; duration: number };
+export type ShowToast = (msg: string, opts?: { undo?: (() => void) | null; duration?: number }) => void;
+export function useToast() {
+  // toast = null | string | { msg, undo, duration }
+  const [toast, setToast] = useState<ToastState>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showToast = useCallback<ShowToast>((msg, opts) => {
+    clearTimeout(timer.current);
+    if (opts && typeof opts === 'object') {
+      const duration = opts.duration ?? (opts.undo ? 6000 : 2800);
+      setToast({ msg, undo: opts.undo || null, duration });
+      timer.current = setTimeout(() => setToast(null), duration);
+    } else {
+      setToast(msg);
+      timer.current = setTimeout(() => setToast(null), 2800);
+    }
+  }, []);
+  const dismissToast = useCallback(() => {
+    clearTimeout(timer.current);
+    setToast(null);
+  }, []);
+  return { toast, showToast, dismissToast };
+}
 
 /**
  * Verzögert einen Wert um `delay` ms nach der letzten Änderung.

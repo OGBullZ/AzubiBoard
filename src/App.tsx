@@ -2,8 +2,7 @@ import React, { useEffect, useCallback, useState, useRef, lazy, Suspense } from 
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData, addActivity, uid, sameId } from './lib/utils';
-import { playStamp } from './lib/sound.js';
-import { ACCENTS } from './lib/prefs.js';
+import { useToast } from './lib/hooks';
 import { clearToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
@@ -11,29 +10,28 @@ import {
   Routes,
   Route,
   Navigate,
-  useParams,
   useNavigate,
   useLocation,
 } from 'react-router-dom';
 
-import type { User, Project, Task, Report, CalendarEvent, AppState, Id } from './types';
+import type { User, AppState, Id } from './types';
 import AuthPage from './features/auth/AuthPage';
-// Dashboard + ProjectPool lazy: nicht First-Paint (das ist AuthPage), zogen aber alle
-// Dashboard-Widgets in den Haupt-Chunk → Budget-Headroom (Ebene 9, 170 KB gz).
-const Dashboard   = lazy(() => import('./features/dashboard/Dashboard'));
-const ProjectPool = lazy(() => import('./features/projects/ProjectPool'));
+// Route-Wrapper (verdrahten Store/Handler mit den lazy geladenen Feature-Views)
+import { DashboardPage } from './pages/DashboardPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { ProjectDetailWrapper } from './pages/ProjectDetailWrapper';
+import { ProfilePage } from './pages/ProfilePage';
+import { CalendarPage } from './pages/CalendarPage';
+import { GroupsPage } from './pages/GroupsPage';
+import { UsersPage } from './pages/UsersPage';
+import { AzubiProfileWrapper } from './pages/AzubiProfileWrapper';
 
 // J13: Code-Splitting — schwergewichtige Routes / Modals lazy laden.
 // Spart ~300 KB im Initial-Bundle, lädt on-demand bei Routen-Wechsel.
-const ProjectDetail     = lazy(() => import('./features/projects/ProjectDetail'));
 const LearnPage         = lazy(() => import('./features/learn/LearnPage'));
 const ReportsPage       = lazy(() => import('./features/reports/ReportsPage'));
 const NewProjectModal   = lazy(() => import('./features/projects/NewProjectModal'));
-const CalendarView      = lazy(() => import('./features/calendar/CalendarView'));
-const GroupsView        = lazy(() => import('./features/groups/GroupsView'));
-const UsersView         = lazy(() => import('./features/users/UsersView'));
 const TrainingPlanPage  = lazy(() => import('./features/training/TrainingPlanPage'));
-const AzubiProfilePage  = lazy(() => import('./features/users/AzubiProfilePage'));
 import { Toast } from './components/UI.jsx';
 import SyncIndicator from './components/SyncIndicator.jsx';
 import BackupReminder from './components/BackupReminder.jsx';
@@ -45,8 +43,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { IcoSun, IcoMoon } from './components/Icons.jsx';
 const TrashPage = lazy(() => import('./features/trash/TrashPage.jsx'));
 const ShareView = lazy(() => import('./features/share/ShareView.jsx'));
-const TwoFactorSettings = lazy(() => import('./features/auth/TwoFactorSettings.jsx'));
-import { ensureTrash, autoCleanTrash, trashCount as countTrash, softDelete } from './lib/trash.js';
+import { ensureTrash, autoCleanTrash, trashCount as countTrash } from './lib/trash.js';
 import { migrateData } from './lib/migrations.js';
 const OnboardingWizard = lazy(() => import('./features/onboarding/OnboardingWizard.jsx'));
 const WelcomeNews = lazy(() => import('./features/onboarding/WelcomeNews'));
@@ -69,71 +66,6 @@ function RouteFallback() {
   );
 }
 
-// ── Design-Version 1.0 ↔ 1.1 (Werkbank-Redesign, DESIGN-VISION.md) ──
-// Boot-Apply in main.tsx; ACCENTS geteilt mit Onboarding (lib/prefs).
-function DesignSwitch() {
-  // Graduierung 2026-06-11: Werkbank-Design ist 1.1 und Default; interner Wert bleibt 'beta' (CSS-Hooks)
-  const [design, setDesign] = useState(() => localStorage.getItem('azubiboard_design') || 'beta');
-  const [accent, setAccent] = useState(() => localStorage.getItem('azubiboard_accent') || 'orange');
-  const [sound, setSound] = useState(() => localStorage.getItem('azubiboard_sound') === 'on');
-  const apply = (key: string, val: string, set: (v: string) => void) => {
-    set(val);
-    try { localStorage.setItem(`azubiboard_${key}`, val); } catch { /* noop */ }
-    const run = () => {
-      document.documentElement.setAttribute(`data-${key}`, val);
-      if (key === 'design') window.dispatchEvent(new Event('azubiboard:design')); // useDesign-Konsumenten re-rendern
-    };
-    // Design-Wechsel mit weichem Sweep (View Transitions, progressive enhancement)
-    if (key === 'design' && 'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      (document as any).startViewTransition(run);
-    } else run();
-  };
-  const toggleSound = () => {
-    const next = !sound;
-    setSound(next);
-    try { localStorage.setItem('azubiboard_sound', next ? 'on' : 'off'); } catch { /* noop */ }
-    if (next) playStamp();   // sofortiges Probehören
-  };
-  return (
-    <div style={{ marginTop: 14 }}>
-      <label>Design-Version</label>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {[['v1', '1.0'], ['beta', '1.1 ✦']].map(([val, lab]) => (
-          <button key={val} className="btn" onClick={() => apply('design', val, setDesign)} aria-pressed={design === val}
-            style={{ flex: 1, justifyContent: 'center', padding: '9px',
-              ...(design === val ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac-text)', background: 'var(--c-acd)' } : {}) }}>
-            {lab}
-          </button>
-        ))}
-      </div>
-      {design === 'beta' && (
-        <div style={{ marginTop: 10 }}>
-          <label>Akzentfarbe</label>
-          <div style={{ display: 'flex', gap: 8 }} role="radiogroup" aria-label="Akzentfarbe">
-            {ACCENTS.map(a => (
-              <button key={a.val} onClick={() => apply('accent', a.val, setAccent)}
-                role="radio" aria-checked={accent === a.val} aria-label={a.label} title={a.label}
-                style={{ width: 34, height: 34, borderRadius: 8, background: a.hex, cursor: 'pointer',
-                  border: accent === a.val ? '2px solid var(--c-br)' : '2px solid transparent',
-                  outlineOffset: 2, boxShadow: accent === a.val ? '0 0 0 1.5px var(--c-bg) inset' : 'none' }} />
-            ))}
-          </div>
-        </div>
-      )}
-      {design === 'beta' && (
-        <button className="btn" onClick={toggleSound} aria-pressed={sound}
-          style={{ width: '100%', marginTop: 10, padding: '9px', justifyContent: 'center',
-            ...(sound ? { borderColor: 'var(--c-ac)', color: 'var(--c-ac-text)' } : {}) }}>
-          {sound ? '🔊 Werkstatt-Sounds an' : '🔇 Werkstatt-Sounds aus'}
-        </button>
-      )}
-      <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 6 }}>
-        1.1 = neues „Werkbank"-Design (Standard). Jederzeit auf 1.0 zurückschaltbar.
-      </div>
-    </div>
-  );
-}
-
 // ── Theme aus User-Objekt übernehmen (nach Login / Startup) ──
 function applyUserTheme(theme?: string | null) {
   if (!theme) return;
@@ -142,31 +74,6 @@ function applyUserTheme(theme?: string | null) {
   // setzen, sonst überschreibt der OS-Sync-Handler die Wahl still (Bug-Hunt 3 #2).
   localStorage.setItem('azubiboard_theme_manual', '1');
   document.documentElement.setAttribute('data-theme', theme);
-}
-
-// ── Global Toast Hook ─────────────────────────────────────────
-type ToastState = null | string | { msg: string; undo: (() => void) | null; duration: number };
-type ShowToast = (msg: string, opts?: { undo?: (() => void) | null; duration?: number }) => void;
-function useToast() {
-  // toast = null | string | { msg, undo, duration }
-  const [toast, setToast] = useState<ToastState>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const showToast = useCallback((msg: string, opts?: { undo?: (() => void) | null; duration?: number }) => {
-    clearTimeout(timer.current);
-    if (opts && typeof opts === 'object') {
-      const duration = opts.duration ?? (opts.undo ? 6000 : 2800);
-      setToast({ msg, undo: opts.undo || null, duration });
-      timer.current = setTimeout(() => setToast(null), duration);
-    } else {
-      setToast(msg);
-      timer.current = setTimeout(() => setToast(null), 2800);
-    }
-  }, []);
-  const dismissToast = useCallback(() => {
-    clearTimeout(timer.current);
-    setToast(null);
-  }, []);
-  return { toast, showToast, dismissToast };
 }
 
 // ── Mobile Breakpoint ─────────────────────────────────────────
@@ -249,437 +156,6 @@ function useTheme() {
     });
   }, []);
   return { theme, toggleTheme };
-}
-
-// ── ProjectDetail Wrapper ─────────────────────────────────────
-function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const store = useAppStore();
-  const data = store.data as AppState | null;
-  const setData = store.setData;
-  const currentUser = store.currentUser as User | null;
-  const project = data?.projects?.find((p: Project) => p.id === id);
-
-  // updates bleibt any: ProjectDetail liefert heterogene Patches (UpdateFn = (id:any, patch:any)).
-  // Phase 2: Mentor = nur lesend. Alle Projekt-Schreibpfade laufen durch diesen choke point.
-  const handleUpdate = useCallback((projectId: string, updates: any) => {
-    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
-    setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) } : prev);
-  }, [setData, currentUser, showToast]);
-
-  const handleArchive = useCallback((projectId: string) => {
-    const snapshot = data;
-    setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) } : prev);
-    showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });  // Phase 4: Undo konsistent zur Listen-Archivierung
-  }, [data, setData, showToast]);
-
-  // entry/prev: addActivity-Boundary (utils.js liefert Blob-Form) → any belassen.
-  const handleActivity = useCallback((entry: any) => {
-    setData((prev: any) => addActivity(prev, entry));
-  }, [setData]);
-
-  if (!project) return <div className="card" style={{ margin: 24 }}>Projekt nicht gefunden</div>;
-
-  // project ist Project (tasks/materials/requirements via zod default vorhanden) — die
-  // Literal-Defaults werden bewusst von project überschrieben; Spread als Record getypt,
-  // damit TS die (gewollten) Schlüssel-Überschreibungen nicht als Fehler meldet.
-  const safeProject = {
-    tasks: [], steps: [], materials: [], requirements: [],
-    links: [], calendarEvents: [], assignees: [],
-    netzplan: { nodes: [], edges: [], unit: 'W', nodePositions: {} },
-    ...(project as Record<string, unknown>),
-  };
-
-  return (
-    <ProjectDetail
-      project={safeProject}
-      users={data?.users || []}
-      groups={data?.groups || []}
-      currentUser={currentUser}
-      onUpdate={handleUpdate}
-      onArchive={handleArchive}
-      onBack={() => navigate('/projects')}
-      showToast={showToast}
-      onActivity={handleActivity}
-    />
-  );
-}
-
-// ── Profil-Seite ──────────────────────────────────────────────
-function ProfilePage({ showToast }: { showToast: ShowToast }) {
-  const store = useAppStore();
-  const currentUser = store.currentUser as User | null;
-  const data = store.data as AppState | null;
-  const setCurrentUser = store.setCurrentUser;
-  const setData = store.setData;
-  const [tab, setTab]               = useState('info');
-  const [name, setName]             = useState(() => currentUser?.name || '');
-  const [profession, setProfession] = useState(() => currentUser?.profession || '');
-  const [company, setCompany]       = useState(() => currentUser?.company || '');
-  const [department, setDepartment] = useState(() => currentUser?.department || '');
-  const [year, setYear]             = useState(() => String(currentUser?.apprenticeship_year || 1));
-  const [oldPw, setOldPw]           = useState('');
-  const [newPw, setNewPw]           = useState('');
-  const [saving, setSaving]         = useState(false);
-  const [avatarHov, setAvatarHov]   = useState(false);
-  const avatarInputRef              = useRef<HTMLInputElement>(null);
-  const toast = showToast || (() => {});
-
-  if (!currentUser) return null;
-
-  const isAzubi = currentUser.role === 'azubi';
-  const myProjects = (data?.projects || []).filter((p: Project) => !p.archived && p.assignees?.some(a => sameId(a, currentUser.id)));
-  const hue = (currentUser.name?.charCodeAt(0) || 100) * 37 % 360;
-
-  // Eingabe-Style wiederverwenden
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-br)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' };
-  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .5, display: 'block', marginBottom: 6 };
-
-  const saveProfile = async () => {
-    const trimName = name.trim();
-    const trimProf = profession.trim();
-    const parsedYear = Number(year);
-    if (!trimName) return;
-
-    const trimCompany = company.trim();
-    const trimDept    = department.trim();
-    const changes: any = {};
-    if (trimName !== currentUser.name)                             changes.name = trimName;
-    if (trimProf !== (currentUser.profession || ''))              changes.profession = trimProf;
-    if (isAzubi && trimCompany !== (currentUser.company || ''))    changes.company = trimCompany;
-    if (isAzubi && trimDept !== (currentUser.department || ''))    changes.department = trimDept;
-    if (isAzubi && parsedYear !== (currentUser.apprenticeship_year || 1)) changes.apprenticeship_year = parsedYear;
-    if (Object.keys(changes).length === 0) return;
-
-    setSaving(true);
-    try {
-      if (USE_API) await dataService.updateProfile(changes);
-      const updatedUser = { ...currentUser, ...changes };
-      setCurrentUser(updatedUser);
-      setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => sameId(u.id, currentUser.id) ? { ...u, ...changes } : u) } : prev);
-      toast('✓ Profil gespeichert');
-    } catch (e: any) { toast('⚠ ' + e.message); }
-    finally { setSaving(false); }
-  };
-
-  const savePassword = async () => {
-    if (!oldPw || newPw.length < 8) return;
-    setSaving(true);
-    try {
-      if (USE_API) {
-        await dataService.changePassword(oldPw, newPw);
-        toast('✓ Passwort geändert');
-        setOldPw(''); setNewPw('');
-      } else {
-        toast('⚠ Passwortänderung nur im API-Modus verfügbar');
-      }
-    } catch (e: any) { toast('⚠ ' + e.message); }
-    finally { setSaving(false); }
-  };
-
-  const handleAvatarClick = () => {
-    if (!USE_API) { toast('⚠ Avatar-Upload nur im API-Modus verfügbar'); return; }
-    avatarInputRef.current?.click();
-  };
-  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSaving(true);
-    try {
-      const { avatar_url } = await dataService.uploadAvatar(file);
-      const updatedUser = { ...currentUser, avatar_url };
-      setCurrentUser(updatedUser);
-      setData((prev: any) => prev ? { ...prev, users: (prev.users || []).map((u: User) => sameId(u.id, currentUser.id) ? { ...u, avatar_url } : u) } : prev);
-      toast('✓ Profilbild gespeichert');
-    } catch (err: any) { toast('⚠ ' + err.message); }
-    finally { setSaving(false); e.target.value = ''; }
-  };
-
-  const tabBtn = (key: string, label: string) => (
-    <button key={key} onClick={() => setTab(key)} role="tab" aria-selected={tab === key}
-      style={{ flex: 1, padding: '8px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none',
-        background: tab === key ? 'var(--c-ac)' : 'transparent',
-        color: tab === key ? 'var(--c-on-ac)' : 'var(--c-mu)', transition: 'all .15s' }}>
-      {label}
-    </button>
-  );
-
-  return (
-    <div style={{ padding: 24, maxWidth: 560 }}>
-      {/* Avatar + Header */}
-      <div className="card" style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16 }}>
-        {/* Klickbarer Avatar mit Kamera-Overlay; Beta: wandernde Strichlinie beim Hover (Anhang C) */}
-        <div className="avatar-drop" style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }}
-          onClick={handleAvatarClick}
-          onMouseEnter={() => setAvatarHov(true)}
-          onMouseLeave={() => setAvatarHov(false)}
-          title="Profilbild ändern">
-          {currentUser.avatar_url
-            ? <img src={currentUser.avatar_url} alt={currentUser.name}
-                style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)', display: 'block' }} />
-            : <div style={{ width: 56, height: 56, borderRadius: '50%', background: `hsl(${hue},45%,22%)`, border: '2px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: `hsl(${hue},65%,75%)` }}>
-                {currentUser.name?.split(' ').map((w: string) => w[0]).slice(0,2).join('').toUpperCase()}
-              </div>}
-          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: avatarHov ? 1 : 0, transition: 'opacity .15s' }}>
-            <span style={{ fontSize: 16 }}>📷</span>
-          </div>
-          <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-            style={{ display: 'none' }} onChange={handleAvatarFile} />
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--c-br)' }}>{currentUser.name}</div>
-          <div style={{ fontSize: 12, color: 'var(--c-mu)', marginTop: 2 }}>
-            {currentUser.email}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--c-mu)', marginTop: 2 }}>
-            {isAzubi
-              ? `Azubi · Lehrjahr ${currentUser.apprenticeship_year || 1}${currentUser.profession ? ` · ${currentUser.profession}` : ''}`
-              : `${currentUser.role === 'mentor' ? 'Mentor' : 'Ausbilder'}${currentUser.profession ? ` · ${currentUser.profession}` : ''}`}
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-        {[
-          { label: 'Aktive Projekte',  value: myProjects.length,                                                                                     color: 'var(--c-ac-text)' },
-          { label: 'Offene Aufgaben',  value: myProjects.flatMap((p: Project) => p.tasks||[]).filter((t: Task) => sameId(t.assignee, currentUser.id) && t.status !== 'done').length, color: 'var(--c-yw-text)' },
-        ].map(s => (
-          <div key={s.label} className="card" style={{ borderLeft: `3px solid ${s.color}`, padding: '10px 14px' }}>
-            <div style={{ fontSize: 10, color: 'var(--c-mu)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="card">
-        <div role="tablist" style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 8, padding: 3, marginBottom: 18, gap: 3 }}>
-          {tabBtn('info', 'Profil')}
-          {tabBtn('password', 'Passwort')}
-          {USE_API && tabBtn('security', '🔒 Sicherheit')}
-        </div>
-
-        {tab === 'info' && (
-          <div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="prof-name">Anzeigename</label>
-              <input id="prof-name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Ausbildungsberuf</label>
-              <input value={profession} onChange={e => setProfession(e.target.value)}
-                placeholder="z. B. Fachinformatiker Anwendungsentwicklung"
-                style={inputStyle} />
-            </div>
-            {isAzubi && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>Lehrjahr</label>
-                <select value={year} onChange={e => setYear(e.target.value)}
-                  style={{ ...inputStyle, appearance: 'auto' }}>
-                  <option value="1">1. Lehrjahr</option>
-                  <option value="2">2. Lehrjahr</option>
-                  <option value="3">3. Lehrjahr</option>
-                </select>
-              </div>
-            )}
-            {isAzubi && (
-              <>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={labelStyle}>Ausbildungsbetrieb</label>
-                  <input value={company} onChange={e => setCompany(e.target.value)}
-                    placeholder="z. B. Muster GmbH" style={inputStyle} />
-                </div>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={labelStyle}>Abteilung</label>
-                  <input value={department} onChange={e => setDepartment(e.target.value)}
-                    placeholder="z. B. IT / Anwendungsentwicklung" style={inputStyle} />
-                </div>
-              </>
-            )}
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle} htmlFor="prof-email">E-Mail</label>
-              <input id="prof-email" value={currentUser.email} disabled
-                style={{ ...inputStyle, border: '1px solid var(--c-bd)', background: 'var(--c-sf3)', color: 'var(--c-mu)', opacity: .7 }} />
-            </div>
-            <button className="abtn" onClick={saveProfile} disabled={saving || !name.trim()}
-              style={{ width: '100%', padding: 11, fontSize: 13 }}>
-              {saving ? 'Speichern…' : 'Profil speichern'}
-            </button>
-            <button className="btn" onClick={() => {
-              if (currentUser?.id) localStorage.removeItem(`azubiboard_onboarded_${currentUser.id}`);
-              window.dispatchEvent(new Event('azubiboard:show-onboarding'));
-            }} style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac-text)', borderColor: 'var(--c-ac)60' }}>
-              🎓 Einführungs-Wizard erneut anzeigen
-            </button>
-            <button className="btn" onClick={() => window.dispatchEvent(new Event('azubiboard:show-news'))}
-              style={{ width: '100%', marginTop: 8, padding: '9px', fontSize: 12, color: 'var(--c-ac-text)', borderColor: 'var(--c-ac)60' }}>
-              📰 Tagesübersicht anzeigen
-            </button>
-            <DesignSwitch />
-          </div>
-        )}
-
-        {tab === 'password' && (
-          <div>
-            {!USE_API && (
-              <div style={{ fontSize: 12, color: 'var(--c-mu)', background: 'var(--c-sf2)', borderRadius: 7, padding: '10px 12px', marginBottom: 14, borderLeft: '3px solid var(--c-yw)' }}>
-                Passwortänderung ist nur im API-Modus verfügbar (VITE_USE_API=true).
-              </div>
-            )}
-            <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>Aktuelles Passwort</label>
-              <input type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} disabled={!USE_API}
-                style={inputStyle} />
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Neues Passwort (min. 8 Zeichen)</label>
-              <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} disabled={!USE_API}
-                style={inputStyle} />
-            </div>
-            <button className="abtn" onClick={savePassword}
-              disabled={saving || !USE_API || !oldPw || newPw.length < 8}
-              style={{ width: '100%', padding: 11, fontSize: 13 }}>
-              {saving ? 'Ändern…' : 'Passwort ändern'}
-            </button>
-          </div>
-        )}
-
-        {tab === 'security' && (
-          <Suspense fallback={<div style={{ fontSize: 12, color: 'var(--c-mu)' }}>Lädt …</div>}>
-            <TwoFactorSettings showToast={showToast} />
-          </Suspense>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Seiten-Wrapper ────────────────────────────────────────────
-function CalendarPage({ showToast }: { showToast: ShowToast }) {
-  const store = useAppStore();
-  const data = store.data as AppState | null;
-  const currentUser = store.currentUser as User | null;
-  const setData = store.setData;
-  // updates bleibt any: CalendarView onUpdate = (id:any, patch:any), patch heterogen (ev/id/Projekt-Patch).
-  // Mentor = nur lesend (wie ProjectDetail/Dashboard) — alle Kalender-Schreibpfade laufen durch diesen choke point.
-  const handleUpdate = useCallback((projectId: string, updates: any) => {
-    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
-    // Funktionale Updates: saveEdit (CalendarView) ruft beim Projekt-Wechsel onUpdate ZWEIMAL
-    // synchron auf — Objekt-Form würde beim zweiten Aufruf den stale Closure-Snapshot spreaden
-    // und den ersten Update überschreiben (Event-Duplikate, persistiert).
-    if (projectId === '_cal') {
-      setData((prev: any) => prev ? { ...prev, calendarEvents: [...(prev.calendarEvents || []), updates.ev] } : prev);
-    } else if (projectId === '_cal_del') {
-      setData((prev: any) => prev ? { ...prev, calendarEvents: (prev.calendarEvents || []).filter((e: CalendarEvent) => e.id !== updates.id) } : prev);
-    } else if (projectId === '_cal_edit') {
-      setData((prev: any) => prev ? { ...prev, calendarEvents: (prev.calendarEvents || []).map((e: CalendarEvent) => e.id === updates.ev.id ? updates.ev : e) } : prev);
-    } else {
-      setData((prev: any) => prev ? { ...prev, projects: (prev.projects || []).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) } : prev);
-    }
-  }, [setData, currentUser, showToast]);
-  return <CalendarView projects={data?.projects||[]} calendarEvents={data?.calendarEvents||[]} users={data?.users||[]} onUpdate={handleUpdate} showToast={showToast} canEdit={currentUser?.role !== 'mentor'} />;
-}
-
-function GroupsPage({ showToast }: { showToast: ShowToast }) {
-  const store = useAppStore();
-  const data = store.data as AppState | null;
-  const currentUser = store.currentUser as User | null;
-  const setData = store.setData;
-  // groups: GroupsView-eigener Group-Typ (nicht in types.ts) → any belassen.
-  const handleUpdateGroups = useCallback((groups: any) => setData((prev: any) => prev ? { ...prev, groups } : prev), [setData]);
-  // groups/projects: GroupsView erwartet eigene Group/GroupProject-Typen (enger als AppState-Blob) → cast.
-  return <GroupsView groups={(data?.groups||[]) as any} users={data?.users||[]} projects={(data?.projects||[]) as any} onUpdateGroups={handleUpdateGroups} showToast={showToast} canManage={currentUser?.role === 'ausbilder'} />;
-}
-
-function AzubiProfileWrapper() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const store = useAppStore();
-  const data = store.data as AppState | null;
-  const currentUser = store.currentUser as User | null;
-  const azubi = (data?.users || []).find((u: User) => sameId(u.id, id));
-  // data-Prop bleibt locker: AzubiProfilePage erwartet eigenen ProfileData-Typ, nicht AppState.
-  return <AzubiProfilePage azubi={azubi} data={data as any} currentUser={currentUser} onBack={() => navigate(-1)} />;
-}
-
-function UsersPage({ showToast }: { showToast: ShowToast }) {
-  const store = useAppStore();
-  const data = store.data as AppState | null;
-  const setData = store.setData;
-  // users: UsersView-eigener UserWithAuth-Typ (password etc.) → any belassen.
-  const handleUpdate = useCallback((users: any) => setData((prev: any) => prev ? { ...prev, users } : prev), [setData]);
-  return <UsersView users={(data?.users || []) as any} onUpdateUsers={handleUpdate} showToast={showToast} />;
-}
-
-function DashboardPage({ onNewProject, showToast }: { onNewProject: () => void; showToast: ShowToast }) {
-  const navigate = useNavigate();
-  const store = useAppStore();
-  const data = store.data as AppState | null;
-  const currentUser = store.currentUser as User | null;
-  const setData = store.setData;
-  // updates bleibt any: Dashboard onUpdateProject = (id:any, patch:any).
-  // Phase 2: Mentor = nur lesend (z.B. Task-Toggle in ProjectCard).
-  const handleUpdate = useCallback((projectId: string, updates: any) => {
-    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
-    setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === projectId ? { ...p, ...updates } : p) } : prev);
-  }, [setData, currentUser, showToast]);
-  return (
-    <Dashboard user={currentUser} projects={data?.projects||[]} users={data?.users||[]} reports={data?.reports||[]} calendarEvents={data?.calendarEvents||[]}
-      activityLog={data?.activityLog||[]} groups={(data as any)?.groups||[]} trainingPlan={(data as any)?.trainingPlan}
-      onOpenProject={(id: string) => navigate(`/project/${id}`)} onUpdateProject={handleUpdate} onNewProject={onNewProject} onNavigate={(path: string) => navigate('/' + path.replace(/^\//, ''))} />
-  );
-}
-
-function ProjectsPage({ onNewProject, showToast }: { onNewProject: () => void; showToast: ShowToast }) {
-  const navigate = useNavigate();
-  const store = useAppStore();
-  const data = store.data as AppState | null;
-  const currentUser = store.currentUser as User;
-  const setData = store.setData;
-  const duplicate = (id: Id) => {
-    if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
-    const src = (data?.projects||[]).find((p: Project) => p.id === id);
-    if (!src) return;
-    const copy = {
-      ...src,
-      id: `proj_${Date.now()}`,
-      title: `Kopie von ${src.title}`,
-      archived: false,
-      comments: [],
-      calendarEvents: [],
-      tasks: (src.tasks || []).map((t: Task) => ({ ...t, id: `t_${Math.random().toString(36).slice(2)}`, status: 'open', done: false })),
-    };
-    setData((prev: any) => prev ? { ...prev, projects: [...(prev.projects||[]), copy] } : prev);
-    showToast('✓ Projekt dupliziert');
-  };
-  return (
-    // projects/groups: ProjectPool erwartet eigene PoolProject/Group-Typen (groupId ohne null) → cast.
-    <ProjectPool projects={(data?.projects||[]) as any} users={data?.users||[]} groups={(data?.groups||[]) as any} currentUser={currentUser}
-      onOpen={(id: Id) => navigate(`/project/${id}`)} onNew={onNewProject}
-      onDelete={(id: Id) => {
-        if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
-        const project  = (data?.projects||[]).find((p: Project) => p.id === id);
-        const snapshot = data;
-        if (project) {
-          // softDelete: trash.js (JS-Boundary) → data/currentUser als any.
-          setData(softDelete(data as any, 'projects', project, currentUser));
-        } else {
-          setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).filter((p: Project) => p.id !== id) } : prev);
-        }
-        showToast('🗑 Projekt → Papierkorb (30 Tage)', { undo: () => setData(snapshot as any) });
-      }}
-      onArchive={(id: Id) => {
-        if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; }
-        const snapshot = data;
-        setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: true } : p) } : prev);
-        showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });
-      }}
-      onUnarchive={(id: Id) => { if (currentUser?.role === 'mentor') { showToast('🔒 Mentoren haben nur Lesezugriff'); return; } setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === id ? { ...p, archived: false } : p) } : prev); showToast('Projekt wiederhergestellt'); }}
-      onDuplicate={duplicate}
-    />
-  );
 }
 
 // ── AppLayout ─────────────────────────────────────────────────
