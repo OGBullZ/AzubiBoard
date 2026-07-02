@@ -53,12 +53,42 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # continue-on-error: Der Release-POST von firebase-tools ist nicht idempotent —
+      # bei "premature close" auf der Antwort wiederholt die CLI den POST und bekommt
+      # 400 "version is the current active version", obwohl das Release durch ist
+      # (Phantom-Failure, mehrfach beobachtet seit 01.07.). Der Verify-Step unten
+      # entscheidet anhand des Live-Inhalts, ob der Deploy wirklich fehlgeschlagen ist.
       - name: Deploy to Firebase Hosting
+        id: deploy
         if: steps.secret.outputs.present == 'true'
+        continue-on-error: true
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: azubiboard-1fc20
           channelId: live
+          # gepinnt statt "latest" (Drift-Schutz); gleiche Version wie lokal installiert
+          firebaseToolsVersion: 15.20.0
         timeout-minutes: 5
+
+      - name: Verify deployment (Live-Inhalt = gebauter Stand?)
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          if [ "${{ steps.deploy.outcome }}" = "success" ]; then
+            echo "Deploy-Step erfolgreich — keine Verifikation nötig."
+            exit 0
+          fi
+          echo "Deploy-Step rot — prüfe ob das Release trotzdem durch ist (Phantom-Failure-Muster)."
+          want=$(sha256sum dist/index.html | cut -d' ' -f1)
+          for i in 1 2 3 4 5; do
+            got=$(curl -fsS https://azubiboard-1fc20.web.app/index.html | sha256sum | cut -d' ' -f1 || true)
+            if [ "$got" = "$want" ]; then
+              echo "::notice::Live-index.html entspricht dem Build ($want) — Release war serverseitig durch, Deploy-Fehler war ein Phantom (non-idempotenter Release-Retry nach premature close)."
+              exit 0
+            fi
+            echo "Versuch $i/5: live=$got erwartet=$want — warte 10s (CDN-Propagation) …"
+            sleep 10
+          done
+          echo "::error::Live-Inhalt entspricht NICHT dem Build — der Deploy ist wirklich fehlgeschlagen."
+          exit 1
