@@ -3,6 +3,7 @@ import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
 import { today, loadSession, clearSession, persistData, addActivity, uid, sameId } from './lib/utils';
 import { useToast } from './lib/hooks';
+import { applyUserTheme } from './lib/useTheme';
 import { clearToken, isTokenValid } from './lib/auth';
 import { hashPassword, isHashed } from './lib/crypto';
 import {
@@ -10,8 +11,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useNavigate,
-  useLocation,
 } from 'react-router-dom';
 
 import type { User, AppState, Id } from './types';
@@ -34,13 +33,11 @@ const NewProjectModal   = lazy(() => import('./features/projects/NewProjectModal
 const TrainingPlanPage  = lazy(() => import('./features/training/TrainingPlanPage'));
 import { Toast } from './components/UI.jsx';
 import SyncIndicator from './components/SyncIndicator.jsx';
-import BackupReminder from './components/BackupReminder.jsx';
 import ConflictDialog from './components/ConflictDialog.jsx';
 import BackupsModal from './components/BackupsModal.jsx';
 import { recordBackup } from './lib/backup.js';
 import { useDataSync } from './lib/useDataSync.js';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
-import { IcoSun, IcoMoon } from './components/Icons.jsx';
 const TrashPage = lazy(() => import('./features/trash/TrashPage.jsx'));
 const ShareView = lazy(() => import('./features/share/ShareView.jsx'));
 import { ensureTrash, autoCleanTrash, trashCount as countTrash } from './lib/trash.js';
@@ -49,7 +46,7 @@ const OnboardingWizard = lazy(() => import('./features/onboarding/OnboardingWiza
 const WelcomeNews = lazy(() => import('./features/onboarding/WelcomeNews'));
 import { NotificationBell } from './features/notifications/NotificationBell.jsx';
 import { GlobalSearch, ShortcutsHelp } from './components/CommandDialogs.jsx';
-import { Sidebar } from './components/Sidebar.jsx';
+import { AppLayout } from './components/AppLayout';
 
 // ── App-Mode (einmalig auf Modulebene) ───────────────────────
 const USE_API = import.meta.env.VITE_USE_API === 'true';
@@ -61,181 +58,6 @@ function RouteFallback() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--c-mu)', fontSize: 12 }}>
         <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid var(--c-bd2)', borderTopColor: 'var(--c-ac)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         Lädt …
-      </div>
-    </div>
-  );
-}
-
-// ── Theme aus User-Objekt übernehmen (nach Login / Startup) ──
-function applyUserTheme(theme?: string | null) {
-  if (!theme) return;
-  localStorage.setItem('azubiboard_theme', theme);
-  // Ein in der DB gespeichertes Theme ist eine explizite Wahl → Manual-Marker
-  // setzen, sonst überschreibt der OS-Sync-Handler die Wahl still (Bug-Hunt 3 #2).
-  localStorage.setItem('azubiboard_theme_manual', '1');
-  document.documentElement.setAttribute('data-theme', theme);
-}
-
-// ── Mobile Breakpoint ─────────────────────────────────────────
-function useIsMobile(bp = 768) {
-  const [m, setM] = useState(() => window.innerWidth < bp);
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${bp - 1}px)`);
-    const h = (e: MediaQueryListEvent) => setM(e.matches);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
-  }, [bp]);
-  return m;
-}
-
-// ── Page Title ────────────────────────────────────────────────
-const ROUTE_TITLES = {
-  '/dashboard': 'Dashboard',
-  '/projects':  'Projekte',
-  '/calendar':  'Kalender',
-  '/groups':    'Gruppen',
-  '/training':  'Ausbildungsplan',
-  '/learn':     'Lernportal',
-  '/reports':   'Berichte',
-  '/users':     'Nutzer',
-  '/profile':   'Profil',
-  '/project':   'Projekt',
-};
-function usePageTitle() {
-  const location = useLocation();
-  useEffect(() => {
-    const match = Object.entries(ROUTE_TITLES).find(([k]) => location.pathname.startsWith(k));
-    document.title = match ? `${match[1]} · AzubiBoard` : 'AzubiBoard';
-  }, [location.pathname]);
-}
-
-// ── Theme ─────────────────────────────────────────────────────
-function useTheme() {
-  const [theme, setTheme] = useState(() => {
-    const stored = localStorage.getItem('azubiboard_theme');
-    // Beim ersten Besuch (kein gespeicherter Wert): OS-Präferenz übernehmen
-    const t = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    if (!stored) localStorage.setItem('azubiboard_theme', t);
-    document.documentElement.setAttribute('data-theme', t);
-    return t;
-  });
-  // Externe Theme-Setzer (Onboarding „Werkbank einrichten" via lib/prefs) syncen den Toggle-State
-  useEffect(() => {
-    const fn = () => setTheme(localStorage.getItem('azubiboard_theme') || 'dark');
-    window.addEventListener('azubiboard:theme', fn);
-    return () => window.removeEventListener('azubiboard:theme', fn);
-  }, []);
-  // OS-Theme-Änderungen live mitsynchronisieren (nur wenn kein manuelles Override)
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: light)');
-    const handler = (e: MediaQueryListEvent) => {
-      // Nur anpassen wenn das Theme noch dem OS-Standard entspricht (kein manuelles Toggle)
-      const stored = localStorage.getItem('azubiboard_theme_manual');
-      if (stored) return; // Nutzer hat manuell gewählt → ignorieren
-      const next = e.matches ? 'light' : 'dark';
-      setTheme(next);
-      localStorage.setItem('azubiboard_theme', next);
-      document.documentElement.setAttribute('data-theme', next);
-    };
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  const toggleTheme = useCallback(() => {
-    setTheme(t => {
-      const next = t === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('azubiboard_theme', next);
-      localStorage.setItem('azubiboard_theme_manual', '1'); // OS-Sync deaktivieren
-      // D6 Signature 6: Theme-Wechsel als weicher Sweep (View Transitions, progressive enhancement)
-      const apply = () => document.documentElement.setAttribute('data-theme', next);
-      const beta = document.documentElement.getAttribute('data-design') === 'beta';
-      const motionOk = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (beta && motionOk && 'startViewTransition' in document) (document as any).startViewTransition(apply);
-      else apply();
-      if (USE_API) dataService.syncTheme(next);
-      return next;
-    });
-  }, []);
-  return { theme, toggleTheme };
-}
-
-// ── AppLayout ─────────────────────────────────────────────────
-interface AppLayoutProps {
-  currentUser: User | null;
-  onLogout: () => void;
-  onNewProject: () => void;
-  onExport: () => void;
-  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSearch: () => void;
-  onBackup?: (() => void) | null;
-  onShowBackups?: (() => void) | null;
-  trashCount?: number;
-  children?: React.ReactNode;
-}
-function AppLayout({ currentUser, onLogout, onNewProject, onExport, onImport, onSearch, onBackup, onShowBackups, trashCount = 0, children }: AppLayoutProps) {
-  const [collapsed,   setCollapsed]   = useState(() => localStorage.getItem('azubiboard_sidebar_collapsed') === 'true');
-  const [drawerOpen,  setDrawerOpen]  = useState(false);
-  const { theme, toggleTheme } = useTheme();
-  const isMobile = useIsMobile();
-  const navigate = useNavigate();
-  usePageTitle();
-
-  // G+letter navigation from global keyboard handler
-  useEffect(() => {
-    const fn = (e: Event) => navigate((e as CustomEvent).detail);
-    window.addEventListener('azubiboard:navigate', fn);
-    return () => window.removeEventListener('azubiboard:navigate', fn);
-  }, [navigate]);
-
-  // Drawer schließen wenn auf Desktop gewechselt wird
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
-
-  const handleToggleCollapse = useCallback(() => {
-    if (isMobile) {
-      setDrawerOpen(o => !o);
-    } else {
-      setCollapsed(c => {
-        const next = !c;
-        localStorage.setItem('azubiboard_sidebar_collapsed', String(next));
-        return next;
-      });
-    }
-  }, [isMobile]);
-
-  return (
-    <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
-      <a href="#main-content" className="skip-link">Zum Hauptinhalt springen</a>
-      {/* Overlay bei offenem Drawer */}
-      {isMobile && drawerOpen && (
-        <div onClick={() => setDrawerOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 899, backdropFilter: 'blur(2px)' }} />
-      )}
-
-      <Sidebar currentUser={currentUser} onLogout={onLogout} onNewProject={onNewProject} onExport={onExport} onImport={onImport} onSearch={onSearch}
-        onShowBackups={onShowBackups}
-        collapsed={isMobile ? false : collapsed} onToggleCollapse={handleToggleCollapse}
-        theme={theme} onToggleTheme={toggleTheme}
-        isMobile={isMobile} drawerOpen={drawerOpen} onCloseDrawer={() => setDrawerOpen(false)}
-        trashCount={trashCount} />
-
-      <div id="main-content" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Mobile Topbar */}
-        {isMobile && (
-          <div style={{ height: 48, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '1px solid var(--c-bd)', background: 'var(--c-sf)', gap: 12 }}>
-            <button onClick={() => setDrawerOpen(o => !o)} aria-label="Menü öffnen"
-              style={{ padding: '6px 8px', borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--c-br)', fontSize: 20, cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ☰
-            </button>
-            <div style={{ width: 24, height: 24, borderRadius: 6, background: 'linear-gradient(135deg, var(--c-ac), #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff' }}>A</div>
-            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--c-br)', flex: 1 }}>AzubiBoard</span>
-            <button onClick={toggleTheme} aria-label="Theme wechseln"
-              style={{ padding: '5px', borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--c-mu)', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center' }}>
-              {theme === 'dark' ? <IcoSun size={16} /> : <IcoMoon size={16} />}
-            </button>
-          </div>
-        )}
-        {onBackup && <BackupReminder onBackup={onBackup} />}
-        {children}
       </div>
     </div>
   );

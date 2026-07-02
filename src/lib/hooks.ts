@@ -85,6 +85,18 @@ export function useDialog<T extends HTMLElement = HTMLDivElement>(onClose?: () =
   return ref;
 }
 
+// ── Mobile Breakpoint ─────────────────────────────────────────
+export function useIsMobile(bp = 768) {
+  const [m, setM] = useState(() => window.innerWidth < bp);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${bp - 1}px)`);
+    const h = (e: MediaQueryListEvent) => setM(e.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, [bp]);
+  return m;
+}
+
 // ── Design-Version (1.0 / 1.0 Beta) ──────────────────────────
 // Liest data-design (Boot-Apply in main.tsx) und re-rendert live beim Umschalten
 // (DesignSwitch dispatcht 'azubiboard:design'). Für JSX-Verzweigungen, die im
