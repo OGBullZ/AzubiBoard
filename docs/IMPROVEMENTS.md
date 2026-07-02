@@ -54,7 +54,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 
 ## G · Performance
 - [x] **Bundle-Headroom** (`68006f8`) — Dashboard+ProjectPool lazy → Haupt-Chunk 169.83 → **154.53 KB gz** (~9 % Luft)
-- [ ] **Lighthouse-Schwellen als CI-Gate** (P4, Q2) — feste Mindestwerte + ggf. Route-Prefetch für lazy Chunks · [hier]
+- [x] **Lighthouse-Schwellen als CI-Gate** (02.07., `66a3691`) — alle 4 Kategorien blocking (perf 0.90 / a11y 0.95 / bp 0.95 / seo 0.90), 3 Runs/Median gegen Runner-Varianz, Meta-Description ergänzt. Baseline 1.0/1.0/1.0/1.0. Route-Prefetch unnötig (perf schon 1.0).
 
 ## H · Betrieb & Server (Richtung A — auf Signal)
 - [ ] **Server-Tier** Migration/RLS/Dual-Write/Schema-Reads/AI/N1 live (`docs/Server-Tier-Checkliste.md`) · [Server]
