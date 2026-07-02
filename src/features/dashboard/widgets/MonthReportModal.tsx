@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, fmtLocalDate } from '../../../lib/utils.js';
+import { C, fmtLocalDate, sameId } from '../../../lib/utils.js';
 import { Avatar } from '../../../components/UI.jsx';
 import type { Project, User, Report } from '../../../types';
 
@@ -36,18 +36,18 @@ export function MonthReportModal({ projects, users, reports, onClose }: MonthRep
     // Tasks/timeLog tragen die Blob-Form (assignee/updated_at/date/hours), die das
     // relationale schemas.ts-Modell nicht abbildet → lokal als any gelesen.
     const hours = projects.filter(p => !p.archived).flatMap(p =>
-      (p.tasks||[]).filter((t: any) => t.assignee === a.id)
+      (p.tasks||[]).filter((t: any) => sameId(t.assignee, a.id))
         .flatMap((t: any) => (t.timeLog||[]).filter((e: any) => e.date >= monthStart && e.date <= monthEnd))
         .map((e: any) => Number(e.hours)||0)
     ).reduce((s, h) => s + h, 0);
 
     const done = projects.flatMap(p =>
-      (p.tasks||[]).filter((t: any) => t.assignee === a.id && t.status === 'done' && t.updated_at &&
+      (p.tasks||[]).filter((t: any) => sameId(t.assignee, a.id) && t.status === 'done' && t.updated_at &&
         t.updated_at >= monthStart && t.updated_at <= monthEnd + 'T99')
     ).length;
 
     const myReports = reports.filter(r =>
-      r.user_id === a.id && r.week_start && r.week_start >= monthStart && r.week_start <= monthEnd
+      sameId(r.user_id, a.id) && r.week_start && r.week_start >= monthStart && r.week_start <= monthEnd
     );
 
     return { azubi: a, hours, done, reports: myReports };

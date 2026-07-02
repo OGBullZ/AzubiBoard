@@ -869,7 +869,7 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
               </div>
               <div style={{fontSize:12,fontFamily:C.mono}}>{m.qty}×</div>
               <div style={{fontSize:12,fontFamily:C.mono}}>{(m.cost || 0).toFixed(2)} €</div>
-              <div style={{fontSize:12,fontFamily:C.mono,color:C.ac,fontWeight:700}}>{((m.qty || 1)*(m.cost || 0)).toFixed(2)} €</div>
+              <div style={{fontSize:12,fontFamily:C.mono,color:C.acT,fontWeight:700}}>{((m.qty || 1)*(m.cost || 0)).toFixed(2)} €</div>
               <IconBtn Icon={IcoTrash} onClick={()=>remove(m.id)} label={`${m.name} löschen`} danger size={12} />
             </div>
           ))
@@ -877,7 +877,7 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
         {sorted.length > 0 && (
           <div style={{padding:'8px 14px',borderTop:`1px solid ${C.bd}`,display:'flex',justifyContent:'flex-end',gap:8,alignItems:'center'}}>
             <span style={{fontSize:12,color:C.mu}}>Gesamt:</span>
-            <span style={{fontSize:16,fontWeight:800,color:C.ac,fontFamily:C.mono}}>{total.toFixed(2)} €</span>
+            <span style={{fontSize:16,fontWeight:800,color:C.acT,fontFamily:C.mono}}>{total.toFixed(2)} €</span>
           </div>
         )}
       </div>
@@ -907,7 +907,7 @@ export function RequirementsTab({ project, onUpdate }: { project: Project; onUpd
           <div style={{flex:1,height:4,background:C.bd2,borderRadius:2,overflow:'hidden'}}>
             <div style={{height:'100%',width:`${pct}%`,background:C.gr,borderRadius:2,transition:'width .3s'}} />
           </div>
-          <span style={{fontSize:10,color:C.gr,fontFamily:C.mono,fontWeight:700}}>{pct}%</span>
+          <span style={{fontSize:10,color:C.grT,fontFamily:C.mono,fontWeight:700}}>{pct}%</span>
         </div>
       )}
       {(project.requirements||[]).map((r: Requirement) => (
@@ -957,7 +957,7 @@ export function StepsTab({ project, onUpdate }: { project: Project; onUpdate: (i
                   <div style={{fontSize:10,color:C.mu,marginTop:1,fontFamily:C.mono}}>{fmtDate(s.date)}</div>
                 </div>
                 <div style={{display:'flex',gap:5,alignItems:'center'}}>
-                  {s.note && <IcoDoc size={11} style={{color:C.ac}} />}
+                  {s.note && <IcoDoc size={11} style={{color:C.acT}} />}
                   <IcoChevronD size={11} style={{color:C.mu,transition:'transform .15s',transform:open===s.id?'rotate(180deg)':'none'}} />
                   <IconBtn Icon={IcoTrash} onClick={e=>{e.stopPropagation();remove(s.id);}} label="Löschen" danger size={12} />
                 </div>

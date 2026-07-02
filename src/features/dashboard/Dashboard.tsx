@@ -104,8 +104,8 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               ? <div style={{ fontSize: 12, color: C.textSecondary, fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>{t('dashboard.noAzubis')}</div>
               : azubis.map(a => {
               const myProjects = active.filter(p => (p.assignees||[]).includes(a.id));
-              const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => t.assignee === a.id && t.status !== 'done'));
-              const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => t.assignee === a.id && t.status === 'in_progress'));
+              const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => sameId(t.assignee, a.id) && t.status !== 'done'));
+              const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => sameId(t.assignee, a.id) && t.status === 'in_progress'));
               const overdue    = myTasks.filter((t: Task) => t.deadline && new Date(t.deadline) < now);
               const doneTotal  = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => t.status === 'done' || t.done)).length;
               const totalTasks = myProjects.flatMap(p => (p.tasks||[])).length;
@@ -113,14 +113,14 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
 
               // Bericht dieser Woche (ISO-Wochenmontag, lokal — DST-sicher)
               const weekMon    = isoWeekMonday(now);
-              const myReports  = reports.filter(r => r.user_id === a.id).sort((x,y) => (y.week_start||'').localeCompare(x.week_start||''));
+              const myReports  = reports.filter(r => sameId(r.user_id, a.id)).sort((x,y) => (y.week_start||'').localeCompare(x.week_start||''));
               const lastReport = myReports[0] || null;
               const hasThisWeek = myReports.some(r => (r.week_start||'') >= weekMon);
               const REPORT_ST: any  = { draft: { l: 'Entwurf', c: C.mu }, submitted: { l: 'Eingereicht', c: C.ac }, reviewed: { l: 'Geprüft', c: C.yw }, signed: { l: 'Fertig', c: C.gr } };
 
               // Stunden diese Woche
               const weekEnd    = (() => { const d = new Date(weekMon + 'T12:00:00'); d.setDate(d.getDate()+6); return fmtLocalDate(d); })();
-              const weekHours  = active.flatMap(p => (p.tasks||[]).filter((t: Task) => t.assignee === a.id))
+              const weekHours  = active.flatMap(p => (p.tasks||[]).filter((t: Task) => sameId(t.assignee, a.id)))
                 .flatMap((t: Task) => (t.timeLog||[]).filter((e: TimeLogEntry) => (e.date || '') >= weekMon && (e.date || '') <= weekEnd))
                 .reduce((s: number, e: TimeLogEntry) => s + (Number(e.hours)||0), 0);
 

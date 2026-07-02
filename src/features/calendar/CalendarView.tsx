@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, uid, getKW, firstName } from '../../lib/utils.js';
+import { C, uid, getKW, firstName, sameId } from '../../lib/utils.js';
 import { useDesign } from '../../lib/hooks.js';
 import { FlapDigits } from '../../components/FlapDigits.jsx';
 import { Avatar, Modal, Field } from '../../components/UI.jsx';
@@ -154,7 +154,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
     projects.forEach(p => {
       p.tasks?.forEach((t: Task) => {
         if ((t.status === 'in_progress' || t.deadline === ds) && t.assignee) {
-          const u = users?.find(u => u.id === t.assignee);
+          const u = users?.find(u => sameId(u.id, t.assignee));
           if (u && !active.find(a => a.id === u.id)) active.push({ ...u, taskText: t.text, taskStatus: t.status });
         }
       });
@@ -316,7 +316,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
               projects.forEach(p => {
                 p.tasks?.forEach((t: Task) => {
                   if ((t.status === 'in_progress' || t.deadline === ds) && t.assignee) {
-                    const u = users?.find(u => u.id === t.assignee);
+                    const u = users?.find(u => sameId(u.id, t.assignee));
                     if (u && !workers.find(a => a.id === u.id)) workers.push({ ...u, taskText: t.text, taskStatus: t.status });
                   }
                 });
