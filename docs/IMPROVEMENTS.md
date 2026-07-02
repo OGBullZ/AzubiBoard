@@ -21,6 +21,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 - [x] **Boot-Smoke vertiefen** (`c38132b`) — Interaktions-Test für CommandDialogs (Ctrl+K-Suche + ?-Shortcuts). Editor-Open zurückgestellt (Preview-Overlay-Flakiness).
 - [x] **Property-Tests Datum** (P1, 15.06.) — `tests/date-properties.test.js` (fast-check): DST-Stabilität als Invariante in Europe/Berlin. dayDiffLocal = Kalendertag-Delta unabhängig von Uhrzeit/Zeitumstellung; alle 7 Tage einer ISO-Woche = selbe KW; fmtLocalDate-Round-Trip; +explizite DST-Grenztage 2026 + Fail-Loud-TZ-Guard.
 - [x] **PHPUnit-Suite-Overlap** behoben (01.07., `917d016`) — `defaultTestSuite="all"`: bare phpunit läuft jede Datei genau 1× (133 Tests, Exit 0), Named-Suites bleiben.
+- [x] **Bug-Hunt 7 / große Fehleranalyse** (02.07., `7caa6eb`) — 9 sameId-Nachzügler über Alias-Vergleiche (`a.id`/`u.id` statt `currentUser.id` → Lint-Regel blind): Cockpit/MonthReportModal/CalendarView; 4 T-Token-Verstöße in ProjectTabs (a11y-Gate öffnet keine Projekt-Tabs). Geprüft ohne Fund: stale Spreads, Print-XSS, UTC-Mix (Burndown/LearnPage in sich UTC-konsistent, bewusst belassen). Bekannte Gate-Lücken: Lint-Regel matcht keine Aliase; axe-Audit öffnet Detail-Tabs nicht.
 
 ## B · Kernzweck: Berichtsheft & IHK
 - [x] **M5a IHK-Recherche-Spike** (`docs/IHK-Spike.md`) — **Ergebnis: Export, keine API.** Einreichung = signierte Gesamt-PDF ins IHK-Prüfungsportal; offizielles IHK-Digital-Berichtsheft wird 31.12.2026 abgeschaltet → Drittanbieter (AzubiBoard passt). M5c (Direkt-API) entfällt.
