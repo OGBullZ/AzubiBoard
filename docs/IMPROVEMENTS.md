@@ -8,7 +8,7 @@
 
 1. **P1 Korrektheit** (höchster ROI, belegt) — **Bug-Hunt 5** (→ Abschnitt A, AKTIV) + Property-Tests Datum.
 2. **P2 UX & Politur** — Design-Graduierung (v1 deprecaten, braucht User-Go) · Berichtsheft-Editor-UX · company/department ins Onboarding · a11y Pass 3.
-3. **P3 Architektur** — App.tsx Root-Handler → Hooks + Page-Wrapper · PHPUnit-Suite-Overlap.
+3. ~~**P3 Architektur** — App.tsx Root-Handler → Hooks + Page-Wrapper · PHPUnit-Suite-Overlap.~~ ✅ (02.07., `be34081` + `917d016`)
 4. **P4 Performance** (geringe Marge, Chunk 154 KB) — Lighthouse-Schwellen als Gate (→ Abschnitt G).
 > [Server]-Items (any-Tightening, Dual-Mode, Server-Tier) bewusst zurückgestellt bis Server-Signal.
 
@@ -43,7 +43,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 - [x] Berichtsheft-Vollständigkeit pro Azubi im Cockpit (`c63e8bd`)
 
 ## E · Architektur & Wartbarkeit
-- [~] **App.tsx weiter entflechten** (1757→1273 Z.) — NotificationBell + GlobalSearch/ShortcutsHelp + Sidebar raus (`8a24a09`,`71ec792`,`00e7ea2`); offen: Root-Handler → Hooks, Page-Wrapper · [hier]
+- [x] **App.tsx entflochten** (1757→**262** Z., 02.07., 3 Commits bis `be34081`) — Page-Wrapper → `src/pages/` (8 Route-Wrapper + DesignSwitch), AppLayout → `components/AppLayout.tsx`, useTheme/useIsMobile/useToast → `lib/`, Root-Handler/Effects → `src/app/`-Hooks (useAuthSession/useConflict/useOnboardingFlow/useAuditForward/useGlobalShortcuts/useBackupExport). App.tsx = Store-Bindung + Modal-State + Routing.
 - [ ] **Dual-Mode-Schuld** — wird durch Richtung A an der Wurzel aufgelöst · [Server]
 - [ ] **Blob↔Schema-`any` tightening** nach Schema-Read-Verifikation · [Server]
 - [x] Notification-UI extrahiert (`8a24a09`) · sameId/isoWeekMonday zentralisiert · firstName zentralisiert
