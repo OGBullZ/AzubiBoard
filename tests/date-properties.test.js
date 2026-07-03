@@ -54,7 +54,9 @@ describe('dayDiffLocal — Tagesdifferenz ist DST-stabil', () => {
       const midA = new Date(a.y, a.m, a.d);
       const midB = new Date(b.y, b.m, b.d);
       expect(dayDiffLocal(ymdStr(a), midA)).toBe(0);
-      expect(dayDiffLocal(ymdStr(a), midB)).toBe(-dayDiffLocal(ymdStr(b), midA));
+      // +0 normalisiert -0: toBe nutzt Object.is, und bei a===b wäre -0 !== +0
+      // (CI-Fund 03.07., Seed 868846350 zog zweimal dasselbe Datum).
+      expect(dayDiffLocal(ymdStr(a), midB)).toBe(-dayDiffLocal(ymdStr(b), midA) + 0);
     }));
   });
 });
