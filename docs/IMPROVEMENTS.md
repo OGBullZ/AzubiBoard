@@ -34,7 +34,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 ## C · KI-Features
 ⚠️ Alles server-seitig → aktiv erst mit Server-Tier.
 - [x] **AI3 KI-Prüfungsvorbereitung** (`93fdce2`) — Quiz aus Thema generieren (Ausbilder, server-seitig)
-- [ ] **AI-Lernpfad-Generator** aus Berufsbild · [hier]/[Server]
+- [x] **AI5 AI-Lernpfad-Generator** aus Berufsbild (03.07.) — `POST /api/ai/generate-learning-path` (Ausbilder/Mentor, 10/h) + „🤖 KI-Lernpfad"-Modal in LernpfadeView; prereq-Indizes→Node-IDs via `generatedPath.ts` (pure, getestet). Aktiv erst mit Server-Tier.
 - [x] AI4 KI-Feedback auf Berichte (`717ef64`)
 
 ## D · Ausbilder-Werkzeuge

@@ -21,6 +21,9 @@ if ($action === 'suggest-goals') {
 } elseif ($action === 'generate-quiz') {
     if (!in_array($user['role'], ['ausbilder', 'mentor'])) error('Keine Berechtigung', 403);
     ai_generate_quiz($user);
+} elseif ($action === 'generate-learning-path') {
+    if (!in_array($user['role'], ['ausbilder', 'mentor'])) error('Keine Berechtigung', 403);
+    ai_generate_learning_path($user);
 } else {
     error("Unbekannte KI-Aktion '$action'", 404);
 }
@@ -275,4 +278,80 @@ function ai_generate_quiz(array $user): never {
     if (empty($questions)) error('Keine verwertbaren Fragen erzeugt. Bitte erneut versuchen.', 502);
 
     respond(['questions' => $questions]);
+}
+
+// ── AI5: Strukturierten Lernpfad zu einem Berufsbild generieren ──
+function ai_generate_learning_path(array $user): never {
+    if (!CLAUDE_API_KEY) {
+        error('KI-Feature nicht konfiguriert. Bitte CLAUDE_API_KEY in .env setzen.', 503);
+    }
+
+    rate_limit('ai_path_' . $user['sub'], 10, 3600); // 10 Calls/Stunde pro Nutzer
+
+    $b = body();
+    $profession = clean_str($b['profession'] ?? '', 200, false) ?? '';
+    if (trim($profession) === '') error('Berufsbild erforderlich', 400);
+    // Lehrjahr optional — nicht gesetzt: über alle Lehrjahre
+    $lehrjahr = (isset($b['lehrjahr']) && $b['lehrjahr'] !== '')
+        ? clean_int($b['lehrjahr'], 1, 4, 'lehrjahr')
+        : null;
+    $focus = clean_str($b['focus'] ?? '', 200, false) ?? ''; // optionaler Themenschwerpunkt
+    $count = clean_int($b['count'] ?? 6, 3, 10, 'count');    // Anzahl Lernziele
+
+    $lehrjahrStr = $lehrjahr !== null ? " im {$lehrjahr}. Ausbildungsjahr" : ' über alle Lehrjahre';
+    $focusStr    = $focus !== '' ? " mit Themenschwerpunkt \"{$focus}\"" : '';
+
+    $systemPrompt = 'Du bist ein Experte für die deutsche Berufsausbildung (IHK) und erstellst strukturierte, aufeinander aufbauende Lernpfade. '
+        . 'Gib AUSSCHLIESSLICH valides JSON zurück – kein Markdown, kein Code-Block, keine Erklärung.';
+
+    $userPrompt = "Erstelle einen Lernpfad mit {$count} aufeinander aufbauenden Lernzielen "
+        . "für den Ausbildungsberuf \"{$profession}\"{$lehrjahrStr}{$focusStr}.\n\n"
+        . "Anforderungen:\n"
+        . "- type ist eines von: article, link, quiz, task.\n"
+        . "- content ist ein kompakter Lerninhalt bzw. eine Anleitung (bei type=link eine seriöse URL).\n"
+        . "- prereqs sind die Indizes FRÜHERER Nodes (0-basiert); die erste Node hat [].\n"
+        . "Gib NUR dieses JSON zurück (nichts davor/danach):\n"
+        . '{"title":"...","description":"...","nodes":[{"title":"...","description":"...","type":"article","content":"...","prereqs":[0]}]}';
+
+    $rawText = claude_call_raw($userPrompt, $systemPrompt, 4096);
+    if ($rawText === null) {
+        error('KI-Anfrage fehlgeschlagen. Bitte erneut versuchen.', 502);
+    }
+
+    $parsed = null;
+    if (preg_match('/\{[\s\S]*"nodes"[\s\S]*\}/m', $rawText, $m)) {
+        $parsed = json_decode($m[0], true);
+    }
+    if (!is_array($parsed) || !isset($parsed['nodes']) || !is_array($parsed['nodes'])) {
+        error('KI-Antwort konnte nicht verarbeitet werden. Bitte erneut versuchen.', 502);
+    }
+
+    // Sanitisieren: max $count Nodes, type-Whitelist, prereqs nur frühere Indizes.
+    $nodes = [];
+    foreach (array_slice($parsed['nodes'], 0, $count) as $n) {
+        $ntitle = mb_substr(trim((string)($n['title'] ?? '')), 0, 120);
+        if ($ntitle === '') continue; // leerer Titel → Node skippen
+        $ntype = (string)($n['type'] ?? 'article');
+        if (!in_array($ntype, ['article', 'link', 'quiz', 'task'], true)) $ntype = 'article';
+        $idx = count($nodes); // Index dieser Node im Ergebnis (0-basiert)
+        $prereqs = [];
+        foreach ((array)($n['prereqs'] ?? []) as $p) {
+            if (is_int($p) && $p >= 0 && $p < $idx) $prereqs[] = $p; // nur frühere Nodes
+        }
+        $nodes[] = [
+            'title'       => $ntitle,
+            'description' => mb_substr(trim((string)($n['description'] ?? '')), 0, 300),
+            'type'        => $ntype,
+            'content'     => mb_substr(trim((string)($n['content'] ?? '')), 0, 2000),
+            'prereqs'     => $prereqs,
+        ];
+    }
+    if (empty($nodes)) error('Keine verwertbaren Lernziele erzeugt. Bitte erneut versuchen.', 502);
+
+    // Nodes OHNE id — die vergibt das Frontend.
+    respond(['path' => [
+        'title'       => mb_substr(trim((string)($parsed['title'] ?? '')), 0, 120),
+        'description' => mb_substr(trim((string)($parsed['description'] ?? '')), 0, 500),
+        'nodes'       => $nodes,
+    ]]);
 }

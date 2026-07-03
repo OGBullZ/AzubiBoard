@@ -432,6 +432,25 @@ export const dataService = {
     return res.json(); // { questions: [...] }
   },
 
+  // AI5: KI-Lernpfad generieren — POST /api/ai/generate-learning-path.
+  // Nodes kommen OHNE id, prereqs sind 0-basierte Indizes früherer Nodes
+  // (Übersetzung → Node-IDs via mapGeneratedPath am Aufrufort).
+  async generateLearningPath({ profession, lehrjahr, focus, count = 6 }: {
+    profession: string; lehrjahr?: number; focus?: string; count?: number;
+  }): Promise<{ path: { title: string; description: string; nodes: { title: string; description: string; type: 'article' | 'link' | 'quiz' | 'task'; content: string; prereqs: number[] }[] } }> {
+    if (!USE_API || !isTokenValid()) throw new Error('API nicht verfügbar');
+    const res = await apiFetch('/ai/generate-learning-path', {
+      method: 'POST',
+      body:   JSON.stringify({ profession, lehrjahr, focus, count }),
+    });
+    if (res.status === 503) throw new Error('KI nicht konfiguriert — CLAUDE_API_KEY in .env setzen');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json(); // { path: { title, description, nodes: [...] } }
+  },
+
   // AI2: Claude-API Lernziel-Vorschläge — POST /api/ai/suggest-goals
   async suggestGoals({ profession, lehrjahr, context = '', existingTitles = [], count = 6 }: {
     profession: string; lehrjahr: number; context?: string; existingTitles?: string[]; count?: number;

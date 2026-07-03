@@ -3,6 +3,8 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Id, User, LearningPath, LearningPathNode } from '../../types';
 import { C, uid } from '../../lib/utils.js';
 import { Modal, Field, ProgressBar, EmptyState } from '../../components/UI.jsx';
+import { dataService } from '../../lib/dataService.js';
+import { mapGeneratedPath } from './generatedPath.js';
 import AiGoalSuggestions from './AiGoalSuggestions.jsx';
 
 // Ad-hoc Fortschritts-Map (Runtime-Form weicht von pathProgress-Schema ab):
@@ -267,6 +269,78 @@ function PathModal({ form, setForm, onSave, onClose, title }: PathModalProps) {
   );
 }
 
+// ── KI-Lernpfad Modal (AI5) ───────────────────────────────────
+type AiPathModalProps = {
+  onCreated: (path: LearningPath) => void;
+  onClose: () => void;
+};
+
+function AiPathModal({ onCreated, onClose }: AiPathModalProps) {
+  const [profession, setProfession] = useState('');
+  const [lehrjahr,   setLehrjahr]   = useState<string>('');   // '' = alle Lehrjahre
+  const [focus,      setFocus]      = useState('');
+  const [count,      setCount]      = useState(6);
+  const [loading,    setLoading]    = useState(false);
+  const [err,        setErr]        = useState<string | null>(null);
+
+  const generate = async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const lj  = lehrjahr ? Number(lehrjahr) : undefined;
+      const gen = await dataService.generateLearningPath({ profession, lehrjahr: lj, focus, count });
+      // prereq-Indizes → Node-IDs; lehrjahr für die Listen-Gruppierung (Default 1 bei „alle").
+      const path = { ...mapGeneratedPath(gen.path, uid), lehrjahr: lj ?? 1 };
+      onCreated(path);
+    } catch (e) {
+      setErr((e as Error).message || 'Fehler beim Generieren');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title="🤖 KI-Lernpfad generieren" onClose={onClose} width={480}>
+      <Field label="Ausbildungsberuf">
+        <input value={profession} onChange={e => setProfession(e.target.value)}
+          placeholder="z.B. Fachinformatiker/in Anwendungsentwicklung" autoFocus />
+      </Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="Lehrjahr (optional)">
+          <select value={lehrjahr} onChange={e => setLehrjahr(e.target.value)}>
+            <option value="">Alle Lehrjahre</option>
+            <option value={1}>1. Lehrjahr</option>
+            <option value={2}>2. Lehrjahr</option>
+            <option value={3}>3. Lehrjahr</option>
+            <option value={4}>4. Lehrjahr</option>
+          </select>
+        </Field>
+        <Field label="Anzahl Lernziele">
+          <select value={count} onChange={e => setCount(Number(e.target.value))}>
+            {[3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n} Lernziele</option>)}
+          </select>
+        </Field>
+      </div>
+      <Field label="Schwerpunkt (optional)">
+        <textarea value={focus} onChange={e => setFocus(e.target.value)}
+          placeholder="z.B. Datenbanken und SQL, Java-Grundlagen" rows={2} />
+      </Field>
+
+      {err && (
+        <div style={{ background: 'var(--c-crd)', border: `1px solid color-mix(in srgb, ${C.cr} 25%, transparent)`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: C.crT, marginBottom: 12 }}>
+          ⚠ {err}
+        </div>
+      )}
+
+      <button className="abtn" onClick={generate}
+        disabled={loading || !profession.trim()}
+        style={{ width: '100%', padding: 11, marginTop: 6 }}>
+        {loading ? 'Generiere…' : '✨ Generieren'}
+      </button>
+    </Modal>
+  );
+}
+
 // ── Node-Edit Modal ───────────────────────────────────────────
 type NodeEditModalProps = {
   form: NodeForm;
@@ -344,6 +418,7 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
   const [nodeForm,      setNodeForm]      = useState<NodeForm>(EMPTY_NODE);
   const [editingNode,   setEditingNode]   = useState<LearningPathNode | null>(null);
   const [showAiModal,   setShowAiModal]   = useState(false);
+  const [showAiPathModal, setShowAiPathModal] = useState(false);
 
   const isAusbilder  = currentUser?.role === 'ausbilder';
   const userId       = currentUser?.id || 'anon';
@@ -380,6 +455,12 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
   const deletePath = (id: Id) => {
     savePaths(learningPaths.filter((p: LearningPath) => p.id !== id));
     if (selPath?.id === id) setSelPath(null);
+  };
+  // AI5: fertig gemappten KI-Pfad anlegen (gleicher Weg wie PathModal-Save) + reinnavigieren
+  const createAiPath = (path: LearningPath) => {
+    savePaths([...learningPaths, path]);
+    setShowAiPathModal(false);
+    setSelPath(path);
   };
 
   // ── Node CRUD (within selPath) ──
@@ -479,7 +560,12 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
         <button className="btn" onClick={onBack} style={{ padding: '5px 10px', fontSize: 11 }}>← Zurück</button>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: C.br, margin: 0, flex: 1 }}>Lernpfade 🗺️</h1>
         {isAusbilder && (
-          <button className="abtn" onClick={openCreatePath} style={{ fontSize: 12, padding: '7px 14px' }}>+ Neuer Lernpfad</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" onClick={() => setShowAiPathModal(true)}
+              style={{ fontSize: 12, padding: '7px 12px', color: C.acT, borderColor: `color-mix(in srgb, ${C.ac} 38%, transparent)` }}
+              title="KI-Lernpfad generieren">🤖 KI-Lernpfad</button>
+            <button className="abtn" onClick={openCreatePath} style={{ fontSize: 12, padding: '7px 14px' }}>+ Neuer Lernpfad</button>
+          </div>
         )}
       </div>
 
@@ -533,6 +619,10 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
       {showPathModal && (
         <PathModal form={pathForm} setForm={setPathForm} onSave={savePathForm} onClose={() => setShowPathModal(false)}
           title={editingPath ? 'Lernpfad bearbeiten' : 'Neuer Lernpfad'} />
+      )}
+
+      {showAiPathModal && (
+        <AiPathModal onCreated={createAiPath} onClose={() => setShowAiPathModal(false)} />
       )}
     </div>
   );

@@ -88,6 +88,37 @@ final class AiRouteTest extends TestCase
             'generate-quiz muss auf Ausbilder/Mentor beschränkt sein');
     }
 
+    public function testGenerateLearningPathActionExists(): void
+    {
+        $this->assertStringContainsString('generate-learning-path', $this->routeCode,
+            'ai.php muss generate-learning-path Aktion enthalten (AI5)');
+        $this->assertStringContainsString('ai_generate_learning_path', $this->routeCode,
+            'ai_generate_learning_path() Funktion muss vorhanden sein');
+        $this->assertStringContainsString("in_array(\$user['role'], ['ausbilder', 'mentor'])", $this->routeCode,
+            'generate-learning-path muss auf Ausbilder/Mentor beschränkt sein');
+    }
+
+    public function testGenerateLearningPathHasRateLimit(): void
+    {
+        $this->assertStringContainsString("rate_limit('ai_path_'", $this->routeCode,
+            'ai_generate_learning_path muss einen eigenen Per-User-Rate-Limit-Bucket nutzen');
+    }
+
+    public function testGenerateLearningPathSanitizesPrereqsToEarlierNodesOnly(): void
+    {
+        // Prereqs dürfen nur auf FRÜHERE Nodes zeigen (0-basiert, < eigener Index),
+        // sonst wären Zyklen/Vorwärts-Kanten im Lernpfad möglich.
+        $this->assertStringContainsString('$p >= 0 && $p < $idx', $this->routeCode,
+            'prereqs müssen auf frühere Node-Indizes (< eigener Index) beschränkt werden');
+    }
+
+    public function testGenerateLearningPathEnforcesTypeWhitelist(): void
+    {
+        // type muss aus der Whitelist stammen, Fallback 'article'.
+        $this->assertStringContainsString("['article', 'link', 'quiz', 'task']", $this->routeCode,
+            'Node-type muss auf die Whitelist article|link|quiz|task begrenzt sein');
+    }
+
     public function testRouteRequiresHelpersFile(): void
     {
         $this->assertStringContainsString('ai_helpers.php', $this->routeCode,
