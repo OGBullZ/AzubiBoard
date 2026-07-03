@@ -12,6 +12,35 @@
 4. **P4 Performance** (geringe Marge, Chunk 154 KB) — Lighthouse-Schwellen als Gate (→ Abschnitt G).
 > [Server]-Items (any-Tightening, Dual-Mode, Server-Tier) bewusst zurückgestellt bis Server-Signal.
 
+## ⭐ UX-Roadmap 2 — Bedienbarkeit (03.07.2026, alles [hier])
+
+> Quellen: Bug-Hunt 8 (Delta sauber, 0 Korrektheits-Funde), Code-Heuristik-Review (11 belegte Funde),
+> visueller Walkthrough beide Rollen Desktop+Mobile (8 Funde). Reihenfolge nach Schadenspotenzial.
+
+### U-P1 · Datenverlust-Schutz (User verliert Arbeit/Daten)
+- [ ] **U1 Lösch-Konsistenz** — ConfirmDialog+Toast auf alle 7 nackten Lösch-Stellen: LernpfadeView-Node (`deleteNode` räumt auch fremde prereqs!), Task/Material/Requirement/Step (ProjectTabs), Kommentar (ProjectDetail), Link (LinksManager). Pattern existiert (LabelsManager/CalendarView/GroupsView) — nur nachziehen. · M
+- [ ] **U2 Berichtsheft-Editor Dirty-Check** — „Zurück" (ReportsPage:447) verwirft ungespeicherte Wochenberichte kommentarlos → isDirty-Vergleich + Rückfrage. · S/M
+- [ ] **U3 Modal-Verwerfen-Schutz** — Backdrop-Klick/Esc schließt jedes Modal sofort (UI.tsx Modal); bei NewProjectModal (3 Schritte) Totalverlust → optionaler `onBeforeClose`-Hook + Rückfrage bei dirty. · M
+- [ ] **U4 Papierkorb-Ehrlichkeit** — Trash deckt nur projects/reports/goals; Gruppen/Tasks/Kommentare/Material sind permanent → Coverage erweitern ODER Versprechen im UI präzisieren. · M/L
+
+### U-P2 · Mobile (drei Kernseiten ohne useIsMobile)
+- [ ] **U5 Projektliste mobil** — Listen-(Tabellen-)Ansicht wird rechts abgeschnitten → unter Breakpoint Cards/Grid erzwingen. · S
+- [ ] **U6 Berichtsheft-Editor mobil** — feste 220px-Metaspalte quetscht Editor → stapeln (column). · M
+- [ ] **U7 Ausbildungsplan-Formular mobil** — GoalForm-Grid mit Fixbreiten bricht <400px → stapeln. · S
+- [ ] **U8 Kalender mobil** — Wochen-/Monatsraster für Desktop gebaut → Agenda-/Listenmodus unter Breakpoint. · M/L
+- [ ] **U9 Projekt-Detail Scroll-Affordance** — Aktions-/Tab-Leiste läuft mobil unsichtbar aus dem Bild → Fade-Kante/Chevron. · S
+- [ ] **U10 Kalender-Hover auf Touch** — „Aktiv an diesem Tag"-Popup ist hover-basiert (rendert auf Touch statisch) → Tap-Toggle oder mobil aus. · S
+
+### U-P3 · Konsistenz & Politur
+- [ ] **U11 Rollenfremde Shortcuts** — Command-Palette zeigt Azubi „N Neues Projekt" → Shortcut-Liste rollenfiltern. · S
+- [ ] **U12 Lehrjahr 1–4 vereinheitlichen** — Ausbildungsplan-Filter kennt nur LJ 1–3, Onboarding/KI-Lernpfad bieten 1–4. · S
+- [ ] **U13 Speichern-Beschriftung** — drei Varianten (`✓` ohne Label / „✓ Speichern" / „Speichern") → vereinheitlichen. · S
+- [ ] **U14 Pflichtfeld-Marker NewProjectModal** — Titel erst nach Fehlversuch als Pflicht erkennbar → `*` wie TrainingPlanPage. · S
+- [ ] **U15 Header-Uhr ohne Sekunden** — sekündliches Ticken = Unruhe + Re-Renders. · S
+- [ ] **U16 Sidebar „Verwalten" für Azubi** — Sektion enthält für Azubis nur Gruppen-Beitritt; Label passt nicht zur Rolle. · S
+- [ ] **U17 Kategorie-Select Ausbildungsplan** — leeres Select in voller Breite wirkt unfertig. · S
+- [ ] **U18 Share-Einstieg für Projekte?** — ShareLinkModal ist generisch (`kind`-Prop), aber nur aus Berichten erreichbar; bewusstes Scope-Limit oder Lücke? → User-Entscheid. · S
+
 ## A · Korrektheit & Robustheit
 Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs, allein heute 7 latente.
 
@@ -21,6 +50,7 @@ Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs
 - [x] **Boot-Smoke vertiefen** (`c38132b`) — Interaktions-Test für CommandDialogs (Ctrl+K-Suche + ?-Shortcuts). Editor-Open zurückgestellt (Preview-Overlay-Flakiness).
 - [x] **Property-Tests Datum** (P1, 15.06.) — `tests/date-properties.test.js` (fast-check): DST-Stabilität als Invariante in Europe/Berlin. dayDiffLocal = Kalendertag-Delta unabhängig von Uhrzeit/Zeitumstellung; alle 7 Tage einer ISO-Woche = selbe KW; fmtLocalDate-Round-Trip; +explizite DST-Grenztage 2026 + Fail-Loud-TZ-Guard.
 - [x] **PHPUnit-Suite-Overlap** behoben (01.07., `917d016`) — `defaultTestSuite="all"`: bare phpunit läuft jede Datei genau 1× (133 Tests, Exit 0), Named-Suites bleiben.
+- [x] **Bug-Hunt 8** (03.07.) — Delta seit Hunt 7 (`9ebc8cd`/`ce5c043`/`04401f9`) zeilenweise reviewt: alle 21 sameId-Konvertierungen semantikerhaltend, TaskCard-Tastatur-Semantik korrekt verlagert, ST.cT additiv. Repo-Greps ohne Fund: stale Spreads 0, ungültige var()-CSS 0, Print-Fenster vollständig escaped. `.includes()`-auf-ID-Arrays-Klasse geprüft (Lint-Regel blind dafür): alle ~20 Stellen hängen an der Boundary-Invariante „getUsers/getMe/schemaMap normalisieren IDs zu String" — kein belegbarer Mix-Fall, bewusst belassen. **0 neue Korrektheits-Funde.**
 - [x] **Bug-Hunt 7 / große Fehleranalyse** (02.07., `7caa6eb`) — 9 sameId-Nachzügler über Alias-Vergleiche (`a.id`/`u.id` statt `currentUser.id` → Lint-Regel blind): Cockpit/MonthReportModal/CalendarView; 4 T-Token-Verstöße in ProjectTabs (a11y-Gate öffnet keine Projekt-Tabs). Geprüft ohne Fund: stale Spreads, Print-XSS, UTC-Mix (Burndown/LearnPage in sich UTC-konsistent, bewusst belassen). Bekannte Gate-Lücken: Lint-Regel matcht keine Aliase; axe-Audit öffnet Detail-Tabs nicht.
 
 ## B · Kernzweck: Berichtsheft & IHK
