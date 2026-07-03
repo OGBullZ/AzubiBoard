@@ -14,7 +14,7 @@ import {
 } from '../../components/Icons.jsx';
 
 // ── Helpers ───────────────────────────────────────────────────
-const YEARS    = [1, 2, 3];
+const YEARS    = [1, 2, 3, 4];
 const QUARTERS = [1, 2, 3, 4];
 const CATS     = ['Fachkompetenz', 'Methodenkompetenz', 'Sozialkompetenz', 'IT & Digital', 'Betrieb', 'Schule', 'Sonstiges'];
 
@@ -76,8 +76,8 @@ function ExamCountdown({ examDate, isAusbilder, onChange }: { examDate: string |
         <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
           <input type="date" value={val} onChange={e => setVal(e.target.value)}
             style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.br, fontSize: 12 }} />
-          <button onClick={save} className="abtn" style={{ fontSize: 11, padding: '5px 9px' }}>✓</button>
-          <button onClick={() => setEditing(false)} style={{ padding: '5px 9px', fontSize: 11, borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu, cursor: 'pointer' }}>✕</button>
+          <button onClick={save} className="abtn" style={{ fontSize: 11, padding: '5px 9px' }}><IcoCheck size={11} /> Speichern</button>
+          <button onClick={() => setEditing(false)} aria-label="Abbrechen" title="Abbrechen" style={{ padding: '5px 9px', fontSize: 11, borderRadius: 6, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu, cursor: 'pointer' }}>✕</button>
         </div>
       )}
     </div>
@@ -454,16 +454,17 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       {/* Filter bar */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .8 }}>Jahr:</span>
-        {['all', '1', '2', '3'].map(v => (
+        {['all', '1', '2', '3', '4'].map(v => (
           <button key={v} onClick={() => setFilterY(v)}
             style={{ padding: '3px 10px', fontSize: 11, borderRadius: 5, border: `1px solid ${filterY === v ? C.ac : C.bd2}`, background: filterY === v ? C.acd : C.sf2, color: filterY === v ? C.acT : C.mu, cursor: 'pointer' }}>
             {v === 'all' ? 'Alle' : `${v}. LJ`}
           </button>
         ))}
         <span style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .8, marginLeft: 8 }}>Kategorie:</span>
+        {/* U17: width:auto/maxWidth überschreibt die globale select{width:100%}-Regel, sonst bricht das Select als Block auf eine eigene volle Zeile um */}
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)} aria-label="Nach Kategorie filtern"
-          style={{ padding: '3px 8px', fontSize: 11, borderRadius: 5, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu }}>
-          <option value="all">Alle</option>
+          style={{ padding: '3px 8px', fontSize: 11, borderRadius: 5, border: `1px solid ${C.bd2}`, background: C.sf2, color: C.mu, width: 'auto', maxWidth: 200 }}>
+          <option value="all">Alle Kategorien</option>
           {CATS.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>

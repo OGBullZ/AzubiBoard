@@ -46,7 +46,7 @@ function isUnlocked(node: LearningPathNode, progress: ProgressMap) {
   return node.prereqs.every((pid: Id) => progress[pid]?.completed);
 }
 
-const LEHRJAHR_COLOR: Record<number, string> = { 1: C.gr, 2: C.ac, 3: C.yw };
+const LEHRJAHR_COLOR: Record<number, string> = { 1: C.gr, 2: C.ac, 3: C.yw, 4: C.cr };
 const TYPE_ICON: Record<string, string> = { article: '📖', link: '🔗', quiz: '🧩', task: '✅' };
 
 type PathForm = { title: string; description: string; lehrjahr: number };
@@ -270,6 +270,7 @@ function PathModal({ form, setForm, onSave, onClose, title }: PathModalProps) {
           <option value={1}>1. Lehrjahr</option>
           <option value={2}>2. Lehrjahr</option>
           <option value={3}>3. Lehrjahr</option>
+          <option value={4}>4. Lehrjahr</option>
         </select>
       </Field>
       <button className="abtn" onClick={onSave}
@@ -564,7 +565,7 @@ export default function LernpfadeView({ currentUser, data, setData, onBack }: Le
   }
 
   // ── Path list ──
-  const byYear = [1, 2, 3].map(y => ({ y, paths: learningPaths.filter((p: LearningPath) => p.lehrjahr === y) })).filter(g => g.paths.length > 0 || isAusbilder);
+  const byYear = [1, 2, 3, 4].map(y => ({ y, paths: learningPaths.filter((p: LearningPath) => p.lehrjahr === y) })).filter(g => g.paths.length > 0 || isAusbilder);
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }} className="anim">

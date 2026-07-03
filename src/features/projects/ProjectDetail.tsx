@@ -8,6 +8,7 @@ import { TasksTab, MaterialsTab, RequirementsTab, StepsTab } from './ProjectTabs
 import { NetzplanTab, GanttTab } from './NetzplanGantt.jsx';
 import { LinksManager } from './LinksManager.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
+import ShareLinkModal from '../../components/ShareLinkModal.jsx';
 import {
   IcoBack, IcoEdit, IcoCheck,
   IcoFolder, IcoMaterial, IcoRequire, IcoDoc,
@@ -464,6 +465,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
   const [form,      setForm]     = useState({ ...project });
   const [saving,    setSaving]   = useState(false);
   const [popup, setPopup] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);  // U18: Read-Only-Link teilen
   const isMobile = useIsMobile();
   // U9: statische Fade-Kante als Scroll-Hinweis für horizontal scrollbare Leisten auf Mobile
   const scrollFade = isMobile ? { maskImage: 'linear-gradient(90deg, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, black 85%, transparent)' } : {};
@@ -498,6 +500,15 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
       {popup === 'requirements' && <RequirementsPopup project={project} onUpdate={onUpdate} onClose={() => setPopup(null)} />}
       {popup === 'links'        && <LinksPopup        project={project} onUpdate={onUpdate} onClose={() => setPopup(null)} />}
 
+      {shareOpen && (
+        <ShareLinkModal
+          kind="project"
+          title={project.title}
+          data={project}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
+
       {/* Phase 2: Mentor = nur lesend (Schreibpfade sind am onUpdate-choke-point gesperrt) */}
       {currentUser?.role === 'mentor' && (
         <div style={{ background: 'var(--c-ywd)', color: C.ywT, borderBottom: `1px solid color-mix(in srgb, ${C.yw} 21%, transparent)`, padding: '6px 18px', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -524,6 +535,11 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
                 {currentUser?.role !== 'mentor' && (
                   <button className="btn" onClick={() => { setForm({ ...project }); setEditMode(true); }} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
                     <IcoEdit size={12} /> Bearbeiten
+                  </button>
+                )}
+                {currentUser?.role !== 'mentor' && (
+                  <button className="btn" onClick={() => setShareOpen(true)} title="Read-Only-Link erzeugen (für IHK/Eltern/Schule)" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <IcoLink size={12} /> Teilen
                   </button>
                 )}
                 {onArchive && currentUser.role === 'ausbilder' && !project.archived && (

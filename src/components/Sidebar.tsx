@@ -32,6 +32,7 @@ export function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImpor
   const location = useLocation();
   const path     = location.pathname;
   const isAusbilder = currentUser?.role === 'ausbilder';
+  const isAzubi = currentUser?.role === 'azubi';
 
   const handleNav = (to: string) => { navigate(to); if (isMobile) onCloseDrawer?.(); };
 
@@ -45,7 +46,7 @@ export function Sidebar({ currentUser, onLogout, onNewProject, onExport, onImpor
       { to: '/training',  label: 'Ausbildungsplan', Icon: IcoRequire   },
       { to: '/learn',     label: 'Lernbereich',     Icon: IcoLearn     },
     ] },
-    { label: 'Verwalten', items: [
+    { label: isAzubi ? 'Mehr' : 'Verwalten', items: [
       { to: '/groups',    label: 'Gruppen',         Icon: IcoUsers     },
       ...(isAusbilder ? [{ to: '/users', label: 'Nutzer', Icon: IcoUserEdit }] : []),
       { to: '/trash',     label: 'Papierkorb',      Icon: IcoTrash     },

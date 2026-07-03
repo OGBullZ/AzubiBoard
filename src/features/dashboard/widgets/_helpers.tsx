@@ -10,10 +10,11 @@ type IconComponent = ComponentType<{ size?: number; style?: CSSProperties } & SV
 
 export function LiveClock() {
   const [t, setT] = useState(new Date());
-  useEffect(() => { const i = setInterval(() => setT(new Date()), 1000); return () => clearInterval(i); }, []);
+  // U15: ohne Sekunden + 30s-Intervall — sekündliches Ticken war Dauer-Re-Render + visuelle Unruhe
+  useEffect(() => { const i = setInterval(() => setT(new Date()), 30_000); return () => clearInterval(i); }, []);
   return (
     <span style={{ fontFamily: C.mono, fontSize: 14, color: C.acT, fontWeight: 700, letterSpacing: 1.5, userSelect: 'none' }}>
-      {t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      {t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
     </span>
   );
 }

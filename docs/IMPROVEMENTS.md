@@ -17,29 +17,29 @@
 > Quellen: Bug-Hunt 8 (Delta sauber, 0 Korrektheits-Funde), Code-Heuristik-Review (11 belegte Funde),
 > visueller Walkthrough beide Rollen Desktop+Mobile (8 Funde). Reihenfolge nach Schadenspotenzial.
 
-### U-P1 · Datenverlust-Schutz (User verliert Arbeit/Daten)
-- [ ] **U1 Lösch-Konsistenz** — ConfirmDialog+Toast auf alle 7 nackten Lösch-Stellen: LernpfadeView-Node (`deleteNode` räumt auch fremde prereqs!), Task/Material/Requirement/Step (ProjectTabs), Kommentar (ProjectDetail), Link (LinksManager). Pattern existiert (LabelsManager/CalendarView/GroupsView) — nur nachziehen. · M
-- [ ] **U2 Berichtsheft-Editor Dirty-Check** — „Zurück" (ReportsPage:447) verwirft ungespeicherte Wochenberichte kommentarlos → isDirty-Vergleich + Rückfrage. · S/M
-- [ ] **U3 Modal-Verwerfen-Schutz** — Backdrop-Klick/Esc schließt jedes Modal sofort (UI.tsx Modal); bei NewProjectModal (3 Schritte) Totalverlust → optionaler `onBeforeClose`-Hook + Rückfrage bei dirty. · M
-- [ ] **U4 Papierkorb-Ehrlichkeit** — Trash deckt nur projects/reports/goals; Gruppen/Tasks/Kommentare/Material sind permanent → Coverage erweitern ODER Versprechen im UI präzisieren. · M/L
+### U-P1 · Datenverlust-Schutz (User verliert Arbeit/Daten) — ✅ komplett (03.07., `a4e2f1f`)
+- [x] **U1 Lösch-Konsistenz** — ConfirmDialog auf alle 7 nackten Lösch-Stellen (Task/Material/Requirement/Step/Kommentar/Link/Lernpfad-Node), Texte nennen Objekt + „landet nicht im Papierkorb"
+- [x] **U2 Berichtsheft-Editor Dirty-Check** — Snapshot-Vergleich, „Zurück" fragt bei ungespeicherten Änderungen
+- [x] **U3 Modal-Verwerfen-Schutz** — `guardClose`-Prop am Modal (Backdrop/Esc/× fragen bei dirty), NewProjectModal angebunden; abwärtskompatibel
+- [x] **U4 Papierkorb-Ehrlichkeit** — TrashPage-Hinweis nennt die 3 abgedeckten Typen explizit (Coverage-Erweiterung bewusst zurückgestellt)
 
-### U-P2 · Mobile (drei Kernseiten ohne useIsMobile)
-- [ ] **U5 Projektliste mobil** — Listen-(Tabellen-)Ansicht wird rechts abgeschnitten → unter Breakpoint Cards/Grid erzwingen. · S
-- [ ] **U6 Berichtsheft-Editor mobil** — feste 220px-Metaspalte quetscht Editor → stapeln (column). · M
-- [ ] **U7 Ausbildungsplan-Formular mobil** — GoalForm-Grid mit Fixbreiten bricht <400px → stapeln. · S
-- [ ] **U8 Kalender mobil** — Wochen-/Monatsraster für Desktop gebaut → Agenda-/Listenmodus unter Breakpoint. · M/L
-- [ ] **U9 Projekt-Detail Scroll-Affordance** — Aktions-/Tab-Leiste läuft mobil unsichtbar aus dem Bild → Fade-Kante/Chevron. · S
-- [ ] **U10 Kalender-Hover auf Touch** — „Aktiv an diesem Tag"-Popup ist hover-basiert (rendert auf Touch statisch) → Tap-Toggle oder mobil aus. · S
+### U-P2 · Mobile — ✅ komplett (03.07., `2014bc1`; U6 schon in `a4e2f1f`)
+- [x] **U5 Projektliste mobil** — Karten-Ansicht erzwungen, Tabellen-Toggle mobil ausgeblendet
+- [x] **U6 Berichtsheft-Editor mobil** — stapelt via useIsMobile, Metaspalte volle Breite oben
+- [x] **U7 Ausbildungsplan-Formular mobil** — GoalForm stapelt (1fr)
+- [x] **U8 Kalender mobil** — Agenda-Modus ersetzt das Raster (vertikale Tagesliste, gleiche Klickpfade, heute immer sichtbar; Monat/Woche-Toggle steuert Zeitraum)
+- [x] **U9 Projekt-Detail Scroll-Affordance** — Fade-Kante (CSS-Maske) an Kopf-/Tab-Leiste mobil
+- [x] **U10 Kalender-Hover auf Touch** — „Azubi aktiv" in der Agenda inline (Avatar+Name+Status)
 
-### U-P3 · Konsistenz & Politur
-- [ ] **U11 Rollenfremde Shortcuts** — Command-Palette zeigt Azubi „N Neues Projekt" → Shortcut-Liste rollenfiltern. · S
-- [ ] **U12 Lehrjahr 1–4 vereinheitlichen** — Ausbildungsplan-Filter kennt nur LJ 1–3, Onboarding/KI-Lernpfad bieten 1–4. · S
-- [ ] **U13 Speichern-Beschriftung** — drei Varianten (`✓` ohne Label / „✓ Speichern" / „Speichern") → vereinheitlichen. · S
-- [ ] **U14 Pflichtfeld-Marker NewProjectModal** — Titel erst nach Fehlversuch als Pflicht erkennbar → `*` wie TrainingPlanPage. · S
-- [ ] **U15 Header-Uhr ohne Sekunden** — sekündliches Ticken = Unruhe + Re-Renders. · S
-- [ ] **U16 Sidebar „Verwalten" für Azubi** — Sektion enthält für Azubis nur Gruppen-Beitritt; Label passt nicht zur Rolle. · S
-- [ ] **U17 Kategorie-Select Ausbildungsplan** — leeres Select in voller Breite wirkt unfertig. · S
-- [ ] **U18 Share-Einstieg für Projekte?** — ShareLinkModal ist generisch (`kind`-Prop), aber nur aus Berichten erreichbar; bewusstes Scope-Limit oder Lücke? → User-Entscheid. · S
+### U-P3 · Konsistenz & Politur — ✅ komplett (03.07.)
+- [x] **U11 Rollenfremde Shortcuts** — Hilfe + Ctrl+K-Hinweise rollenfiltern (N/G+U nur Ausbilder; Handler waren schon gegated)
+- [x] **U12 Lehrjahr 1–4 vereinheitlicht** — Filter/GoalForm/byYear/PathModal auf 1–4. **Bonus-Fund: LJ-4-Lernpfade (KI-Generator) waren in der UI unsichtbar** (byYear filterte 1–3) — behoben
+- [x] **U13 Speichern-Beschriftung** — Prüfungsdatum-✓ → „✓ Speichern", Abbrechen-Button beschriftet
+- [x] **U14 Pflichtfeld-Marker** — Hinweis am Projekttitel (war in `a4e2f1f`)
+- [x] **U15 Header-Uhr** — HH:MM statt HH:MM:SS, 30s-Intervall
+- [x] **U16 Sidebar-Sektion** — Azubi sieht „Mehr" statt „Verwalten"
+- [x] **U17 Kategorie-Select** — kompakt in der Filterzeile, „Alle Kategorien"
+- [x] **U18 Projekt-Share** (User-Entscheid: ja) — „Teilen"-Button im Projekt-Kopf, ShareLinkModal kind='project', localStorage-Modus graceful. **Folge-Item [Server]:** ShareView rendert kind='project' bisher als generischen JSON-Fallback → hübsche Projekt-Ansicht bauen, sobald Share-Links live getestet werden
 
 ## A · Korrektheit & Robustheit
 Die wiederkehrende Bug-Klasse — bisher fand jede Hunt-Runde 12–14 echte Bugs, allein heute 7 latente.

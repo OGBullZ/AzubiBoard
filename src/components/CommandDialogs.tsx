@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce, useDialog } from '../lib/hooks.js';
 import { dataService } from '../lib/dataService.js';
+import { useAppStore } from '../lib/store';
 import { IcoSearch } from './Icons.jsx';
 import type { AppState, Project, User, Report } from '../types';
 
@@ -12,10 +13,14 @@ const USE_API = import.meta.env.VITE_USE_API === 'true';
 // ── Keyboard Shortcuts Help ───────────────────────────────────
 export function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   const ref = useDialog<HTMLDivElement>(onClose);  // Phase 4: Escape + Fokus-Trap + Body-Lock ('?' schließt via globalem Handler)
+  const { currentUser } = useAppStore();
+  const isAusbilder = (currentUser as User | null)?.role === 'ausbilder';
 
+  // U11: rollenfremde Einträge (Nutzerverwaltung, Neues Projekt) nur Ausbildern zeigen
   const groups = [
-    { title: 'Navigation', items: [['G dann D', 'Dashboard'],['G dann P', 'Projekte'],['G dann K', 'Kalender'],['G dann R', 'Berichte'],['G dann T', 'Ausbildungsplan'],['G dann L', 'Lernbereich'],['G dann U', 'Nutzer (Ausbilder)']] },
-    { title: 'Aktionen', items: [['N', 'Neues Projekt (Ausbilder)'],['Ctrl+K', 'Suche öffnen'],['?', 'Shortcuts anzeigen']] },
+    { title: 'Navigation', items: [['G dann D', 'Dashboard'],['G dann P', 'Projekte'],['G dann K', 'Kalender'],['G dann R', 'Berichte'],['G dann T', 'Ausbildungsplan'],['G dann L', 'Lernbereich'],
+      ...(isAusbilder ? [['G dann U', 'Nutzer (Ausbilder)']] : [])] },
+    { title: 'Aktionen', items: [...(isAusbilder ? [['N', 'Neues Projekt (Ausbilder)']] : []), ['Ctrl+K', 'Suche öffnen'],['?', 'Shortcuts anzeigen']] },
     { title: 'Allgemein', items: [['Esc', 'Dialog schließen'],['←→', 'Kanban: Status verschieben']] },
   ];
 
@@ -57,6 +62,8 @@ const SEARCH_ICONS: Record<string, string> = { project: '📁', task: '⚡', rep
 interface SearchHit { type: string; label: string; sub?: string | null; to: string; icon: string; }
 export function GlobalSearch({ data, onClose }: { data: AppState | null; onClose: () => void }) {
   const navigate = useNavigate();
+  const { currentUser } = useAppStore();
+  const isAusbilder = (currentUser as User | null)?.role === 'ausbilder';
   const [q, setQ] = useState('');
   const dQ  = useDebounce(q, 300);
   const ref = useRef<HTMLInputElement>(null);
@@ -152,7 +159,7 @@ export function GlobalSearch({ data, onClose }: { data: AppState | null; onClose
           <div style={{ padding: '16px 20px', fontSize: 11, color: 'var(--c-mu)' }}>
             <div style={{ marginBottom: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .8 }}>Tastaturkürzel</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
-              {[['Ctrl+K', 'Suche öffnen'],['N', 'Neues Projekt'],['Esc', 'Schließen']].map(([k,l]) => (
+              {[['Ctrl+K', 'Suche öffnen'], ...(isAusbilder ? [['N', 'Neues Projekt']] : []), ['Esc', 'Schließen']].map(([k,l]) => (
                 <div key={k} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <kbd style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--c-sf3)', border: '1px solid var(--c-bd2)', color: 'var(--c-br)' }}>{k}</kbd>
                   <span style={{ fontSize: 11 }}>{l}</span>
