@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from 'react-i18next';
 import { C, uid, today } from '../../lib/utils.js';
 import { Avatar, Modal } from '../../components/UI.jsx';
@@ -50,6 +50,10 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
   const [reqText, setReqText] = useState('');
   const [linkForm, setLinkForm] = useState<LinkForm>({ url: '', title: '' });
 
+  // U3: Diff gegen den initialen Form-State für den Modal-Guard (ungespeicherte Eingaben?)
+  const initialFormRef = useRef(form);
+  const isDirty = () => JSON.stringify(form) !== JSON.stringify(initialFormRef.current);
+
   const u = <K extends keyof FormState>(f: K, v: FormState[K]) => setForm(p => ({ ...p, [f]: v }));
   const toggleAssignee = (id: User['id']) => u('assignees', form.assignees.includes(id) ? form.assignees.filter(x => x !== id) : [...form.assignees, id]);
 
@@ -83,7 +87,7 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
   const STEPS = [t('project.step1'), t('project.step2'), t('project.step3')];
 
   return (
-    <Modal title={t('project.newProject')} onClose={onClose} width={500}>
+    <Modal title={t('project.newProject')} onClose={onClose} width={500} guardClose={isDirty}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 22 }}>
         {STEPS.map((s, i) => {
           const n = i + 1;
@@ -115,6 +119,7 @@ export function NewProjectModal({ users, groups, currentUser, onClose, onCreate 
               onKeyDown={e => e.key === 'Enter' && next()}
               placeholder="z.B. Weboberfläche Azubi-Verwaltung"
               autoFocus style={{ fontSize: 15, padding: '10px 13px', fontWeight: 600 }} />
+            <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>Pflichtfeld</div>
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 700, color: C.tx, marginBottom: 7, display: 'block' }}>{t('project.createDescription')}</label>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { C, uid } from '../../lib/utils.js';
 import { IcoLink, IcoExternalLink, IcoPlus, IcoX } from '../../components/Icons.jsx';
+import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 
 type LinkType = 'tutorial' | 'video' | 'doc' | 'tool' | 'example' | 'other';
 
@@ -102,6 +103,7 @@ export function LinksManager({ links = [], onUpdate, readOnly = false, compact: 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]         = useState<LinkForm>({ url: '', title: '', type: 'tutorial', note: '' });
   const [urlErr, setUrlErr]     = useState('');
+  const [delLink, setDelLink]   = useState<Link | null>(null);  // U1: window.confirm → ConfirmDialog
 
   const validate = (url: string): boolean => {
     if (!url.trim()) { setUrlErr('URL erforderlich'); return false; }
@@ -137,7 +139,7 @@ export function LinksManager({ links = [], onUpdate, readOnly = false, compact: 
 
       {links.length > 0 && !showForm && (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {links.map(l => <LinkRow key={l.id} link={l} onRemove={remove} readOnly={readOnly} />)}
+          {links.map(l => <LinkRow key={l.id} link={l} onRemove={() => setDelLink(l)} readOnly={readOnly} />)}
         </div>
       )}
 
@@ -180,6 +182,16 @@ export function LinksManager({ links = [], onUpdate, readOnly = false, compact: 
             <IcoPlus size={12} /> Link hinzufügen
           </button>
         </div>
+      )}
+
+      {delLink && (
+        <ConfirmDialog
+          message={`Link „${delLink.title || getHost(delLink.url)}" endgültig löschen? Endgültig — landet nicht im Papierkorb.`}
+          confirmLabel="Endgültig löschen"
+          danger
+          onConfirm={() => { remove(delLink.id); setDelLink(null); }}
+          onCancel={() => setDelLink(null)}
+        />
       )}
     </div>
   );

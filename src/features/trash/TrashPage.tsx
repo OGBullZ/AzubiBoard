@@ -86,7 +86,7 @@ export default function TrashPage({ data, currentUser, onUpdateData, showToast }
           Papierkorb
         </div>
         <div style={{ fontSize: 12, color: C.mu, marginTop: 3 }}>
-          Einträge werden 30 Tage aufbewahrt und danach automatisch endgültig entfernt.
+          Nur Projekte, Berichte und Lernziele landen hier — 30 Tage aufbewahrt, danach automatisch endgültig entfernt. Alle anderen Löschungen (z.B. Aufgaben, Material, Kommentare, Links) sind sofort endgültig und tauchen hier nicht auf.
         </div>
       </div>
 

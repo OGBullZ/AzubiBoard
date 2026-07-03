@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Id, User, LearningPath, LearningPathNode } from '../../types';
 import { C, uid } from '../../lib/utils.js';
 import { Modal, Field, ProgressBar, EmptyState } from '../../components/UI.jsx';
+import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import { dataService } from '../../lib/dataService.js';
 import { mapGeneratedPath } from './generatedPath.js';
 import AiGoalSuggestions from './AiGoalSuggestions.jsx';
@@ -71,6 +72,7 @@ type PathDetailViewProps = {
 function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEditPath, onAddNode, onEditNode, onDeleteNode, onAiSuggest }: PathDetailViewProps) {
   const sorted   = topoSort(path.nodes);
   const [selNode, setSelNode] = useState<LearningPathNode | null>(null);
+  const [delNode, setDelNode] = useState<LearningPathNode | null>(null);  // U1: window.confirm → ConfirmDialog
 
   const color = LEHRJAHR_COLOR[path.lehrjahr as number] || C.ac;
   const stats = pathStats(path, progress);
@@ -170,7 +172,7 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
                     {isAusbilder && (
                       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                         <button className="btn" onClick={() => onEditNode(node)} style={{ padding: '2px 7px', fontSize: 11 }}>✎</button>
-                        <button className="del" onClick={() => onDeleteNode(node.id)} aria-label="Lernziel löschen">×</button>
+                        <button className="del" onClick={() => setDelNode(node)} aria-label="Lernziel löschen">×</button>
                       </div>
                     )}
                   </div>
@@ -188,6 +190,16 @@ function PathDetailView({ path, progress, onComplete, onBack, isAusbilder, onEdi
           done={!!progress[selNode.id]?.completed}
           onComplete={() => { onComplete(selNode.id); setSelNode(null); }}
           onClose={() => setSelNode(null)}
+        />
+      )}
+
+      {delNode && (
+        <ConfirmDialog
+          message={`„${delNode.title}" endgültig löschen? Wird das Lernziel gelöscht, entfällt es auch als Voraussetzung bei anderen Lernzielen. Endgültig — landet nicht im Papierkorb.`}
+          confirmLabel="Endgültig löschen"
+          danger
+          onConfirm={() => { onDeleteNode(delNode.id); setDelNode(null); }}
+          onCancel={() => setDelNode(null)}
         />
       )}
     </div>

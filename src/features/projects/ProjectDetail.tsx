@@ -99,6 +99,7 @@ function LabelsManager({ project, onUpdate }: { project: Project; onUpdate: Upda
 // project bleibt `any`: liest Blob-only-Feld `comments` (nicht im Project-Schema).
 function CommentsSection({ project, currentUser, onUpdate }: { project: any; currentUser: User; onUpdate: UpdateFn }) {
   const [text, setText] = useState('');
+  const [delComment, setDelComment] = useState<any | null>(null);  // U1: window.confirm → ConfirmDialog
   const comments = project.comments || [];
 
   const post = () => {
@@ -131,7 +132,7 @@ function CommentsSection({ project, currentUser, onUpdate }: { project: any; cur
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <time style={{ fontSize: 10, color: C.mu }}>{new Date(c.date).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</time>
                   {(sameId(c.authorId, currentUser?.id) || currentUser?.role === 'ausbilder') && (
-                    <button onClick={() => remove(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: C.mu, lineHeight: 1 }} title="Kommentar löschen"><IcoTrash size={11} /></button>
+                    <button onClick={() => setDelComment(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: C.mu, lineHeight: 1 }} title="Kommentar löschen"><IcoTrash size={11} /></button>
                   )}
                 </div>
               </div>
@@ -150,6 +151,16 @@ function CommentsSection({ project, currentUser, onUpdate }: { project: any; cur
         </div>
       </div>
       <div style={{ fontSize: 10, color: C.mu, marginTop: 4, paddingLeft: 36 }}>Strg+Enter zum Senden</div>
+
+      {delComment && (
+        <ConfirmDialog
+          message={`Kommentar von „${delComment.authorName}" endgültig löschen? Endgültig — landet nicht im Papierkorb.`}
+          confirmLabel="Endgültig löschen"
+          danger
+          onConfirm={() => { remove(delComment.id); setDelComment(null); }}
+          onCancel={() => setDelComment(null)}
+        />
+      )}
     </section>
   );
 }

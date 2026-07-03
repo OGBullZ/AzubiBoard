@@ -5,6 +5,7 @@ import { C, uid, today, fmtDate, sameId, firstName } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import { useDesign } from '../../lib/hooks.js';
 import { LinksManager } from './LinksManager.jsx';
+import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
   IcoCheck, IcoAlert, IcoPlay, IcoPause, IcoBlock,
   IcoNote, IcoDoc, IcoMic, IcoLink, IcoTrash, IcoPlus,
@@ -146,6 +147,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
   const over       = task.deadline && task.status !== 'done' && new Date(task.deadline) < new Date();
   const lc         = (task.links || []).length;
   const taskLabels = (projectLabels || []).filter((lb: Label) => (task.labelIds || []).includes(lb.id));
+  const [confirmDelete, setConfirmDelete] = useState(false);  // U1: window.confirm → ConfirmDialog
 
   return (
     <div style={{ marginBottom: 5, borderRadius: 8, border: `1px solid ${selected ? `color-mix(in srgb, ${C.ac} 44%, transparent)` : isOpen ? `color-mix(in srgb, ${st.color} 31%, transparent)` : C.bd}`, background: selected ? 'var(--c-acd)' : C.sf2, overflow: 'hidden', transition: 'border-color .15s, background .12s', opacity: task.status === 'done' ? .6 : 1 }}>
@@ -209,7 +211,7 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
           : <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2px dashed ${C.bd2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10, color: C.mu }}>?</div>}
 
         <IcoChevronD size={11} style={{ color: C.mu, flexShrink: 0, transition: 'transform .15s', transform: isOpen ? 'rotate(180deg)' : 'none' }} />
-        <IconBtn Icon={IcoTrash} onClick={e => { e.stopPropagation(); onRemove(task.id); }} label="Löschen" danger size={13} />
+        <IconBtn Icon={IcoTrash} onClick={e => { e.stopPropagation(); setConfirmDelete(true); }} label="Löschen" danger size={13} />
       </div>
 
       {isOpen && (
@@ -272,6 +274,16 @@ function TaskCard({ task, users, currentUser, onUpdate, onRemove, isOpen, onTogg
 
           <ContentTabs task={task} onUpdate={onUpdate} projectMaterials={projectMaterials || []} currentUser={currentUser} />
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`„${task.text || 'Aufgabe ohne Titel'}" endgültig löschen? Endgültig — landet nicht im Papierkorb.`}
+          confirmLabel="Endgültig löschen"
+          danger
+          onConfirm={() => { setConfirmDelete(false); onRemove(task.id); }}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </div>
   );
@@ -807,6 +819,7 @@ export function TasksTab({ project, users, currentUser, onUpdate, onActivity }: 
 export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const tasks   = project.tasks || [];
   const [form, setForm] = useState<{ name: string; qty: number | string; cost: number | string; taskId: string }>({ name: '', qty: 1, cost: 0, taskId: '' });
+  const [delMaterial, setDelMaterial] = useState<Material | null>(null);  // U1: window.confirm → ConfirmDialog
 
   const add = () => {
     if (!form.name.trim()) return;
@@ -871,7 +884,7 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
               <div style={{fontSize:12,fontFamily:C.mono}}>{m.qty}×</div>
               <div style={{fontSize:12,fontFamily:C.mono}}>{(m.cost || 0).toFixed(2)} €</div>
               <div style={{fontSize:12,fontFamily:C.mono,color:C.acT,fontWeight:700}}>{((m.qty || 1)*(m.cost || 0)).toFixed(2)} €</div>
-              <IconBtn Icon={IcoTrash} onClick={()=>remove(m.id)} label={`${m.name} löschen`} danger size={12} />
+              <IconBtn Icon={IcoTrash} onClick={()=>setDelMaterial(m)} label={`${m.name} löschen`} danger size={12} />
             </div>
           ))
         }
@@ -882,6 +895,16 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
           </div>
         )}
       </div>
+
+      {delMaterial && (
+        <ConfirmDialog
+          message={`„${delMaterial.name}" endgültig löschen? Endgültig — landet nicht im Papierkorb.`}
+          confirmLabel="Endgültig löschen"
+          danger
+          onConfirm={() => { remove(delMaterial.id); setDelMaterial(null); }}
+          onCancel={() => setDelMaterial(null)}
+        />
+      )}
     </div>
   );
 }
@@ -889,6 +912,7 @@ export function MaterialsTab({ project, onUpdate }: { project: Project; onUpdate
 // Requirement nutzt den Blob-Alias `text` (jetzt im Requirement-Schema als optional vorhanden, title optional).
 export function RequirementsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const [text,setText]=useState('');
+  const [delReq, setDelReq] = useState<Requirement | null>(null);  // U1: window.confirm → ConfirmDialog
   const add    = () => { if(!text.trim())return; onUpdate(project.id,{requirements:[...(project.requirements||[]),{id:uid(),text:text.trim(),done:false}]}); setText(''); };
   const toggle = (id: Id) => onUpdate(project.id,{requirements:(project.requirements||[]).map((r: Requirement)=>r.id===id?{...r,done:!r.done}:r)});
   const remove = (id: Id) => onUpdate(project.id,{requirements:(project.requirements||[]).filter((r: Requirement)=>r.id!==id)});
@@ -917,11 +941,21 @@ export function RequirementsTab({ project, onUpdate }: { project: Project; onUpd
             {r.done && <IcoCheck size={10} style={{color:'#fff'}} />}
           </button>
           <div style={{flex:1,fontSize:13,color:r.done?C.mu:C.br,textDecoration:r.done?'line-through':'none'}}>{r.text}</div>
-          <IconBtn Icon={IcoTrash} onClick={()=>remove(r.id)} label="Löschen" danger size={12} />
+          <IconBtn Icon={IcoTrash} onClick={()=>setDelReq(r)} label="Löschen" danger size={12} />
         </div>
       ))}
       {(project.requirements||[]).length===0 && <EmptyState Icon={IcoCheck} title="Noch keine Anforderungen" />}
       {(project.requirements||[]).length > 0 && <div style={{marginTop:8,fontSize:11,color:C.mu,textAlign:'right'}}>{done} von {(project.requirements||[]).length} erfüllt</div>}
+
+      {delReq && (
+        <ConfirmDialog
+          message={`„${delReq.text}" endgültig löschen? Endgültig — landet nicht im Papierkorb.`}
+          confirmLabel="Endgültig löschen"
+          danger
+          onConfirm={() => { remove(delReq.id); setDelReq(null); }}
+          onCancel={() => setDelReq(null)}
+        />
+      )}
     </div>
   );
 }
@@ -930,6 +964,7 @@ export function RequirementsTab({ project, onUpdate }: { project: Project; onUpd
 export function StepsTab({ project, onUpdate }: { project: Project; onUpdate: (id: Id, patch: Partial<Project>) => void }) {
   const [form, setForm] = useState({ title: '', date: today(), note: '' });
   const [open, setOpen] = useState<Id | null>(null);
+  const [delStep, setDelStep] = useState<any | null>(null);  // U1: window.confirm → ConfirmDialog
   const steps  = project.steps as any[] | undefined;
   const add    = () => { if(!form.title.trim())return; onUpdate(project.id,{steps:[...(steps||[]),{id:uid(),...form}]}); setForm({title:'',date:today(),note:''}); };
   const remove = (id: Id) => onUpdate(project.id,{steps:(steps||[]).filter((s: any)=>s.id!==id)});
@@ -960,7 +995,7 @@ export function StepsTab({ project, onUpdate }: { project: Project; onUpdate: (i
                 <div style={{display:'flex',gap:5,alignItems:'center'}}>
                   {s.note && <IcoDoc size={11} style={{color:C.acT}} />}
                   <IcoChevronD size={11} style={{color:C.mu,transition:'transform .15s',transform:open===s.id?'rotate(180deg)':'none'}} />
-                  <IconBtn Icon={IcoTrash} onClick={e=>{e.stopPropagation();remove(s.id);}} label="Löschen" danger size={12} />
+                  <IconBtn Icon={IcoTrash} onClick={e=>{e.stopPropagation();setDelStep(s);}} label="Löschen" danger size={12} />
                 </div>
               </div>
               {open===s.id && s.note && <div style={{padding:'9px 12px',borderTop:`1px solid ${C.bd}`,background:C.sf3,fontSize:12,color:C.tx,lineHeight:1.7,whiteSpace:'pre-wrap'}}>{s.note}</div>}
@@ -969,6 +1004,16 @@ export function StepsTab({ project, onUpdate }: { project: Project; onUpdate: (i
         ))}
         {(steps||[]).length===0 && <EmptyState Icon={IcoDoc} title="Noch keine Schritte" subtitle="Dokumentiere den Fortschritt" />}
       </div>
+
+      {delStep && (
+        <ConfirmDialog
+          message={`„${delStep.title}" endgültig löschen? Endgültig — landet nicht im Papierkorb.`}
+          confirmLabel="Endgültig löschen"
+          danger
+          onConfirm={() => { remove(delStep.id); setDelStep(null); }}
+          onCancel={() => setDelStep(null)}
+        />
+      )}
     </div>
   );
 }

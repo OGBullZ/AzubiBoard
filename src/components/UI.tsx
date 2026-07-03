@@ -5,6 +5,7 @@ import { C, ST } from '../lib/utils.js';
 import { IcoMoon, IcoSun } from './Icons.jsx';
 import { useDesign } from '../lib/hooks.js';
 import { Doodle, type DoodleName } from './Doodles.jsx';
+import { ConfirmDialog } from './ConfirmDialog.jsx';
 
 type IconComponent = ComponentType<{ size?: number }>;
 
@@ -108,13 +109,27 @@ type ModalProps = {
   onClose: () => void;
   children?: ReactNode;
   width?: number;
+  // Optional: liefert true, wenn ungespeicherte Eingaben vorliegen. Bei Backdrop-Klick/Escape/×
+  // wird dann statt sofortigem Schließen erst eine Rückfrage gezeigt. Ohne Prop: unverändertes Verhalten.
+  guardClose?: () => boolean;
 };
 
-export function Modal({ title, onClose, children, width = 480 }: ModalProps) {
+export function Modal({ title, onClose, children, width = 480, guardClose }: ModalProps) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
-  // Escape → schließen; Focus auf erstes Element setzen
+  // Ref hält den aktuellsten guardClose, damit der Escape-Handler (siehe Effekt unten,
+  // Deps unverändert = [onClose]) ohne Re-Subscribe/Re-Focus immer den frischen Wert sieht.
+  const guardCloseRef = useRef(guardClose);
+  useEffect(() => { guardCloseRef.current = guardClose; }, [guardClose]);
+
+  const handleCloseAttempt = () => {
+    if (guardClose?.()) { setConfirmDiscard(true); return; }
+    onClose();
+  };
+
+  // Escape → schließen (ggf. mit Rückfrage); Focus auf erstes Element setzen
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
@@ -122,7 +137,10 @@ export function Modal({ title, onClose, children, width = 480 }: ModalProps) {
     first?.focus();
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key === 'Escape') {
+        if (guardCloseRef.current?.()) { setConfirmDiscard(true); } else { onClose(); }
+        return;
+      }
       if (e.key !== 'Tab') return;
       const els = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)];
       if (!els.length) return;
@@ -138,18 +156,30 @@ export function Modal({ title, onClose, children, width = 480 }: ModalProps) {
   }, [onClose]);
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="modal-title"
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn .12s', padding: 16 }}
-      onClick={onClose}>
-      <div ref={panelRef} style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 12, padding: 22, width, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', animation: 'fadeUp .18s ease', boxShadow: 'var(--shadow-lg)' }}
-        onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <h2 id="modal-title" style={{ fontSize: 15, fontWeight: 800, color: C.br, margin: 0 }}>{title}</h2>
-          <button className="del" onClick={onClose} style={{ fontSize: 20 }} aria-label={t('ui.closeDialog')}>×</button>
+    <>
+      <div role="dialog" aria-modal="true" aria-labelledby="modal-title"
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn .12s', padding: 16 }}
+        onClick={handleCloseAttempt}>
+        <div ref={panelRef} style={{ background: C.sf, border: `1px solid ${C.bd2}`, borderRadius: 12, padding: 22, width, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', animation: 'fadeUp .18s ease', boxShadow: 'var(--shadow-lg)' }}
+          onClick={e => e.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <h2 id="modal-title" style={{ fontSize: 15, fontWeight: 800, color: C.br, margin: 0 }}>{title}</h2>
+            <button className="del" onClick={handleCloseAttempt} style={{ fontSize: 20 }} aria-label={t('ui.closeDialog')}>×</button>
+          </div>
+          {children}
         </div>
-        {children}
       </div>
-    </div>
+      {confirmDiscard && (
+        <ConfirmDialog
+          message="Eingaben verwerfen? Deine Änderungen gehen verloren."
+          confirmLabel="Verwerfen"
+          cancelLabel="Weiter bearbeiten"
+          danger
+          onConfirm={onClose}
+          onCancel={() => setConfirmDiscard(false)}
+        />
+      )}
+    </>
   );
 }
 

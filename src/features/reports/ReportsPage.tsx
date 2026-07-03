@@ -4,7 +4,7 @@ import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';
 import { C, uid, fmtDate, getKW, getISOWeek, isoWeekMonday, addActivity, sameId } from '../../lib/utils.js';
 import { sumDayHours } from '../dashboard/reportStats.js';
-import { useDebounce, useDesign } from '../../lib/hooks.js';
+import { useDebounce, useDesign, useIsMobile } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import { playStamp } from '../../lib/sound.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
@@ -147,6 +147,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
 }) {
   const { t } = useTranslation();
   const design = useDesign();
+  const isMobile = useIsMobile();
   const STATUS_REPORT_I18N = useStatusReport();
   // Editor-Formular: gemischte Blob-Form (Report-Felder + sectionComments-Default + file-Objekt)
   // weicht vom Report-Schema ab → bewusst `any`
@@ -161,6 +162,9 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
     file:             report?.file             || null,
     sectionComments:  report?.sectionComments  || { activities: [], learnings: [] },
   });
+  // U2: Snapshot der editierbaren Kernfelder beim Öffnen — Basis für den Dirty-Check beim Verlassen
+  const snapshotRef = useRef(JSON.stringify({ title: form.title, activities: form.activities, learnings: form.learnings, days: form.days }));
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [newComment,  setNewComment]  = useState<Record<string, string>>({ activities: '', learnings: '' });
   const [wsError,     setWsError]     = useState('');  // 0.8: leeres week_start = Inline-Fehler statt stillem Default
   const [pendingTpl,  setPendingTpl]  = useState<{ label: string; activities: string; learnings: string } | null>(null);  // Phase 4: Vorlage bei nicht-leerem Text bestätigen
@@ -293,9 +297,15 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
     const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year, updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
     // Signed ist terminal (Bug-Hunt KAL-F3): normales Speichern darf die Unterschrift nie zurückdrehen
     if (report?.status === 'signed') newReport.status = 'signed';
+    // U2: Snapshot neu setzen — nach dem Speichern gilt der aktuelle Stand als "unverändert"
+    snapshotRef.current = JSON.stringify({ title: form.title, activities: form.activities, learnings: form.learnings, days: form.days });
     onSave(newReport as Report);
     showToast('✓ Berichtsheft gespeichert');
   };
+
+  // U2: weicht der State von den Kernfeldern (Text/Tätigkeiten/Lerninhalte/Tagesstruktur) beim Öffnen ab?
+  const isDirty = () => JSON.stringify({ title: form.title, activities: form.activities, learnings: form.learnings, days: form.days }) !== snapshotRef.current;
+  const handleClose = () => { if (isDirty()) { setShowLeaveConfirm(true); return; } onClose(); };
 
   // Einfache Druck-Variante (Standard) — knappes 1-Seiten-Layout
   const printReport = () => printVariant('standard');
@@ -444,7 +454,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
     <>
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }} className="anim">
       <div style={{ background: 'var(--c-sf)', borderBottom: `1px solid var(--c-bd)`, padding: '10px 20px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button className="btn" onClick={onClose} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}><IcoBack size={12} /> {t('common.back')}</button>
+        <button className="btn" onClick={handleClose} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}><IcoBack size={12} /> {t('common.back')}</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* KW prominent (Backlog B: Editor-UX) — ISO-Wochenjahr, nicht Kalenderjahr des Montags */}
           <div style={{ fontFamily: C.mono, fontSize: 17, fontWeight: 800, color: C.acT, letterSpacing: '.04em', whiteSpace: 'nowrap' }} title="Berichtswoche">
@@ -481,8 +491,8 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
         )}
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', gap: 18, alignItems: 'flex-start' }}>
-        <div style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 18, alignItems: isMobile ? 'stretch' : 'flex-start' }}>
+        <div style={{ width: isMobile ? '100%' : 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="card">
             <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.metadataLabel')}</div>
             <Field label={t('report.weekStart')}>
@@ -760,6 +770,15 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
         </div>
       </div>
     </div>
+
+    {showLeaveConfirm && (
+      <ConfirmDialog
+        message="Ungespeicherte Änderungen verwerfen?"
+        confirmLabel="Verwerfen" cancelLabel="Weiter bearbeiten" danger
+        onConfirm={() => { setShowLeaveConfirm(false); onClose(); }}
+        onCancel={() => setShowLeaveConfirm(false)}
+      />
+    )}
 
     {showOcr && (
       <PdfOcrImport
