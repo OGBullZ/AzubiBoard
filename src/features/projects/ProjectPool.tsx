@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from 'react-i18next';
 import { C, ST, fmtDate, sameId } from '../../lib/utils.js';
-import { useDebounce } from '../../lib/hooks.js';
+import { useDebounce, useIsMobile } from '../../lib/hooks.js';
 import { isStaff, isAusbilder, isMentor } from '../../lib/roles.js';
 import { StatusBadge, Avatar, ProgressBar, EmptyState, IconBtn } from '../../components/UI.jsx';
 import {
@@ -48,6 +48,9 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
   const [viewMode,    setViewMode]    = useState<'table' | 'grid'>('table');
   const [sort,        setSort]        = useState<SortValue>('title_asc');
   const dSearch = useDebounce(search);
+  const isMobile = useIsMobile();
+  // U5: mobil immer Karten-Ansicht, unabhängig vom (dann ausgeblendeten) Toggle
+  const effectiveViewMode = isMobile ? 'grid' : viewMode;
 
   const active   = projects.filter(p => !p.archived);
   const archived = projects.filter(p => p.archived);
@@ -123,18 +126,21 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
               <IcoPlus size={13} /> {t('common.new')}
             </button>
           )}
-          <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 7, padding: 2, gap: 2, border: `1px solid var(--c-bd)` }}>
-            <button onClick={() => setViewMode('grid')}
-              style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'grid' ? C.ac : 'transparent', color: viewMode === 'grid' ? C.onAc : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/><rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/></svg>
-              {t('project.viewGrid')}
-            </button>
-            <button onClick={() => setViewMode('table')}
-              style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'table' ? C.ac : 'transparent', color: viewMode === 'table' ? C.onAc : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="14" height="3" rx="1"/><rect x="0" y="5" width="14" height="3" rx="1"/><rect x="0" y="10" width="14" height="3" rx="1"/></svg>
-              {t('project.viewList')}
-            </button>
-          </div>
+          {/* U5: Ansichts-Toggle ist auf Mobile bedeutungslos (immer Grid) → ausblenden */}
+          {!isMobile && (
+            <div style={{ display: 'flex', background: 'var(--c-sf2)', borderRadius: 7, padding: 2, gap: 2, border: `1px solid var(--c-bd)` }}>
+              <button onClick={() => setViewMode('grid')}
+                style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'grid' ? C.ac : 'transparent', color: viewMode === 'grid' ? C.onAc : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/><rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/></svg>
+                {t('project.viewGrid')}
+              </button>
+              <button onClick={() => setViewMode('table')}
+                style={{ padding: '4px 8px', borderRadius: 5, border: 'none', background: viewMode === 'table' ? C.ac : 'transparent', color: viewMode === 'table' ? C.onAc : C.mu, cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="14" height="3" rx="1"/><rect x="0" y="5" width="14" height="3" rx="1"/><rect x="0" y="10" width="14" height="3" rx="1"/></svg>
+                {t('project.viewList')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -148,7 +154,7 @@ export function ProjectPool({ projects, users, groups, currentUser, onOpen, onNe
               action={isFiltered ? 'Filter zurücksetzen' : '+ ' + t('project.newProject')}
               onAction={isFiltered ? () => { setFilter('all'); setSearch(''); } : onNew} />
           );
-        })() : viewMode === 'table' ? (
+        })() : effectiveViewMode === 'table' ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid var(--c-bd)`, textAlign: 'left' }}>

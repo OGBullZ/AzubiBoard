@@ -40,7 +40,9 @@ describe('Datenverlust-Regression (I1)', () => {
 });
 
 describe('saveData (lokaler Modus)', () => {
-  it('persistData schreibt in localStorage', async () => {
+  // 15s statt default 5s: der dynamische dataService-Import ist im parallelen
+  // Volllauf (14 Suiten) wiederholt >5s gelaufen — Load-Flakiness, kein Defekt.
+  it('persistData schreibt in localStorage', { timeout: 15_000 }, async () => {
     const { dataService } = await import('../src/lib/dataService.js');
     const sample = { users: [{ id: 'u1', name: 'Test' }], projects: [] };
     await dataService.saveData(sample);

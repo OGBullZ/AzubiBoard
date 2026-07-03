@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { User, Goal, GoalProgress, AppState, Id } from '../../types';
 import { C, uid, fmtDate, addActivity, dayDiffLocal } from '../../lib/utils.js';
 import { celebrate } from '../../lib/celebrate.js';
-import { useDesign } from '../../lib/hooks.js';
+import { useDesign, useIsMobile } from '../../lib/hooks.js';
 import { FlapDigits } from '../../components/FlapDigits.jsx';
 import { isMentor } from '../../lib/roles.js';
 import { softDelete } from '../../lib/trash.js';
@@ -89,12 +89,14 @@ function GoalForm({ initial, onSave, onCancel }: { initial?: Goal; onSave: (goal
   const [form, setForm] = useState<Goal>(initial || mkGoal());
   const f = (v: Partial<Goal>) => setForm((p: Goal) => ({ ...p, ...v }));
   const valid = form.title.trim().length > 0;
+  const isMobile = useIsMobile();
   return (
     <div className="card" style={{ marginBottom: 10, background: C.acd, border: `1px solid color-mix(in srgb, ${C.ac} 19%, transparent)` }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: C.acT, marginBottom: 10, textTransform: 'uppercase', letterSpacing: .8 }}>
         {initial ? 'Lernziel bearbeiten' : 'Neues Lernziel'}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 160px', gap: 8, marginBottom: 8 }}>
+      {/* U7: auf Mobile stapeln statt fixer Spaltenbreiten, die <400px brechen */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 80px 90px 160px', gap: 8, marginBottom: 8 }}>
         <div><label>Titel *</label><input autoFocus value={form.title} onChange={e => f({ title: e.target.value })} placeholder="Lernziel beschreiben…" /></div>
         <div><label>Lehrjahr</label>
           <select value={form.year ?? ''} onChange={e => f({ year: Number(e.target.value) })}>

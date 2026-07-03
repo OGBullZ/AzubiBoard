@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { C, uid, getKW, firstName, sameId } from '../../lib/utils.js';
-import { useDesign } from '../../lib/hooks.js';
+import { C, uid, getKW, firstName, sameId, fmtLocalDate } from '../../lib/utils.js';
+import { useDesign, useIsMobile } from '../../lib/hooks.js';
 import { FlapDigits } from '../../components/FlapDigits.jsx';
 import { Avatar, Modal, Field } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
@@ -46,6 +46,7 @@ type CalendarViewProps = {
 
 export function CalendarView({ projects, calendarEvents, users, onUpdate, showToast, canEdit = true }: CalendarViewProps) {
   const design = useDesign();
+  const isMobile = useIsMobile();
   const [date,      setDate]     = useState<Date>(new Date());
   const [viewMode,  setViewMode] = useState<string>('month');
   const [newEvDay,  setNewEvDay] = useState<number | { date: string; label: string } | null>(null);
@@ -148,6 +149,21 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
   const dayStr       = (d: number) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   const eventsForDay = (d: number) => allEv.filter(e => e.date === dayStr(d));
 
+  // Aktive Azubis für ein konkretes Datum (YYYY-MM-DD) — Agenda nutzt Date-basierte
+  // Tage (auch monatsübergreifend in der Wochen-Ansicht), daher ds-Signatur statt Tag-Nr.
+  const workersForDate = (ds: string): Worker[] => {
+    const active: Worker[] = [];
+    projects.forEach(p => {
+      p.tasks?.forEach((t: Task) => {
+        if ((t.status === 'in_progress' || t.deadline === ds) && t.assignee) {
+          const u = users?.find(u => sameId(u.id, t.assignee));
+          if (u && !active.find(a => sameId(a.id, u.id))) active.push({ ...u, taskText: t.text, taskStatus: t.status });
+        }
+      });
+    });
+    return active;
+  };
+
   const activeWorkersOnDay = (d: number) => {
     const ds = dayStr(d);
     const active: Worker[] = [];
@@ -234,6 +250,21 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
     ? `KW ${mondayKW} · ${fmtShort(monday)} – ${fmtShort(addDays(monday, 4))}.${addDays(monday, 4).getFullYear()}`
     : null;
 
+  // ── Agenda (mobil) ──────────────────────────────────────────
+  // Ersetzt unter dem Breakpoint das Desktop-Raster: vertikale Liste der Werktage
+  // (Mo–Fr) des aktiven Zeitraums (Monat bzw. Woche, gesteuert vom Monat/Woche-Toggle).
+  // Tage ohne Events werden ausgelassen; „heute" ist immer sichtbar und markiert.
+  const agendaDates: Date[] = isWeekMode ? weekDates : workdays.map(d => new Date(y, m, d));
+  const agendaItems = agendaDates
+    .map(dt => {
+      const ds = fmtLocalDate(dt);
+      const evs = allEv.filter(e => e.date === ds);
+      const workers = workersForDate(ds);
+      const today_ = dt.toDateString() === now.toDateString();
+      return { dt, ds, evs, workers, today_ };
+    })
+    .filter(it => it.evs.length > 0 || it.today_);
+
   return (
     <main style={{ padding: 22, overflow: 'auto', flex: 1 }} className="anim">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
@@ -284,10 +315,67 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: C.mu, marginLeft: 'auto' }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.gr }} />
-          Azubi aktiv (Hover)
+          {isMobile ? 'Azubi aktiv' : 'Azubi aktiv (Hover)'}
         </div>
       </div>
 
+      {isMobile ? (
+        <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}
+          aria-label={isWeekMode ? `Agenda ${weekLabel}` : `Agenda ${MONTHS[m]} ${y}`}>
+          {agendaItems.length === 0 && (
+            <li style={{ textAlign: 'center', color: C.mu, fontSize: 13, padding: '32px 12px' }}>
+              Keine Termine in diesem Zeitraum.
+            </li>
+          )}
+          {agendaItems.map(({ dt, ds, evs, workers, today_ }) => {
+            const day    = dt.getDate();
+            const label  = `${String(day).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}`;
+            const wdName = DAYS_FULL[(dt.getDay() + 6) % 7];
+            const chipBase = { fontSize: 12, fontWeight: 600, borderRadius: 6, padding: '7px 10px', textAlign: 'left' as const, width: '100%', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const };
+            return (
+              <li key={ds}>
+                <div style={{ background: today_ ? C.acd : C.sf2, border: `1px solid ${today_ ? C.ac : C.bd}`, borderRadius: 10, overflow: 'hidden' }}>
+                  <button onClick={() => startNew({ date: ds, label })} aria-label={`Neuer Termin am ${label}`}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}>
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 34 }}>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: today_ ? C.acT : C.br, lineHeight: 1 }}>{day}</span>
+                      <span style={{ fontSize: 10, color: C.mu, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5 }}>{wdName}</span>
+                    </span>
+                    <span style={{ flex: 1, fontSize: 12, color: C.mu }}>
+                      {MONTHS[dt.getMonth()]} · KW {getKW(dt)}
+                      {today_ && <span style={{ marginLeft: 6, color: C.acT, fontWeight: 700 }}>Heute</span>}
+                    </span>
+                    <span aria-hidden="true" style={{ fontSize: 20, color: C.mu, lineHeight: 1 }}>+</span>
+                  </button>
+                  {(evs.length > 0 || workers.length > 0) && (
+                    <div style={{ padding: '0 12px 10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {evs.map(e => {
+                        const et = EV_TYPES[e.type as string] || EV_TYPES.event;
+                        const editable = !(e.id as any)?.startsWith('dl-') && !(e.id as any)?.startsWith('tdl-');
+                        const style = { ...chipBase, color: et.color, background: et.bg, border: `1px solid ${et.color}30` };
+                        return editable
+                          ? <button key={e.id} className="ev-chip" onClick={(ev2: React.MouseEvent) => openEdit(e, ev2)} style={{ ...style, cursor: 'pointer' }}>{e.title}</button>
+                          : <div key={e.id} className="ev-chip" style={style}>{e.title}</div>;
+                      })}
+                      {workers.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: evs.length ? 3 : 0 }}>
+                          {workers.map(w => (
+                            <span key={w.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              <Avatar name={w.name} size={18} />
+                              <span style={{ fontSize: 11, color: C.mu }}>{firstName(w.name)}</span>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: w.taskStatus === 'in_progress' ? C.gr : C.yw, flexShrink: 0 }} />
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
       <div style={{ background: C.bd, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.bd}` }} role="grid">
         <div role="row" style={{ display: 'grid', gridTemplateColumns: '40px repeat(5,1fr)', borderBottom: `1px solid ${C.bd}` }}>
           <div style={{ background: C.sf, padding: 8 }} />
@@ -417,6 +505,7 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
         )}
         </div>
       </div>
+      )}
 
       {newEvDay && (
         <Modal title={`Neuer Termin — ${typeof newEvDay === 'object' ? newEvDay.label : `${String(newEvDay).padStart(2,'0')}.${String(m+1).padStart(2,'0')}.${y}`}`} onClose={() => setNewEvDay(null)}>

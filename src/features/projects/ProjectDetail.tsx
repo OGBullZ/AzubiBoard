@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { CSSProperties, ComponentType, ReactNode } from "react";
 import type { User, Task, Label, Project, Id, Material, Requirement } from '../../types';
 import { C, uid, fmtDate, sameId } from '../../lib/utils.js';
+import { useIsMobile } from '../../lib/hooks.js';
 import { StatusBadge, Avatar, ProgressBar, Modal, Field, IconBtn } from '../../components/UI.jsx';
 import { TasksTab, MaterialsTab, RequirementsTab, StepsTab } from './ProjectTabs.jsx';
 import { NetzplanTab, GanttTab } from './NetzplanGantt.jsx';
@@ -463,6 +464,9 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
   const [form,      setForm]     = useState({ ...project });
   const [saving,    setSaving]   = useState(false);
   const [popup, setPopup] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+  // U9: statische Fade-Kante als Scroll-Hinweis für horizontal scrollbare Leisten auf Mobile
+  const scrollFade = isMobile ? { maskImage: 'linear-gradient(90deg, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, black 85%, transparent)' } : {};
 
   const uf = (f: string, v: any) => setForm((p: any) => ({ ...p, [f]: v }));
 
@@ -511,7 +515,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
               ? <input value={form.title} onChange={e => uf('title', e.target.value)} style={{ fontSize: 15, fontWeight: 800 }} />
               : <h1 style={{ fontSize: 16, fontWeight: 800, color: C.br, margin: 0 }}>{project.title}</h1>}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: isMobile ? 1 : 0, ...(isMobile ? { minWidth: 0, width: '100%', overflowX: 'auto' } : {}), ...scrollFade }}>
             <StatusBadge status={project.status} />
             {isOverdue && <span className="tag" style={{ background: 'var(--c-crd)', color: C.crT, border: `1px solid color-mix(in srgb, ${C.cr} 21%, transparent)` }}>⚠ Überfällig</span>}
             {activeCount > 0 && <span style={{ fontSize: 9, color: C.acT, background: C.acd, borderRadius: 4, padding: '2px 7px', fontFamily: C.mono, fontWeight: 800 }}>▶ {activeCount} aktiv</span>}
@@ -556,7 +560,7 @@ export default function ProjectDetail({ project, users, groups, currentUser, onU
           </div>
         )}
 
-        <nav role="tablist" aria-label="Projektbereiche" style={{ display: 'flex', gap: 2, overflowX: 'auto' }}>
+        <nav role="tablist" aria-label="Projektbereiche" style={{ display: 'flex', gap: 2, overflowX: 'auto', ...scrollFade }}>
           {TABS.map(t => (
             <button key={t.k} role="tab" aria-selected={tab === t.k} onClick={() => setTab(t.k)}
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 7, fontSize: 11, fontWeight: 700, border: 'none', background: tab === t.k ? C.acd : 'transparent', color: tab === t.k ? C.acT : C.mu, flexShrink: 0, transition: 'all .12s' }}>
