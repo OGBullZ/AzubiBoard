@@ -106,6 +106,27 @@ if ($method === 'POST' && empty($parts[1] ?? null)) {
     //    wir 409 + aktuellen State, damit das Frontend mergen
     //    oder neu laden kann. Force-Override mit "*".
     $ifMatch = $_SERVER['HTTP_IF_MATCH'] ?? null;
+    // ── J2-Härtung (Tier-1-Fund 02.07.): kein blinder Overwrite ohne Version ──
+    //    Ein frischer Client, der nie GET /data gemacht hat (keine bekannte Version,
+    //    kein If-Match), würde sonst den geteilten Server-Blob mit seinem lokalen
+    //    Seed überschreiben (real passiert: Registrier-Flow nukte das Projekt des
+    //    Ausbilders). Erst-Anlage (leerer app_data) bleibt erlaubt; bewusster
+    //    Override weiterhin via If-Match: * (forceSave).
+    if ($ifMatch === null) {
+        $cur = db()->query('SELECT updated_at FROM app_data WHERE id = 1')->fetch();
+        $serverVersion = $cur ? strtotime($cur['updated_at']) : 0;
+        if ($serverVersion > 0) {
+            $row    = db()->query('SELECT content FROM app_data WHERE id = 1')->fetch();
+            $server = $row ? json_decode($row['content'], true) : [];
+            header('ETag: "' . $serverVersion . '"');
+            respond([
+                'error'           => 'Conflict',
+                'server_version'  => $serverVersion,
+                'client_version'  => 0,
+                'server_data'     => $server,
+            ], 409);
+        }
+    }
     if ($ifMatch !== null && $ifMatch !== '*') {
         $clientVersion = (int) trim($ifMatch, '"');
         $cur = db()->query('SELECT updated_at FROM app_data WHERE id = 1')->fetch();

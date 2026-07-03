@@ -90,11 +90,24 @@ export function useAuthSession(
         }
       }
 
-      setData(finalData);
+      // persist:false — der Stand kam gerade von Server/localStorage; ein POST wäre
+      // redundant und liefe beim frischen Client ohne Version in den 409-Guard.
+      setData(finalData, { persist: false });
     })();
   }, []); // eslint-disable-line
 
-  // Nach Login: MySQL-User laden und in Blob mergen (API-Modus)
+  // Tier-1-Fund 02.07.: Nach dem Login MUSS der Server-Blob geladen werden — der
+  // anonyme Boot lief ohne Token auf dem localStorage-Seed, und ein Save auf dessen
+  // Basis überschreibt die geteilten Server-Daten. getData() setzt zudem die bekannte
+  // Version (If-Match für alle Folge-Saves). Durch dieselbe Pipeline wie der Bootstrap.
+  const loadServerBlob = useCallback(async () => {
+    const fresh = await dataService.getData() as any;
+    if (!fresh || typeof fresh !== 'object') return null;
+    // Blob-Boundary wie im Bootstrap-Effect: migrateData liefert Blob-Form → any.
+    return autoCleanTrash(ensureTrash(migrateData(fresh) as any));
+  }, []);
+
+  // Nach Login: Server-Blob + MySQL-User laden (API-Modus)
   const handleLogin = useCallback(async (user: User) => {
     justLoggedInRef.current = true;
     // Marker für echten Login (vs. Reload) — vom News-Effect konsumiert (§2.1).
@@ -102,12 +115,16 @@ export function useAuthSession(
     setCurrentUser(user);
     applyUserTheme(user.theme);  // Theme aus DB nach Login anwenden
     if (USE_API) {
-      const apiUsers = await dataService.getUsers();
-      // prev: Store-Blob (Record<string,unknown>) — Boundary, any belassen.
-      if (apiUsers) setData((prev: any) => prev ? { ...prev, users: apiUsers } : prev);
+      const [fresh, apiUsers] = await Promise.all([loadServerBlob(), dataService.getUsers()]);
+      // prev/base: Store-Blob (Record<string,unknown>) — Boundary, any belassen.
+      setData((prev: any) => {
+        const base: any = fresh ?? prev;
+        if (!base) return prev;
+        return apiUsers ? { ...base, users: apiUsers } : base;
+      }, { persist: false });   // kam gerade vom Server — kein Re-POST
     }
     justLoggedInRef.current = false;
-  }, [setCurrentUser, setData]);
+  }, [setCurrentUser, setData, loadServerBlob]);
 
   const handleLogout = useCallback(() => {
     clearSession();
@@ -118,7 +135,8 @@ export function useAuthSession(
   // Registrierung (AuthPage): Gruppen-Beitritt läuft nach dem Login per Anfrage
   // (Onboarding-Wizard) → hier keine Gruppe.
   const handleRegister = useCallback(async (newUser: User) => {
-    setData((prev: any) => addActivity({ ...prev, users: [...(prev?.users || []), newUser] }, {
+    setCurrentUser(newUser);
+    const activity = {
       type: 'user_registered',
       userId: newUser.id,
       userName: newUser.name,
@@ -126,15 +144,22 @@ export function useAuthSession(
       projectId: null,
       projectTitle: null,
       action: `${newUser.name} hat sich registriert`,
-    }));
-    setCurrentUser(newUser);
-    // In API-Modus: frische Nutzerliste nach Registrierung laden
+    };
     if (USE_API) {
-      const apiUsers = await dataService.getUsers();
-      // prev: Store-Blob (Record<string,unknown>) — Boundary, any belassen.
-      if (apiUsers) setData((prev: any) => prev ? { ...prev, users: apiUsers } : prev);
+      // Tier-1-Fund 02.07.: erst den geteilten Server-Blob laden (setzt If-Match-Version),
+      // DANN die Activity darauf aufsetzen — sonst überschreibt der Registrier-Save
+      // den Server-Stand mit dem lokalen Seed.
+      const [fresh, apiUsers] = await Promise.all([loadServerBlob(), dataService.getUsers()]);
+      // prev/base: Store-Blob (Record<string,unknown>) — Boundary, any belassen.
+      setData((prev: any) => {
+        const base: any = fresh ?? prev;
+        if (!base) return prev;
+        return addActivity(apiUsers ? { ...base, users: apiUsers } : base, activity);
+      });
+    } else {
+      setData((prev: any) => addActivity({ ...prev, users: [...(prev?.users || []), newUser] }, activity));
     }
-  }, [setCurrentUser, setData]);
+  }, [setCurrentUser, setData, loadServerBlob]);
 
   return { handleLogin, handleLogout, handleRegister };
 }

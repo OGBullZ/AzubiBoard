@@ -39,6 +39,9 @@ src_backup_*
 test-results/
 playwright-report/
 
+# Lighthouse CI (lokale Läufe)
+.lighthouseci/
+
 # OneDrive Name-Clash-Files
 **/*Name clash*
 

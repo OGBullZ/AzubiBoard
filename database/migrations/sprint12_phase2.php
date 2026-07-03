@@ -18,7 +18,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 $root = dirname(__DIR__, 2);
-require_once $root . '/api/db.php';
+require_once $root . '/api/config.php';   // stellt db() bereit (api/db.php existiert nicht -- Tier-1-Fund 02.07.)
 require_once $root . '/database/migration_helpers.php';
 
 $pdo = db();
