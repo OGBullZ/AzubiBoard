@@ -116,7 +116,10 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
   // ── Termine der nächsten 7 Tage (beide Rollen) ───────────
   // Global + in Projekten eingebettete Events; untis/holiday wären tägliches Rauschen.
   const todayIso = fmtLocalDate(now);
-  const horizon = fmtLocalDate(new Date(+now + 7 * 86400000));
+  // Horizont über Kalendertage (setDate), nicht +7·86400000 ms — Letzteres verliert in der
+  // DST-Ende-Woche eine Stunde und landet einen Tag zu früh, ein Termin am 7. Tag fiele raus.
+  const horizonDate = new Date(now); horizonDate.setDate(horizonDate.getDate() + 7);
+  const horizon = fmtLocalDate(horizonDate);
   const projEvents = active.flatMap((p: Project) => ((p as Project & { calendarEvents?: CalendarEvent[] }).calendarEvents || []));
   const upcoming = [...(data.calendarEvents || []), ...projEvents]
     .filter((ev: CalendarEvent) => !!ev.date && ev.date >= todayIso && ev.date <= horizon && !['untis', 'holiday'].includes(ev.type || ''))

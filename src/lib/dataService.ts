@@ -3,7 +3,7 @@
 //  Umschalten: VITE_USE_API=true in .env
 // ============================================================
 import { loadData, persistData } from './utils';
-import { authHeader, clearToken, isTokenValid } from './auth';
+import { authHeader, clearToken, getToken, isTokenValid } from './auth';
 import { addBreadcrumb } from './sentry.js';
 import {
   mapProjectsToBlob, mapReportsToBlob,
@@ -103,11 +103,24 @@ const saveQueue = (() => {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       schedule(); return;
     }
-    if (!isTokenValid()) { pending = null; return; } // nicht eingeloggt → nicht spammen
+    if (!isTokenValid()) {
+      // Token fehlt/abgelaufen. Bei einem ABGELAUFENEN Token (mid-session) den Unauthorized-Flow
+      // auslösen statt die Queue still zu verwerfen: sonst landen Edits nur in localStorage, der
+      // SyncIndicator bliebe grün und der nächste Login-Server-Load überschriebe sie unbemerkt.
+      // Ohne Token (nie eingeloggt) einfach zurück — nicht spammen.
+      if (getToken()) {
+        clearToken();
+        window.dispatchEvent(new Event('azubiboard:unauthorized'));
+        emit('error', { error: new Error('Unauthorized'), fatal: true });
+      }
+      pending = null;
+      return;
+    }
 
     const snapshot = pending;
     pending  = null;
     inflight = true;
+    let errored = false;
     emit('start');
     try {
       const headers: Record<string, string> = knownVersion ? { 'If-Match': `"${knownVersion}"` } : {};
@@ -156,6 +169,7 @@ const saveQueue = (() => {
     } catch (err) {
       // Wenn währenddessen neuere Daten kamen, behalten wir sie;
       // andernfalls wieder das alte Snapshot in die Queue.
+      errored  = true;
       pending  = pending ?? snapshot;
       lastError = err instanceof Error ? err : new Error(String(err));
       emit('error', { error: err });
@@ -165,8 +179,11 @@ const saveQueue = (() => {
       schedule();
     } finally {
       inflight = false;
-      // Falls in der Zwischenzeit etwas Neues reinkam — sofort weiter
-      if (pending) flush();
+      // Nach einem Fehler NICHT sofort neu flushen — der Backoff-Timer (schedule) übernimmt.
+      // Sonst zieht das finally den nächsten POST sofort durch (pending ist restauriert) und
+      // der Exponential-Backoff greift nie → Endlos-Sofort-Retry gegen einen kaputten Server.
+      // Nach Erfolg mit neuem pending sofort weiter (kein Backoff nötig).
+      if (!errored && pending) flush();
     }
   }
 
@@ -338,7 +355,13 @@ export const dataService = {
   saveData(newData: Record<string, unknown>) {
     if (!USE_API) { persistData(newData); return Promise.resolve(newData); }
     persistData(newData);                        // optimistic, sofort lokal
-    if (!isTokenValid()) return Promise.resolve(newData);
+    if (!isTokenValid()) {
+      // Abgelaufener Token: Unauthorized-Flow einmalig auslösen (clearToken macht getToken()
+      // danach null → kein erneutes Feuern), sonst syncte ein neuer Edit still nur nach
+      // localStorage und der nächste Login würde ihn überschreiben.
+      if (getToken()) { clearToken(); window.dispatchEvent(new Event('azubiboard:unauthorized')); }
+      return Promise.resolve(newData);
+    }
     saveQueue.enqueue(newData);                  // Server: queued + retry
     return Promise.resolve(newData);
   },

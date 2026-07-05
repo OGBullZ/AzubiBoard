@@ -40,8 +40,10 @@ export function buildHeroSuggestion(projects: Project[], reports: Report[], user
   const weekMon = isoWeekMonday(now);
   const hasThisWeek = (reports || []).some((r: Report) => sameId(r.user_id, userId) && (r.week_start || '') >= weekMon);
   if (!hasThisWeek) {
+    // daysLeft bis Freitag; am Wochenende auf 0 klemmen statt negativ ("1T über") — die
+    // Berichtswoche läuft laut hasThisWeek bis Sonntag, ein "überfällig"-Zustand wäre falsch.
     return { kind: 'report', title: 'Wochenbericht schreiben', sub: 'Das Berichtsheft dieser Woche ist noch offen',
-      cta: 'Bericht anlegen', to: '/reports', daysLeft: 5 - ((now.getDay() + 6) % 7 + 1) };
+      cta: 'Bericht anlegen', to: '/reports', daysLeft: Math.max(0, 5 - ((now.getDay() + 6) % 7 + 1)) };
   }
 
   const soon = myTasks.filter(x => x.d > 0 && x.d <= 3).sort((a, b) => a.d - b.d);

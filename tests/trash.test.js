@@ -76,6 +76,17 @@ describe('autoCleanTrash', () => {
     expect(autoCleanTrash(data, 2).trash.projects).toHaveLength(0);
     expect(autoCleanTrash(data, 4).trash.projects).toHaveLength(1);
   });
+  // Warum: bei kaputtem deletedAt (alter/fremder Datenstand) ergäbe new Date(x).getTime() NaN,
+  // NaN >= cutoff wäre false → der Eintrag würde beim nächsten Cleanup SOFORT endgültig gelöscht
+  // statt die 30-Tage-Frist abzuwarten. Unparsebar/fehlend muss konservativ behalten werden.
+  it('behält Einträge mit fehlendem oder unparsebarem deletedAt (kein Sofort-Purge)', () => {
+    const data = { trash: { projects: [
+      { id: 'kaputt', deletedAt: 'nicht-parsebar' },
+      { id: 'fehlt' },
+    ], reports: [], goals: [] } };
+    const cleaned = autoCleanTrash(data);
+    expect(cleaned.trash.projects.map(e => e.id).sort()).toEqual(['fehlt', 'kaputt']);
+  });
 });
 
 describe('trashCount', () => {

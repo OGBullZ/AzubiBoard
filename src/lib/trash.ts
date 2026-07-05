@@ -116,8 +116,10 @@ export function autoCleanTrash(data: AppData, maxAgeDays = MAX_AGE_DAYS): WithTr
   for (const k of TRASH_TYPES) {
     const before = next.trash[k] || [];
     const after  = before.filter(e => {
-      const t = e.deletedAt ? new Date(e.deletedAt).getTime() : Date.now();
-      return t >= cutoff;
+      // Fehlendes ODER unparsebares deletedAt konservativ behalten (NaN >= cutoff wäre false
+      // → sofortiges endgültiges Löschen bei kaputtem Datenstand statt der 30-Tage-Frist).
+      const t = e.deletedAt ? new Date(e.deletedAt).getTime() : NaN;
+      return isNaN(t) || t >= cutoff;
     });
     if (after.length !== before.length) changed = true;
     bin[k] = after;

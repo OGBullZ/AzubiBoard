@@ -1,7 +1,7 @@
 import React, { useCallback, useState, lazy, Suspense } from 'react';
 import { useAppStore } from './lib/store';
 import { dataService } from './lib/dataService';
-import { addActivity } from './lib/utils';
+import { addActivity, persistData } from './lib/utils';
 import { useToast } from './lib/hooks';
 import {
   BrowserRouter as Router,
@@ -217,9 +217,11 @@ const App = () => {
           <BackupsModal
             onClose={() => setShowBackups(false)}
             onRestore={async () => {
-              // Frisch vom Server holen, damit lokaler State matched
+              // Frisch vom Server holen, damit lokaler State matched. persist:false — die Daten
+              // kommen gerade vom Server (getData setzt knownVersion via ETag); ein Re-POST wäre
+              // ein redundantes Echo (updated_at-Bump, alle anderen Clients laden doppelt).
               const fresh = await dataService.getData();
-              if (fresh) setData(fresh);
+              if (fresh) { setData(fresh, { persist: false }); persistData(fresh); }
             }}
             showToast={showToast}
           />

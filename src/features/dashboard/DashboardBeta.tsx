@@ -266,7 +266,10 @@ export function DashboardBeta({ user, projects, reports, calendarEvents, activit
 
   // Berichts-Streak: zusammenhängende Wochen mit Bericht, rückwärts ab dieser KW
   const streak = useMemo(() => {
-    const weeks = new Set(ownReports.map((r: Report) => r.week_start || ''));
+    // week_start auf den ISO-Wochenmontag normalisieren — der Datepicker erlaubt jedes Datum
+    // und save() normalisiert nicht; ohne das bricht der Set-Match gegen isoWeekMonday(d) und
+    // der Streak steht auf 0, obwohl für jede Woche ein Bericht existiert.
+    const weeks = new Set(ownReports.map((r: Report) => isoWeekMonday(r.week_start || '')));
     let n = 0;
     const d = new Date(now);
     for (let i = 0; i < 99; i++) {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { C, getKW, fmtLocalDate, getISOWeekMonday, sameId } from '../../lib/utils.js';
+import { C, getKW, fmtLocalDate, getISOWeekMonday, sameId, dayDiffLocal } from '../../lib/utils.js';
 import { berichtsheftStats, readinessScore } from '../dashboard/reportStats.js';
 import { Avatar, ProgressBar } from '../../components/UI.jsx';
 import { IcoBack, IcoCheck, IcoClock, IcoAlert, IcoFolder, IcoReport, IcoTrendUp } from '../../components/Icons.jsx';
@@ -137,7 +137,7 @@ export default function AzubiProfilePage({ azubi, data, currentUser: _currentUse
 
   const done    = allTasks.filter(t => t.status === 'done').length;
   const _open   = allTasks.filter(t => t.status !== 'done').length;
-  const overdue = allTasks.filter(t => t.status !== 'done' && t.deadline && new Date(t.deadline) < new Date()).length;
+  const overdue = allTasks.filter(t => t.status !== 'done' && t.deadline && dayDiffLocal(t.deadline) < 0).length;
   const taskPct = allTasks.length > 0 ? Math.round(done / allTasks.length * 100) : 0;
 
   // Prüfungs-Readiness (Composite: Berichtsheft + Lernziele + Aufgaben)

@@ -36,6 +36,18 @@ describe('buildHeroSuggestion — Prioritätskette (Anhang D.3)', () => {
     expect(buildHeroSuggestion(proj(tasks), reportOk, 1).kind).toBe('clear');
   });
 
+  // Warum: die Berichtswoche läuft laut hasThisWeek bis Sonntag. daysLeft (bis Freitag) darf am
+  // Wochenende nicht negativ werden, sonst zeigt die Gauge fälschlich "1T/2T über" für einen
+  // Bericht, der noch angelegt werden kann.
+  it('report-daysLeft ist an keinem Wochentag negativ (Wochenende nicht überfällig)', () => {
+    for (let off = 0; off < 7; off++) {
+      const now = new Date(2026, 6, 4 + off, 12, 0, 0); // 04.07.2026 = Samstag → deckt Sa/So mit ab
+      const h = buildHeroSuggestion([], [], 1, now);
+      expect(h.kind).toBe('report');
+      expect(h.daysLeft).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   // Warum: currentUser.id ist im API-Modus number, im Blob string — ein roher ===-Vergleich
   // ließe die eigene überfällige Aufgabe bzw. den eigenen Bericht durchrutschen (Hero komplett falsch).
   it('matcht eigene Aufgabe/Bericht trotz string↔number-ID-Mischung (API vs Blob)', () => {

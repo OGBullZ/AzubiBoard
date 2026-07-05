@@ -27,6 +27,11 @@ if (!in_array($entity, ['requirements','materials'])) {
     error("Unbekannter goals-Typ: '$entity'. Erlaubt: requirements, materials", 404);
 }
 
+// Bug-Hunt (2026-07-04): Mentoren sind read-only Staff (wie im Blob-Pfad data.php). Ohne
+// diesen Gate fiel der Mentor in den Azubi-Zweig von goals_project_access und konnte
+// Requirements/Materials zugewiesener Projekte CRUDen. Nur GET erlaubt.
+if ($role === 'mentor' && $method !== 'GET') error('Mentoren haben nur Lesezugriff', 403);
+
 // ── Projektzugriff prüfen ─────────────────────────────────────
 function goals_project_access(PDO $pdo, int $projectId, int $userId, string $role): bool {
     if ($role === 'ausbilder') {

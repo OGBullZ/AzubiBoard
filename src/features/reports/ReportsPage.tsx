@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import type { User, Project, Task, Report, AppState, Id } from '../../types';
 import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';
-import { C, uid, fmtDate, getKW, getISOWeek, isoWeekMonday, addActivity, sameId } from '../../lib/utils.js';
+import { C, uid, fmtDate, getKW, getISOWeek, isoWeekMonday, addActivity, sameId, fmtLocalDate } from '../../lib/utils.js';
 import { sumDayHours } from '../dashboard/reportStats.js';
 import { useDebounce, useDesign, useIsMobile } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
@@ -496,7 +496,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
           <div className="card">
             <div style={{ fontSize: 10, color: C.mu, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 700, marginBottom: 10 }}>{t('report.metadataLabel')}</div>
             <Field label={t('report.weekStart')}>
-              <input type="date" value={form.week_start} max={new Date().toISOString().split('T')[0]} disabled={!isOwner || readOnly} onChange={e => { setWsError(''); setForm((f: any) => ({ ...f, week_start: e.target.value })); }} />
+              <input type="date" value={form.week_start} max={fmtLocalDate(new Date())} disabled={!isOwner || readOnly} onChange={e => { setWsError(''); setForm((f: any) => ({ ...f, week_start: e.target.value })); }} />
               {wsError && <div role="alert" style={{ fontSize: 11, color: C.crT, marginTop: 4 }}>{wsError}</div>}
             </Field>
             <Field label={t('report.weekTitle')}>

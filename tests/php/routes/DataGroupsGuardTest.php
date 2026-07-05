@@ -62,6 +62,17 @@ final class DataGroupsGuardTest extends TestCase
             'Eigene Beitritts-Anfrage muss erlaubt bleiben (Vergleich gegen eigene UID fehlt)');
     }
 
+    public function testGuardRejectsDuplicateIdCountBypass(): void
+    {
+        // Bug-Hunt (2026-07-04): [A,A] statt [A,B] hat dieselbe Anzahl → passierte den reinen
+        // count-Check, während B still gelöscht wurde. Der Guard muss Duplikate erkennen und
+        // die ID-Menge auf Set-Gleichheit gegen den Alt-Stand prüfen, nicht nur die Anzahl.
+        $this->assertMatchesRegularExpression('/in_array\(\$gid,\s*\$newIds,\s*true\)/', $this->code,
+            'Duplikat-ID-Erkennung im Gruppen-Guard fehlt (count-only-Bypass wieder offen)');
+        $this->assertStringContainsString('$newIds !== $oldIds', $this->code,
+            'Set-Gleichheit der Gruppen-IDs wird nicht geprüft (Löschen per Duplikat-ID möglich)');
+    }
+
     public function testIdComparisonIsTypeTolerant(): void
     {
         // localStorage-Modus speichert String-IDs, API-Modus Integer — der Guard

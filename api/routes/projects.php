@@ -21,6 +21,11 @@ $role = $auth['role'] ?? 'azubi';
 $taskId = isset($parts[3]) && is_numeric($parts[3]) ? (int)$parts[3] : null;
 $sub2   = $parts[2] ?? null;  // 'tasks'
 
+// Bug-Hunt (2026-07-04): Mentoren sind read-only Staff — im Blob-Pfad (data.php) längst
+// erzwungen, in den relationalen Routes fehlte der Gate (Mentor fiel in den Azubi-Zweig und
+// konnte Projekte/Tasks anlegen/ändern/löschen). Zentraler Choke-Point: nur GET erlaubt.
+if ($role === 'mentor' && $method !== 'GET') error('Mentoren haben nur Lesezugriff', 403);
+
 // ── Row-Level-Security helper ─────────────────────────────────
 // Ausbilder sehen Projekte ihrer Gruppe(n), Azubi nur zugewiesene.
 // L5-6a-Fix: Ausbilder bekommt denselben Gruppen-Filter wie die Listen-Route
@@ -252,6 +257,13 @@ if ($method === 'PATCH' && $id !== null) {
     if (!project_visible(db(), $id, $uid, $role)) error('Kein Zugriff', 403);
 
     $b = body();
+    // Archivieren ist wie DELETE Ausbilder-/Ersteller-Sache. project_visible (= bloße
+    // Zuweisung) reicht dafür nicht — sonst umgeht ein zugewiesener Nicht-Ersteller den
+    // strengeren DELETE-Gate per PATCH {archived:1} und lässt das Projekt für alle verschwinden.
+    if ($role !== 'ausbilder' && array_key_exists('archived', $b) && !empty($b['archived'])
+        && (string)($p['created_by'] ?? '') !== (string)$uid) {
+        error('Nur Ausbilder oder Ersteller können Projekte archivieren', 403);
+    }
     $fields = []; $vals = [];
     $allowed = ['title','description','status','priority','start_date','deadline',
                 'netzplan_unit','color','archived','completed_at'];

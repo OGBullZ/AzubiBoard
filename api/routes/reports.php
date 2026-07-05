@@ -16,6 +16,10 @@ $role = $auth['role'] ?? 'azubi';
 
 $VALID_STATUSES = ['draft','submitted','reviewed','signed'];
 
+// Bug-Hunt (2026-07-04): Mentoren sind read-only Staff (konsistent zum Blob-Pfad data.php) —
+// nur GET. Ohne Gate hätte ein Mentor Berichte anlegen/ändern können.
+if ($role === 'mentor' && $method !== 'GET') error('Mentoren haben nur Lesezugriff', 403);
+
 function load_report(PDO $pdo, int $id): ?array {
     $s = $pdo->prepare("SELECT * FROM reports WHERE id = ? LIMIT 1");
     $s->execute([$id]);
@@ -94,7 +98,7 @@ if ($method === 'POST' && $id === null) {
         $reportUserId,
         $weekStart,
         !empty($b['week_number']) ? (int)$b['week_number'] : null,
-        !empty($b['year'])        ? (int)$b['year'] : (int)date('Y', strtotime($weekStart)),
+        !empty($b['year'])        ? (int)$b['year'] : (int)date('o', strtotime($weekStart)), // 'o' = ISO-Wochenjahr (nicht Kalenderjahr): week_start='2025-12-29' ist ISO KW1/2026, nicht 2025
         $b['title'] ?? null,
         $b['activities'] ?? null,
         $b['learnings'] ?? null,

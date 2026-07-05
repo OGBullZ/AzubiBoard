@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, lazy } from "react";
 import { useTranslation } from 'react-i18next';
 import type { User, Project, Report, Task, TimeLogEntry, CalendarEvent, Id } from '../../types';
-import { C, fmtDate, fmtLocalDate, isoWeekMonday, sameId, firstName } from '../../lib/utils.js';
+import { C, fmtDate, fmtLocalDate, isoWeekMonday, sameId, firstName, dayDiffLocal } from '../../lib/utils.js';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
   IcoFolder, IcoPlay, IcoChevron,
@@ -106,7 +106,7 @@ function AusbilderDashboard({ user, projects, users, reports, calendarEvents, ac
               const myProjects = active.filter(p => (p.assignees||[]).includes(a.id));
               const myTasks    = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => sameId(t.assignee, a.id) && t.status !== 'done'));
               const inProgress = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => sameId(t.assignee, a.id) && t.status === 'in_progress'));
-              const overdue    = myTasks.filter((t: Task) => t.deadline && new Date(t.deadline) < now);
+              const overdue    = myTasks.filter((t: Task) => t.deadline && dayDiffLocal(t.deadline, now) < 0);
               const doneTotal  = myProjects.flatMap(p => (p.tasks||[]).filter((t: Task) => t.status === 'done' || t.done)).length;
               const totalTasks = myProjects.flatMap(p => (p.tasks||[])).length;
               const pct        = totalTasks > 0 ? Math.round(doneTotal / totalTasks * 100) : 0;
@@ -285,7 +285,7 @@ function AzubiDashboard({ user, projects, users, reports, calendarEvents, activi
           ...t,
           projectTitle: p.title,
           projectId:    p.id,
-          isOverdue:    !!(t.deadline && new Date(t.deadline) < now),
+          isOverdue:    !!(t.deadline && dayDiffLocal(t.deadline, now) < 0),
         }))
     ).sort((a: DashboardTask, b: DashboardTask) => {
       if (a.isOverdue && !b.isOverdue) return -1;

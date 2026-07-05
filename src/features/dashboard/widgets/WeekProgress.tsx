@@ -42,13 +42,17 @@ function WeekProgressImpl({ tasks, userId }: WeekProgressProps) {
     return { l, d, ds, isToday, done, open, total: done + open };
   });
 
-  const weekDone  = days.reduce((s, d) => s + d.done, 0);
-  const weekTotal = tasks.filter(t => {
+  // weekDone/weekTotal über DENSELBEN vollen Wochenbereich (Mo–So) zählen. Die Tages-Buckets
+  // decken nur Mo–Fr ab; würde weekDone aus ihnen summiert, erreichte "x / y" bei einer erledigten
+  // Wochenend-Deadline nie den Grün-Zustand (weekDone === weekTotal).
+  const inThisWeek = (t: WeekTask) => {
     const ds = t.deadline;
     if (!ds) return false;
     const td = new Date(ds + 'T12:00:00');
     return td >= mon && td < new Date(mon.getTime() + 7 * 86400000) && sameId(t.assignee, userId);
-  }).length;
+  };
+  const weekTotal = tasks.filter(inThisWeek).length;
+  const weekDone  = tasks.filter(t => inThisWeek(t) && (t.status === 'done' || t.done)).length;
 
   return (
     <div>

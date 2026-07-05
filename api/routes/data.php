@@ -396,7 +396,22 @@ function validate_groups_diff(array $newGroups, array $oldGroups, string $uid): 
         if (isset($g['id'])) $oldById[(string)$g['id']] = $g;
     }
 
-    if (count($newGroups) !== count($oldById)) {
+    // Set der neuen IDs bilden — Duplikate und leere IDs sind verboten und die ID-Menge muss
+    // EXAKT der alten entsprechen. Der frühere reine count-Check ließ sich umgehen: [A,A] hat
+    // dieselbe Anzahl wie [A,B], passiert den Count, und die per-Gruppe-Schleife vergleicht beide
+    // A-Kopien nur gegen oldById[A] (identisch) → B wird samt members/requests still gelöscht.
+    $newIds = [];
+    foreach ($newGroups as $ng) {
+        $gid = isset($ng['id']) ? (string)$ng['id'] : '';
+        if ($gid === '' || in_array($gid, $newIds, true)) {
+            error('Nicht berechtigt: Gruppen anlegen/löschen ist Ausbilder-Sache', 403);
+        }
+        $newIds[] = $gid;
+    }
+    $oldIds = array_keys($oldById);
+    sort($newIds);
+    sort($oldIds);
+    if ($newIds !== $oldIds) {
         error('Nicht berechtigt: Gruppen anlegen/löschen ist Ausbilder-Sache', 403);
     }
 

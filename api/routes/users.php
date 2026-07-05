@@ -65,13 +65,17 @@ if ($method === 'POST' && !$id) {
 
 // ── GET /api/users/{id} ── Einzelnen Nutzer abrufen ──────────
 if ($method === 'GET' && $id) {
-    require_auth();
+    $auth = require_auth();
+    // RLS (Bug-Hunt 2026-07-04): wie die Listen-Route auf eigene Gruppen (+ man selbst)
+    // einschränken. Vorher nur require_auth → ein Azubi konnte per /users/{id} über alle
+    // IDs iterieren und gruppenübergreifend fremde Profile (Name/E-Mail/Rolle) auslesen.
+    $gf = with_group_filter_users(db(), $auth, 'id');
     $stmt = db()->prepare(
         'SELECT id, name, email, role, avatar_url, apprenticeship_year,
                 profession, theme, is_active, last_login
-         FROM users WHERE id = ? LIMIT 1'
+         FROM users WHERE id = ? AND (' . $gf['clause'] . ') LIMIT 1'
     );
-    $stmt->execute([$id]);
+    $stmt->execute([$id, ...$gf['params']]);
     $user = $stmt->fetch();
     if (!$user) error('Nutzer nicht gefunden', 404);
     $user['id']                  = (int)$user['id'];
