@@ -62,6 +62,12 @@ if [ -n "$DOMAIN" ]; then
     read -p "  E-Mail für Let's Encrypt (für Zertifikat-Ablauf-Benachrichtigungen): " CERT_EMAIL
 fi
 
+# Basis-URL einmal zentral: mit Domain HTTPS, sonst IP. Zweistufig, weil die
+# Kombi ${DOMAIN:+...}${DOMAIN:-...} bei gesetzter Domain doppelt expandiert
+# ("https://foo.defoo.de") und damit CORS/Links kaputt wären.
+APP_ORIGIN=${DOMAIN:+https://${DOMAIN}}
+APP_ORIGIN=${APP_ORIGIN:-http://${SERVER_IP}}
+
 echo ""
 
 # ── 1. Node.js + PHP-Erweiterungen + Composer prüfen ──────────
@@ -162,9 +168,23 @@ UPHT
 info "Frontend-Dateien kopieren..."
 cp -r "$REPO_DIR/dist/." "$APP_DIR/"
 
-# api/ kopieren
+# api/ kopieren ('/.' statt Ordner: verhindert api/api-Verschachtelung beim Re-Run)
 info "PHP-API kopieren..."
-cp -r "$REPO_DIR/api" "$APP_DIR/api"
+mkdir -p "$APP_DIR/api"
+cp -r "$REPO_DIR/api/." "$APP_DIR/api/"
+
+# database/ mitdeployen (Schema + idempotente PHP-Migration; database/.htaccess blockt Web-Zugriff)
+info "Datenbank-Skripte kopieren..."
+mkdir -p "$APP_DIR/database"
+cp -r "$REPO_DIR/database/." "$APP_DIR/database/"
+
+# vendor/ mitdeployen — api/mailer.php sucht APP_DIR/vendor/autoload.php;
+# ohne diese Kopie fällt PHPMailer still auf natives mail() zurück (SMTP-Config wirkungslos)
+if [ -d "$REPO_DIR/vendor" ]; then
+    info "PHP-Dependencies (vendor/) kopieren..."
+    mkdir -p "$APP_DIR/vendor"
+    cp -r "$REPO_DIR/vendor/." "$APP_DIR/vendor/"
+fi
 
 # Berechtigungen setzen
 chown -R www-data:www-data "$APP_DIR"
@@ -174,6 +194,20 @@ ok "Dateien deployed nach $APP_DIR"
 
 # ── 4. .env erstellen ─────────────────────────────────────────
 hdr "4/9 Konfiguration (.env)"
+
+# Re-Run: bestehendes JWT_SECRET übernehmen (sonst wären alle Sessions ungültig)
+# + alte .env sichern (manuell ergänzte Werte wie SMTP/CLAUDE_API_KEY übertragbar);
+# .htaccess-Regel "^\.env" blockt auch die Backups vor Web-Zugriff.
+if [ -f "$APP_DIR/.env" ]; then
+    OLD_JWT=$(grep -oP '^JWT_SECRET=\K.+' "$APP_DIR/.env" || true)
+    if [ -n "$OLD_JWT" ]; then
+        JWT_SECRET="$OLD_JWT"
+        info "Re-Run erkannt: bestehendes JWT_SECRET übernommen (Sessions bleiben gültig)"
+    fi
+    cp "$APP_DIR/.env" "$APP_DIR/.env.bak.$(date +%Y%m%d%H%M%S)"
+    info "Alte .env gesichert — manuell ergänzte Werte (SMTP/CLAUDE_API_KEY) ggf. übertragen"
+fi
+
 cat > "$APP_DIR/.env" << EOF
 VITE_BASE_PATH=/azubiboard/
 VITE_USE_API=true
@@ -187,7 +221,7 @@ DB_PASS=${DB_PASS}
 JWT_SECRET=${JWT_SECRET}
 JWT_EXPIRY=604800
 
-ALLOWED_ORIGIN=${DOMAIN:+https://${DOMAIN}}${DOMAIN:-http://${SERVER_IP}}
+ALLOWED_ORIGIN=${APP_ORIGIN}
 
 APP_ENV=production
 
@@ -202,6 +236,12 @@ BACKEND_DUAL_WRITE=false
 # SMTP_SECURE=tls
 # SMTP_FROM=azubiboard@example.de
 # SMTP_FROM_NAME=AzubiBoard
+# APP_URL=${APP_ORIGIN}/azubiboard   # Link in Digest-Mails
+
+# KI-Features (Sprint 14 AI1-5): Claude-API-Schlüssel eintragen,
+# sonst antwortet /api/ai/* mit 503 (Features im UI deaktiviert).
+# Holen bei https://console.anthropic.com → API Keys
+# CLAUDE_API_KEY=sk-ant-...
 EOF
 chmod 640 "$APP_DIR/.env"
 chown www-data:www-data "$APP_DIR/.env"
@@ -244,15 +284,27 @@ ok "Datenbank '$DB_NAME' und User '$DB_USER' angelegt"
 # Schema importieren: setup.sql (Basis) + azubiboard.sql (relationales
 # Sprint-12-Ziel-Schema, idempotent) + sprint12_phase2.sql (Lernpfade etc.).
 # Ohne die relationalen Tabellen sind Migration/Dual-Write/RLS nicht nutzbar.
+# --force: azubiboard.sql kollidiert planmäßig mit setup.sql (users-PK, Fehler 1068) —
+# ohne --force bricht mysql dort ab und alle AUTO_INCREMENTs/FOREIGN KEYs danach fehlen.
 for SQL_FILE in setup.sql azubiboard.sql migrations/sprint12_phase2.sql; do
     if [ -f "$REPO_DIR/database/$SQL_FILE" ]; then
-        if $MYSQL_CMD "$DB_NAME" < "$REPO_DIR/database/$SQL_FILE" 2>/tmp/azubiboard-sql-err.log; then
+        if $MYSQL_CMD --force "$DB_NAME" < "$REPO_DIR/database/$SQL_FILE" 2>/tmp/azubiboard-sql-err.log; then
             ok "Schema importiert: $SQL_FILE"
         else
             info "⚠ $SQL_FILE: Import-Fehler (siehe /tmp/azubiboard-sql-err.log) — manuell prüfen"
         fi
     fi
 done
+
+# Kanonische Phase-2-Migration (idempotent; gepflegt in database/migration_helpers.php).
+# Läuft gegen APP_DIR, damit api/config.php die dortige .env findet.
+if [ -f "$APP_DIR/database/migrations/sprint12_phase2.php" ]; then
+    if php "$APP_DIR/database/migrations/sprint12_phase2.php" > /dev/null 2>&1; then
+        ok "Phase-2-Migration (PHP) angewendet"
+    else
+        info "⚠ Phase-2-Migration meldete Fehler — manuell: php $APP_DIR/database/migrations/sprint12_phase2.php"
+    fi
+fi
 
 # ── 6. Apache konfigurieren ────────────────────────────────────
 hdr "6/9 Apache konfigurieren"
@@ -542,7 +594,7 @@ echo -e "  Firewall:    UFW aktiv (22/80/443) · Fail2ban aktiv"
 echo -e "  Deploy-Key:  /root/.ssh/azubiboard_deploy.pub → in GitHub eintragen!"
 echo ""
 echo -e "${YELLOW}  Nächste Schritte:${NC}"
-APP_URL="${DOMAIN:+https://${DOMAIN}}${DOMAIN:-http://${SERVER_IP}}"
+APP_URL="${APP_ORIGIN}"
 echo "  1. ${APP_URL}/azubiboard/ im Browser öffnen"
 echo "  2. Account registrieren"
 echo "  3. Ausbilder-Rolle setzen:"
