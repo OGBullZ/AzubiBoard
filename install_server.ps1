@@ -44,8 +44,9 @@
     -SkipXampp            XAMPP nur pruefen, nicht installieren
     -SkipBackupTask       keine taegliche DB-Sicherung einrichten
     -DryRun               TROCKENLAUF: nur Build/Composer/DB-Verbindung laufen
-                          echt; Dienste/Config/Deploy/DB-Anlage/Firewall/Task
-                          werden nur simuliert (veraendert das System nicht)
+                          echt; XAMPP-/Node-Install, Dienste/Config/Deploy/
+                          DB-Anlage/Firewall/Task werden nur simuliert
+                          (veraendert das System nicht)
 ============================================================
 #>
 [CmdletBinding()]
@@ -104,6 +105,16 @@ function Set-Utf8NoBom([string]$Path, [string]$Content) {
     [System.IO.File]::WriteAllText($Path, $Content, (New-Object System.Text.UTF8Encoding $false))
 }
 
+# Native Programme (mysql/composer) schreiben Status UND Fehler auf stderr.
+# Windows PowerShell 5.1 wirft bei stderr-Redirect (2>$null / 2>&1) unter
+# $ErrorActionPreference='Stop' fuer JEDE stderr-Zeile einen NativeCommandError
+# und wuerde das Skript mitten im Install killen (empirisch verifiziert).
+# -> solche Aufrufe hier kapseln; $LASTEXITCODE bleibt danach auswertbar.
+function Invoke-Native([scriptblock]$Cmd) {
+    $ErrorActionPreference = 'Continue'
+    & $Cmd
+}
+
 # ── 0. Admin-Rechte sicherstellen (ggf. neu starten) ─────────
 $isAdmin = ([Security.Principal.WindowsPrincipal] `
     [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -118,9 +129,12 @@ if (-not $isAdmin -and -not $DryRun) {
     if ($DbRootPass)         { $argList += @('-DbRootPass', $DbRootPass) }
     if ($AdminEmail)         { $argList += @('-AdminEmail', $AdminEmail) }
     if ($XamppInstaller)     { $argList += @('-XamppInstaller', "`"$XamppInstaller`"") }
+    $argList += @('-XamppPath', "`"$XamppPath`"")
     if ($SkipXampp)          { $argList += '-SkipXampp' }
     if ($SkipBackupTask)     { $argList += '-SkipBackupTask' }
-    Start-Process -FilePath 'powershell.exe' -ArgumentList $argList -Verb RunAs
+    # Mit derselben Engine neu starten (pwsh bleibt pwsh, 5.1 bleibt 5.1)
+    $psExe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' }
+    Start-Process -FilePath $psExe -ArgumentList $argList -Verb RunAs
     exit
 }
 
@@ -138,6 +152,9 @@ if ($DryRun) {
 Hdr "1/10 XAMPP (Apache + PHP + MariaDB)"
 if (Test-Path $mysqlExe) {
     Ok "XAMPP bereits vorhanden: $xamppPath"
+} elseif ($DryRun) {
+    # Trockenlauf veraendert das System nicht - auch kein XAMPP-Install
+    Dry "XAMPP still nach $xamppPath installieren (fehlt aktuell)"
 } elseif ($SkipXampp) {
     Die "XAMPP fehlt und -SkipXampp gesetzt. Bitte XAMPP nach $xamppPath installieren."
 } else {
@@ -303,23 +320,28 @@ try {
 Hdr "5/10 PHP konfigurieren + Composer"
 if (Test-Path $phpIni) {
     $ini = Get-Content $phpIni -Raw
-    if     ($ini -match '(?m)^;extension=zip\s*$') { $ini = $ini -replace '(?m)^;extension=zip\s*$', 'extension=zip' }
-    elseif ($ini -notmatch '(?m)^extension=zip\s*$') { $ini = $ini.TrimEnd() + "`nextension=zip`n" }
+    # zip (Backups) + fileinfo (Avatar-MIME-Check in auth.php) sicher aktivieren
+    foreach ($ext in 'zip', 'fileinfo') {
+        if     ($ini -match "(?m)^;extension=$ext\s*$") { $ini = $ini -replace "(?m)^;extension=$ext\s*$", "extension=$ext" }
+        elseif ($ini -notmatch "(?m)^extension=$ext\s*$") { $ini = $ini.TrimEnd() + "`nextension=$ext`n" }
+    }
     $ini = $ini -replace '(?m)^upload_max_filesize\s*=.*$', 'upload_max_filesize = 15M'
     $ini = $ini -replace '(?m)^post_max_size\s*=.*$',       'post_max_size = 16M'
-    if ($DryRun) { Dry "php.ini schreiben (zip aktiv, Upload-Limit 15M) -> $phpIni" }
-    else { Set-Utf8NoBom $phpIni $ini; Ok "php.ini: zip aktiv, Upload-Limit 15M" }
+    if ($DryRun) { Dry "php.ini schreiben (zip+fileinfo aktiv, Upload-Limit 15M) -> $phpIni" }
+    else { Set-Utf8NoBom $phpIni $ini; Ok "php.ini: zip+fileinfo aktiv, Upload-Limit 15M" }
 } else {
     Info "php.ini nicht gefunden - PHP-Feinkonfiguration uebersprungen"
 }
 
-# Composer sicherstellen
-if (-not (Test-Path $composer)) {
+# Composer sicherstellen (braucht PHP - fehlt im Trockenlauf ohne XAMPP)
+if (-not (Test-Path $phpExe)) {
+    Info "php.exe nicht vorhanden - Composer/PHP-Dependencies uebersprungen"
+} elseif (-not (Test-Path $composer)) {
     Info "Composer wird installiert..."
     $setup = "$env:TEMP\composer-setup.php"
     try {
         Invoke-WebRequest -Uri 'https://getcomposer.org/installer' -OutFile $setup -UseBasicParsing
-        & $phpExe $setup --install-dir="$xamppPath\php" --filename=composer 2>&1 | Out-Null
+        Invoke-Native { & $phpExe $setup --install-dir="$xamppPath\php" --filename=composer 2>&1 | Out-Null }
         Remove-Item $setup -ErrorAction SilentlyContinue
         Ok "Composer installiert"
     } catch {
@@ -331,9 +353,13 @@ if ((Test-Path $composer) -and (Test-Path "$buildDir\composer.json")) {
     Info "composer install ..."
     Push-Location $buildDir
     try {
-        & $phpExe $composer install --no-interaction --prefer-dist --no-progress 2>&1 | Out-Null
+        # composer schreibt seine normale Ausgabe auf stderr -> Invoke-Native noetig
+        Invoke-Native { & $phpExe $composer install --no-interaction --prefer-dist --no-progress 2>&1 | Out-Null }
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$buildDir\vendor\autoload.php")) {
+            throw "composer install Exit $LASTEXITCODE (vendor/autoload.php fehlt)"
+        }
         if (Test-Path "$buildDir\vendor\bin\phpunit") {
-            $smoke = & $phpExe "$buildDir\vendor\phpunit\phpunit\phpunit" --testsuite=smoke 2>&1 | Out-String
+            $smoke = Invoke-Native { & $phpExe "$buildDir\vendor\phpunit\phpunit\phpunit" --testsuite=smoke 2>&1 | Out-String }
             if ($smoke -match 'OK \(\d+ test') { Ok "PHPUnit Smoke-Test gruen" }
             else { Info "PHPUnit Smoke-Test unklar - spaeter pruefen: vendor\bin\phpunit --testsuite=smoke" }
         }
@@ -407,8 +433,19 @@ if ($Interactive) {
         if ($p1 -and $p1 -eq $p2) { $DbPass = $p1 } else { Write-Host "  Passwoerter stimmen nicht / leer - nochmal." -ForegroundColor Red }
     }
 }
-if (-not $DbPass)  { $DbPass  = New-RandomSecret 24 }
-$jwtSecret = New-RandomSecret 64
+
+# Re-Run: bestehende Secrets aus vorhandener .env uebernehmen, sonst waeren
+# nach jedem erneuten Lauf alle Sessions ungueltig (neues JWT_SECRET) und
+# das DB-Passwort rotiert. Explizites -DbPass gewinnt weiterhin.
+$jwtSecret = $null
+if (Test-Path "$appPath\.env") {
+    $oldEnv = Get-Content "$appPath\.env" -Raw
+    if (-not $DbPass -and $oldEnv -match '(?m)^DB_PASS=(.+)$')    { $DbPass    = $Matches[1].Trim() }
+    if ($oldEnv -match '(?m)^JWT_SECRET=(.+)$')                   { $jwtSecret = $Matches[1].Trim() }
+    if ($DbPass -or $jwtSecret) { Info "Re-Run erkannt: DB-Pass/JWT-Secret aus bestehender .env uebernommen" }
+}
+if (-not $DbPass)    { $DbPass    = New-RandomSecret 24 }
+if (-not $jwtSecret) { $jwtSecret = New-RandomSecret 64 }
 
 $envContent = @"
 VITE_BASE_PATH=/azubiboard/
@@ -438,6 +475,12 @@ BACKEND_DUAL_WRITE=false
 # SMTP_SECURE=tls
 # SMTP_FROM=azubiboard@example.de
 # SMTP_FROM_NAME=AzubiBoard
+# APP_URL=http://$ServerIp/azubiboard   # Link in Digest-Mails
+
+# KI-Features (Sprint 14 AI1-5): Claude-API-Schluessel eintragen,
+# sonst antwortet /api/ai/* mit 503 (Features im UI deaktiviert).
+# Holen bei https://console.anthropic.com -> API Keys
+# CLAUDE_API_KEY=sk-ant-...
 "@
 if ($DryRun) {
     $dryEnv = "$buildDir\.env.dryrun"
@@ -459,12 +502,17 @@ $rootAuth = @('-u', 'root')
 if ($DbRootPass) { $rootAuth += "-p$DbRootPass" }
 
 # Verbindung testen, bevor wir Schreiboperationen versuchen
-'SELECT 1;' | & $mysqlCli @rootAuth --connect-timeout=10 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    if ($DryRun) { Info "MariaDB nicht erreichbar (laeuft im Trockenlauf evtl. nicht) - im echten Lauf wird der Dienst gestartet" }
-    else { Die "MariaDB-root-Login fehlgeschlagen. Hat root ein Passwort? Dann erneut mit -DbRootPass <pass> starten." }
+if (-not (Test-Path $mysqlCli)) {
+    if ($DryRun) { Info "mysql.exe fehlt (Trockenlauf ohne XAMPP) - Verbindungstest uebersprungen" }
+    else { Die "mysql.exe nicht gefunden: $mysqlCli - XAMPP-Installation pruefen." }
 } else {
-    Ok "MariaDB-root-Verbindung: OK"
+    Invoke-Native { 'SELECT 1;' | & $mysqlCli @rootAuth --connect-timeout=10 2>$null | Out-Null }
+    if ($LASTEXITCODE -ne 0) {
+        if ($DryRun) { Info "MariaDB nicht erreichbar (laeuft im Trockenlauf evtl. nicht) - im echten Lauf wird der Dienst gestartet" }
+        else { Die "MariaDB-root-Login fehlgeschlagen. Hat root ein Passwort? Dann erneut mit -DbRootPass <pass> starten." }
+    } else {
+        Ok "MariaDB-root-Verbindung: OK"
+    }
 }
 
 $sqlSetup = @"
@@ -481,6 +529,7 @@ if ($DryRun) {
         if (Test-Path $srcSql) { Dry "Schema importieren: $sqlName" }
         else { Info "database\$sqlName nicht im Build-Ordner gefunden" }
     }
+    Dry "Phase-2-Migration ausfuehren: php database\migrations\sprint12_phase2.php (idempotent)"
     if ($AdminEmail) { Dry "Rolle 'ausbilder' fuer '$AdminEmail' setzen (falls Account existiert)" }
 } else {
     $sqlSetup | & $mysqlCli @rootAuth --connect-timeout=10
@@ -490,15 +539,29 @@ if ($DryRun) {
     foreach ($sqlName in @('setup.sql', 'azubiboard.sql', 'migrations\sprint12_phase2.sql')) {
         $sqlFile = "$appPath\database\$sqlName"
         if (-not (Test-Path $sqlFile)) { Info "database\$sqlName nicht vorhanden - uebersprungen"; continue }
-        Get-Content $sqlFile -Raw | & $mysqlCli @rootAuth azubiboard --connect-timeout=10 2>$null
+        # 'source' statt PowerShell-Pipe: mysql liest die Datei selbst (Encoding bleibt heil).
+        # --force: bereits-vorhanden-Fehler einzelner Statements ueberspringen statt
+        # abbrechen - azubiboard.sql kollidiert planmaessig mit setup.sql (users-PK);
+        # ohne --force fehlten alle AUTO_INCREMENTs/FOREIGN KEYs hinter dem ersten Fehler.
+        $srcPath = $sqlFile -replace '\\', '/'
+        Invoke-Native { & $mysqlCli @rootAuth azubiboard --connect-timeout=10 --force --default-character-set=utf8mb4 -e "source $srcPath" 2>$null | Out-Null }
         if ($LASTEXITCODE -eq 0) { Ok "Schema importiert: $sqlName" }
-        else { Info "${sqlName}: Import-Hinweis (evtl. bereits vorhanden)" }
+        else { Info "${sqlName}: Import-Hinweis (Details: mysql -u root azubiboard -e ""source $srcPath"")" }
+    }
+
+    # Kanonische Phase-2-Migration (idempotent; gepflegt in database/migration_helpers.php).
+    # Deckt Schema-Aenderungen ab, die die statische sprint12_phase2.sql nicht mehr kennt.
+    $phase2 = "$appPath\database\migrations\sprint12_phase2.php"
+    if ((Test-Path $phpExe) -and (Test-Path $phase2)) {
+        Invoke-Native { & $phpExe $phase2 2>&1 | Out-Null }
+        if ($LASTEXITCODE -eq 0) { Ok "Phase-2-Migration (PHP) angewendet" }
+        else { Info "Phase-2-Migration meldete Fehler - manuell pruefen: php database\migrations\sprint12_phase2.php" }
     }
 
     # AdminEmail sofort setzen, falls der Account bereits existiert (Re-Run)
     if ($AdminEmail) {
         $safeMail = $AdminEmail -replace "'", "''"
-        "UPDATE users SET role='ausbilder' WHERE email='$safeMail';" | & $mysqlCli @rootAuth azubiboard 2>$null
+        Invoke-Native { "UPDATE users SET role='ausbilder' WHERE email='$safeMail';" | & $mysqlCli @rootAuth azubiboard 2>$null | Out-Null }
         Ok "Falls Account '$AdminEmail' existiert: Rolle auf 'ausbilder' gesetzt"
     }
 }

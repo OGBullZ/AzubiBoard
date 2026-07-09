@@ -24,6 +24,10 @@ DB+Schema, Apache-Config, Firewall, tägliche DB-Sicherung).
 Am Ende zeigt das Skript die App-URL + den SQL-Befehl für die Ausbilder-Rolle. Läuft Internet/IIS
 auf Port 80 oder root mit Passwort, warnt das Skript mit konkreter Lösung statt blind zu scheitern.
 
+**Re-Runs sind sicher:** Bei erneutem Ausführen übernimmt das Skript `JWT_SECRET` und `DB_PASS`
+aus der bestehenden `.env` (Sessions bleiben gültig), Schema-Importe sind idempotent und
+`uploads/` (Nutzerdaten) wird nie überschrieben.
+
 Die manuelle Anleitung unten bleibt als **Fallback / zum Verständnis** erhalten.
 
 ---
@@ -70,7 +74,7 @@ Für Datei-Uploads (PDF) muss die Upload-Grenze erhöht werden, **und** die `zip
    ```
 3. Datei speichern → Apache im Control Panel **Stop** dann **Start**
 
-> **Hinweis:** Der Schritt 1.3 entfällt, wenn du `install_server.ps1` ausführst — das Skript erledigt zip-Extension, Composer-Installation und `composer install` automatisch.
+> **Hinweis:** Der Schritt 1.3 entfällt, wenn du `install_server.ps1` ausführst — das Skript erledigt zip- und fileinfo-Extension (Avatar-Upload), Composer-Installation und `composer install` automatisch.
 
 ---
 
