@@ -274,7 +274,9 @@ if ($DryRun -and -not (Test-Node)) {
 # Quellcode auf lokale Platte spiegeln (USB ist langsam; node_modules/dist/.git ausschliessen)
 Info "Quellcode nach $buildDir spiegeln..."
 New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
-robocopy $repoRoot $buildDir /MIR /XD node_modules dist .git vendor test-results /XF *.exe /NFL /NDL /NJH /NJS /NP | Out-Null
+# .env* ausschliessen: eine mitkopierte Dev-.env wuerde sonst von Vite gelesen
+# (Dev-Secrets/VITE_-Flags im Produktions-Build); der Server bekommt seine .env in Schritt 7
+robocopy $repoRoot $buildDir /MIR /XD node_modules dist .git vendor test-results /XF *.exe .env .env.* /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { Die "robocopy (Quellcode) fehlgeschlagen (Code $LASTEXITCODE)." }
 
 # 'prepare'-Script aus der Build-Kopie entfernen: es ruft 'git config core.hooksPath
