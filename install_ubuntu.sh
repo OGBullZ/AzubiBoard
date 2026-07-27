@@ -75,6 +75,20 @@ done
 # JWT-Secret zufällig generieren
 JWT_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
 
+# Firewall: nur fragen, wenn UFW noch nicht aktiv ist. Ein Aktivieren kann
+# laufende Dienste aussperren — das ist die Entscheidung des Admins, nicht die
+# des Installers. Ist UFW bereits aktiv, ergänzen wir nur unsere Ports.
+echo ""
+if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+    SETUP_UFW="aktiv"
+else
+    read -p "  Firewall (UFW) jetzt aktivieren? Sperrt alles außer SSH/HTTP/HTTPS [j/N]: " UFW_ANSWER
+    case "$UFW_ANSWER" in
+        [jJyY]*) SETUP_UFW="ja" ;;
+        *)       SETUP_UFW="nein" ;;
+    esac
+fi
+
 # HTTPS-Setup optional (nur mit Domain + Let's Encrypt)
 echo ""
 read -p "  Domain für HTTPS (leer lassen für IP-only, z.B. azubiboard.example.de): " DOMAIN
@@ -629,16 +643,37 @@ fi
 # ── SEC1: UFW + Fail2ban ─────────────────────────────────────
 hdr "SEC1: UFW + Fail2ban einrichten"
 
-# UFW: nur SSH (22), HTTP (80), HTTPS (443) erlauben
-if command -v ufw &>/dev/null || apt-get install -y -q ufw &>/dev/null; then
-    ufw --force reset > /dev/null 2>&1
-    ufw default deny incoming  > /dev/null 2>&1
-    ufw default allow outgoing > /dev/null 2>&1
-    ufw allow 22/tcp            > /dev/null 2>&1  # SSH
-    ufw allow 80/tcp            > /dev/null 2>&1  # HTTP
-    ufw allow 443/tcp           > /dev/null 2>&1  # HTTPS
-    ufw --force enable          > /dev/null 2>&1
-    ok "UFW aktiviert (22/80/443 offen, Rest blocked)"
+# UFW: NUR die Ports ergänzen, die AzubiBoard braucht.
+# Kein 'ufw reset', kein Umstellen der Default-Policy, kein ungefragtes Aktivieren:
+# auf einem Server laufen andere Dienste (DB, Monitoring, abweichender SSH-Port),
+# und ein Installer, der die Firewall plattmacht, sperrt genau die aus.
+if [ "$SETUP_UFW" = "nein" ]; then
+    info "Firewall unverändert gelassen — AzubiBoard braucht eingehend Port 80 (und 443 mit HTTPS)"
+elif command -v ufw &>/dev/null || apt-get install -y -q ufw &>/dev/null; then
+    # Echten SSH-Port aus der Konfiguration lesen; 22 ist nur der Default
+    SSH_PORTS=$(grep -hoP '^\s*Port\s+\K[0-9]+' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null | sort -u)
+    SSH_PORTS=${SSH_PORTS:-22}
+
+    if [ "$SETUP_UFW" = "ja" ]; then
+        # Erst die Regeln, dann enable — sonst kappt das Aktivieren die eigene SSH-Sitzung
+        for P in $SSH_PORTS; do ufw allow "${P}/tcp" > /dev/null 2>&1; done
+        ufw default deny incoming  > /dev/null 2>&1
+        ufw default allow outgoing > /dev/null 2>&1
+    fi
+
+    ufw allow 80/tcp  > /dev/null 2>&1   # HTTP
+    ufw allow 443/tcp > /dev/null 2>&1   # HTTPS
+
+    if [ "$SETUP_UFW" = "ja" ]; then
+        ufw --force enable > /dev/null 2>&1
+        ok "UFW aktiviert (SSH ${SSH_PORTS//$'\n'/, } + 80/443 offen)"
+    else
+        ok "UFW war bereits aktiv — nur 80/443 ergänzt, bestehende Regeln unangetastet"
+    fi
+
+    echo ""
+    ufw status numbered 2>/dev/null | sed 's/^/     /'
+    echo ""
 else
     info "UFW konnte nicht installiert werden — manuell nachholen"
 fi
@@ -696,7 +731,11 @@ echo -e "  Datenbank:  ${CYAN}${DB_HOST}:${DB_PORT}${NC}  (User '${DB_USER}'@'${
 echo -e "  phpMyAdmin: ${CYAN}http://${SERVER_IP}/phpmyadmin${NC}  (verbindet nach ${DB_HOST}, nur lokales Netz)"
 echo -e "  DB-Backups: ${CYAN}/var/backups/azubiboard/${NC}  (tägl. 03:00, 30 Tage)"
 echo -e "  Auto-Deploy: alle 10 min, Log: ${CYAN}/var/log/azubiboard-deploy.log${NC}"
-echo -e "  Firewall:    UFW aktiv (22/80/443) · Fail2ban aktiv"
+if [ "$SETUP_UFW" = "nein" ]; then
+    echo -e "  Firewall:    unverändert (UFW nicht angefasst) · Fail2ban aktiv"
+else
+    echo -e "  Firewall:    UFW · 80/443 für AzubiBoard offen · Fail2ban aktiv"
+fi
 echo -e "  Deploy-Key:  /root/.ssh/azubiboard_deploy.pub → in GitHub eintragen!"
 echo ""
 echo -e "${YELLOW}  Nächste Schritte:${NC}"
