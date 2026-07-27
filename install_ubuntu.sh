@@ -40,8 +40,28 @@ SERVER_IP=$(hostname -I | awk '{print $1}')
 echo -e "${CYAN}Einrichtung der Zugangsdaten:${NC}"
 echo ""
 
-read -s -p "  MySQL root-Passwort (leer lassen bei frischer Ubuntu-Installation): " MYSQL_ROOT_PASS
-echo ""
+# Datenbank-Host: leer = MySQL läuft lokal auf diesem Server (Socket-Auth möglich),
+# sonst separater DB-Server (z.B. 10.14.99.12) → Netzwerk-Login zwingend.
+read -p "  Datenbank-Host (leer = lokal, sonst z.B. 10.14.99.12): " DB_HOST
+DB_HOST=${DB_HOST:-localhost}
+read -p "  Datenbank-Port [3306]: " DB_PORT
+DB_PORT=${DB_PORT:-3306}
+
+if [ "$DB_HOST" = "localhost" ] || [ "$DB_HOST" = "127.0.0.1" ]; then
+    DB_REMOTE=0
+    MYSQL_ADMIN_USER="root"
+    read -s -p "  MySQL root-Passwort (leer lassen bei frischer Ubuntu-Installation): " MYSQL_ROOT_PASS
+    echo ""
+else
+    DB_REMOTE=1
+    read -p "  Admin-User auf ${DB_HOST} [root]: " MYSQL_ADMIN_USER
+    MYSQL_ADMIN_USER=${MYSQL_ADMIN_USER:-root}
+    # Bei Remote-DB gibt es keine Socket-Auth — ohne Passwort kommen wir nicht rein
+    while [ -z "$MYSQL_ROOT_PASS" ]; do
+        read -s -p "  Passwort für ${MYSQL_ADMIN_USER}@${DB_HOST}: " MYSQL_ROOT_PASS
+        echo ""
+    done
+fi
 
 while true; do
     read -s -p "  Neues Passwort für Datenbank-User '$DB_USER': " DB_PASS
@@ -212,8 +232,8 @@ cat > "$APP_DIR/.env" << EOF
 VITE_BASE_PATH=/azubiboard/
 VITE_USE_API=true
 
-DB_HOST=localhost
-DB_PORT=3306
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
 DB_NAME=${DB_NAME}
 DB_USER=${DB_USER}
 DB_PASS=${DB_PASS}
@@ -245,14 +265,25 @@ BACKEND_DUAL_WRITE=false
 EOF
 chmod 640 "$APP_DIR/.env"
 chown www-data:www-data "$APP_DIR/.env"
-ok ".env erstellt (ALLOWED_ORIGIN=http://$SERVER_IP)"
+ok ".env erstellt (ALLOWED_ORIGIN=${APP_ORIGIN}, DB_HOST=${DB_HOST})"
 
 # ── 5. Datenbank einrichten ────────────────────────────────────
 hdr "5/9 Datenbank einrichten"
 
-# Ubuntu nutzt standardmäßig Socket-Auth → als root einfach "mysql" reicht
-# Nur wenn ein Passwort gesetzt wurde, explizit übergeben
-if [ -n "$MYSQL_ROOT_PASS" ]; then
+# Bei Remote-DB liegt der Server woanders, aber der mysql-Client muss hier sein
+if ! command -v mysql &> /dev/null; then
+    info "mysql-Client nicht gefunden – wird installiert..."
+    # || true, damit set -e nicht ohne Meldung abbricht — der Check danach entscheidet
+    { apt-get install -y mariadb-client > /dev/null 2>&1 || apt-get install -y mysql-client > /dev/null 2>&1; } || true
+    command -v mysql &> /dev/null && ok "mysql-Client installiert" \
+        || err "mysql-Client konnte nicht installiert werden (mariadb-client / mysql-client)"
+fi
+
+# Lokal: Ubuntu nutzt standardmäßig Socket-Auth → als root einfach "mysql" reicht.
+# Remote: immer über TCP mit explizitem Host/Port/User.
+if [ "$DB_REMOTE" -eq 1 ]; then
+    MYSQL_CMD="mysql -h ${DB_HOST} -P ${DB_PORT} -u ${MYSQL_ADMIN_USER} -p${MYSQL_ROOT_PASS}"
+elif [ -n "$MYSQL_ROOT_PASS" ]; then
     MYSQL_CMD="mysql -u root -p${MYSQL_ROOT_PASS}"
 else
     MYSQL_CMD="mysql"
@@ -260,26 +291,43 @@ fi
 
 # Verbindung testen
 if ! $MYSQL_CMD -e "SELECT 1;" > /dev/null 2>&1; then
-    err "MySQL-Verbindung fehlgeschlagen. Bitte root-Passwort prüfen oder 'sudo mysql' manuell testen."
+    if [ "$DB_REMOTE" -eq 1 ]; then
+        err "Verbindung zu ${DB_HOST}:${DB_PORT} fehlgeschlagen. Prüfen: Zugangsdaten, bind-address auf dem DB-Server (nicht 127.0.0.1), Firewall Port ${DB_PORT}, und dass '${MYSQL_ADMIN_USER}' von ${SERVER_IP} aus verbinden darf."
+    else
+        err "MySQL-Verbindung fehlgeschlagen. Bitte root-Passwort prüfen oder 'sudo mysql' manuell testen."
+    fi
 fi
-ok "MySQL-Verbindung: OK"
+ok "MySQL-Verbindung: OK (${DB_HOST}:${DB_PORT})"
+
+# Von wo darf der App-User verbinden? Lokal 'localhost', bei separatem
+# DB-Server die IP dieses Webservers.
+if [ "$DB_REMOTE" -eq 1 ]; then
+    DB_USER_HOST="$SERVER_IP"
+else
+    DB_USER_HOST="localhost"
+fi
 
 # Datenbank + User anlegen
+# ALTER USER zusätzlich: bei Re-Run mit neuem Passwort greift CREATE ... IF NOT EXISTS
+# nicht, die .env hätte dann ein Passwort das die DB nicht kennt.
 $MYSQL_CMD << EOF
 CREATE DATABASE IF NOT EXISTS ${DB_NAME}
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 
-CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost'
+CREATE USER IF NOT EXISTS '${DB_USER}'@'${DB_USER_HOST}'
+    IDENTIFIED BY '${DB_PASS}';
+
+ALTER USER '${DB_USER}'@'${DB_USER_HOST}'
     IDENTIFIED BY '${DB_PASS}';
 
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES, LOCK TABLES
     ON ${DB_NAME}.*
-    TO '${DB_USER}'@'localhost';
+    TO '${DB_USER}'@'${DB_USER_HOST}';
 
 FLUSH PRIVILEGES;
 EOF
-ok "Datenbank '$DB_NAME' und User '$DB_USER' angelegt"
+ok "Datenbank '$DB_NAME' und User '${DB_USER}'@'${DB_USER_HOST}' angelegt"
 
 # Schema importieren: setup.sql (Basis) + azubiboard.sql (relationales
 # Sprint-12-Ziel-Schema, idempotent) + sprint12_phase2.sql (Lernpfade etc.).
@@ -350,7 +398,8 @@ cat > /etc/mysql/azubiboard-backup.cnf << EOF
 [mysqldump]
 user=${DB_USER}
 password=${DB_PASS}
-host=localhost
+host=${DB_HOST}
+port=${DB_PORT}
 EOF
 chmod 600 /etc/mysql/azubiboard-backup.cnf
 ok "MySQL-Credentials für Backup gespeichert (/etc/mysql/azubiboard-backup.cnf)"
@@ -521,6 +570,62 @@ echo ""
 cat "$DEPLOY_KEY_FILE.pub"
 echo ""
 
+# ── PMA: phpMyAdmin auf den richtigen DB-Server zeigen lassen ─
+# Der Debian-Default verbindet immer nach localhost. Liegt die Datenbank auf
+# einem eigenen Server, findet phpMyAdmin dort nichts — deshalb Server 1 hart
+# auf $DB_HOST umbiegen (überschreiben statt anhängen: kein Server-Dropdown).
+hdr "PMA: phpMyAdmin konfigurieren"
+
+if [ ! -d /usr/share/phpmyadmin ]; then
+    info "phpMyAdmin wird installiert..."
+    # dbconfig-install=false: der pma-Konfigspeicher gehört nicht auf diesen Host,
+    # die DB liegt ggf. remote und wir wollen dort nichts anlegen.
+    echo "phpmyadmin phpmyadmin/dbconfig-install boolean false" | debconf-set-selections
+    echo "phpmyadmin phpmyadmin/reconfigure-webserver multiselect apache2" | debconf-set-selections
+    DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin > /dev/null 2>&1 || true
+fi
+
+if [ ! -d /etc/phpmyadmin/conf.d ]; then
+    info "⚠ phpMyAdmin nicht gefunden — übersprungen (manuell: apt-get install phpmyadmin)"
+elif [ "$DB_REMOTE" -eq 0 ]; then
+    # Lokale DB: Debian-Default passt (localhost → Unix-Socket). Eine Config von
+    # einem früheren Remote-Lauf würde hier auf den falschen Server zeigen.
+    rm -f /etc/phpmyadmin/conf.d/azubiboard.php
+    ok "phpMyAdmin nutzt die lokale Datenbank (Debian-Default)"
+else
+    cat > /etc/phpmyadmin/conf.d/azubiboard.php << PMA
+<?php
+// AzubiBoard – von install_ubuntu.sh erzeugt, wird bei jedem Lauf überschrieben.
+\$cfg['Servers'][1]['host']            = '${DB_HOST}';
+\$cfg['Servers'][1]['port']            = '${DB_PORT}';
+\$cfg['Servers'][1]['connect_type']    = 'tcp';
+\$cfg['Servers'][1]['socket']          = '';
+\$cfg['Servers'][1]['auth_type']       = 'cookie';
+\$cfg['Servers'][1]['verbose']         = 'AzubiBoard DB (${DB_HOST})';
+\$cfg['Servers'][1]['AllowNoPassword'] = false;
+// Kein pma-Konfigspeicher eingerichtet (dbconfig-install=false)
+\$cfg['Servers'][1]['controluser']     = '';
+\$cfg['Servers'][1]['controlpass']     = '';
+\$cfg['Servers'][1]['pmadb']           = '';
+PMA
+    chmod 644 /etc/phpmyadmin/conf.d/azubiboard.php
+    ok "phpMyAdmin zeigt auf ${DB_HOST}:${DB_PORT}"
+fi
+
+# phpMyAdmin ist über Port 80 sonst aus dem ganzen Netz erreichbar.
+# <Location> gewinnt gegen die <Directory>-Regeln der Debian-Conf.
+if [ -d /etc/phpmyadmin/conf.d ]; then
+    cat > /etc/apache2/conf-available/azubiboard-phpmyadmin.conf << 'PMAAP'
+# AzubiBoard: phpMyAdmin nur aus dem lokalen Netz erreichbar
+<Location /phpmyadmin>
+    Require ip 127.0.0.1 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+</Location>
+PMAAP
+    a2enconf azubiboard-phpmyadmin > /dev/null 2>&1
+    systemctl reload apache2 2>/dev/null || true
+    ok "Zugriff auf /phpmyadmin auf lokale Netze beschränkt"
+fi
+
 # ── SEC1: UFW + Fail2ban ─────────────────────────────────────
 hdr "SEC1: UFW + Fail2ban einrichten"
 
@@ -587,7 +692,8 @@ if [ -n "$DOMAIN" ]; then
 else
     echo -e "  App-URL:    ${CYAN}http://${SERVER_IP}/azubiboard/${NC}"
 fi
-echo -e "  phpMyAdmin: ${CYAN}http://localhost/phpmyadmin${NC}  (nur lokal)"
+echo -e "  Datenbank:  ${CYAN}${DB_HOST}:${DB_PORT}${NC}  (User '${DB_USER}'@'${DB_USER_HOST}')"
+echo -e "  phpMyAdmin: ${CYAN}http://${SERVER_IP}/phpmyadmin${NC}  (verbindet nach ${DB_HOST}, nur lokales Netz)"
 echo -e "  DB-Backups: ${CYAN}/var/backups/azubiboard/${NC}  (tägl. 03:00, 30 Tage)"
 echo -e "  Auto-Deploy: alle 10 min, Log: ${CYAN}/var/log/azubiboard-deploy.log${NC}"
 echo -e "  Firewall:    UFW aktiv (22/80/443) · Fail2ban aktiv"
@@ -599,5 +705,13 @@ echo "  1. ${APP_URL}/azubiboard/ im Browser öffnen"
 echo "  2. Account registrieren"
 echo "  3. Ausbilder-Rolle setzen:"
 echo ""
-echo -e "     ${CYAN}${MYSQL_CMD} -e \"UPDATE azubiboard.users SET role='ausbilder' WHERE email='DEINE@EMAIL.DE';\"${NC}"
+# Passwort bewusst NICHT ausgeben (-p fragt interaktiv), sonst steht es im Terminal-Log
+if [ "$DB_REMOTE" -eq 1 ]; then
+    MYSQL_HINT="mysql -h ${DB_HOST} -P ${DB_PORT} -u ${MYSQL_ADMIN_USER} -p"
+elif [ -n "$MYSQL_ROOT_PASS" ]; then
+    MYSQL_HINT="mysql -u root -p"
+else
+    MYSQL_HINT="sudo mysql"
+fi
+echo -e "     ${CYAN}${MYSQL_HINT} -e \"UPDATE azubiboard.users SET role='ausbilder' WHERE email='DEINE@EMAIL.DE';\"${NC}"
 echo ""
