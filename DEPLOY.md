@@ -102,7 +102,8 @@ Empfohlene Hoster (alle mit PHP 8.2+ und MariaDB/MySQL):
    | `SFTP_PASSWORD` | SFTP-Passwort | (vom Hoster) |
    | `SFTP_REMOTE_DIR` | Web-Root | `/public_html/` oder `/htdocs/` |
    | `VITE_BASE_PATH` | URL-Pfad | `/` (eigene Domain) oder `/azubiboard/` (Subdir) |
-   | `DB_HOST` | DB-Host | meist `localhost` |
+   | `DB_HOST` | DB-Host | `localhost`, oder IP bei eigenem DB-Server (`10.14.99.12`) |
+   | `DB_PORT` | DB-Port | `3306` |
    | `DB_NAME` | DB-Name | `u123456789_azubi` |
    | `DB_USER` | DB-User | `u123456789_azubi` |
    | `DB_PASS` | DB-Passwort | (selbst gewählt) |

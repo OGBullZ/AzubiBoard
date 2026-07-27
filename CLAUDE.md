@@ -9,7 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **AzubiBoard** — Ausbildungs-Management-Tool. React 19 + Vite 7 + PHP 8.2 + MariaDB. PWA mit 2FA, Multi-User-Sync, Conflict-Detection und Audit-Log.
 
 Repository: https://github.com/OGBullZ/AzubiBoard  
-Deployment-Server: Ubuntu LAMP, IP `10.14.99.10`, App unter `/azubiboard/`
+Deployment-Server: Ubuntu LAMP, IP `10.14.99.10`, App unter `/azubiboard/`  
+**Datenbank läuft auf einem eigenen Server: `10.14.99.12`** — Installer werden mit DB-Host/Port aufgerufen (`install_ubuntu.sh` fragt, `install_server.ps1 -DbHost`), der App-User ist `'azubiboard_user'@'10.14.99.10'`.
 
 ## Aktueller Stand
 

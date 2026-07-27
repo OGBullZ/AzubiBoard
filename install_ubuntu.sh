@@ -68,8 +68,20 @@ while true; do
     echo ""
     read -s -p "  Passwort bestätigen: " DB_PASS2
     echo ""
-    [ "$DB_PASS" = "$DB_PASS2" ] && break
-    echo -e "${RED}  Passwörter stimmen nicht überein, nochmal:${NC}"
+    if [ "$DB_PASS" != "$DB_PASS2" ]; then
+        echo -e "${RED}  Passwörter stimmen nicht überein, nochmal:${NC}"
+        continue
+    fi
+    if [ -z "$DB_PASS" ]; then
+        echo -e "${RED}  Passwort darf nicht leer sein:${NC}"
+        continue
+    fi
+    # Das Passwort landet in SQL-Literalen ('...') und in der .env — Quotes und
+    # Backslashes würden beides zerreissen (stiller Login-Fehler nach dem Setup).
+    case "$DB_PASS" in
+        *\'*|*\\*|*\"*) echo -e "${RED}  Bitte ohne ' \" und \\ — die brechen SQL und .env:${NC}"; continue ;;
+    esac
+    break
 done
 
 # JWT-Secret zufällig generieren
@@ -106,6 +118,12 @@ echo ""
 
 # ── 1. Node.js + PHP-Erweiterungen + Composer prüfen ──────────
 hdr "1/9 Node.js + PHP-Erweiterungen + Composer prüfen"
+
+# Das Skript läuft als root; Composer fragt dann "Continue as root/super user [yes]?"
+# und bekommt vom Skript keine Antwort -> bricht ab -> vendor/ fehlt -> PHPMailer
+# fällt still auf mail() zurück. Ohne diese Variable schlägt der Install-Lauf
+# reproduzierbar fehl (belegt im Installations-Log vom 24.07.2026).
+export COMPOSER_ALLOW_SUPERUSER=1
 
 # PHP pdo_mysql prüfen (für Datenbankverbindung zwingend erforderlich)
 if php -r "new PDO('mysql:host=127.0.0.1', 'x', 'x');" 2>&1 | grep -q "could not find driver"; then
@@ -167,9 +185,14 @@ ok "Build erfolgreich (dist/ erstellt)"
 # composer install — für PHPUnit + zukünftige PHP-Pakete (vendor/ ist gitignored)
 if [ -f "$REPO_DIR/composer.json" ]; then
     info "composer install..."
-    composer install --no-interaction --prefer-dist --no-progress > /dev/null 2>&1 \
-        && ok "PHP-Dependencies installiert (vendor/)" \
-        || info "⚠ composer install fehlgeschlagen — manuell nachholen: cd $REPO_DIR && composer install"
+    if composer install --no-interaction --prefer-dist --no-progress > /tmp/azubiboard-composer.log 2>&1 \
+       && [ -f "$REPO_DIR/vendor/autoload.php" ]; then
+        ok "PHP-Dependencies installiert (vendor/)"
+    else
+        # Laut wird's hier, weil ohne vendor/ der SMTP-Versand still auf mail() zurückfällt
+        info "⚠ composer install fehlgeschlagen (Log: /tmp/azubiboard-composer.log)"
+        info "  → SMTP-Mailversand bleibt inaktiv. Manuell: cd $REPO_DIR && composer install"
+    fi
 
     # Smoke-Test: phpunit findet die Konfig und läuft
     if [ -x "$REPO_DIR/vendor/bin/phpunit" ]; then
@@ -218,6 +241,8 @@ if [ -d "$REPO_DIR/vendor" ]; then
     info "PHP-Dependencies (vendor/) kopieren..."
     mkdir -p "$APP_DIR/vendor"
     cp -r "$REPO_DIR/vendor/." "$APP_DIR/vendor/"
+else
+    info "⚠ vendor/ fehlt — PHPMailer nicht verfügbar, Mails laufen über natives mail()"
 fi
 
 # Berechtigungen setzen
@@ -238,7 +263,12 @@ if [ -f "$APP_DIR/.env" ]; then
         JWT_SECRET="$OLD_JWT"
         info "Re-Run erkannt: bestehendes JWT_SECRET übernommen (Sessions bleiben gültig)"
     fi
-    cp "$APP_DIR/.env" "$APP_DIR/.env.bak.$(date +%Y%m%d%H%M%S)"
+    ENV_BAK="$APP_DIR/.env.bak.$(date +%Y%m%d%H%M%S)"
+    cp "$APP_DIR/.env" "$ENV_BAK"
+    # cp übernimmt die Rechte nicht — das Backup wäre sonst per umask 644 und
+    # damit für jeden Nutzer auf dem Server lesbar (DB-Passwort + JWT_SECRET).
+    chmod 640 "$ENV_BAK"
+    chown www-data:www-data "$ENV_BAK"
     info "Alte .env gesichert — manuell ergänzte Werte (SMTP/CLAUDE_API_KEY) ggf. übertragen"
 fi
 
@@ -295,16 +325,19 @@ fi
 
 # Lokal: Ubuntu nutzt standardmäßig Socket-Auth → als root einfach "mysql" reicht.
 # Remote: immer über TCP mit explizitem Host/Port/User.
+# ARRAY statt String: bei einem Passwort mit Leerzeichen würde ein String beim
+# Aufruf per Word-Splitting zerfallen ("-pmein" "geheimes" "pw") und mysql
+# interpretierte den Rest als Datenbanknamen.
 if [ "$DB_REMOTE" -eq 1 ]; then
-    MYSQL_CMD="mysql -h ${DB_HOST} -P ${DB_PORT} -u ${MYSQL_ADMIN_USER} -p${MYSQL_ROOT_PASS}"
+    MYSQL_ARGS=(-h "$DB_HOST" -P "$DB_PORT" -u "$MYSQL_ADMIN_USER" "-p${MYSQL_ROOT_PASS}")
 elif [ -n "$MYSQL_ROOT_PASS" ]; then
-    MYSQL_CMD="mysql -u root -p${MYSQL_ROOT_PASS}"
+    MYSQL_ARGS=(-u root "-p${MYSQL_ROOT_PASS}")
 else
-    MYSQL_CMD="mysql"
+    MYSQL_ARGS=()
 fi
 
 # Verbindung testen
-if ! $MYSQL_CMD -e "SELECT 1;" > /dev/null 2>&1; then
+if ! mysql "${MYSQL_ARGS[@]}" -e "SELECT 1;" > /dev/null 2>&1; then
     if [ "$DB_REMOTE" -eq 1 ]; then
         err "Verbindung zu ${DB_HOST}:${DB_PORT} fehlgeschlagen. Prüfen: Zugangsdaten, bind-address auf dem DB-Server (nicht 127.0.0.1), Firewall Port ${DB_PORT}, und dass '${MYSQL_ADMIN_USER}' von ${SERVER_IP} aus verbinden darf."
     else
@@ -327,7 +360,7 @@ fi
 # Datenbank + User anlegen
 # ALTER USER zusätzlich: bei Re-Run mit neuem Passwort greift CREATE ... IF NOT EXISTS
 # nicht, die .env hätte dann ein Passwort das die DB nicht kennt.
-$MYSQL_CMD << EOF
+mysql "${MYSQL_ARGS[@]}" << EOF
 CREATE DATABASE IF NOT EXISTS ${DB_NAME}
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
@@ -353,7 +386,7 @@ ok "Datenbank '$DB_NAME' und User '${DB_USER}'@'${DB_USER_HOST}' angelegt"
 # ohne --force bricht mysql dort ab und alle AUTO_INCREMENTs/FOREIGN KEYs danach fehlen.
 for SQL_FILE in setup.sql azubiboard.sql migrations/sprint12_phase2.sql; do
     if [ -f "$REPO_DIR/database/$SQL_FILE" ]; then
-        if $MYSQL_CMD --force "$DB_NAME" < "$REPO_DIR/database/$SQL_FILE" 2>/tmp/azubiboard-sql-err.log; then
+        if mysql "${MYSQL_ARGS[@]}" --force "$DB_NAME" < "$REPO_DIR/database/$SQL_FILE" 2>/tmp/azubiboard-sql-err.log; then
             ok "Schema importiert: $SQL_FILE"
         else
             info "⚠ $SQL_FILE: Import-Fehler (siehe /tmp/azubiboard-sql-err.log) — manuell prüfen"
@@ -364,10 +397,14 @@ done
 # Kanonische Phase-2-Migration (idempotent; gepflegt in database/migration_helpers.php).
 # Läuft gegen APP_DIR, damit api/config.php die dortige .env findet.
 if [ -f "$APP_DIR/database/migrations/sprint12_phase2.php" ]; then
-    if php "$APP_DIR/database/migrations/sprint12_phase2.php" > /dev/null 2>&1; then
+    # Ausgabe in eine Logdatei statt nach /dev/null: beim Lauf vom 24.07.2026 meldete
+    # dieser Schritt einen Fehler, der mangels Log nicht nachvollziehbar war.
+    if php "$APP_DIR/database/migrations/sprint12_phase2.php" > /tmp/azubiboard-migration.log 2>&1; then
         ok "Phase-2-Migration (PHP) angewendet"
     else
-        info "⚠ Phase-2-Migration meldete Fehler — manuell: php $APP_DIR/database/migrations/sprint12_phase2.php"
+        info "⚠ Phase-2-Migration meldete Fehler — Ursache: /tmp/azubiboard-migration.log"
+        tail -n 5 /tmp/azubiboard-migration.log | sed 's/^/      /'
+        info "  manuell nachholen: php $APP_DIR/database/migrations/sprint12_phase2.php"
     fi
 fi
 
@@ -506,10 +543,21 @@ npm ci --silent 2>/dev/null        || { log "npm ci fehlgeschlagen"; exit 1; }
 VITE_BASE_PATH=/azubiboard/ VITE_USE_API=true npm run build > /dev/null 2>&1 \
                                    || { log "Build fehlgeschlagen"; exit 1; }
 
-cp -r "\$REPO_DIR/dist/." "\$APP_DIR/"
-cp -r "\$REPO_DIR/api"    "\$APP_DIR/api"
+# '/.' am Quellpfad ist Pflicht: 'cp -r src/api dst/api' legt bei existierendem
+# Ziel dst/api/api an und laesst die alten PHP-Dateien unveraendert stehen —
+# die API wuerde nie aktualisiert.
+cp -r "\$REPO_DIR/dist/."     "\$APP_DIR/"
+cp -r "\$REPO_DIR/api/."      "\$APP_DIR/api/"
+cp -r "\$REPO_DIR/database/." "\$APP_DIR/database/"
+[ -d "\$REPO_DIR/vendor" ] && cp -r "\$REPO_DIR/vendor/." "\$APP_DIR/vendor/"
+
 chown -R www-data:www-data "\$APP_DIR"
 chmod -R 755 "\$APP_DIR"
+# Nach dem pauschalen chmod die Sonderrechte wiederherstellen: sonst waere die
+# .env (DB-Passwort, JWT_SECRET) nach jedem Deploy fuer alle Nutzer lesbar.
+chmod 640 "\$APP_DIR/.env" 2>/dev/null || true
+find "\$APP_DIR" -maxdepth 1 -name '.env.bak.*' -exec chmod 640 {} + 2>/dev/null || true
+chmod -R 775 "\$APP_DIR/uploads" 2>/dev/null || true
 
 systemctl reload apache2 2>/dev/null || true
 log "Deploy abgeschlossen (\${REMOTE:0:7})"
@@ -517,13 +565,23 @@ SCRIPT
 chmod 750 /usr/local/bin/azubiboard-deploy.sh
 ok "Deploy-Skript erstellt (/usr/local/bin/azubiboard-deploy.sh)"
 
-# Cron: alle 10 Minuten auf neue Commits prüfen
-cat > /etc/cron.d/azubiboard-deploy << 'CRON'
+# Cron: alle 10 Minuten auf neue Commits prüfen — aber nur, wenn hier überhaupt
+# ein git-Repo liegt. Wird vom USB-/Zip-Installer aus gestartet, scheitert jeder
+# Lauf an 'git fetch' und der Cron schreibt bloss alle 10 min eine Fehlerzeile.
+if git -C "$REPO_DIR" rev-parse --git-dir > /dev/null 2>&1; then
+    cat > /etc/cron.d/azubiboard-deploy << 'CRON'
 # AzubiBoard – automatischer Deploy bei neuem Commit auf main
 */10 * * * * root /usr/local/bin/azubiboard-deploy.sh
 CRON
-chmod 644 /etc/cron.d/azubiboard-deploy
-ok "Cron-Job eingerichtet (alle 10 min, Log: /var/log/azubiboard-deploy.log)"
+    chmod 644 /etc/cron.d/azubiboard-deploy
+    AUTO_DEPLOY="an"
+    ok "Cron-Job eingerichtet (alle 10 min, Log: /var/log/azubiboard-deploy.log)"
+else
+    rm -f /etc/cron.d/azubiboard-deploy
+    AUTO_DEPLOY="aus"
+    info "⚠ $REPO_DIR ist kein git-Repo — Auto-Deploy-Cron NICHT eingerichtet"
+    info "  Für Auto-Deploy: git clone des Repos anlegen und Installer von dort erneut starten"
+fi
 
 # Logrotate für Deploy-Log
 cat > /etc/logrotate.d/azubiboard-deploy << 'LR'
@@ -646,6 +704,12 @@ fi
 # ── SEC1: UFW + Fail2ban ─────────────────────────────────────
 hdr "SEC1: UFW + Fail2ban einrichten"
 
+# Echten SSH-Port aus der Konfiguration lesen; 22 ist nur der Default.
+# Wird von UFW UND von der fail2ban-sshd-Jail gebraucht.
+SSH_PORTS=$(grep -hoP '^\s*Port\s+\K[0-9]+' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null | sort -u)
+SSH_PORTS=${SSH_PORTS:-22}
+SSH_PORT_LIST=${SSH_PORTS//$'\n'/,}
+
 # UFW: NUR die Ports ergänzen, die AzubiBoard braucht.
 # Kein 'ufw reset', kein Umstellen der Default-Policy, kein ungefragtes Aktivieren:
 # auf einem Server laufen andere Dienste (DB, Monitoring, abweichender SSH-Port),
@@ -653,10 +717,6 @@ hdr "SEC1: UFW + Fail2ban einrichten"
 if [ "$SETUP_UFW" = "nein" ]; then
     info "Firewall unverändert gelassen — AzubiBoard braucht eingehend Port 80 (und 443 mit HTTPS)"
 elif command -v ufw &>/dev/null || apt-get install -y -q ufw &>/dev/null; then
-    # Echten SSH-Port aus der Konfiguration lesen; 22 ist nur der Default
-    SSH_PORTS=$(grep -hoP '^\s*Port\s+\K[0-9]+' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null | sort -u)
-    SSH_PORTS=${SSH_PORTS:-22}
-
     if [ "$SETUP_UFW" = "ja" ]; then
         # Erst die Regeln, dann enable — sonst kappt das Aktivieren die eigene SSH-Sitzung
         for P in $SSH_PORTS; do ufw allow "${P}/tcp" > /dev/null 2>&1; done
@@ -669,7 +729,7 @@ elif command -v ufw &>/dev/null || apt-get install -y -q ufw &>/dev/null; then
 
     if [ "$SETUP_UFW" = "ja" ]; then
         ufw --force enable > /dev/null 2>&1
-        ok "UFW aktiviert (SSH ${SSH_PORTS//$'\n'/, } + 80/443 offen)"
+        ok "UFW aktiviert (SSH ${SSH_PORT_LIST} + 80/443 offen)"
     else
         ok "UFW war bereits aktiv — nur 80/443 ergänzt, bestehende Regeln unangetastet"
     fi
@@ -683,10 +743,12 @@ fi
 
 # Fail2ban: Apache + SSH schützen
 if apt-get install -y -q fail2ban &>/dev/null; then
-    cat > /etc/fail2ban/jail.d/azubiboard.conf << 'F2B'
+    # port aus sshd_config statt 'ssh' (= fest 22): bei abweichendem SSH-Port
+    # wuerde fail2ban sonst auf dem falschen Port bannen und liefe ins Leere.
+    cat > /etc/fail2ban/jail.d/azubiboard.conf << F2B
 [sshd]
 enabled  = true
-port     = ssh
+port     = ${SSH_PORT_LIST}
 maxretry = 5
 bantime  = 3600
 findtime = 600
@@ -733,7 +795,11 @@ fi
 echo -e "  Datenbank:  ${CYAN}${DB_HOST}:${DB_PORT}${NC}  (User '${DB_USER}'@'${DB_USER_HOST}')"
 echo -e "  phpMyAdmin: ${CYAN}http://${SERVER_IP}/phpmyadmin${NC}  (verbindet nach ${DB_HOST}, nur lokales Netz)"
 echo -e "  DB-Backups: ${CYAN}/var/backups/azubiboard/${NC}  (tägl. 03:00, 30 Tage)"
-echo -e "  Auto-Deploy: alle 10 min, Log: ${CYAN}/var/log/azubiboard-deploy.log${NC}"
+if [ "$AUTO_DEPLOY" = "an" ]; then
+    echo -e "  Auto-Deploy: alle 10 min, Log: ${CYAN}/var/log/azubiboard-deploy.log${NC}"
+else
+    echo -e "  Auto-Deploy: ${YELLOW}inaktiv${NC} (kein git-Repo in $REPO_DIR)"
+fi
 if [ "$SETUP_UFW" = "nein" ]; then
     echo -e "  Firewall:    unverändert (UFW nicht angefasst) · Fail2ban aktiv"
 else

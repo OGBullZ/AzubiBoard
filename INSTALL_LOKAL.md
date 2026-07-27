@@ -91,6 +91,9 @@ Inhalt — **IP-Adresse des Servers eintragen** (z.B. `192.168.1.50`):
 VITE_BASE_PATH=/azubiboard/
 VITE_USE_API=true
 
+# DB_HOST=localhost -> Datenbank läuft auf diesem Rechner (XAMPP/MariaDB).
+# Liegt sie auf einem eigenen Server, hier dessen IP eintragen (z.B. 10.14.99.12)
+# und den Installer mit -DbHost <ip> starten, damit die Rechte stimmen.
 DB_HOST=localhost
 DB_PORT=3306
 DB_NAME=azubiboard

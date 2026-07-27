@@ -168,6 +168,27 @@ if ($DryRun) {
     Write-Host "  XAMPP-Pfad: $xamppPath" -ForegroundColor Magenta
 }
 
+# Bei -Interactive den DB-Host HIER erfragen (nach der Elevation, vor Schritt 2):
+# Schritt 2 entscheidet anhand von $dbRemote, ob der lokale MariaDB-Dienst
+# registriert wird. Kaeme die Frage erst in Schritt 7, liefe dieser Dienst
+# laengst und belegte Port 3306, obwohl die Datenbank woanders liegt.
+if ($Interactive) {
+    Write-Host ""
+    $inDbHost = Read-Host "  Datenbank-Host [$DbHost] (leer = lokales XAMPP, sonst z.B. 10.14.99.12)"
+    if ($inDbHost) { $DbHost = $inDbHost }
+    $dbRemote = $DbHost -notin @('localhost', '127.0.0.1', '::1')
+    $inDbPort = Read-Host "  Datenbank-Port [$DbPort]"
+    if ($inDbPort) { $DbPort = [int]$inDbPort }
+    if ($dbRemote) {
+        $inAdmin = Read-Host "  Admin-User auf $DbHost [$DbAdminUser]"
+        if ($inAdmin) { $DbAdminUser = $inAdmin }
+        while (-not $DbRootPass) {
+            $sr = Read-Host "  Passwort fuer $DbAdminUser@$DbHost" -AsSecureString
+            $DbRootPass = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sr))
+        }
+    }
+}
+
 # ── 1. XAMPP sicherstellen ───────────────────────────────────
 Hdr "1/10 XAMPP (Apache + PHP + MariaDB)"
 if (Test-Path $mysqlExe) {
@@ -454,28 +475,22 @@ if ($Interactive) {
     Write-Host ""
     $inIp = Read-Host "  Server-IP [$ServerIp]"
     if ($inIp) { $ServerIp = $inIp }
-    $inDbHost = Read-Host "  Datenbank-Host [$DbHost] (leer = lokal, sonst z.B. 10.14.99.12)"
-    if ($inDbHost) {
-        $DbHost   = $inDbHost
-        $dbRemote = $DbHost -notin @('localhost', '127.0.0.1', '::1')
-        if ($dbRemote) {
-            $inAdmin = Read-Host "  Admin-User auf $DbHost [$DbAdminUser]"
-            if ($inAdmin) { $DbAdminUser = $inAdmin }
-        }
-    }
-    $inDbPort = Read-Host "  Datenbank-Port [$DbPort]"
-    if ($inDbPort) { $DbPort = [int]$inDbPort }
+    # DB-Host/Port/Admin wurden bereits vor Schritt 2 abgefragt (MariaDB-Dienst)
     while (-not $DbPass) {
         $s1 = Read-Host "  DB-Passwort fuer 'azubiboard_user'" -AsSecureString
         $s2 = Read-Host "  Passwort bestaetigen" -AsSecureString
         $p1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s1))
         $p2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s2))
-        if ($p1 -and $p1 -eq $p2) { $DbPass = $p1 } else { Write-Host "  Passwoerter stimmen nicht / leer - nochmal." -ForegroundColor Red }
+        if (-not $p1 -or $p1 -ne $p2) { Write-Host "  Passwoerter stimmen nicht / leer - nochmal." -ForegroundColor Red; continue }
+        # Landet in SQL-Literalen ('...') und in der .env - Quotes/Backslash brechen beides
+        if ($p1 -match "['`"\\]") { Write-Host "  Bitte ohne ' `" und \ - die brechen SQL und .env." -ForegroundColor Red; continue }
+        $DbPass = $p1
     }
-    while ($dbRemote -and -not $DbRootPass) {
-        $sr = Read-Host "  Passwort fuer $DbAdminUser@$DbHost" -AsSecureString
-        $DbRootPass = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sr))
-    }
+}
+
+# Gilt auch fuer ein per -DbPass uebergebenes Passwort
+if ($DbPass -match "['`"\\]") {
+    Die "DB-Passwort enthaelt ' `" oder \ - das zerreisst das GRANT-Statement und die .env. Bitte anderes Passwort waehlen."
 }
 
 # Remote-DB kennt keine passwortlose Socket-Auth wie das lokale XAMPP-root
@@ -736,6 +751,21 @@ if ($SkipBackupTask) {
     Dry "Backup-Skript nach $backupDir schreiben + Scheduled Task 'AzubiBoard DB-Backup' (taegl. 03:00) anlegen"
 } else {
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+    # Backup-Skript enthaelt das DB-Passwort und die Dumps die kompletten Daten.
+    # Unter C:\ erbt der Ordner sonst 'Users: Lesen' - Vererbung kappen und nur
+    # SYSTEM + Administratoren zulassen (Pendant zu chmod 750 im Ubuntu-Installer).
+    try {
+        $acl = Get-Acl $backupDir
+        $acl.SetAccessRuleProtection($true, $false)   # Vererbung aus, geerbte Regeln verwerfen
+        foreach ($who in 'SYSTEM', 'Administrators') {
+            $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $who, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')))
+        }
+        Set-Acl $backupDir $acl
+        Ok "Backup-Ordner abgesichert (nur SYSTEM + Administratoren)"
+    } catch {
+        Info "ACL fuer $backupDir konnte nicht gesetzt werden: $_"
+    }
     $backupScript = "$backupDir\azubiboard-backup.ps1"
     # Dump laeuft ueber den App-User (hat SELECT/LOCK TABLES auf azubiboard) - so
     # landet nicht das Admin-Passwort im Backup-Skript. Gleiches Vorgehen wie im
