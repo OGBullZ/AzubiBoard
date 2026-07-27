@@ -18,6 +18,7 @@
     - generiert .env (Server-IP/DB-Pass/JWT-Secret automatisch
       ODER interaktiv mit -Interactive)
     - legt Datenbank + User an und importiert das Schema
+      (lokale XAMPP-MariaDB ODER separater DB-Server via -DbHost)
     - konfiguriert Apache (mod_rewrite/mod_headers/AllowOverride)
     - oeffnet die Windows-Firewall (Port 80)
     - richtet eine taegliche DB-Sicherung (Scheduled Task) ein
@@ -35,8 +36,15 @@
   OPTIONEN:
     -Interactive          .env-Werte abfragen statt automatisch wuerfeln
     -ServerIp <ip>        Server-IP manuell setzen (sonst Auto-Erkennung)
+    -DbHost <host>        Datenbank-Server (Default localhost = XAMPP-MariaDB).
+                          Liegt die DB auf einem eigenen Server, hier dessen
+                          IP angeben (z.B. 10.14.99.12) - dann wird der lokale
+                          MariaDB-Dienst nicht registriert und phpMyAdmin auf
+                          diesen Host umgestellt.
+    -DbPort <port>        Datenbank-Port (Default 3306)
+    -DbAdminUser <user>   Admin-Login auf dem DB-Server (Default root)
     -DbPass <pass>        DB-User-Passwort manuell setzen (sonst Zufall)
-    -DbRootPass <pass>    MariaDB-root-Passwort (falls root nicht leer ist)
+    -DbRootPass <pass>    Passwort des Admin-Logins (bei -DbHost Pflicht)
     -AdminEmail <mail>    diese E-Mail nach Registrierung auf 'ausbilder'
                           setzen (oder beim Re-Run sofort, falls vorhanden)
     -XamppInstaller <pfad> xampp-...-installer.exe vom Stick (Offline-Install)
@@ -53,6 +61,9 @@
 param(
     [switch]$Interactive,
     [string]$ServerIp,
+    [string]$DbHost = 'localhost',
+    [int]$DbPort = 3306,
+    [string]$DbAdminUser = 'root',
     [string]$DbPass,
     [string]$DbRootPass,
     [string]$AdminEmail,
@@ -86,6 +97,12 @@ $phpIni     = "$xamppPath\php\php.ini"
 $composer   = "$xamppPath\php\composer"
 $APACHE_SVC = 'Apache2.4'
 $MYSQL_SVC  = 'mysql'
+
+# Liegt die Datenbank auf einem eigenen Server? Dann laeuft alles ueber TCP,
+# der lokale MariaDB-Dienst wird nicht gebraucht und die GRANTs muessen fuer
+# die IP dieses Webservers gelten statt fuer 'localhost'.
+if (-not $DbHost) { $DbHost = 'localhost' }
+$dbRemote = $DbHost -notin @('localhost', '127.0.0.1', '::1')
 
 # ── Ausgabe-Helfer ───────────────────────────────────────────
 function Hdr ($t) { Write-Host ""; Write-Host "[$t]" -ForegroundColor Cyan }
@@ -125,6 +142,9 @@ if (-not $isAdmin -and -not $DryRun) {
     $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
     if ($Interactive)        { $argList += '-Interactive' }
     if ($ServerIp)           { $argList += @('-ServerIp', $ServerIp) }
+    # DB-Parameter mit durchreichen - sonst laeuft die elevierte Instanz wieder
+    # gegen localhost und legt die GRANTs auf dem falschen Host an
+    $argList += @('-DbHost', "`"$DbHost`"", '-DbPort', $DbPort, '-DbAdminUser', "`"$DbAdminUser`"")
     if ($DbPass)             { $argList += @('-DbPass', $DbPass) }
     if ($DbRootPass)         { $argList += @('-DbRootPass', $DbRootPass) }
     if ($AdminEmail)         { $argList += @('-AdminEmail', $AdminEmail) }
@@ -190,7 +210,8 @@ Hdr "2/10 Apache + MariaDB als Windows-Dienste"
 
 if ($DryRun) {
     Dry "XAMPP-Tray-Prozesse stoppen (mysqld/httpd/xampp-control), falls aktiv"
-    Dry "MariaDB-Dienst '$MYSQL_SVC' registrieren (Autostart) + starten"
+    if ($dbRemote) { Dry "MariaDB-Dienst NICHT registrieren (DB liegt auf $DbHost)" }
+    else           { Dry "MariaDB-Dienst '$MYSQL_SVC' registrieren (Autostart) + starten" }
     Dry "Apache-Dienst '$APACHE_SVC' registrieren (Autostart)"
 } else {
 
@@ -209,7 +230,12 @@ if (-not $svcExists) {
     }
 }
 
-# MariaDB-Dienst
+# MariaDB-Dienst - nur wenn die Datenbank auch hier laeuft.
+# Bei separatem DB-Server wuerde ein lokaler mysqld nur Port 3306 belegen;
+# gebraucht wird von XAMPP dann bloss der mysql.exe-Client.
+if ($dbRemote) {
+    Info "Datenbank liegt auf ${DbHost} - lokaler MariaDB-Dienst wird nicht registriert"
+} else {
 if (-not (Get-Service -Name $MYSQL_SVC -ErrorAction SilentlyContinue)) {
     Info "MariaDB-Dienst wird registriert..."
     & $mysqlExe --install $MYSQL_SVC "--defaults-file=$xamppPath\mysql\bin\my.ini" | Out-Null
@@ -221,6 +247,7 @@ if (Get-Service -Name $MYSQL_SVC -ErrorAction SilentlyContinue) {
     Ok "MariaDB-Dienst laeuft (Autostart)"
 } else {
     Die "MariaDB-Dienst konnte nicht registriert werden."
+}
 }
 
 # Apache-Dienst
@@ -427,6 +454,17 @@ if ($Interactive) {
     Write-Host ""
     $inIp = Read-Host "  Server-IP [$ServerIp]"
     if ($inIp) { $ServerIp = $inIp }
+    $inDbHost = Read-Host "  Datenbank-Host [$DbHost] (leer = lokal, sonst z.B. 10.14.99.12)"
+    if ($inDbHost) {
+        $DbHost   = $inDbHost
+        $dbRemote = $DbHost -notin @('localhost', '127.0.0.1', '::1')
+        if ($dbRemote) {
+            $inAdmin = Read-Host "  Admin-User auf $DbHost [$DbAdminUser]"
+            if ($inAdmin) { $DbAdminUser = $inAdmin }
+        }
+    }
+    $inDbPort = Read-Host "  Datenbank-Port [$DbPort]"
+    if ($inDbPort) { $DbPort = [int]$inDbPort }
     while (-not $DbPass) {
         $s1 = Read-Host "  DB-Passwort fuer 'azubiboard_user'" -AsSecureString
         $s2 = Read-Host "  Passwort bestaetigen" -AsSecureString
@@ -434,6 +472,21 @@ if ($Interactive) {
         $p2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s2))
         if ($p1 -and $p1 -eq $p2) { $DbPass = $p1 } else { Write-Host "  Passwoerter stimmen nicht / leer - nochmal." -ForegroundColor Red }
     }
+    while ($dbRemote -and -not $DbRootPass) {
+        $sr = Read-Host "  Passwort fuer $DbAdminUser@$DbHost" -AsSecureString
+        $DbRootPass = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sr))
+    }
+}
+
+# Remote-DB kennt keine passwortlose Socket-Auth wie das lokale XAMPP-root
+if ($dbRemote -and -not $DbRootPass -and -not $DryRun) {
+    Die "Datenbank liegt auf $DbHost - dafuer wird das Passwort des Admin-Logins gebraucht: erneut mit -DbRootPass <pass> starten (oder -Interactive)."
+}
+# Bei Remote-DB gelten die GRANTs fuer die IP DIESES Servers - der Fallback
+# 'localhost' waere aus Sicht des DB-Servers der falsche Host und der App-User
+# kaeme nie rein (faellt sonst erst beim ersten Login der App auf).
+if ($dbRemote -and $ServerIp -eq 'localhost') {
+    Die "Server-IP konnte nicht ermittelt werden. Bei Datenbank auf $DbHost wird sie fuer die Rechtevergabe gebraucht: erneut mit -ServerIp <ip dieses servers> starten."
 }
 
 # Re-Run: bestehende Secrets aus vorhandener .env uebernehmen, sonst waeren
@@ -453,8 +506,8 @@ $envContent = @"
 VITE_BASE_PATH=/azubiboard/
 VITE_USE_API=true
 
-DB_HOST=localhost
-DB_PORT=3306
+DB_HOST=$DbHost
+DB_PORT=$DbPort
 DB_NAME=azubiboard
 DB_USER=azubiboard_user
 DB_PASS=$DbPass
@@ -496,12 +549,19 @@ if ($DryRun) {
 
 # ── 8. Datenbank einrichten ──────────────────────────────────
 Hdr "8/10 Datenbank einrichten"
-$mdbSvc = Get-Service $MYSQL_SVC -ErrorAction SilentlyContinue
-if ($mdbSvc -and $mdbSvc.Status -ne 'Running' -and -not $DryRun) { Start-Service $MYSQL_SVC; Start-Sleep -Seconds 2 }
+if (-not $dbRemote) {
+    $mdbSvc = Get-Service $MYSQL_SVC -ErrorAction SilentlyContinue
+    if ($mdbSvc -and $mdbSvc.Status -ne 'Running' -and -not $DryRun) { Start-Service $MYSQL_SVC; Start-Sleep -Seconds 2 }
+}
 
-# root-Auth zusammenbauen (XAMPP-Standard: root ohne Passwort; sonst -DbRootPass)
-$rootAuth = @('-u', 'root')
+# Admin-Auth zusammenbauen. Lokal: XAMPP-Standard root ohne Passwort.
+# Remote: immer ueber TCP mit Host/Port/User.
+$rootAuth = @('-u', $DbAdminUser)
+if ($dbRemote) { $rootAuth = @('-h', $DbHost, '-P', "$DbPort") + $rootAuth }
 if ($DbRootPass) { $rootAuth += "-p$DbRootPass" }
+
+# Von wo darf der App-User verbinden? Lokal 'localhost', sonst die IP dieses Webservers.
+$dbUserHost = if ($dbRemote) { $ServerIp } else { 'localhost' }
 
 # Verbindung testen, bevor wir Schreiboperationen versuchen
 if (-not (Test-Path $mysqlCli)) {
@@ -511,17 +571,20 @@ if (-not (Test-Path $mysqlCli)) {
     Invoke-Native { 'SELECT 1;' | & $mysqlCli @rootAuth --connect-timeout=10 2>$null | Out-Null }
     if ($LASTEXITCODE -ne 0) {
         if ($DryRun) { Info "MariaDB nicht erreichbar (laeuft im Trockenlauf evtl. nicht) - im echten Lauf wird der Dienst gestartet" }
+        elseif ($dbRemote) {
+            Die "Verbindung zu ${DbHost}:${DbPort} fehlgeschlagen. Pruefen: Zugangsdaten, bind-address auf dem DB-Server (nicht 127.0.0.1), Firewall Port $DbPort, und ob '$DbAdminUser' von $ServerIp aus verbinden darf."
+        }
         else { Die "MariaDB-root-Login fehlgeschlagen. Hat root ein Passwort? Dann erneut mit -DbRootPass <pass> starten." }
     } else {
-        Ok "MariaDB-root-Verbindung: OK"
+        Ok "DB-Admin-Verbindung: OK (${DbHost}:${DbPort})"
     }
 }
 
 $sqlSetup = @"
 CREATE DATABASE IF NOT EXISTS azubiboard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'azubiboard_user'@'localhost' IDENTIFIED BY '$DbPass';
-ALTER USER 'azubiboard_user'@'localhost' IDENTIFIED BY '$DbPass';
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES, LOCK TABLES ON azubiboard.* TO 'azubiboard_user'@'localhost';
+CREATE USER IF NOT EXISTS 'azubiboard_user'@'$dbUserHost' IDENTIFIED BY '$DbPass';
+ALTER USER 'azubiboard_user'@'$dbUserHost' IDENTIFIED BY '$DbPass';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES, LOCK TABLES ON azubiboard.* TO 'azubiboard_user'@'$dbUserHost';
 FLUSH PRIVILEGES;
 "@
 if ($DryRun) {
@@ -535,8 +598,8 @@ if ($DryRun) {
     if ($AdminEmail) { Dry "Rolle 'ausbilder' fuer '$AdminEmail' setzen (falls Account existiert)" }
 } else {
     $sqlSetup | & $mysqlCli @rootAuth --connect-timeout=10
-    if ($LASTEXITCODE -ne 0) { Die "Datenbank/User anlegen fehlgeschlagen - laeuft MariaDB?" }
-    Ok "Datenbank 'azubiboard' und User 'azubiboard_user' angelegt"
+    if ($LASTEXITCODE -ne 0) { Die "Datenbank/User anlegen fehlgeschlagen - laeuft MariaDB auf ${DbHost}:${DbPort}?" }
+    Ok "Datenbank 'azubiboard' und User 'azubiboard_user'@'$dbUserHost' angelegt"
 
     foreach ($sqlName in @('setup.sql', 'azubiboard.sql', 'migrations\sprint12_phase2.sql')) {
         $sqlFile = "$appPath\database\$sqlName"
@@ -580,6 +643,51 @@ if (Test-Path $apacheConf) {
     elseif ($changed) { Set-Utf8NoBom $apacheConf $conf; Ok "httpd.conf gespeichert" }
 } else {
     Info "httpd.conf nicht gefunden - Apache manuell konfigurieren"
+}
+
+# phpMyAdmin (XAMPP) auf den richtigen DB-Server zeigen lassen.
+# XAMPP verdrahtet 127.0.0.1 + passwortloses root - liegt die DB auf einem
+# eigenen Server, findet phpMyAdmin dort nichts. Statt die Default-Zeilen per
+# Regex zu treffen, haengen wir einen markierten Override-Block ans Dateiende
+# (spaetere Zuweisung gewinnt in PHP) - das ist idempotent und robust.
+$pmaConf   = "$xamppPath\phpMyAdmin\config.inc.php"
+$pmaMarker = '/* --- AzubiBoard: Datenbank-Server (vom Installer gesetzt) --- */'
+if (-not (Test-Path $pmaConf)) {
+    Info "phpMyAdmin-Konfiguration nicht gefunden - uebersprungen ($pmaConf)"
+} else {
+    $pma = Get-Content $pmaConf -Raw
+    $idx = $pma.IndexOf($pmaMarker)
+    if ($idx -ge 0) { $pma = $pma.Substring(0, $idx) }   # alten Block wegschneiden
+
+    if ($dbRemote) {
+        # Schliessendes '?>' muss weg, sonst landet der Block ausserhalb von PHP
+        $pma = [regex]::Replace($pma.TrimEnd(), '\?>\s*$', '').TrimEnd()
+        $pmaBlock = @"
+$pmaMarker
+`$cfg['Servers'][1]['host']            = '$DbHost';
+`$cfg['Servers'][1]['port']            = '$DbPort';
+`$cfg['Servers'][1]['connect_type']    = 'tcp';
+`$cfg['Servers'][1]['socket']          = '';
+`$cfg['Servers'][1]['auth_type']       = 'cookie';
+`$cfg['Servers'][1]['verbose']         = 'AzubiBoard DB ($DbHost)';
+`$cfg['Servers'][1]['AllowNoPassword'] = false;
+`$cfg['Servers'][1]['user']            = '';
+`$cfg['Servers'][1]['password']        = '';
+"@
+        $pmaNew = $pma + "`r`n`r`n" + $pmaBlock
+    } else {
+        $pmaNew = $pma.TrimEnd() + "`r`n"
+    }
+
+    if ($DryRun) {
+        if ($dbRemote) { Dry "phpMyAdmin auf ${DbHost}:${DbPort} umstellen -> $pmaConf" }
+        else           { Dry "phpMyAdmin auf XAMPP-Default belassen -> $pmaConf" }
+    } else {
+        if (-not (Test-Path "$pmaConf.azubiboard.bak")) { Copy-Item $pmaConf "$pmaConf.azubiboard.bak" }
+        Set-Utf8NoBom $pmaConf $pmaNew
+        if ($dbRemote) { Ok "phpMyAdmin zeigt auf ${DbHost}:${DbPort} (Login mit DB-Zugangsdaten)" }
+        else           { Ok "phpMyAdmin nutzt die lokale Datenbank (XAMPP-Default)" }
+    }
 }
 
 # Port 80 belegt? (z.B. IIS/W3SVC auf einem Arbeitsserver) - Apache wuerde sonst nicht starten
@@ -629,15 +737,19 @@ if ($SkipBackupTask) {
 } else {
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
     $backupScript = "$backupDir\azubiboard-backup.ps1"
-    # root-Passwort (falls gesetzt) ins Backup-Skript uebernehmen
-    $rootPassArg = if ($DbRootPass) { "-p$DbRootPass" } else { '' }
+    # Dump laeuft ueber den App-User (hat SELECT/LOCK TABLES auf azubiboard) - so
+    # landet nicht das Admin-Passwort im Backup-Skript. Gleiches Vorgehen wie im
+    # Ubuntu-Installer (/etc/mysql/azubiboard-backup.cnf).
+    $dumpAuth = "'-u','azubiboard_user','-p$DbPass'"
+    if ($dbRemote) { $dumpAuth = "'-h','$DbHost','-P','$DbPort'," + $dumpAuth }
     $bs = @"
 `$ErrorActionPreference = 'SilentlyContinue'
 `$day  = Get-Date -Format 'yyyy-MM-dd'
 `$sql  = '$backupDir\azubiboard_' + `$day + '.sql'
 `$zip  = '$backupDir\azubiboard_' + `$day + '.zip'
 # --result-file schreibt die Datei direkt (kein PowerShell-Pipe -> kein UTF-8-BOM, Umlaute bleiben heil)
-& '$mysqlDump' -u root $rootPassArg --single-transaction --result-file=`$sql azubiboard
+`$dumpArgs = @($dumpAuth, '--single-transaction', "--result-file=`$sql", 'azubiboard')
+& '$mysqlDump' @dumpArgs
 if (Test-Path `$sql) {
     Compress-Archive -Path `$sql -DestinationPath `$zip -Force
     Remove-Item `$sql -Force
@@ -671,13 +783,20 @@ Write-Host "  Installation abgeschlossen!"              -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  App-URL:     http://$ServerIp/azubiboard/" -ForegroundColor Cyan
-Write-Host "  phpMyAdmin:  http://localhost/phpmyadmin   (nur lokal)" -ForegroundColor Cyan
+Write-Host "  Datenbank:   ${DbHost}:${DbPort}  (User 'azubiboard_user'@'$dbUserHost')" -ForegroundColor Cyan
+Write-Host "  phpMyAdmin:  http://localhost/phpmyadmin   (verbindet nach $DbHost)" -ForegroundColor Cyan
 Write-Host "  DB-Backups:  $backupDir  (taegl. 03:00, 30 Tage)" -ForegroundColor Cyan
-Write-Host "  Dienste:     Apache + MariaDB laufen als Autostart-Dienste" -ForegroundColor Cyan
+if ($dbRemote) {
+    Write-Host "  Dienste:     Apache laeuft als Autostart-Dienst (DB liegt auf $DbHost)" -ForegroundColor Cyan
+} else {
+    Write-Host "  Dienste:     Apache + MariaDB laufen als Autostart-Dienste" -ForegroundColor Cyan
+}
 Write-Host ""
 Write-Host "  Naechste Schritte:" -ForegroundColor Yellow
 Write-Host "   1. http://$ServerIp/azubiboard/ oeffnen + Account registrieren"
 Write-Host "   2. Ausbilder-Rolle setzen:"
-Write-Host "      & '$mysqlCli' -u root azubiboard -e `"UPDATE users SET role='ausbilder' WHERE email='DEINE@EMAIL.DE';`"" -ForegroundColor White
+# Passwort bewusst NICHT ausgeben (-p fragt interaktiv nach)
+$hintAuth = if ($dbRemote) { "-h $DbHost -P $DbPort -u $DbAdminUser -p" } else { "-u $DbAdminUser" }
+Write-Host "      & '$mysqlCli' $hintAuth azubiboard -e `"UPDATE users SET role='ausbilder' WHERE email='DEINE@EMAIL.DE';`"" -ForegroundColor White
 Write-Host ""
 exit 0

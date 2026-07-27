@@ -316,6 +316,9 @@ ok "MySQL-Verbindung: OK (${DB_HOST}:${DB_PORT})"
 # Von wo darf der App-User verbinden? Lokal 'localhost', bei separatem
 # DB-Server die IP dieses Webservers.
 if [ "$DB_REMOTE" -eq 1 ]; then
+    # Ohne IP wäre der GRANT leer und der App-User käme nie rein — das fiele
+    # sonst erst beim ersten Login der App auf.
+    [ -z "$SERVER_IP" ] && err "Server-IP konnte nicht ermittelt werden (hostname -I leer). Bei Datenbank auf ${DB_HOST} wird sie für die Rechtevergabe gebraucht."
     DB_USER_HOST="$SERVER_IP"
 else
     DB_USER_HOST="localhost"
