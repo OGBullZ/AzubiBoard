@@ -17,6 +17,19 @@ info() { echo -e "${YELLOW}  → $1${NC}"; }
 err()  { echo -e "${RED}  ✗ $1${NC}"; exit 1; }
 hdr()  { echo -e "\n${CYAN}[$1]${NC}"; }
 
+# ── Selbstschutz gegen Windows-Zeilenenden ───────────────────
+# Kommt das Skript per USB-Stick/Zip von einem Windows-Rechner, hat es CRLF.
+# Jedes Heredoc schreibt die \r dann mit — die erzeugten Cron-Skripte
+# (/usr/local/bin/azubiboard-*.sh) bekommen "#!/bin/bash\r" und scheitern beim
+# Ausführen an "bad interpreter". Deshalb: bereinigte Kopie bauen und die starten.
+if grep -q $'\r' "$0" 2>/dev/null; then
+    echo -e "${YELLOW}  → Windows-Zeilenenden (CRLF) erkannt — starte bereinigte Kopie...${NC}"
+    SELF_CLEAN=$(mktemp /tmp/azubiboard-install.XXXXXX.sh)
+    tr -d '\r' < "$0" > "$SELF_CLEAN"
+    chmod +x "$SELF_CLEAN"
+    exec bash "$SELF_CLEAN" "$@"
+fi
+
 echo ""
 echo -e "${CYAN}================================================${NC}"
 echo -e "${CYAN}  AzubiBoard – Automatisches Setup (Ubuntu)${NC}"
