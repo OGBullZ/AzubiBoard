@@ -161,6 +161,19 @@ export function fmtLocalDate(d?: string | Date | null): string {
   return `${y}-${m}-${day}`;
 }
 
+// Wochensprung auf einem YYYY-MM-DD-Datum, DST-fest (Bug-Hunt 08-06 #10).
+// `new Date('2026-10-26')` parst UTC-Mitternacht; ein anschließendes lokales setDate()
+// und ein UTC-Ausgabeformat (toISOString) driften an der Zeitumstellung auseinander:
+// 2026-10-26 wurde so zu 2026-10-18 (Sonntag), und jeder weitere Sprung blieb auf
+// Sonntag hängen — die Wochenachse der Zeiterfassung war dauerhaft verschoben.
+// Der Mittags-Anker (T12:00:00) hält den Tag über beide Umstellungsrichtungen stabil.
+export function shiftWeeksLocal(dateStr: string, weeks: number): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  d.setDate(d.getDate() + weeks * 7);
+  return fmtLocalDate(d);
+}
+
 // ── Netzplan-Typen ───────────────────────────────────────────
 type NodeId = string | number;
 interface GraphEdge { from: NodeId; to: NodeId; }
@@ -315,11 +328,28 @@ export function loadData(): Record<string, unknown> {
   return getDefaultData();
 }
 
-export function persistData(data: Record<string, unknown>): void {
+// Bug-Hunt 08-06 #5: Der Fehlschlag darf NICHT still bleiben. Im lokalen Modus
+// (VITE_USE_API=false) ist localStorage die einzige Quelle der Wahrheit — läuft die
+// Quota (5–10 MB, z.B. durch ein eingebettetes PDF) voll, meldete die UI trotzdem
+// "✓ gespeichert" und beim nächsten Reload war die Arbeit weg. Jetzt: Rückgabewert
+// für Aufrufer, die es auswerten wollen, plus ein Sync-Error-Event, das der
+// SyncIndicator ohnehin anzeigt.
+export function persistData(data: Record<string, unknown>): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // localStorage full or unavailable — fail silently
+    return true;
+  } catch (err) {
+    try {
+      window.dispatchEvent(new CustomEvent('azubiboard:sync', {
+        detail: {
+          type:  'error',
+          error: new Error('Lokaler Speicher voll — Änderungen konnten nicht gesichert werden'),
+          fatal: true,
+        },
+      }));
+    } catch { /* kein window (Tests/SSR) — der Rückgabewert reicht */ }
+    console.error('[persistData] localStorage-Schreibfehler:', err);
+    return false;
   }
 }
 

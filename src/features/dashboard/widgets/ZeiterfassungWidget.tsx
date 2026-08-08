@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { C, getKW, getISOWeekMonday, fmtLocalDate, firstName, sameId } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday, fmtLocalDate, shiftWeeksLocal, firstName, sameId } from '../../../lib/utils.js';
 import { Avatar } from '../../../components/UI.jsx';
 import type { User } from '../../../types';
 
@@ -70,12 +70,14 @@ function ZeiterfassungWidgetImpl({ users, projects }: ZeiterfassungWidgetProps) 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 9 }}>
+        {/* Bug-Hunt 08-06 #10: shiftWeeksLocal statt UTC-Parse + lokalem setDate — die
+            alte Mischung verschob die Wochenachse an der Zeitumstellung dauerhaft. */}
         <button className="btn" style={{ padding: '2px 7px', fontSize: 11 }}
-          onClick={() => { const d = new Date(monStr); d.setDate(d.getDate()-7); setMonStr(d.toISOString().split('T')[0]); }}>←</button>
+          onClick={() => setMonStr(shiftWeeksLocal(monStr, -1))}>←</button>
         <span style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700, color: C.br }}>KW {kwNum}</span>
         <button className="btn" style={{ padding: '2px 7px', fontSize: 11 }}
           disabled={monStr >= getMonStr(0)}
-          onClick={() => { const d = new Date(monStr); d.setDate(d.getDate()+7); if (d.toISOString().split('T')[0] <= today) setMonStr(d.toISOString().split('T')[0]); }}>→</button>
+          onClick={() => { const next = shiftWeeksLocal(monStr, 1); if (next <= today) setMonStr(next); }}>→</button>
         {hasAny && <button className="btn" style={{ padding: '2px 6px', fontSize: 9 }} onClick={exportCSV} title="CSV exportieren">↓CSV</button>}
       </div>
       {!hasAny ? (

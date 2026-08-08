@@ -127,6 +127,18 @@ export function useAuthSession(
   }, [setCurrentUser, setData, loadServerBlob]);
 
   const handleLogout = useCallback(() => {
+    // Bug-Hunt 08-06 #4: Beim Abmelden mit ungespeicherten Änderungen in der Save-Queue
+    // (z.B. nach längerem Offline-Betrieb) hat der nächste Retry-Tick die Queue still
+    // verworfen — ohne Fehlermeldung, ohne Indikator. Nach dem erneuten Login lud die App
+    // den alten Server-Stand und die Arbeit war weg. Darum vorher fragen.
+    const status = dataService.getSaveStatus();
+    if (status.pending || status.inflight) {
+      const weiter = window.confirm(
+        'Es sind noch nicht gespeicherte Änderungen offen (keine Verbindung zum Server).\n\n' +
+        'Beim Abmelden gehen sie verloren. Trotzdem abmelden?',
+      );
+      if (!weiter) return;
+    }
     clearSession();
     clearToken();
     setCurrentUser(null);

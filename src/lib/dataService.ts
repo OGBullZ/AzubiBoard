@@ -81,9 +81,13 @@ const saveQueue = (() => {
   let lastSyncTs: number | null = null;
   let knownVersion = 0;       // J2: zuletzt bekannte Server-Version (ETag)
   let conflictHold = false;   // 409 offen → Queue pausiert bis User-Entscheidung (SYNC-F3)
+  let blockedUntil = 0;       // dauerhafter Server-Fehler (413/400/403/422) → Retry frühestens ab diesem ts
   let entityVersions: Record<string, number> = {};    // L5-5b: per-Entität-Versionen (forward-compat, default leer)
 
   const MAX_BACKOFF = 30_000;
+  // Statuscodes, die ein Retry mit UNVERÄNDERTEM Body niemals auflösen kann.
+  // 401 (Auth) und 409 (Konflikt) haben eigene Zweige, 429/5xx sind bewusst retry-fähig.
+  const PERMANENT_STATUS = new Set([400, 403, 413, 422]);
 
   // L5-5b: Liest die optionale X-Entity-Versions-Header aus einer Response
   // und merged sie in den Store. No-op solange der Server den Header nicht sendet.
@@ -100,6 +104,10 @@ const saveQueue = (() => {
 
   async function flush() {
     if (inflight || !pending || conflictHold) return;
+    // Nach einem permanenten Fehler kein Timer-Retry — nur ein neuer Edit oder ein
+    // ausdrückliches retry() darf es erneut versuchen, und das frühestens nach MAX_BACKOFF.
+    if (blockedUntil && Date.now() < blockedUntil) return;
+    blockedUntil = 0;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       schedule(); return;
     }
@@ -112,6 +120,13 @@ const saveQueue = (() => {
         clearToken();
         window.dispatchEvent(new Event('azubiboard:unauthorized'));
         emit('error', { error: new Error('Unauthorized'), fatal: true });
+      } else if (pending) {
+        // Bug-Hunt 08-06 #4: Ohne Token wurde die Queue hier STILL geleert — kein
+        // Event, kein Indikator. Nach einem Logout im Offline-Betrieb verschwand so
+        // die gesamte ungespeicherte Arbeit spurlos. Der Logout fragt jetzt vorher
+        // nach (useAuthSession); kommt es trotzdem hierher, ist es sichtbar.
+        lastError = new Error('Nicht angemeldet — ungespeicherte Änderungen konnten nicht übertragen werden');
+        emit('error', { error: lastError, fatal: true });
       }
       pending = null;
       return;
@@ -154,6 +169,22 @@ const saveQueue = (() => {
         });
         return;
       }
+      // Bug-Hunt 08-06 #5: Nicht jeder Fehler ist ein Netzproblem. Ein 413 (Blob > 10 MB,
+      // z.B. Bericht mit grossem PDF-Anhang) kann durch Wiederholen NIE erfolgreich werden —
+      // der Retry-Loop hielt danach dauerhaft denselben zu grossen Blob in `pending`, wodurch
+      // KEIN weiterer Edit mehr synchronisiert wurde und alle 30 s ein 12-MB-Upload lief.
+      // Solche Fehler pausieren die Queue (blocked), statt sie endlos zu wiederholen.
+      // Der Blob bleibt in `pending` UND in localStorage — nichts wird verworfen; der Nutzer
+      // muss die Ursache beheben und kann dann per "Erneut versuchen" (retry) fortfahren.
+      if (PERMANENT_STATUS.has(res.status)) {
+        pending      = pending ?? snapshot;
+        blockedUntil = Date.now() + MAX_BACKOFF;
+        lastError    = new Error(`HTTP ${res.status}`);
+        emit('error', { error: lastError, permanent: true, status: res.status });
+        addBreadcrumb({ category: 'sync', level: 'error', message: 'save blocked (permanent)',
+          data: { status: res.status, version: knownVersion } });
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       // Neue Version mitnehmen (aus Header ODER Body)
       const etag = res.headers.get('ETag');
@@ -189,12 +220,18 @@ const saveQueue = (() => {
 
   // Externer Setter: nach GET /api/data kennen wir die Version.
   // Löst außerdem eine Konflikt-Pause (User hat Server-Version übernommen).
-  function setVersion(v: number) {
-    if (typeof v === 'number' && v > 0) knownVersion = v;
-    conflictHold = false;
+  // Bug-Hunt 08-06 #11: MONOTON. `getData()` rief das bedingungslos mit dem ETag der
+  // GET-Antwort auf — traf eine ältere GET-Antwort nach einem erfolgreichen Save ein,
+  // fiel knownVersion zurück und der nächste Save lief in ein 409 gegen die EIGENEN
+  // Daten. Die Server-Version wächst monoton, ein Rückschritt ist also immer stale.
+  // Das Lösen der Konflikt-Pause hängt außerdem nicht mehr am Versions-Setter: nur die
+  // bewusste Nutzer-Entscheidung (acceptServer/forceSave) darf die Queue wieder freigeben.
+  function setVersion(v: number, resolveConflict = false) {
+    if (typeof v === 'number' && v > knownVersion) knownVersion = v;
+    if (resolveConflict) conflictHold = false;
   }
   // Konflikt „Server übernehmen": lokale Edits aus dem Konflikt-Fenster bewusst verwerfen
-  function clearPending() { pending = null; conflictHold = false; }
+  function clearPending() { pending = null; conflictHold = false; blockedUntil = 0; }
   function getVersion()  { return knownVersion; }
 
   // L5-5b: per-Entität-Versionen (forward-compat).
@@ -219,7 +256,7 @@ const saveQueue = (() => {
 
   return {
     enqueue,
-    retry: () => { backoff = 1000; flush(); },   // Phase 4: manueller Retry (Backoff zurücksetzen, sofort flushen)
+    retry: () => { backoff = 1000; blockedUntil = 0; flush(); },   // Phase 4: manueller Retry (Backoff + Block zurücksetzen, sofort flushen)
     setVersion,
     clearPending,
     latestPending: () => pending,
@@ -230,6 +267,7 @@ const saveQueue = (() => {
     status: () => ({
       pending:    !!pending,
       inflight,
+      blocked:    !!blockedUntil,
       lastError:  lastError ? lastError.message : null,
       lastSyncTs,
       version:    knownVersion,
@@ -399,7 +437,7 @@ export const dataService = {
     return newData;
   },
 
-  setKnownVersion(v: number) { saveQueue.setVersion(v); },
+  setKnownVersion(v: number) { saveQueue.setVersion(v, true); },   // bewusste Nutzer-Entscheidung → Konflikt-Pause lösen
   // Konflikt „Server übernehmen": queued lokale Edits bewusst verwerfen + Pause lösen
   discardPending() { saveQueue.clearPending(); },
   getKnownVersion()  { return saveQueue.getVersion(); },

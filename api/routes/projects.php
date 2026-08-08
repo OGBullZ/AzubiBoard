@@ -284,6 +284,11 @@ if ($method === 'PATCH' && $id !== null) {
 
 // DELETE /api/projects/:id — Archivieren
 if ($method === 'DELETE' && $id !== null) {
+    // Bug-Hunt 08-06 #9: Sichtbarkeit MUSS auch hier greifen. Alle anderen By-ID-Pfade
+    // (GET/PATCH/Tasks) gehen durch project_visible, das für Ausbilder den Gruppenfilter
+    // anlegt — DELETE sprang für Ausbilder direkt ins UPDATE. Ein Ausbilder aus Gruppe A
+    // konnte damit ein Projekt aus Gruppe B archivieren (für dessen Nutzer verschwunden).
+    if (!project_visible(db(), $id, $uid, $role)) error('Kein Zugriff', 403);
     if ($role !== 'ausbilder') {
         $own = db()->prepare("SELECT 1 FROM projects WHERE id = ? AND created_by = ? LIMIT 1");
         $own->execute([$id, $uid]);

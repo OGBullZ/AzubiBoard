@@ -273,6 +273,38 @@ export const AppState = z.object({
   activityLog:    z.array(z.unknown()).optional().default([]),
 }).passthrough();
 
+// ── Unbekannte Felder retten (Bug-Hunt 08-06 #1) ─────────────
+// Die Entitäts-Schemas oben sind strip-mode: `safeParse` wirft jedes Feld weg, das
+// sie nicht kennen. Nur `AppState` selbst ist passthrough — verschachtelte Objekte
+// waren es nie. Ein im Kalender an ein Projekt gehängter Termin lebt aber in
+// `project.calendarEvents`, das im Project-Schema fehlt: jeder Reload strippte ihn,
+// der nächste Save schrieb den beschnittenen Blob zurück, weg war er.
+//
+// `.passthrough()` auf allen Entitäten wäre die naheliegende Lösung, erzeugt aber
+// eine Index-Signatur `[k: string]: unknown`; `Omit<Project, 'tasks'>` (ProjectCard)
+// verliert dadurch sämtliche Feldtypen. Darum stattdessen hier: Zod validiert und
+// setzt seine Defaults wie bisher, und anschließend legen wir die Felder zurück,
+// die es nicht kennt. Der Blob überlebt damit den Roundtrip vollständig, ohne dass
+// das Schema jeder Blob-Erweiterung hinterherlaufen muss.
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function restoreUnknown(raw: unknown, parsed: unknown): unknown {
+  if (Array.isArray(raw) && Array.isArray(parsed)) {
+    // Element-Zuordnung über den Index — safeParse erhält die Array-Länge.
+    return parsed.map((p, i) => (i < raw.length ? restoreUnknown(raw[i], p) : p));
+  }
+  if (isPlainObject(raw) && isPlainObject(parsed)) {
+    const out: Record<string, unknown> = { ...parsed };
+    for (const [k, v] of Object.entries(raw)) {
+      out[k] = k in parsed ? restoreUnknown(v, parsed[k]) : v;
+    }
+    return out;
+  }
+  return parsed;
+}
+
 // ── Validate Helper ───────────────────────────────────────────
 // Gibt data zurück (ggf. partial) und loggt Fehler im Development.
 export function validate<T extends z.ZodTypeAny>(
@@ -284,5 +316,7 @@ export function validate<T extends z.ZodTypeAny>(
   if (!result.success && import.meta.env.DEV) {
     console.warn(`[schema] Validierungsfehler${context ? ` in ${context}` : ''}:`, result.error.flatten());
   }
-  return result.success ? result.data : (data as z.infer<T>);
+  return result.success
+    ? (restoreUnknown(data, result.data) as z.infer<T>)
+    : (data as z.infer<T>);
 }

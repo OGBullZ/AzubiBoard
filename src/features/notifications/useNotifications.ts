@@ -34,7 +34,10 @@ export function useNotifications(data: AppState | null, currentUser: User | null
         if (d < 0)
           items.push({ id: `task-${task.id}-overdue`, type: 'deadline', severity: 'critical', title: task.text, message: `Überfällig seit ${Math.abs(d)} Tag${Math.abs(d) !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
         else if (d <= 3)
-          items.push({ id: `task-${task.id}-soon`, type: 'deadline', severity: 'warning', title: task.text, message: d === 0 ? 'Heute fällig' : `Fällig in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
+          // Bug-Hunt 08-06 #15: "heute" braucht eine EIGENE Id. Mit einer gemeinsamen
+          // `-soon`-Id unterdrueckt ein Klick auf "Faellig in 3 Tagen" am Montag die
+          // "Heute faellig"-Meldung am Donnerstag komplett (kein Badge, kein Push).
+          items.push({ id: `task-${task.id}-${d === 0 ? 'today' : 'soon'}`, type: 'deadline', severity: 'warning', title: task.text, message: d === 0 ? 'Heute fällig' : `Fällig in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id, projectTitle: project.title });
       });
 
       if (project.assignees?.some(a => sameId(a, currentUser.id)) && project.deadline) {
@@ -42,7 +45,7 @@ export function useNotifications(data: AppState | null, currentUser: User | null
         if (d < 0)
           items.push({ id: `project-${project.id}-overdue`, type: 'project', severity: 'critical', title: project.title, message: 'Projektdeadline überschritten', projectId: project.id });
         else if (d <= 3)
-          items.push({ id: `project-${project.id}-soon`, type: 'project', severity: 'warning', title: project.title, message: d === 0 ? 'Projektdeadline heute' : `Projektdeadline in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id });
+          items.push({ id: `project-${project.id}-${d === 0 ? 'today' : 'soon'}`, type: 'project', severity: 'warning', title: project.title, message: d === 0 ? 'Projektdeadline heute' : `Projektdeadline in ${d} Tag${d !== 1 ? 'en' : ''}`, projectId: project.id });
       }
     });
 

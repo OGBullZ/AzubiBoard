@@ -133,7 +133,13 @@ if ($method === 'PATCH' && $id !== null) {
     }
 
     $fields = []; $vals = [];
-    $textFields = ['title','activities','learnings','reviewer_comment','file_url','signed_file_url'];
+    // Bug-Hunt 08-06 #12: `reviewer_comment` und `signed_file_url` sind Ausbilder-Felder.
+    // Sie standen für ALLE Rollen in der Liste (die Rollenprüfung oben deckt nur `status` ab),
+    // also konnte ein Azubi am eigenen Entwurf einen Kommentar hinterlegen, den die
+    // Druckansicht als „Kommentar des Ausbilders" ausgibt, und per signed_file_url ein
+    // unterschriebenes Dokument vortäuschen.
+    $textFields = ['title','activities','learnings','file_url'];
+    if ($role === 'ausbilder') { $textFields[] = 'reviewer_comment'; $textFields[] = 'signed_file_url'; }
     foreach ($textFields as $f) {
         if (array_key_exists($f, $b)) { $fields[] = "`$f` = ?"; $vals[] = $b[$f] ?: null; }
     }

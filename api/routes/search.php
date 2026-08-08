@@ -19,7 +19,13 @@ if (strlen($q) < 2) {
     respond(['results' => [], 'query' => $q]);
 }
 
-$limit = min((int)($_GET['limit'] ?? 15), 50);
+// Bug-Hunt 08-06 #13: $limit wird unten direkt in die LIMIT-Klausel interpoliert
+// (wie in audit.php), weil `LIMIT ?` bei ATTR_EMULATE_PREPARES=false als String
+// gebunden wird und MySQL dann 1210 wirft — der Fehler landete im catch und die
+// Suche lieferte dauerhaft 0 Treffer, ohne dass irgendwo etwas sichtbar wurde.
+// Der (int)-Cast macht die Interpolation sicher; max(1, …) fängt negative Werte ab,
+// die sonst ein syntaktisch ungültiges `LIMIT -5` ergäben.
+$limit = max(1, min((int)($_GET['limit'] ?? 15), 50));
 
 // Für FULLTEXT: query mit * für Prefix-Suche aufbereiten.
 // Sonderzeichen escapen damit BOOLEAN MODE nicht explodiert.
@@ -40,10 +46,10 @@ try {
             FROM projects
             WHERE archived = 0 AND {$gf['clause']}
               AND MATCH(title, description) AGAINST (? IN BOOLEAN MODE) > 0
-            ORDER BY score DESC LIMIT ?
+            ORDER BY score DESC LIMIT {$limit}
         ";
         $s = db()->prepare($sql);
-        $s->execute([$ftQ, ...$gf['params'], $ftQ, $limit]);
+        $s->execute([$ftQ, ...$gf['params'], $ftQ]);
     } else {
         $s = db()->prepare("
             SELECT 'project' AS type, p.id, p.title,
@@ -53,9 +59,9 @@ try {
             JOIN project_assignments pa ON pa.project_id = p.id
             WHERE pa.user_id = ? AND p.archived = 0
               AND MATCH(p.title, p.description) AGAINST (? IN BOOLEAN MODE) > 0
-            ORDER BY score DESC LIMIT ?
+            ORDER BY score DESC LIMIT {$limit}
         ");
-        $s->execute([$ftQ, $uid, $ftQ, $limit]);
+        $s->execute([$ftQ, $uid, $ftQ]);
     }
     foreach ($s->fetchAll() as $row) {
         $results[] = [
@@ -82,10 +88,10 @@ try {
             JOIN projects p ON p.id = t.project_id
             WHERE p.archived = 0 AND {$gf['clause']}
               AND MATCH(t.title, t.description) AGAINST (? IN BOOLEAN MODE) > 0
-            ORDER BY score DESC LIMIT ?
+            ORDER BY score DESC LIMIT {$limit}
         ";
         $s = db()->prepare($sql);
-        $s->execute([$ftQ, ...$gf['params'], $ftQ, $limit]);
+        $s->execute([$ftQ, ...$gf['params'], $ftQ]);
     } else {
         $s = db()->prepare("
             SELECT 'task' AS type, t.id, t.title,
@@ -96,9 +102,9 @@ try {
             JOIN project_assignments pa ON pa.project_id = t.project_id
             WHERE pa.user_id = ?
               AND MATCH(t.title, t.description) AGAINST (? IN BOOLEAN MODE) > 0
-            ORDER BY score DESC LIMIT ?
+            ORDER BY score DESC LIMIT {$limit}
         ");
-        $s->execute([$uid, $ftQ, $ftQ, $limit]);
+        $s->execute([$uid, $ftQ, $ftQ]);
     }
     foreach ($s->fetchAll() as $row) {
         $results[] = [
@@ -124,9 +130,9 @@ try {
             FROM reports
             WHERE {$gf['clause']}
               AND MATCH(title, activities, learnings) AGAINST (? IN BOOLEAN MODE) > 0
-            ORDER BY score DESC LIMIT ?
+            ORDER BY score DESC LIMIT {$limit}
         ");
-        $s->execute([$ftQ, ...$gf['params'], $ftQ, $limit]);
+        $s->execute([$ftQ, ...$gf['params'], $ftQ]);
     } else {
         $s = db()->prepare("
             SELECT id, title,
@@ -135,9 +141,9 @@ try {
             FROM reports
             WHERE user_id = ?
               AND MATCH(title, activities, learnings) AGAINST (? IN BOOLEAN MODE) > 0
-            ORDER BY score DESC LIMIT ?
+            ORDER BY score DESC LIMIT {$limit}
         ");
-        $s->execute([$uid, $ftQ, $ftQ, $limit]);
+        $s->execute([$uid, $ftQ, $ftQ]);
     }
     foreach ($s->fetchAll() as $row) {
         $results[] = [
@@ -160,9 +166,9 @@ try {
                MATCH(n.title, n.description, n.content) AGAINST (? IN BOOLEAN MODE) AS score
         FROM learning_path_nodes n
         WHERE MATCH(n.title, n.description, n.content) AGAINST (? IN BOOLEAN MODE) > 0
-        ORDER BY score DESC LIMIT ?
+        ORDER BY score DESC LIMIT {$limit}
     ");
-    $s->execute([$ftQ, $ftQ, $limit]);
+    $s->execute([$ftQ, $ftQ]);
     foreach ($s->fetchAll() as $row) {
         $results[] = [
             'type'  => 'Lerninhalt',

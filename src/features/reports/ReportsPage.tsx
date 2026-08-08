@@ -273,7 +273,12 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
     const file = e.target?.files?.[0] || e;
     if (!file) return;
     if (file.type !== 'application/pdf' && !file.type?.includes('pdf')) { showToast('⚠ Nur PDF-Dateien'); return; }
-    if (file.size > 10 * 1024 * 1024) { showToast('⚠ Max. 10 MB'); return; }
+    // Bug-Hunt 08-06 #5: Das PDF landet als base64-DataURL IM Blob, der als Ganzes
+    // gespeichert wird — base64 blaeht um Faktor ~1,37 auf. Bei den frueheren 10 MB kam
+    // ein ~13,7-MB-Body heraus, den der Server (Limit 10 MB) zwingend mit 413 ablehnte:
+    // der Anhang konnte NIE ankommen und blockierte danach die gesamte Sync-Queue.
+    // 5 MB Rohdatei = ~6,9 MB base64 und laesst Platz fuer den restlichen Blob.
+    if (file.size > 5 * 1024 * 1024) { showToast('⚠ Max. 5 MB'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => { setForm((f: any) => ({ ...f, file: { name: file.name, size: file.size, type: file.type, data: ev.target!.result } })); showToast('✓ PDF geladen'); };
     reader.onerror = () => { showToast('⚠ PDF konnte nicht gelesen werden'); };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, uid } from '../../lib/utils.js';
+import { C, uid, today as todayLocal, fmtLocalDate } from '../../lib/utils.js';
 import { useDesign } from '../../lib/hooks.js';
 import { ProgressBar, Modal, Field } from '../../components/UI.jsx';
 import { useAppStore } from '../../lib/store.js';
@@ -62,7 +62,10 @@ function sm2Update(prev: Sm2State, grade: number): Sm2State {
   easiness = Math.max(1.3, easiness + 0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02));
   const next = new Date();
   next.setDate(next.getDate() + interval);
-  return { interval, easiness: Math.round(easiness * 100) / 100, repetitions, nextReview: next.toISOString().split('T')[0], lastGrade: grade };
+  // Bug-Hunt 08-06 #14: LOKALES Datum (fmtLocalDate), nicht toISOString() (UTC) —
+  // sonst faellt eine nach Mitternacht Ortszeit gelernte Karte auf den heutigen
+  // Kalendertag zurueck und ist wenige Stunden spaeter erneut faellig.
+  return { interval, easiness: Math.round(easiness * 100) / 100, repetitions, nextReview: fmtLocalDate(next), lastGrade: grade };
 }
 
 function FlashcardReview({ cards, onGrade, onFinish }: {
@@ -444,7 +447,7 @@ export default function LearnPage({ currentUser }: { currentUser?: any }) {
   const allQuestions: QuizQuestionData[] = [...(JAVA_QUIZ as QuizQuestionData[]), ...customQuestions];
   const CATS = [...new Set(allQuestions.map(q => q.category))];
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocal();   // lokal, passend zu nextReview (Bug-Hunt 08-06 #14)
   const userId = currentUser?.id || 'anon';
   const flashProgress: Record<string, Sm2State> = d?.flashcards?.[userId] || {};
   const dueCards = allQuestions.filter(q => {

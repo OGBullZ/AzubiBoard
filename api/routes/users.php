@@ -3,6 +3,21 @@
 //  Route: /api/users  (GET / POST / PATCH / DELETE)
 // ============================================================
 
+// ── RLS für die Schreibpfade (Bug-Hunt 08-06 #8) ────────────
+//   GET und GET/{id} sind seit dem 07-04-Hunt per with_group_filter_users
+//   isoliert — PATCH/DELETE/activate liefen dagegen gegen ein blankes
+//   `WHERE id = ?`. Ein Ausbilder aus Gruppe A konnte damit per
+//   `PATCH /api/users/{id}` (IDs sind fortlaufend, also durchprobierbar) das
+//   Passwort JEDES Nutzers setzen — auch das eines fremden Ausbilders — und so
+//   den anderen Mandanten komplett übernehmen. Dieselbe Sichtbarkeitsregel wie
+//   beim Lesen: ohne Gruppen-Mitgliedschaft bleibt die Klausel `1=1` (kein Regress).
+function require_user_in_scope($id, array $auth): void {
+    $gf = with_group_filter_users(db(), $auth, 'id');
+    $stmt = db()->prepare('SELECT 1 FROM users WHERE id = ? AND (' . $gf['clause'] . ') LIMIT 1');
+    $stmt->execute([$id, ...$gf['params']]);
+    if (!$stmt->fetchColumn()) error('Nutzer nicht gefunden', 404);
+}
+
 // ── GET /api/users ── Nutzerliste ───────────────────────────
 if ($method === 'GET' && !$id) {
     $auth = require_auth();
@@ -86,7 +101,8 @@ if ($method === 'GET' && $id) {
 
 // ── PATCH /api/users/{id} ── Nutzer aktualisieren ────────────
 if ($method === 'PATCH' && $id) {
-    require_role('ausbilder');
+    $auth = require_role('ausbilder');
+    require_user_in_scope($id, $auth);
     $b = body();
     $fields = []; $params = [];
 
@@ -146,7 +162,8 @@ if ($method === 'PATCH' && $id) {
 
 // ── DELETE /api/users/{id} ── Nutzer deaktivieren (Soft) ─────
 if ($method === 'DELETE' && $id) {
-    require_role('ausbilder');
+    $auth = require_role('ausbilder');
+    require_user_in_scope($id, $auth);
     db()->prepare('UPDATE users SET is_active = 0, updated_at = NOW() WHERE id = ?')
         ->execute([$id]);
     respond(['message' => 'Nutzer deaktiviert']);
@@ -154,7 +171,8 @@ if ($method === 'DELETE' && $id) {
 
 // ── POST /api/users/{id}/activate ── Nutzer reaktivieren ─────
 if ($method === 'POST' && $id && $sub === 'activate') {
-    require_role('ausbilder');
+    $auth = require_role('ausbilder');
+    require_user_in_scope($id, $auth);
     db()->prepare('UPDATE users SET is_active = 1, updated_at = NOW() WHERE id = ?')
         ->execute([$id]);
     respond(['message' => 'Nutzer aktiviert']);

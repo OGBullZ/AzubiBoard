@@ -44,9 +44,16 @@ CREATE TABLE IF NOT EXISTS users (
 -- ── App-Daten (JSON-Blob) ────────────────────────────────────
 -- Wird von api/routes/data.php automatisch angelegt,
 -- hier zur Dokumentation:
+-- `version` ist der Optimistic-Locking-Zähler (ETag / If-Match). Er MUSS ein echter
+-- Zähler sein: vorher diente UNIX_TIMESTAMP(updated_at) als Version, wodurch zwei
+-- Saves innerhalb derselben Sekunde dieselbe Version trugen und der zweite Client
+-- den ersten lautlos überschrieb (Bug-Hunt 08-06 #2). Bestandsinstallationen zieht
+-- api/routes/data.php beim ersten Aufruf automatisch nach (ALTER + Initialwert aus
+-- updated_at, damit laufende Clients monoton anschließen).
 CREATE TABLE IF NOT EXISTS app_data (
     id         INT UNSIGNED NOT NULL DEFAULT 1,
     content    LONGTEXT     NOT NULL,
+    version    BIGINT UNSIGNED NOT NULL DEFAULT 0,
     updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
                             ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
