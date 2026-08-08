@@ -272,6 +272,13 @@ export function DashboardBeta({ user, projects, reports, calendarEvents, activit
     const weeks = new Set(ownReports.map((r: Report) => isoWeekMonday(r.week_start || '')));
     let n = 0;
     const d = new Date(now);
+    // Bug-Hunt 08-06 #23: Die LAUFENDE Woche darf die Serie nicht beenden. Vorher brach
+    // die Schleife ab, sobald für diese KW noch kein Bericht existierte — jeden Montag
+    // stand der Streak damit auf 0, obwohl zwölf Wochen lückenlos gefüllt waren, und
+    // sprang erst nach dem Speichern zurück. Die laufende Woche zählt mit, wenn sie da
+    // ist, beendet die Serie aber nicht, solange sie noch läuft.
+    if (weeks.has(isoWeekMonday(d))) n++;
+    d.setDate(d.getDate() - 7);
     for (let i = 0; i < 99; i++) {
       if (!weeks.has(isoWeekMonday(d))) break;
       n++; d.setDate(d.getDate() - 7);

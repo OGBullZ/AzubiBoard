@@ -25,9 +25,13 @@ export function ProjectDetailWrapper({ showToast }: { showToast: ShowToast }) {
   }, [setData, currentUser, showToast]);
 
   const handleArchive = useCallback((projectId: string) => {
-    const snapshot = data;
+    const vorher = (data?.projects || []).find((p: Project) => p.id === projectId)?.archived;
     setData((prev: any) => prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: true } : p) } : prev);
-    showToast('📦 Projekt archiviert', { undo: () => setData(snapshot as any) });  // Phase 4: Undo konsistent zur Listen-Archivierung
+    // Bug-Hunt 08-06 #21: gezielt zurücknehmen (nur dieses Flag) statt den kompletten
+    // Blob-Snapshot — sonst löscht ein Undo fremde Änderungen aus dem 6-s-Fenster mit.
+    showToast('📦 Projekt archiviert', {
+      undo: () => setData((prev: any) => (prev ? { ...prev, projects: (prev.projects||[]).map((p: Project) => p.id === projectId ? { ...p, archived: vorher } : p) } : prev)),
+    });
   }, [data, setData, showToast]);
 
   // entry/prev: addActivity-Boundary (utils.js liefert Blob-Form) → any belassen.

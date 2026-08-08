@@ -34,19 +34,27 @@ export function buildNewsCards(data: AppState | null, currentUser: User, lastCon
 
   if (!isStaff) {
     // ── Azubi ──────────────────────────────────────────────
-    const overdue: string[] = [];   // Titel
-    const soon: string[] = [];
+    // Bug-Hunt 08-06 #22: „Älteste"/„Nächste" nennen den ERSTEN Eintrag der Liste — die
+    // wurde aber in Iterationsreihenfolge der Projekte gefüllt und nie sortiert. Bei zwei
+    // überfälligen Aufgaben (2 und 30 Tage) stand dort die falsche. Deshalb Restdauer
+    // mitführen und sortieren, wie es heroSuggestion.ts für dieselbe Aussage schon tut.
+    const overdueE: { titel: string; d: number }[] = [];
+    const soonE: { titel: string; d: number }[] = [];
     active.forEach((p: Project) => {
       (p.tasks || []).forEach((tk: Task) => {
         if (!sameId(tk.assignee, me) || tk.status === 'done' || !tk.deadline) return;
         const d = dayDiff(tk.deadline);
-        if (d < 0) overdue.push(tk.text || 'Aufgabe'); else if (d <= 3) soon.push(tk.text || 'Aufgabe');
+        if (d < 0) overdueE.push({ titel: tk.text || 'Aufgabe', d }); else if (d <= 3) soonE.push({ titel: tk.text || 'Aufgabe', d });
       });
       if (p.assignees?.some(x => sameId(x, me)) && p.deadline) {
         const d = dayDiff(p.deadline);
-        if (d < 0) overdue.push(p.title); else if (d <= 3) soon.push(p.title);
+        if (d < 0) overdueE.push({ titel: p.title, d }); else if (d <= 3) soonE.push({ titel: p.title, d });
       }
     });
+    overdueE.sort((a, b) => a.d - b.d);   // am längsten überfällig zuerst
+    soonE.sort((a, b) => a.d - b.d);      // am ehesten fällig zuerst
+    const overdue = overdueE.map(e => e.titel);
+    const soon    = soonE.map(e => e.titel);
     if (overdue.length) cards.push({ key: 'overdue', sev: 0, ...ACC.crit, icon: '⚠', label: 'Überfällig',
       title: overdue.length === 1 ? overdue[0] : `${overdue.length} Aufgaben überfällig`,
       sub: overdue.length === 1 ? 'Deadline überschritten' : `Älteste: „${overdue[0]}"`, to: '/projects' });

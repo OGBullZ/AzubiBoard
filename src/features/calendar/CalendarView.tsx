@@ -202,8 +202,13 @@ export function CalendarView({ projects, calendarEvents, users, onUpdate, showTo
   const exportIcal = () => {
     const pad = (n: number) => String(n).padStart(2, '0');
     const toIcsDate = (dateStr: string) => dateStr.replace(/-/g, '');
+    // Bug-Hunt 08-06 #25: Mittags-Anker. `new Date('2026-08-03')` ist UTC-Mitternacht;
+    // in einer Zone westlich von Greenwich (Azubi/Ausbilder auf Reise) landet man damit
+    // lokal auf dem VORTAG, und weil DTSTART direkt aus dem Roh-String kommt, wurde
+    // DTEND == DTSTART → ein Ganztags-Termin der Länge 0, den Kalender-Clients
+    // verwerfen oder falsch einsortieren.
     const nextDay = (dateStr: string) => {
-      const d = new Date(dateStr);
+      const d = new Date(dateStr + 'T12:00:00');
       d.setDate(d.getDate() + 1);
       return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
     };

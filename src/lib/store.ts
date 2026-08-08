@@ -37,7 +37,28 @@ if (_ch) {
       // Anderen Tabs update geben, ohne erneut zu broadcasten
       setState({ data: e.data.payload });
     }
+    // Bug-Hunt 08-06 #19: Die Server-Version MUSS mitwandern. Vorher trug der Broadcast
+    // nur die Daten: Tab B übernahm A's Stand, behielt aber seine alte knownVersion.
+    // A's POST hob die Server-Version an, B pollt im Hintergrund nicht (document.hidden)
+    // — beim ersten Tastendruck in B ging ein veraltetes If-Match raus und der
+    // Konfliktdialog meldete „jemand anders hat gespeichert", obwohl B genau diesen Stand
+    // schon hatte. Wählte der Nutzer dort die als „(empfohlen)" markierte Option, verwarf
+    // er seinen frischen Edit. Der Versions-Broadcast läuft bewusst NACH dem Save (eigenes
+    // Event), denn beim Tippen ist die neue Version noch gar nicht bekannt.
+    if (e.data?.type === 'version' && typeof e.data.version === 'number') {
+      dataService.syncKnownVersion(e.data.version);   // monoton, löst KEINE offene Konflikt-Pause
+    }
   };
+
+  // Eigener erfolgreicher Save → neue Version an die anderen Tabs weitergeben.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('azubiboard:sync', (ev: Event) => {
+      const detail = (ev as CustomEvent).detail;
+      if (detail?.type === 'success' && typeof detail.version === 'number' && detail.version > 0) {
+        _ch?.postMessage({ type: 'version', version: detail.version });
+      }
+    });
+  }
 }
 
 // ── Hook ─────────────────────────────────────────────────────

@@ -161,6 +161,17 @@ export function fmtLocalDate(d?: string | Date | null): string {
   return `${y}-${m}-${day}`;
 }
 
+// YYYY-MM-DD als LOKALES Datum parsen (Bug-Hunt 08-06 #25).
+// `new Date('2026-08-03')` ist per Spezifikation UTC-Mitternacht: in Zonen westlich von
+// Greenwich landet man damit lokal auf dem Vortag, in Zonen östlich auf 01:00/02:00 des
+// richtigen Tages (dort fällt es nur deshalb nicht auf). Der Mittags-Anker macht das
+// Ergebnis in beiden Richtungen und über beide DST-Wechsel eindeutig.
+// Nur für reine Datums-Strings gedacht — vollständige Zeitstempel gehen unverändert durch.
+export function parseLocalDate(d?: string | null): Date {
+  if (!d) return new Date(NaN);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d + 'T12:00:00') : new Date(d);
+}
+
 // Wochensprung auf einem YYYY-MM-DD-Datum, DST-fest (Bug-Hunt 08-06 #10).
 // `new Date('2026-10-26')` parst UTC-Mitternacht; ein anschließendes lokales setDate()
 // und ein UTC-Ausgabeformat (toISOString) driften an der Zeitumstellung auseinander:

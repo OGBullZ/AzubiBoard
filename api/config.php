@@ -75,6 +75,20 @@ define('CLAUDE_API_KEY', env('CLAUDE_API_KEY', ''));
 // alle relationalen Writes implementiert sind.
 define('FORCE_SCHEMA', filter_var(env('FORCE_SCHEMA', false), FILTER_VALIDATE_BOOLEAN));
 
+// ── Zeitzone (Bug-Hunt 08-06 #27) ────────────────────────────
+//   PHP und MySQL liefen bisher auf UNABGESPROCHENEN Uhren: weder
+//   date_default_timezone_set() noch ein `SET time_zone` auf der Verbindung existierte
+//   (`database/azubiboard.sql` setzt sie nur für die Import-Session). Steht PHP ohne
+//   `date.timezone` auf UTC, MySQL aber via `time_zone = SYSTEM` auf der OS-Zone, dann
+//   rechnen die beiden 1–2 Stunden auseinander — und genau das mischen mehrere Pfade:
+//   `share.php` schreibt `expires_at` aus der PHP-Uhr, räumt aber mit `NOW()` (MySQL) auf
+//   und prüft mit `time()` (PHP), sodass Share-Links zu früh abliefen; `data.php` legt den
+//   Tages-Snapshot unter `date('Y-m-d')` (PHP) ab, während die Retention gegen
+//   `CURRENT_DATE` (MySQL) rechnet — im Nachtfenster zwei verschiedene Kalendertage.
+//   APP_TIMEZONE ist überschreibbar, damit ein Betrieb außerhalb DE nicht patchen muss.
+define('APP_TIMEZONE', (string) env('APP_TIMEZONE', 'Europe/Berlin'));
+date_default_timezone_set(APP_TIMEZONE);
+
 // ── Datenbankverbindung ──────────────────────────────────────
 function db(): PDO {
     static $pdo = null;
@@ -88,6 +102,15 @@ function db(): PDO {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
+        // Verbindung auf DIESELBE Uhr wie PHP stellen. Als numerischer Offset, weil die
+        // benannten Zeitzonen-Tabellen (mysql.time_zone_name) auf vielen Installationen
+        // nicht befüllt sind; ein Fehlschlag darf die App nicht blockieren.
+        try {
+            $offset = (new DateTime('now', new DateTimeZone(APP_TIMEZONE)))->format('P');
+            $pdo->exec("SET time_zone = '{$offset}'");
+        } catch (Throwable $e) {
+            error_log('[config] Zeitzone der DB-Verbindung nicht gesetzt: ' . $e->getMessage());
+        }
     }
     return $pdo;
 }

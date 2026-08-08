@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, getKW, getISOWeekMonday, sameId } from '../../../lib/utils.js';
+import { C, getKW, getISOWeekMonday, fmtLocalDate, sameId } from '../../../lib/utils.js';
 import { IcoAlert, IcoReport } from '../../../components/Icons.jsx';
 import type { Report } from '../../../types';
 
@@ -16,8 +16,12 @@ function ReportWidgetImpl({ reports, userId, onNavigate }: ReportWidgetProps) {
   const sub    = mine.filter(r => r.status === 'submitted').length;
   const draft  = mine.filter(r => r.status === 'draft').length;
 
-  const monday = getISOWeekMonday(new Date())!;
-  const thisWeekReport  = mine.find(r => !!r.week_start && new Date(r.week_start) >= monday);
+  // Bug-Hunt 08-06 #25: Vergleich auf der String-Ebene (beide YYYY-MM-DD, lexikografisch
+  // = chronologisch) statt Date gegen Date. `new Date(r.week_start)` war UTC-Mitternacht
+  // und `monday` lokale Mitternacht — westlich von Greenwich fiel der Vergleich damit
+  // falsch aus und das Widget meldete „Berichtsheft diese Woche fehlt", obwohl er da war.
+  const monday = fmtLocalDate(getISOWeekMonday(new Date())!);
+  const thisWeekReport  = mine.find(r => !!r.week_start && r.week_start >= monday);
   const thisWeekMissing = !thisWeekReport;
 
   return (

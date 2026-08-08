@@ -343,10 +343,16 @@ type IconBtnProps = {
 
 export function IconBtn({ Icon, onClick, label, danger = false, active = false, size = 16, style: s = {} }: IconBtnProps) {
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    // Spring animation on click
-    e.currentTarget.style.transform = 'scale(0.95)';
+    // Spring animation on click.
+    // Bug-Hunt 08-06 #28 (beim Live-Test des Undo-Pfads gefunden): Das Element MUSS vorher
+    // festgehalten werden. React setzt `currentTarget` nach dem Handler zurück, und bei
+    // Aktionen, die ihr eigenes Element entfernen (Projekt löschen/archivieren — genau
+    // die Knöpfe, an denen IconBtn hängt), lief der Timer danach auf null:
+    // „Cannot read properties of null (reading 'style')" als uncaught pageerror.
+    const el = e.currentTarget;
+    el.style.transform = 'scale(0.95)';
     setTimeout(() => {
-      e.currentTarget.style.transform = 'scale(1)';
+      if (el.isConnected) el.style.transform = 'scale(1)';
     }, 100);
     onClick?.(e);
   };

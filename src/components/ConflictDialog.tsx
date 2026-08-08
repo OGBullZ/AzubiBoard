@@ -45,7 +45,11 @@ function diffSummary(client: Snapshot, server: Snapshot): DiffRow[] | null {
 export default function ConflictDialog({ payload, onAcceptServer, onForceMine, onReload, onClose }: ConflictDialogProps) {
   const [acting, setActing] = useState(false);
   useEffect(() => {
-    // Esc schließt Dialog (Default = Server akzeptieren = sicher)
+    // Esc schließt den Dialog NUR, wenn der Aufrufer eine unschädliche Schließ-Aktion
+    // bereitstellt. Bug-Hunt 08-06 #17: In App.tsx hing hier `acceptServer` — ein
+    // reflexhaftes Escape verwarf damit unwiderruflich alle lokalen Änderungen seit dem
+    // letzten Save. Dieser Dialog ist die einzige Stelle der App, an der ein einzelner
+    // Tastendruck Daten vernichtet hätte; Konflikte werden bewusst entschieden.
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !acting) onClose?.(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

@@ -208,7 +208,12 @@ const App = () => {
             onAcceptServer={acceptServer}
             onForceMine={forceMine}
             onReload={reloadServer}
-            onClose={acceptServer}
+            /* Bug-Hunt 08-06 #17: NICHT acceptServer. Escape ist die Standardgeste zum
+               Schließen eines Dialogs — hier loeschte sie unwiderruflich alle Aenderungen
+               seit dem letzten erfolgreichen Save (discardPending + setData(serverData)),
+               ohne Rueckfrage und ohne Undo. Der Dialog bleibt jetzt stehen, bis eine der
+               drei Optionen bewusst gewaehlt wird. */
+            onClose={undefined}
           />
         )}
         {showSearch    && <GlobalSearch   data={data} onClose={() => setShowSearch(false)} />}

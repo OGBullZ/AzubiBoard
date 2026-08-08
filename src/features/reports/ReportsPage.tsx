@@ -2,13 +2,13 @@ import { useState, useRef, useCallback } from "react";
 import type { User, Project, Task, Report, AppState, Id } from '../../types';
 import { dataService } from '../../lib/dataService.js';
 import { useTranslation } from 'react-i18next';
-import { C, uid, fmtDate, getKW, getISOWeek, isoWeekMonday, addActivity, sameId, fmtLocalDate } from '../../lib/utils.js';
+import { C, uid, fmtDate, getKW, getISOWeek, isoWeekMonday, addActivity, sameId, fmtLocalDate, parseLocalDate } from '../../lib/utils.js';
 import { sumDayHours } from '../dashboard/reportStats.js';
 import { useDebounce, useDesign, useIsMobile } from '../../lib/hooks.js';
 import { Stamp } from '../../components/Stamp.jsx';
 import { playStamp } from '../../lib/sound.js';
 import { isStaff, isAusbilder } from '../../lib/roles.js';
-import { softDelete } from '../../lib/trash.js';
+import { softDelete, restoreFromTrash } from '../../lib/trash.js';
 import ShareLinkModal from '../../components/ShareLinkModal.jsx';
 import { Avatar, Field, EmptyState } from '../../components/UI.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
@@ -196,7 +196,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
 
   const autoFillFromTasks = () => {
     const ws  = form.week_start;
-    const we  = (() => { const d = new Date(ws); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; })();
+    const we  = (() => { const d = parseLocalDate(ws); d.setDate(d.getDate() + 6); return fmtLocalDate(d); })();
     const groups: { title: string; tasks: Task[] }[] = [];
     (projects || []).forEach((p: Project) => {
       const wt = (p.tasks || []).filter((t: Task) => t.text && t.deadline && t.deadline >= ws && t.deadline <= we);
@@ -212,7 +212,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
 
   const aiWriteReport = useCallback(async () => {
     const ws  = form.week_start;
-    const we  = (() => { const d = new Date(ws); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0]; })();
+    const we  = (() => { const d = parseLocalDate(ws); d.setDate(d.getDate() + 6); return fmtLocalDate(d); })();
     const taskGroups: { project: string; tasks: string[] }[] = [];
     (projects || []).forEach((p: Project) => {
       const wt = (p.tasks || []).filter((task: Task) => task.text && task.deadline && task.deadline >= ws && task.deadline <= we);
@@ -224,7 +224,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
       const result = await dataService.fillReport({
         taskGroups,
         weekNumber: kw as number,
-        year: new Date(ws).getFullYear(),
+        year: parseLocalDate(ws).getFullYear(),
         profession: currentUser?.profession || '',
         lehrjahr:   currentUser?.apprenticeship_year || 1,
       });
@@ -289,17 +289,24 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
 
   const save = () => {
     // 0.8: leeres/ungültiges week_start nicht still defaulten, sondern als Inline-Fehler melden
-    const ws = new Date(form.week_start);
+    const ws = parseLocalDate(form.week_start);
     if (!form.week_start || Number.isNaN(ws.getTime())) {
       setWsError('Bitte eine gültige Berichtswoche wählen.');
       setTab('text');
       return;
     }
     setWsError('');
-    // ISO-Wochenjahr (passend zur ISO-kw), NICHT Kalenderjahr des Montags — sonst Fehlzuordnung am Jahreswechsel
-    // (z.B. Mo 29.12.2025 = ISO KW1/2026, getFullYear() liefert aber 2025).
-    const year = getISOWeek(form.week_start).year ?? ws.getFullYear();
-    const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_number: kw, year, updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
+    // Bug-Hunt 08-06 #24: week_start auf den ISO-Wochenmontag NORMALISIEREN. Der Datepicker
+    // erlaubt jedes Datum, und ohne das trägt der Bericht z.B. einen Mittwoch: „Aus Aufgaben
+    // füllen" zieht dann das Fenster Mi–Di (Mo/Di der Berichtswoche fehlen, Mo/Di der
+    // Folgewoche kommen rein), der Ausdruck zeigt Mi–So statt Mo–Fr, und die laufende
+    // Nachweis-Nr (IHK-Pflichtangabe) verschiebt sich, weil Montags- und Mittwochs-Bericht
+    // derselben KW nebeneinander existieren — der Unique-Key (user_id, week_start) fängt
+    // das nicht ab. Einzelne Lesestellen (Streak im Dashboard) haben bisher defensiv
+    // nachnormalisiert; hier ist die Quelle.
+    const wsNorm = isoWeekMonday(form.week_start);
+    const year = getISOWeek(wsNorm).year ?? ws.getFullYear();
+    const newReport = { id: report?.id || uid(), user_id: currentUser.id, user_name: currentUser.name, ...form, week_start: wsNorm, week_number: kw, year, updated_at: new Date().toISOString(), created_at: report?.created_at || new Date().toISOString() };
     // Signed ist terminal (Bug-Hunt KAL-F3): normales Speichern darf die Unterschrift nie zurückdrehen
     if (report?.status === 'signed') newReport.status = 'signed';
     // U2: Snapshot neu setzen — nach dem Speichern gilt der aktuelle Stand als "unverändert"
@@ -326,9 +333,9 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
   const printVariant = (variant: string) => {
     const w = window.open('', '_blank');
     if (!w) { showToast('⚠ Popup blockiert – bitte Pop-ups erlauben'); return; }
-    const isoYear = getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear();
-    const weekEndDate = new Date(new Date(form.week_start).getTime() + 4 * 86400000);
-    const weekRange = `${new Date(form.week_start).toLocaleDateString('de-DE')} – ${weekEndDate.toLocaleDateString('de-DE')}`;
+    const isoYear = getISOWeek(form.week_start).year ?? parseLocalDate(form.week_start).getFullYear();
+    const weekEndDate = new Date(parseLocalDate(form.week_start).getTime() + 4 * 86400000);
+    const weekRange = `${parseLocalDate(form.week_start).toLocaleDateString('de-DE')} – ${weekEndDate.toLocaleDateString('de-DE')}`;
     const today = new Date().toLocaleDateString('de-DE');
 
     // Profil-Felder vom Azubi (falls vorhanden)
@@ -363,7 +370,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
       </head><body>
       <h1>Ausbildungsnachweis – KW ${kw} / ${isoYear}</h1>
       <div class="meta">
-        <strong>${esc(currentUser.name)}</strong> · Woche vom ${new Date(form.week_start).toLocaleDateString('de-DE')} ·
+        <strong>${esc(currentUser.name)}</strong> · Woche vom ${parseLocalDate(form.week_start).toLocaleDateString('de-DE')} ·
         <span class="status">${esc(STATUS_REPORT[form.status as keyof typeof STATUS_REPORT]?.l || form.status)}</span>
       </div>
       ${form.title ? `<h2>Thema</h2><p>${esc(form.title)}</p>` : ''}
@@ -463,7 +470,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* KW prominent (Backlog B: Editor-UX) — ISO-Wochenjahr, nicht Kalenderjahr des Montags */}
           <div style={{ fontFamily: C.mono, fontSize: 17, fontWeight: 800, color: C.acT, letterSpacing: '.04em', whiteSpace: 'nowrap' }} title="Berichtswoche">
-            KW {kw ?? '–'}<span style={{ color: C.mu, fontWeight: 700 }}> · {getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear()}</span>
+            KW {kw ?? '–'}<span style={{ color: C.mu, fontWeight: 700 }}> · {getISOWeek(form.week_start).year ?? parseLocalDate(form.week_start).getFullYear()}</span>
           </div>
           <div style={{ fontSize: 10, color: C.mu, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {report ? t('report.editTitle', { kw }) : t('report.newTitle')}
@@ -507,7 +514,7 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
             <Field label={t('report.weekTitle')}>
               <input value={form.title} disabled={!isOwner || readOnly} onChange={e => setForm((f: any) => ({ ...f, title: e.target.value }))} placeholder="z.B. Projektarbeit Woche 3" />
             </Field>
-            <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>KW {kw} · {getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear()}</div>
+            <div style={{ fontSize: 11, color: C.mu, marginTop: 4 }}>KW {kw} · {getISOWeek(form.week_start).year ?? parseLocalDate(form.week_start).getFullYear()}</div>
           </div>
 
           {isOwner && !readOnly && tab === 'text' && (
@@ -682,15 +689,15 @@ function ReportEditor({ report, currentUser, projects, reports, onSave, onClose,
             /* Vorschau (Backlog B: Editor-UX) — der Bericht wie er gedruckt/eingereicht aussieht */
             <div className="card" style={{ padding: '26px 32px', maxWidth: 760 }}>
               {(() => {
-                const isoYear = getISOWeek(form.week_start).year ?? new Date(form.week_start).getFullYear();
-                const weekEnd = new Date(new Date(form.week_start).getTime() + 4 * 86400000);
+                const isoYear = getISOWeek(form.week_start).year ?? parseLocalDate(form.week_start).getFullYear();
+                const weekEnd = new Date(parseLocalDate(form.week_start).getTime() + 4 * 86400000);
                 const dayRows = WEEK_DAYS.filter(([k]) => (form.days?.[k]?.text || form.days?.[k]?.hours != null));
                 return (
                   <>
                     <div style={{ borderBottom: `2px solid ${C.bd}`, paddingBottom: 12, marginBottom: 18 }}>
                       <div style={{ fontSize: 19, fontWeight: 800, color: C.br }}>Ausbildungsnachweis – KW {kw} / {isoYear}</div>
                       <div style={{ fontSize: 12, color: C.mu, marginTop: 4 }}>
-                        <strong style={{ color: C.tx }}>{currentUser.name}</strong> · {new Date(form.week_start).toLocaleDateString('de-DE')} – {weekEnd.toLocaleDateString('de-DE')}
+                        <strong style={{ color: C.tx }}>{currentUser.name}</strong> · {parseLocalDate(form.week_start).toLocaleDateString('de-DE')} – {weekEnd.toLocaleDateString('de-DE')}
                         {form.title?.trim() ? <> · {form.title}</> : null}
                       </div>
                     </div>
@@ -960,7 +967,11 @@ function printVollnachweis(allReports: Report[], user: User, showToast?: (msg: s
 }
 
 export default function ReportsPage({ currentUser, data, onUpdateData, showToast }: {
-  currentUser: User; data: AppState; onUpdateData: (next: AppState) => void; showToast: (msg: string, opts?: any) => void;
+  // onUpdateData ist store.setData — nimmt auch funktionale Updates (Bug-Hunt 08-06 #21:
+  // Undo muss gegen den AKTUELLEN Stand rechnen, nicht gegen den Render-Snapshot).
+  // prev bleibt any: store.setData reicht die Blob-Form (Record<string, unknown> | null)
+  // durch — dieselbe JS-Boundary wie bei den softDelete/restoreFromTrash-Casts unten.
+  currentUser: User; data: AppState; onUpdateData: (next: AppState | ((prev: any) => AppState)) => void; showToast: (msg: string, opts?: any) => void;
 }) {
   const { t } = useTranslation();
   const STATUS_REPORT_I18N = useStatusReport();
@@ -1149,15 +1160,19 @@ export default function ReportsPage({ currentUser, data, onUpdateData, showToast
         <ConfirmDialog
           message={t('report.deleteConfirm')}
           onConfirm={() => {
-            const snapshot = data;
-            const report   = reports.find((r: Report) => r.id === confirmDel);
+            const report = reports.find((r: Report) => r.id === confirmDel);
+            const delId  = confirmDel;
             if (report) {
               // softDelete ist JS-Boundary (AppData/TrashBin vs AppState) → Cast
               onUpdateData(softDelete(data as any, 'reports', report, currentUser) as unknown as AppState);
             } else {
               onUpdateData({ ...data, reports: reports.filter((r: Report) => r.id !== confirmDel) });
             }
-            showToast(t('report.deletedToast'), { undo: () => onUpdateData(snapshot) });
+            // #21: gezielt diesen einen Bericht zurückholen statt den ganzen Blob-Snapshot
+            // wiederherzustellen (der hätte fremde Änderungen aus dem Undo-Fenster gelöscht).
+            showToast(t('report.deletedToast'), {
+              undo: () => onUpdateData((prev: AppState) => restoreFromTrash(prev as any, 'reports', delId as any) as unknown as AppState),
+            });
             setConfirmDel(null);
           }}
           onCancel={() => setConfirmDel(null)}

@@ -196,7 +196,15 @@ function BurndownTab({ project }: { project: any }) {
   const today = new Date();
 
   const dayMs  = 86400000;
-  const numDays = Math.max(1, Math.min(120, Math.ceil(((end as any) - (start as any)) / dayMs) + 1));
+  // Bug-Hunt 08-06 #26: Die 120er-Deckelung war eine Punkt-ANZAHL, wurde aber wie eine
+  // Tages-Anzahl verwendet: bei einem 300-Tage-Projekt endete die Kurve am 120. Tag,
+  // `visPoints.at(-1)` war damit der Stand von damals und die prominente Kennzahl
+  // „Fortschritt X %" fror ein — direkt neben der weiterzählenden Zahl „Abgeschlossen".
+  // Jetzt spannt die Achse immer über den GESAMTEN Zeitraum; die Deckelung wirkt nur noch
+  // als Schrittweite (max. 120 Stützstellen, damit das SVG nicht ausufert).
+  const spanDays = Math.max(1, Math.ceil(((end as any) - (start as any)) / dayMs) + 1);
+  const numDays  = Math.min(120, spanDays);
+  const stepDays = spanDays / Math.max(1, numDays - 1 || 1);
 
   // Ideal burndown line: from total tasks → 0 over the period
   const totalTasks = tasks.length;
@@ -204,7 +212,8 @@ function BurndownTab({ project }: { project: any }) {
   // Actual: estimate "remaining" at each day by checking task completion date (use updated_at as proxy)
   // Since we don't have a strict completedAt field, we'll use the task's status and deadlines as proxy
   const points = Array.from({ length: numDays }, (_, i) => {
-    const d = new Date(start.getTime() + i * dayMs);
+    // Stützstellen über den gesamten Zeitraum verteilen (#26), nicht nur die ersten 120 Tage
+    const d = new Date(start.getTime() + Math.round(i * stepDays) * dayMs);
     const ds = d.toISOString().split('T')[0];
     // remaining = tasks where deadline > d (or no deadline) AND status not done,
     // OR status was done after d (if updated_at is available)

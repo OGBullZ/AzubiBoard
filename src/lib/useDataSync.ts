@@ -58,11 +58,17 @@ export function useDataSync(
           // unsere Änderung gewinnt erst, wenn sie persistiert ist.
           const status = dataService.getSaveStatus();
           if (!status.pending && !status.inflight) {
+            // Bug-Hunt 08-06 #20: Der Re-Check auf pending/inflight allein hat eine Lücke.
+            // Tippt der User während des GET-await und ist sein POST VOR der GET-Antwort
+            // fertig, sind beide Flags wieder false — der Guard greift genau dann nicht,
+            // und setData(fresh) stülpt den Vor-Edit-Stand über die frische Eingabe
+            // (in State UND localStorage). Der Zähler der abgeschlossenen Saves schließt
+            // diese Lücke: er steigt auch dann, wenn die Queue am Ende wieder leer ist.
+            const savesVorher = dataService.getSaveStatus().completedSaves;
             const fresh = await dataService.getData();
-            // Re-Check NACH dem await: hat der User im Race-Fenster editiert,
-            // den älteren Server-Stand NICHT über seinen Edit stülpen.
             const after = dataService.getSaveStatus();
-            if (!cancelled && fresh && !after.pending && !after.inflight) {
+            if (!cancelled && fresh && !after.pending && !after.inflight
+                && after.completedSaves === savesVorher) {
               lastVersion.current = v.version;
               // persist:false — Server-Daten nicht zurück-POSTen (Echo-Schleife
               // zwischen Clients); localStorage manuell aktuell halten.

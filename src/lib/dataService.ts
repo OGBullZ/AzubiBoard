@@ -82,6 +82,8 @@ const saveQueue = (() => {
   let knownVersion = 0;       // J2: zuletzt bekannte Server-Version (ETag)
   let conflictHold = false;   // 409 offen → Queue pausiert bis User-Entscheidung (SYNC-F3)
   let blockedUntil = 0;       // dauerhafter Server-Fehler (413/400/403/422) → Retry frühestens ab diesem ts
+  let forceNext    = false;   // nächster Save trägt If-Match:* (fehlgeschlagener forceSave, Nutzer-Entscheidung)
+  let completedSaves = 0;     // #20: Anzahl erfolgreich durchgelaufener Saves (nur wachsend)
   let entityVersions: Record<string, number> = {};    // L5-5b: per-Entität-Versionen (forward-compat, default leer)
 
   const MAX_BACKOFF = 30_000;
@@ -138,7 +140,9 @@ const saveQueue = (() => {
     let errored = false;
     emit('start');
     try {
-      const headers: Record<string, string> = knownVersion ? { 'If-Match': `"${knownVersion}"` } : {};
+      const headers: Record<string, string> = forceNext
+        ? { 'If-Match': '*' }                                                  // Nutzer hat „meine Version" gewählt
+        : (knownVersion ? { 'If-Match': `"${knownVersion}"` } : {});
       const res = await apiFetch('/data', {
         method: 'POST',
         headers,
@@ -195,6 +199,9 @@ const saveQueue = (() => {
       captureEntityVersions(res);   // L5-5b: no-op solange Server keinen Header sendet
       backoff   = 1000;
       lastError = null;
+      forceNext = false;        // Override verbraucht — folgende Saves wieder mit echter Version
+      completedSaves++;         // #20: monotoner Zähler, damit ein Poll einen dazwischen
+                                // abgeschlossenen Save erkennt (Queue ist dann wieder leer)
       lastSyncTs = Date.now();
       emit('success', { ts: lastSyncTs, version: knownVersion });
     } catch (err) {
@@ -231,7 +238,21 @@ const saveQueue = (() => {
     if (resolveConflict) conflictHold = false;
   }
   // Konflikt „Server übernehmen": lokale Edits aus dem Konflikt-Fenster bewusst verwerfen
-  function clearPending() { pending = null; conflictHold = false; blockedUntil = 0; }
+  function clearPending() { pending = null; conflictHold = false; blockedUntil = 0; forceNext = false; }
+
+  // Bug-Hunt 08-06 #16: Ein fehlgeschlagener forceSave legt seinen Blob zurück in die
+  // Queue statt ihn zu verlieren. `forceNext` hält dabei die Nutzer-Entscheidung fest
+  // („meine Version gewinnt") — sonst liefe der Retry gegen die alte knownVersion und
+  // damit sofort wieder in den Konflikt, den der Nutzer gerade aufgelöst hat.
+  function requeueForce(data: Record<string, unknown>) {
+    pending      = data;
+    forceNext    = true;
+    conflictHold = false;
+    blockedUntil = 0;
+    lastError    = new Error('Erzwungenes Speichern fehlgeschlagen');
+    emit('error', { error: lastError });
+    schedule();
+  }
   function getVersion()  { return knownVersion; }
 
   // L5-5b: per-Entität-Versionen (forward-compat).
@@ -256,9 +277,22 @@ const saveQueue = (() => {
 
   return {
     enqueue,
-    retry: () => { backoff = 1000; blockedUntil = 0; flush(); },   // Phase 4: manueller Retry (Backoff + Block zurücksetzen, sofort flushen)
+    // Phase 4: manueller Retry (Backoff + Block zurücksetzen, sofort flushen).
+    // Bug-Hunt 08-06 #18: Rückgabe sagt, ob überhaupt ein Versuch STARTET. Der
+    // SyncIndicator setzte sein Zahnrad vorher optimistisch auf „Synchronisiere…" —
+    // lief flush() in einen der frühen Returns (nichts in der Queue, offline, offener
+    // Konflikt), kam nie ein success/error-Event und die Anzeige drehte sich endlos,
+    // obwohl gar nichts passierte.
+    retry: () => {
+      backoff = 1000; blockedUntil = 0;
+      const wird = !inflight && !!pending && !conflictHold
+        && !(typeof navigator !== 'undefined' && navigator.onLine === false);
+      flush();
+      return wird;
+    },
     setVersion,
     clearPending,
+    requeueForce,
     latestPending: () => pending,
     getVersion,
     getEntityVersions,
@@ -268,6 +302,7 @@ const saveQueue = (() => {
       pending:    !!pending,
       inflight,
       blocked:    !!blockedUntil,
+      completedSaves,
       lastError:  lastError ? lastError.message : null,
       lastSyncTs,
       version:    knownVersion,
@@ -409,35 +444,52 @@ export const dataService = {
     return saveQueue.status();
   },
 
-  // Phase 4: manueller Sync-Retry (SyncIndicator-Button)
-  retry() {
-    saveQueue.retry();
+  // Phase 4: manueller Sync-Retry (SyncIndicator-Button).
+  // Liefert true, wenn wirklich ein Versuch startet (siehe saveQueue.retry).
+  retry(): boolean {
+    return saveQueue.retry();
   },
 
   // J2: Force-Save (überschreibt If-Match-Check serverseitig).
   // Nimmt die NEUESTE lokale Fassung (Edits aus dem Konflikt-Fenster), nicht das alte Snapshot.
+  // Bug-Hunt 08-06 #16: Der Erfolg muss ECHT sein. Vorher leerte forceSave zuerst die
+  // Queue und verschluckte danach jeden Fehler (`catch {}`, `res.ok` nur für die Version
+  // ausgewertet): fiel genau jetzt das Netz aus oder antwortete der Server mit 500/413,
+  // gab es kein Retry (Queue leer), kein Sync-Event und keinen Indikator — die UI meldete
+  // trotzdem „⚡ Deine Version wurde gespeichert". Der Server behielt den fremden Stand,
+  // der lokale lag nur noch in localStorage und war beim nächsten getData() weg.
+  // Jetzt: bei Misserfolg zurück in die Queue (mit If-Match-Override-Merker) + Fehler werfen,
+  // damit der Aufrufer die Erfolgsmeldung unterdrücken kann.
   async forceSave(newData: Record<string, unknown>) {
     const latest = (saveQueue.latestPending() as Record<string, unknown> | null) ?? newData;
     saveQueue.clearPending();   // Konflikt-Pause lösen, Queue leeren (wir senden selbst)
     newData = latest;
     if (!USE_API) { persistData(newData); return newData; }
     persistData(newData);
-    if (!isTokenValid()) return newData;
+    if (!isTokenValid()) {
+      saveQueue.requeueForce(newData);
+      throw new Error('Nicht angemeldet — Änderungen konnten nicht übertragen werden');
+    }
     try {
       const res = await apiFetch('/data', {
         method:  'POST',
         headers: { 'If-Match': '*' },
         body:    JSON.stringify(newData),
       });
-      if (res.ok) {
-        const j = await res.json().catch(() => ({}));
-        if (j?.version) saveQueue.setVersion(j.version);
-      }
-    } catch { /* noop */ }
-    return newData;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json().catch(() => ({}));
+      if (j?.version) saveQueue.setVersion(j.version);
+      return newData;
+    } catch (err) {
+      saveQueue.requeueForce(newData);
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   },
 
   setKnownVersion(v: number) { saveQueue.setVersion(v, true); },   // bewusste Nutzer-Entscheidung → Konflikt-Pause lösen
+  // Multi-Tab (#19): Version aus einem anderen Tab übernehmen — monoton und OHNE
+  // die Konflikt-Pause zu lösen (ein fremder Save darf keinen offenen Dialog entwerten).
+  syncKnownVersion(v: number) { saveQueue.setVersion(v, false); },
   // Konflikt „Server übernehmen": queued lokale Edits bewusst verwerfen + Pause lösen
   discardPending() { saveQueue.clearPending(); },
   getKnownVersion()  { return saveQueue.getVersion(); },

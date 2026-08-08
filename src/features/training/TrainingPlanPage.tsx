@@ -5,7 +5,7 @@ import { celebrate } from '../../lib/celebrate.js';
 import { useDesign, useIsMobile } from '../../lib/hooks.js';
 import { FlapDigits } from '../../components/FlapDigits.jsx';
 import { isMentor } from '../../lib/roles.js';
-import { softDelete } from '../../lib/trash.js';
+import { softDelete, restoreFromTrash } from '../../lib/trash.js';
 import ImportGoalsModal from './ImportGoalsModal.jsx';
 import { Avatar, ProgressBar, EmptyState } from '../../components/UI.jsx';
 import {
@@ -274,7 +274,10 @@ function GoalRow({ goal, currentUser, azubis, isAusbilder, onUpdate, onDelete, o
 }
 
 // ── Main Page ─────────────────────────────────────────────────
-export default function TrainingPlanPage({ currentUser, data, onUpdateData, showToast }: { currentUser: User; data: AppState; onUpdateData: (data: AppState) => void; showToast?: (msg: string, opts?: { undo?: () => void }) => void }) {
+
+// onUpdateData ist store.setData — nimmt auch funktionale Updates. `prev` bleibt any:
+// der Store reicht die Blob-Form durch (gleiche JS-Boundary wie die trash.js-Casts).
+export default function TrainingPlanPage({ currentUser, data, onUpdateData, showToast }: { currentUser: User; data: AppState; onUpdateData: (data: AppState | ((prev: any) => AppState)) => void; showToast?: (msg: string, opts?: { undo?: () => void }) => void }) {
   const plan       = data?.trainingPlan || { goals: [], examDate: null };
   // Blob-Divergenz: AppState.trainingPlan.goals ist im Schema z.array(z.unknown()) → hier auf den echten Goal-Typ casten.
   const goals      = (plan.goals || []) as Goal[];
@@ -367,8 +370,7 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
   };
 
   const deleteGoal = (id: Id) => {
-    const snapshot = data;
-    const goal     = goals.find((g) => g.id === id);
+    const goal = goals.find((g) => g.id === id);
     if (!goal) return;
     // J3: in Papierkorb verschieben (statt hart löschen) + Audit-Log
     // softDelete/addActivity sind JS-Boundary (AppData/TrashBin/ActivityEntry vs Blob unknown[]) → Cast
@@ -383,7 +385,11 @@ export default function TrainingPlanPage({ currentUser, data, onUpdateData, show
       action:      'Lernziel gelöscht',
     });
     onUpdateData(next);
-    toast(`🗑 Lernziel „${goal.title}" → Papierkorb`, { undo: () => onUpdateData(snapshot) });
+    // Bug-Hunt 08-06 #21: nur dieses Lernziel zurückholen. Der frühere Voll-Blob-Snapshot
+    // hätte fremde Änderungen, die im Undo-Fenster eintreffen, wieder mitgelöscht.
+    toast(`🗑 Lernziel „${goal.title}" → Papierkorb`, {
+      undo: () => onUpdateData((prev: AppState) => restoreFromTrash(prev as any, 'goals', id as any) as unknown as AppState),
+    });
   };
 
   // Filter & group

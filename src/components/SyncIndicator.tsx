@@ -97,7 +97,9 @@ export default function SyncIndicator() {
               · {state.error}
             </span>
           )}
-          <button onClick={() => { dataService.retry(); setState({ kind: 'syncing' }); }}
+          {/* Bug-Hunt 08-06 #18: Zahnrad nur setzen, wenn wirklich ein Versuch startet —
+              sonst blieb die Anzeige ewig auf „Synchronisiere…", ohne dass etwas lief. */}
+          <button onClick={() => { if (dataService.retry()) setState({ kind: 'syncing' }); }}
             style={{ border: '1px solid var(--c-bd2)', background: 'var(--c-sf2)', color: 'var(--c-tx)', borderRadius: 6, fontSize: 11, fontWeight: 700, padding: '2px 8px', cursor: 'pointer' }}>
             {t('sync.retry')}
           </button>

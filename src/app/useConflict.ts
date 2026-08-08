@@ -36,9 +36,16 @@ export function useConflict(setData: (d: any, opts?: any) => void, showToast: Sh
   // J2: Konflikt-Handler — eigene Version forcieren
   const forceMine = useCallback(async () => {
     if (!conflict?.clientSnapshot) { setConflict(null); return; }
-    await dataService.forceSave(conflict.clientSnapshot);
-    setConflict(null);
-    showToast('⚡ Deine Version wurde gespeichert');
+    // Bug-Hunt 08-06 #16: Erfolg nur melden, wenn er eingetreten ist. forceSave wirft jetzt
+    // bei Fehlschlag (statt ihn zu verschlucken) und legt den Blob zurück in die Queue.
+    try {
+      await dataService.forceSave(conflict.clientSnapshot);
+      setConflict(null);
+      showToast('⚡ Deine Version wurde gespeichert');
+    } catch {
+      setConflict(null);
+      showToast('⚠ Speichern fehlgeschlagen — Änderungen bleiben in der Warteschlange');
+    }
   }, [conflict, showToast]);
 
   // J2: Konflikt-Handler — frischen Server-Stand laden (eigene Änderungen verwerfen)
