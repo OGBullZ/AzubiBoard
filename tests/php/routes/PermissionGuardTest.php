@@ -133,6 +133,33 @@ final class PermissionGuardTest extends TestCase
     }
 
     /**
+     * Fund #29: Die Liste filtert `is_public = 1`, der By-ID-Pfad lief gegen ein blankes
+     * `WHERE id = ?`. Weil die IDs fortlaufende Integer sind, war jedes nicht-öffentliche
+     * Quiz durchprobierbar — dieselbe Listen-/By-ID-Asymmetrie wie bei users und projects.
+     */
+    public function testQuizByIdRespectsVisibility(): void
+    {
+        $code = $this->code('api/routes/quizzes.php');
+
+        $byId = strpos($code, "if (\$method === 'GET' && \$id !== null)");
+        $this->assertNotFalse($byId, 'By-ID-Pfad nicht gefunden');
+
+        $liste = strpos($code, "if (\$method === 'GET' && \$id === null)");
+        $this->assertNotFalse($liste, 'Listen-Pfad nicht gefunden');
+
+        // Der Sichtbarkeits-Check muss VOR der Antwort und innerhalb des By-ID-Blocks liegen
+        $check = strpos($code, '$istOeffentlich', $byId);
+        $this->assertNotFalse($check, 'By-ID-Pfad prüft die Sichtbarkeit nicht');
+        $this->assertLessThan($liste, $check, 'Sichtbarkeitsprüfung liegt nicht im By-ID-Block');
+
+        $this->assertStringContainsString('$istErsteller', $code,
+            'Ersteller-Ausnahme fehlt — eigenes privates Quiz wäre nicht mehr abrufbar');
+        // Nicht 403: das würde die Existenz der ID bestätigen
+        $this->assertSame(2, substr_count($code, "error('Quiz nicht gefunden', 404)"),
+            'Verdeckte Antwort (404) für unsichtbare Quizze fehlt');
+    }
+
+    /**
      * Fund #13: `LIMIT ?` wird bei ATTR_EMULATE_PREPARES=false als String gebunden; MySQL
      * wirft dann 1210 und der Fehler landete im catch — die Suche lieferte dauerhaft
      * 0 Treffer, ohne dass irgendwo etwas sichtbar wurde.
