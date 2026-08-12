@@ -54,6 +54,35 @@ meldet das Skript die konkrete Lösung statt blind zu scheitern.
 > Der Trockenlauf verändert nichts am System, baut aber echt und sagt dir, ob Build, Composer und
 > ein evtl. mitgebrachtes `dist-server` in Ordnung sind.
 
+### Wenn auf dem Server schon andere Software läuft
+
+Das ist der Normalfall, und der Installer ist darauf eingestellt — er **weicht aus, statt fremde
+Dienste umzubiegen**:
+
+| Situation | Was der Installer tut |
+|---|---|
+| Port 80 belegt (z.B. IIS) | AzubiBoard läuft auf 8080 (oder dem nächsten freien); URL, `.env`, Firewall-Regel ziehen mit |
+| **Port 443 belegt** | HTTPS-Lauscher wird umgelegt — **ohne das startet Apache gar nicht**, auch nicht auf Port 8080 |
+| Port 3306 belegt (fremdes MySQL) | eigene MariaDB auf 3307ff., `my.ini` und alle DB-Aufrufe ziehen mit |
+| Dienst `Apache2.4`/`mysql` gehört fremder Software | bleibt unangetastet, eigener Dienst heißt `AzubiBoardApache`/`AzubiBoardMariaDB` |
+| `httpd.conf` enthält fremde Einstellungen | nur ein eigener markierter Block wird angehängt, vorher Sicherung als `httpd.conf.azubiboard.bak`, danach Syntaxprüfung — schlägt sie fehl, wird zurückgerollt |
+
+Feste Vorgaben gehen vor: `install_server.cmd -WebPort 8080` erzwingt den Port.
+
+### Am Ende prüft sich der Installer selbst
+
+Schritt 11 beweist, dass die Anwendung wirklich antwortet: Frontend, API/PHP, `.env` **nicht**
+abrufbar, `vendor/` gesperrt, und der Datenbankzugang auf genau dem Weg, den die App nutzt
+(`.env` → `config.php` → PDO). Fällt einer durch, endet der Installer mit einer Fehlermeldung
+statt mit „Installation abgeschlossen".
+
+Das lässt sich jederzeit wiederholen, ohne etwas zu installieren (auch Monate später, ohne
+Adminrechte):
+
+```bash
+install_server.cmd -SelbsttestNur
+```
+
 **Re-Runs sind sicher:** Bei erneutem Ausführen übernimmt das Skript `JWT_SECRET` und `DB_PASS`
 aus der bestehenden `.env` (Sessions bleiben gültig), Schema-Importe sind idempotent und
 `uploads/` (Nutzerdaten) wird nie überschrieben.

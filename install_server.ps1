@@ -62,7 +62,19 @@
                           echt; XAMPP-/Node-Install, Dienste/Config/Deploy/
                           DB-Anlage/Firewall/Task werden nur simuliert
                           (veraendert das System nicht)
+    -WebPort <port>       Port fuer die App (Default 80; ist 80 fremd belegt,
+                          wird automatisch auf 8080ff. ausgewichen)
+    -SelbsttestNur        NICHTS installieren, nur pruefen ob die Anwendung
+                          laeuft (Frontend, API, .env-Sperre, DB-Zugang).
+                          Braucht keine Adminrechte - jederzeit aufrufbar.
     -NoPause              am Ende nicht auf Tastendruck warten (fuer Automatik)
+
+  AUF EINEM SERVER MIT VORHANDENER SOFTWARE:
+    Der Installer weicht aus, statt fremde Dienste umzubiegen -
+    belegte Ports 80/443/3306 (Apache startet sonst GAR NICHT, auch nicht
+    auf einem anderen HTTP-Port!), fremde Dienste namens 'Apache2.4'/'mysql',
+    fremde <Directory>-Bloecke in der httpd.conf. Was er anfasst, sichert er
+    vorher als <datei>.azubiboard.bak.
 
   PROTOKOLL:
     Jeder Lauf schreibt azubiboard-install-<zeitstempel>.log neben das Skript

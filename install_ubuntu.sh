@@ -461,16 +461,25 @@ a2enmod headers  > /dev/null 2>&1
 a2enmod expires  > /dev/null 2>&1
 ok "mod_rewrite, mod_headers und mod_expires aktiviert"
 
-# Apache-Config für azubiboard
+# Apache-Config für azubiboard.
+# vendor/ und database/ nie ausliefern: dort liegen PHP-Bibliotheken (vendor/
+# .../phpunit ist ein bekannter Angriffsweg) und das komplette DB-Schema.
 cat > /etc/apache2/conf-available/azubiboard.conf << EOF
 <Directory /var/www/html/azubiboard>
     AllowOverride All
     Require all granted
+    Options -Indexes +FollowSymLinks
+</Directory>
+<Directory /var/www/html/azubiboard/vendor>
+    Require all denied
+</Directory>
+<Directory /var/www/html/azubiboard/database>
+    Require all denied
 </Directory>
 EOF
 
 a2enconf azubiboard > /dev/null 2>&1
-ok "Apache-Konfiguration für azubiboard aktiviert"
+ok "Apache-Konfiguration für azubiboard aktiviert (vendor/ + database/ gesperrt)"
 
 # PHP-Upload-Limit anpassen
 PHP_INI=$(php --ini | grep "Loaded Configuration" | awk '{print $NF}')
@@ -480,9 +489,21 @@ if [ -f "$PHP_INI" ]; then
     ok "PHP Upload-Limit auf 15M gesetzt ($PHP_INI)"
 fi
 
-# Apache neu starten
-systemctl restart apache2
-ok "Apache neu gestartet"
+# Apache neu starten — aber erst nach einer Syntaxprüfung. Auf einem Server,
+# der noch andere Seiten ausliefert, legt ein Neustart mit fehlerhafter
+# Konfiguration ALLES lahm, nicht nur AzubiBoard.
+if ! apache2ctl configtest > /tmp/azubiboard-apache-test.log 2>&1; then
+    err "Apache-Konfiguration fehlerhaft — NICHT neu gestartet. Meldung: $(tail -3 /tmp/azubiboard-apache-test.log | tr '\n' ' ')"
+fi
+
+if ! systemctl restart apache2 > /tmp/azubiboard-apache-restart.log 2>&1; then
+    # Häufigste Ursache auf einem belegten Server: Port 80/443 gehört jemand anderem
+    BELEGER=$( (ss -ltnp 2>/dev/null || netstat -ltnp 2>/dev/null) | grep -E ':(80|443)\s' | head -2 )
+    info "⚠ Apache konnte nicht neu gestartet werden."
+    [ -n "$BELEGER" ] && info "  Port 80/443 werden gehalten von: $(echo "$BELEGER" | tr '\n' ' ')"
+    err "Apache-Neustart fehlgeschlagen. Details: journalctl -u apache2 -n 30 (Log: /tmp/azubiboard-apache-restart.log)"
+fi
+ok "Apache neu gestartet (Konfiguration vorher geprüft)"
 
 # ── 7. Automatische DB-Sicherung (Cron) ──────────────────────
 hdr "7/9 Automatische DB-Sicherung einrichten"
@@ -824,11 +845,98 @@ else
 fi
 
 # ── 9. Fertig ─────────────────────────────────────────────────
+# ── Selbsttest ────────────────────────────────────────────────
+# Bisher meldete das Skript "Installation abgeschlossen", ohne je geprüft zu
+# haben, ob die Anwendung antwortet. Auf einem Server mit vorhandener Software
+# ist genau das die offene Frage. Der Selbsttest geht denselben Weg wie ein
+# Browser — er bricht am Ende NICHT hart ab (die Installation steht ja), meldet
+# aber deutlich, was nicht stimmt.
+hdr "Selbsttest"
+
+SELBSTTEST_PROBLEME=0
+melde_problem() { info "⚠ $1"; SELBSTTEST_PROBLEME=$((SELBSTTEST_PROBLEME + 1)); }
+# -s still, -S Fehler zeigen, -o Body, -w Statuscode; 127.0.0.1 statt localhost
+hole() { curl -s -S -o /tmp/azubiboard-check.body -w '%{http_code}' --max-time 15 "$1" 2>/dev/null || echo "000"; }
+
+BASIS="http://127.0.0.1/azubiboard"
+
+CODE=$(hole "$BASIS/")
+if [ "$CODE" = "200" ] && grep -q 'id="root"' /tmp/azubiboard-check.body 2>/dev/null; then
+    ok "Frontend antwortet (HTTP 200)"
+    WEB_OK=1
+elif [ "$CODE" = "000" ]; then
+    melde_problem "Keine Antwort auf $BASIS/ — läuft apache2? (systemctl status apache2)"
+    WEB_OK=0
+else
+    melde_problem "Frontend antwortet mit HTTP $CODE statt 200"
+    WEB_OK=1
+fi
+
+if [ "$WEB_OK" = "1" ]; then
+    CODE=$(hole "$BASIS/api/")
+    if grep -q 'Unbekannte Route' /tmp/azubiboard-check.body 2>/dev/null; then
+        ok "API und PHP laufen (Router antwortet)"
+    elif grep -q '<?php' /tmp/azubiboard-check.body 2>/dev/null; then
+        melde_problem "PHP wird NICHT ausgeführt — der Quelltext wird ausgeliefert (libapache2-mod-php aktiv?)"
+    else
+        melde_problem "API antwortet unerwartet (HTTP $CODE)"
+    fi
+
+    # .env enthält DB-Passwort und JWT-Secret und darf nie ausgeliefert werden
+    CODE=$(hole "$BASIS/.env")
+    if [ "$CODE" = "200" ]; then
+        melde_problem "SCHWER: $BASIS/.env ist abrufbar (DB-Passwort + JWT-Secret!) — greift AllowOverride/.htaccess?"
+    else
+        ok ".env ist nicht abrufbar (HTTP $CODE)"
+    fi
+
+    if [ -f "$APP_DIR/vendor/autoload.php" ]; then
+        CODE=$(hole "$BASIS/vendor/autoload.php")
+        if [ "$CODE" = "200" ]; then
+            melde_problem "vendor/ ist über den Browser erreichbar — Sperre in der Apache-Konfiguration prüfen"
+        else
+            ok "vendor/ ist gesperrt (HTTP $CODE)"
+        fi
+    fi
+else
+    info "Weitere HTTP-Prüfungen übersprungen — der Webserver antwortet nicht"
+fi
+
+# Datenbank genau auf dem Weg der Anwendung: .env → config.php → PDO
+if [ -f "$APP_DIR/api/config.php" ]; then
+    cat > /tmp/azubiboard-dbcheck.php << 'PHPCHK'
+<?php
+require_once getenv('AB_APP_DIR') . '/api/config.php';
+try { db()->query('SELECT 1'); echo 'DBOK'; }
+catch (Throwable $e) { echo 'DBFEHLER: ' . $e->getMessage(); }
+PHPCHK
+    DBANTWORT=$(AB_APP_DIR="$APP_DIR" php /tmp/azubiboard-dbcheck.php 2>&1)
+    rm -f /tmp/azubiboard-dbcheck.php
+    if echo "$DBANTWORT" | grep -q 'DBOK'; then
+        ok "Datenbank-Zugang der App funktioniert (.env + PDO)"
+    else
+        melde_problem "Die App kommt nicht an die Datenbank: $DBANTWORT"
+    fi
+fi
+rm -f /tmp/azubiboard-check.body
+
+if [ "$SELBSTTEST_PROBLEME" -eq 0 ]; then
+    ok "Selbsttest bestanden — die Anwendung läuft"
+else
+    echo ""
+    echo -e "${RED}  Selbsttest: $SELBSTTEST_PROBLEME Punkt(e) stimmen nicht — siehe Meldungen oben.${NC}"
+    echo -e "${RED}  Die Installation ist damit nicht vollständig einsatzbereit.${NC}"
+fi
+
 hdr "9/9 Fertig"
 
 echo ""
 echo -e "${GREEN}================================================${NC}"
-echo -e "${GREEN}  Installation abgeschlossen!${NC}"
+if [ "$SELBSTTEST_PROBLEME" -eq 0 ]; then
+    echo -e "${GREEN}  Installation abgeschlossen!${NC}"
+else
+    echo -e "${YELLOW}  Installation abgeschlossen — mit Einschränkungen (siehe Selbsttest)${NC}"
+fi
 echo -e "${GREEN}================================================${NC}"
 echo ""
 if [ -n "$DOMAIN" ]; then
