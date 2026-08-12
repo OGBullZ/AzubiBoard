@@ -399,11 +399,20 @@ fi
 # ARRAY statt String: bei einem Passwort mit Leerzeichen würde ein String beim
 # Aufruf per Word-Splitting zerfallen ("-pmein" "geheimes" "pw") und mysql
 # interpretierte den Rest als Datenbanknamen.
+# Das Passwort steht in einer Optionsdatei, nicht in der Kommandozeile: auf
+# einem Mehrbenutzer-Server kann sonst jeder per 'ps aux' mitlesen, solange der
+# Aufruf läuft. '--defaults-extra-file' muss das ERSTE Argument sein.
+ADMIN_CNF=$(mktemp /tmp/azubiboard-admin.XXXXXX.cnf)
+chmod 600 "$ADMIN_CNF"
+trap 'rm -f "$ADMIN_CNF"' EXIT   # auch bei Abbruch nicht liegen lassen
 if [ "$DB_REMOTE" -eq 1 ]; then
-    MYSQL_ARGS=(-h "$DB_HOST" -P "$DB_PORT" -u "$MYSQL_ADMIN_USER" "-p${MYSQL_ROOT_PASS}")
+    printf '[client]\nuser=%s\npassword=%s\n' "$MYSQL_ADMIN_USER" "$MYSQL_ROOT_PASS" > "$ADMIN_CNF"
+    MYSQL_ARGS=("--defaults-extra-file=$ADMIN_CNF" -h "$DB_HOST" -P "$DB_PORT")
 elif [ -n "$MYSQL_ROOT_PASS" ]; then
-    MYSQL_ARGS=(-u root "-p${MYSQL_ROOT_PASS}")
+    printf '[client]\nuser=root\npassword=%s\n' "$MYSQL_ROOT_PASS" > "$ADMIN_CNF"
+    MYSQL_ARGS=("--defaults-extra-file=$ADMIN_CNF")
 else
+    # Socket-Auth als root: gar kein Passwort nötig
     MYSQL_ARGS=()
 fi
 

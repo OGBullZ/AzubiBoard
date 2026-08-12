@@ -264,6 +264,10 @@ function Wait-Taste {
     catch { try { Read-Host "  (Enter)" | Out-Null } catch { } }
 }
 function Stop-Log {
+    # Die Optionsdatei mit dem Admin-Passwort darf auch bei einem Abbruch nicht
+    # liegen bleiben - deshalb hier, am zentralen Ausgang.
+    $tmpCnf = Join-Path $env:TEMP 'azubiboard-admin.cnf'
+    if (Test-Path $tmpCnf) { Remove-Item $tmpCnf -Force -ErrorAction SilentlyContinue }
     if ($script:logPath) {
         Write-Host ""
         Write-Host "  Protokoll: $script:logPath" -ForegroundColor DarkGray
@@ -296,6 +300,22 @@ function New-AclRule([string]$Sid, [string]$Rechte) {
     New-Object System.Security.AccessControl.FileSystemAccessRule(
         (New-Object System.Security.Principal.SecurityIdentifier($Sid)),
         $Rechte, 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+}
+
+# Passwoerter gehoeren nicht in die Kommandozeile: unter Windows kann jeder
+# Administrator die vollstaendige Befehlszeile fremder Prozesse auslesen
+# (Get-CimInstance Win32_Process). mysql/mysqldump lesen sie stattdessen aus
+# einer Optionsdatei - so macht es der Ubuntu-Installer laengst.
+function New-MysqlCnf([string]$Pfad, [string]$Abschnitt, [string]$Benutzer, [string]$Passwort) {
+    $inhalt = "[$Abschnitt]`r`nuser=$Benutzer`r`n"
+    if ($Passwort) { $inhalt += "password=$Passwort`r`n" }
+    Set-Utf8NoBom $Pfad $inhalt
+    # BEWUSST ohne eigene ACL: der Schutz kommt vom Ablageort (%TEMP% des
+    # Administrators bzw. der bereits abgeschottete Backup-Ordner). Eine
+    # gekappte Vererbung auf der Datei selbst hat im Test dreifach geschadet -
+    # mysql konnte sie nicht mehr oeffnen und brach hart ab, und der naechste
+    # Lauf konnte sie weder ueberschreiben noch loeschen.
+    return $Pfad
 }
 
 # Native Programme (mysql/composer) schreiben Status UND Fehler auf stderr.
@@ -1278,8 +1298,13 @@ if (-not $dbRemote) {
 # haette der Installer Datenbank und Benutzer in der fremden Instanz angelegt.
 # 127.0.0.1 statt localhost: erzwingt IPv4/TCP (localhost laeuft unter Windows
 # erst in ::1 und kostet je Aufruf rund zwei Sekunden).
-$rootAuth = @('-h', $dbConnHost, '-P', "$DbPort", '-u', $DbAdminUser)
-if ($DbRootPass) { $rootAuth += "-p$DbRootPass" }
+# Zugangsdaten in eine geschuetzte Optionsdatei statt in die Kommandozeile:
+# unter Windows kann jeder Administrator die vollstaendige Befehlszeile fremder
+# Prozesse auslesen. '--defaults-extra-file' MUSS das erste Argument sein,
+# sonst wird es kommentarlos ignoriert.
+$adminCnf = Join-Path $env:TEMP 'azubiboard-admin.cnf'
+New-MysqlCnf $adminCnf 'client' $DbAdminUser $DbRootPass | Out-Null
+$rootAuth = @("--defaults-extra-file=$adminCnf", '-h', $dbConnHost, '-P', "$DbPort")
 
 # Von wo darf der App-User verbinden? Lokal deckt 'localhost' + '127.0.0.1' ab
 # (MySQL unterscheidet die beiden bei GRANTs, und je nach skip-name-resolve
@@ -1296,8 +1321,7 @@ if (-not (Test-Path $mysqlCli)) {
     # Zweiter Versuch ueber 'localhost': greift, wenn der Server mit
     # skip-name-resolve laeuft und root nur als 'root'@'localhost' existiert.
     if ($LASTEXITCODE -ne 0 -and -not $dbRemote) {
-        $altAuth = @('-h', 'localhost', '-P', "$DbPort", '-u', $DbAdminUser)
-        if ($DbRootPass) { $altAuth += "-p$DbRootPass" }
+        $altAuth = @("--defaults-extra-file=$adminCnf", '-h', 'localhost', '-P', "$DbPort")
         Invoke-Native { 'SELECT 1;' | & $mysqlCli @altAuth --connect-timeout=10 2>$null | Out-Null }
         if ($LASTEXITCODE -eq 0) { $rootAuth = $altAuth; $dbConnHost = 'localhost'; Info "DB-Verbindung ueber 'localhost' statt 127.0.0.1" }
     }
@@ -1365,6 +1389,10 @@ if ($DryRun) {
         Ok "Falls Account '$AdminEmail' existiert: Rolle auf 'ausbilder' gesetzt"
     }
 }
+
+# Die Optionsdatei mit dem Admin-Passwort wird nur waehrend der Einrichtung
+# gebraucht - danach hat sie auf der Platte nichts mehr verloren.
+if (Test-Path $adminCnf) { Remove-Item $adminCnf -Force -ErrorAction SilentlyContinue }
 
 # ── 9. Apache konfigurieren + Firewall ───────────────────────
 Hdr "9/11 Apache konfigurieren + Firewall"
@@ -1580,7 +1608,11 @@ if ($SkipBackupTask) {
     # Host+Port IMMER mitgeben: weicht die lokale MariaDB einem fremden Dienst
     # auf einen anderen Port aus, liefe der Dump sonst gegen die fremde Instanz
     # (oder ins Leere) - und das faellt erst auf, wenn man das Backup braucht.
-    $dumpAuth = "'-h','$dbConnHost','-P','$DbPort','-u','azubiboard_user','-p$DbPass'"
+    # Das Passwort steht jetzt in der geschuetzten Optionsdatei, nicht mehr im
+    # Backup-Skript und nicht in der Kommandozeile des Dump-Prozesses.
+    $backupCnf = Join-Path $backupDir 'azubiboard-backup.cnf'
+    New-MysqlCnf $backupCnf 'mysqldump' 'azubiboard_user' $DbPass | Out-Null
+    $dumpAuth = "'--defaults-extra-file=$backupCnf','-h','$dbConnHost','-P','$DbPort'"
     $bs = @"
 `$ErrorActionPreference = 'SilentlyContinue'
 `$day  = Get-Date -Format 'yyyy-MM-dd'
