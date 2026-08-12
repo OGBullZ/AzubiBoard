@@ -316,25 +316,31 @@ $isAdmin = ([Security.Principal.WindowsPrincipal] `
 # Trockenlauf und reiner Selbsttest aendern nichts am System und brauchen
 # deshalb auch keine Adminrechte - sie wuerden sonst in einem zweiten Fenster
 # landen, dessen Ausgabe niemand sieht.
+# Argumente fuer den Neustart mit Adminrechten: GENAU das weitergeben, was der
+# Anwender gesetzt hat - nicht mehr.
+#
+# Vorher wurden -DbHost/-DbPort/-DbAdminUser/-XamppPath immer angehaengt, auch
+# wenn sie nur die Vorgabewerte hatten. In der elevierten Instanz sah das dann
+# aus wie eine ausdrueckliche Angabe ($PSBoundParameters.ContainsKey), und
+# genau daran haengen zwei Entscheidungen: das Ausweichen auf einen anderen
+# DB-Port und die Suche nach einem bereits installierten XAMPP. Beides war
+# dadurch im haeufigsten Fall - Doppelklick, danach Elevation - abgeschaltet.
+function Get-ElevationsArgumente($Gebunden) {
+    $arg = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+    foreach ($eintrag in $Gebunden.GetEnumerator()) {
+        $wert = $eintrag.Value
+        if ($wert -is [System.Management.Automation.SwitchParameter]) {
+            if ($wert.IsPresent) { $arg += "-$($eintrag.Key)" }
+        } elseif ($null -ne $wert -and "$wert" -ne '') {
+            $arg += @("-$($eintrag.Key)", "`"$wert`"")
+        }
+    }
+    return $arg
+}
+
 if (-not $isAdmin -and -not $DryRun -and -not $SelbsttestNur) {
     Write-Host "Starte mit Administrator-Rechten neu..." -ForegroundColor Yellow
-    $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
-    if ($Interactive)        { $argList += '-Interactive' }
-    if ($ServerIp)           { $argList += @('-ServerIp', $ServerIp) }
-    # DB-Parameter mit durchreichen - sonst laeuft die elevierte Instanz wieder
-    # gegen localhost und legt die GRANTs auf dem falschen Host an
-    $argList += @('-DbHost', "`"$DbHost`"", '-DbPort', $DbPort, '-DbAdminUser', "`"$DbAdminUser`"")
-    if ($DbPass)             { $argList += @('-DbPass', $DbPass) }
-    if ($DbRootPass)         { $argList += @('-DbRootPass', $DbRootPass) }
-    if ($AdminEmail)         { $argList += @('-AdminEmail', $AdminEmail) }
-    if ($XamppInstaller)     { $argList += @('-XamppInstaller', "`"$XamppInstaller`"") }
-    $argList += @('-XamppPath', "`"$XamppPath`"")
-    # Ohne diese Zeile ginge ein ausdruecklich gesetzter Port beim Neustart
-    # verloren und die elevierte Instanz liefe wieder gegen den belegten Port 80.
-    if ($PSBoundParameters.ContainsKey('WebPort')) { $argList += @('-WebPort', $WebPort) }
-    if ($SkipXampp)          { $argList += '-SkipXampp' }
-    if ($SkipBackupTask)     { $argList += '-SkipBackupTask' }
-    if ($NoPause)            { $argList += '-NoPause' }
+    $argList = Get-ElevationsArgumente $PSBoundParameters
     # Mit derselben Engine neu starten (pwsh bleibt pwsh, 5.1 bleibt 5.1)
     $psExe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' }
     Start-Process -FilePath $psExe -ArgumentList $argList -Verb RunAs
@@ -660,6 +666,25 @@ if ($SslPort -ne 443) {
 
 # --- Datenbank-Port (nur bei lokaler DB relevant) ---
 if (-not $dbRemote) {
+    # Wie beim HTTPS-Port: einen frueher gewaehlten Ausweich-Port beibehalten.
+    # Sonst wandert er bei jedem Lauf weiter (3307 -> 3308 -> ...), weil der
+    # vorherige Port dann von unserer eigenen MariaDB belegt ist.
+    if (-not $PSBoundParameters.ContainsKey('DbPort')) {
+        $myIniPfad = "$xamppPath\mysql\bin\my.ini"
+        if (Test-Path $myIniPfad) {
+            $treffer = Select-String -Path $myIniPfad -Pattern '^\s*port\s*=\s*(\d+)' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($treffer) {
+                $konfigDb = [int]$treffer.Matches[0].Groups[1].Value
+                if ($konfigDb -ne $DbPort -and $konfigDb -gt 0) {
+                    $besitzerDbAlt = Get-PortBesitzer $konfigDb
+                    if (-not $besitzerDbAlt -or (Test-UnserProzess $besitzerDbAlt)) {
+                        $DbPort = $konfigDb
+                        Info "MariaDB ist bereits auf Port $konfigDb eingerichtet - der Port bleibt"
+                    }
+                }
+            }
+        }
+    }
     $dbBesitzer = Get-PortBesitzer $DbPort
     if ($dbBesitzer -and -not (Test-UnserProzess $dbBesitzer) -and -not $PSBoundParameters.ContainsKey('DbPort')) {
         $neu = Get-FreierPort @(3307, 3308, 3309, 3310)
@@ -1442,18 +1467,26 @@ if (-not (Test-Path $pmaConf)) {
     $idx = $pma.IndexOf($pmaMarker)
     if ($idx -ge 0) { $pma = $pma.Substring(0, $idx) }   # alten Block wegschneiden
 
-    if ($dbRemote) {
+    # Umgestellt wird bei entfernter Datenbank - UND wenn die lokale MariaDB auf
+    # einem Ausweich-Port laeuft: XAMPP verdrahtet 3306 fest, phpMyAdmin liefe
+    # sonst ins Leere ("Verbindung nicht moeglich"), obwohl alles laeuft.
+    $pmaUmstellen = $dbRemote -or ($DbPort -ne 3306)
+    if ($pmaUmstellen) {
         # Schliessendes '?>' muss weg, sonst landet der Block ausserhalb von PHP
         $pma = [regex]::Replace($pma.TrimEnd(), '\?>\s*$', '').TrimEnd()
+        # Lokal bleibt der XAMPP-uebliche passwortlose Zugang moeglich, nur eben
+        # auf dem richtigen Port; remote wird die Anmeldung erzwungen.
+        $pmaHost = if ($dbRemote) { $DbHost } else { '127.0.0.1' }
+        $pmaNoPw = if ($dbRemote) { 'false' } else { 'true' }
         $pmaBlock = @"
 $pmaMarker
-`$cfg['Servers'][1]['host']            = '$DbHost';
+`$cfg['Servers'][1]['host']            = '$pmaHost';
 `$cfg['Servers'][1]['port']            = '$DbPort';
 `$cfg['Servers'][1]['connect_type']    = 'tcp';
 `$cfg['Servers'][1]['socket']          = '';
 `$cfg['Servers'][1]['auth_type']       = 'cookie';
-`$cfg['Servers'][1]['verbose']         = 'AzubiBoard DB ($DbHost)';
-`$cfg['Servers'][1]['AllowNoPassword'] = false;
+`$cfg['Servers'][1]['verbose']         = 'AzubiBoard DB ($pmaHost)';
+`$cfg['Servers'][1]['AllowNoPassword'] = $pmaNoPw;
 `$cfg['Servers'][1]['user']            = '';
 `$cfg['Servers'][1]['password']        = '';
 "@
@@ -1463,13 +1496,14 @@ $pmaMarker
     }
 
     if ($DryRun) {
-        if ($dbRemote) { Dry "phpMyAdmin auf ${DbHost}:${DbPort} umstellen -> $pmaConf" }
-        else           { Dry "phpMyAdmin auf XAMPP-Default belassen -> $pmaConf" }
+        if ($pmaUmstellen) { Dry "phpMyAdmin auf $(if ($dbRemote) { $DbHost } else { '127.0.0.1' }):${DbPort} umstellen -> $pmaConf" }
+        else               { Dry "phpMyAdmin auf XAMPP-Default belassen -> $pmaConf" }
     } else {
         if (-not (Test-Path "$pmaConf.azubiboard.bak")) { Copy-Item $pmaConf "$pmaConf.azubiboard.bak" }
         Set-Utf8NoBom $pmaConf $pmaNew
-        if ($dbRemote) { Ok "phpMyAdmin zeigt auf ${DbHost}:${DbPort} (Login mit DB-Zugangsdaten)" }
-        else           { Ok "phpMyAdmin nutzt die lokale Datenbank (XAMPP-Default)" }
+        if ($dbRemote)          { Ok "phpMyAdmin zeigt auf ${DbHost}:${DbPort} (Login mit DB-Zugangsdaten)" }
+        elseif ($pmaUmstellen)  { Ok "phpMyAdmin auf Port $DbPort umgestellt (lokale MariaDB laeuft nicht auf 3306)" }
+        else                    { Ok "phpMyAdmin nutzt die lokale Datenbank (XAMPP-Default)" }
     }
 }
 
@@ -1622,7 +1656,8 @@ Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  App-URL:     $appUrlBasis/azubiboard/" -ForegroundColor Cyan
 Write-Host "  Datenbank:   ${DbHost}:${DbPort}  (User 'azubiboard_user'@'$dbUserHost')" -ForegroundColor Cyan
-Write-Host "  phpMyAdmin:  http://localhost/phpmyadmin   (verbindet nach $DbHost)" -ForegroundColor Cyan
+$pmaUrl = if ($WebPort -eq 80) { 'http://localhost/phpmyadmin' } else { "http://localhost:$WebPort/phpmyadmin" }
+Write-Host "  phpMyAdmin:  $pmaUrl   (verbindet nach ${DbHost}:${DbPort})" -ForegroundColor Cyan
 Write-Host "  DB-Backups:  $backupDir  (taegl. 03:00, 30 Tage)" -ForegroundColor Cyan
 if ($dbRemote) {
     Write-Host "  Dienste:     Apache laeuft als Autostart-Dienst (DB liegt auf $DbHost)" -ForegroundColor Cyan
