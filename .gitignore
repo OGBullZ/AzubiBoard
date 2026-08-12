@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# USB-Installer: vorgebautes Server-Frontend + mitgelieferte Installer
+# (dist-server, xampp-...-installer.exe, node-v...-x64.msi) bleiben lokal
+dist-server/
+*.exe
+*.msi
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

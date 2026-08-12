@@ -12,17 +12,47 @@ Statt der manuellen Schritte unten: **`install_server.ps1`** erledigt alles in e
 DB+Schema, Apache-Config, Firewall, tägliche DB-Sicherung).
 
 **Vorbereitung des Sticks:**
-1. Das ganze Projekt auf den USB-Stick kopieren (mit `install_server.ps1` im Stammordner).
+1. Das ganze Projekt auf den USB-Stick kopieren (mit `install_server.cmd` + `install_server.ps1`
+   im Stammordner).
 2. Die echte **`xampp-windows-x64-8.2.x-installer.exe`** daneben legen (von apachefriends.org).
    → Der Installer findet sie automatisch und installiert offline (zuverlässiger als Download).
 
-**Auf dem Server:**
-- Rechtsklick auf `install_server.ps1` → **„Mit PowerShell ausführen"** (hebt sich selbst auf Admin).
-- Optionen: `-Interactive` (Werte abfragen statt würfeln), `-DbRootPass <pass>` (falls MariaDB-root
-  ein Passwort hat), `-AdminEmail <mail>`, `-SkipBackupTask`. Details im Kopf des Skripts.
+**Zusätzlich, wenn der Server kein Internet hat** (Firmennetz — sonst scheitert `npm ci`):
 
-Am Ende zeigt das Skript die App-URL + den SQL-Befehl für die Ausbilder-Rolle. Läuft Internet/IIS
-auf Port 80 oder root mit Passwort, warnt das Skript mit konkreter Lösung statt blind zu scheitern.
+| Was | Wohin | Wozu |
+|---|---|---|
+| `node-v22.x.x-x64.msi` (nodejs.org) | neben das Skript | wird statt Download genommen |
+| Ordner `dist-server` | neben das Skript | fertiges Frontend, ersetzt den Build |
+| Ordner `vendor` | neben das Skript | ersetzt `composer install` (nur SMTP hängt daran) |
+
+`dist-server` **auf dem Laptop** so bauen (der normale Firebase-Build passt nicht — falscher Base-Pfad,
+im Browser käme nur eine weiße Seite; der Installer erkennt und meldet das):
+
+```powershell
+$env:VITE_BASE_PATH='/azubiboard/'; $env:VITE_USE_API='true'; npm run build
+Rename-Item dist dist-server
+```
+
+**Auf dem Server:**
+- **Doppelklick auf `install_server.cmd`** (hebt sich selbst auf Admin).
+  Der Wrapper ist nötig, weil `.ps1` auf aktuellen Windows-Versionen oft gar kein
+  „Mit PowerShell ausführen" im Kontextmenü hat und Server auf `ExecutionPolicy=RemoteSigned`
+  stehen — ein `.ps1` vom Stick oder aus einem entpackten ZIP wird sonst hart abgelehnt
+  („Die Ausführung von Skripts ist auf diesem System deaktiviert"). `.cmd` unterliegt dem nicht.
+- Optionen einfach anhängen, z.B. `install_server.cmd -Interactive`:
+  `-Interactive` (Werte abfragen statt würfeln), `-DbRootPass <pass>` (falls MariaDB-root
+  ein Passwort hat), `-AdminEmail <mail>`, `-SkipBackupTask`, `-DryRun` (Trockenlauf),
+  `-NoPause`. Details im Kopf des Skripts.
+
+Am Ende zeigt das Skript die App-URL + den SQL-Befehl für die Ausbilder-Rolle, **wartet auf einen
+Tastendruck** (sonst wäre das Fenster nach dem Admin-Neustart weg, bevor man etwas liest) und legt
+ein Protokoll `azubiboard-install-<zeitstempel>.log` neben dem Skript ab (bzw. im `%TEMP%`, wenn der
+Stick schreibgeschützt ist). Läuft IIS auf Port 80, ist Node zu alt oder hat root ein Passwort,
+meldet das Skript die konkrete Lösung statt blind zu scheitern.
+
+> **Vorab prüfen, ob der Stick reicht:** `install_server.cmd -DryRun` auf dem Laptop laufen lassen.
+> Der Trockenlauf verändert nichts am System, baut aber echt und sagt dir, ob Build, Composer und
+> ein evtl. mitgebrachtes `dist-server` in Ordnung sind.
 
 **Re-Runs sind sicher:** Bei erneutem Ausführen übernimmt das Skript `JWT_SECRET` und `DB_PASS`
 aus der bestehenden `.env` (Sessions bleiben gültig), Schema-Importe sind idempotent und

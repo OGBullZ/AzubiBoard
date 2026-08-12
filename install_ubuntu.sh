@@ -175,13 +175,35 @@ else
     fi
 fi
 
-if command -v node &> /dev/null; then
-    NODE_VER=$(node -v)
-    ok "Node.js bereits installiert: $NODE_VER"
+# Vite 7 verlangt Node ^20.19 || >=22.12 (node_modules/vite/package.json).
+# Ein vorhandenes, aber zu altes Node (z. B. Ubuntu-22.04-Paket mit v12/v18)
+# ließ den Build sonst mit kryptischem Fehler abbrechen.
+node_ok() {
+    command -v node &> /dev/null || return 1
+    local v major minor
+    v=$(node -v 2>/dev/null | sed 's/^v//')
+    major=${v%%.*}
+    minor=$(echo "$v" | cut -d. -f2)
+    [ -z "$major" ] && return 1
+    if [ "$major" -eq 20 ]; then [ "$minor" -ge 19 ] && return 0 || return 1; fi
+    if [ "$major" -ge 22 ]; then
+        [ "$major" -gt 22 ] && return 0
+        [ "$minor" -ge 12 ] && return 0
+    fi
+    return 1
+}
+
+if node_ok; then
+    ok "Node.js bereits installiert: $(node -v)"
 else
-    info "Node.js wird installiert (v22 LTS, wie CI)..."
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - > /dev/null 2>&1
-    apt-get install -y nodejs > /dev/null 2>&1
+    if command -v node &> /dev/null; then
+        info "Node.js $(node -v) ist zu alt für den Build (nötig: 20.19+ oder 22.12+) — v22 LTS wird installiert..."
+    else
+        info "Node.js wird installiert (v22 LTS, wie CI)..."
+    fi
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - > /tmp/azubiboard-node.log 2>&1
+    apt-get install -y nodejs >> /tmp/azubiboard-node.log 2>&1
+    node_ok || err "Node.js 20.19+/22.12+ konnte nicht installiert werden (Log: /tmp/azubiboard-node.log). Ohne passendes Node scheitert der Frontend-Build."
     ok "Node.js $(node -v) installiert"
 fi
 
@@ -189,10 +211,19 @@ fi
 hdr "2/9 Frontend + PHP-Dependencies bauen"
 info "npm install..."
 cd "$REPO_DIR"
-npm ci --silent
+# Fehlerausgabe nicht verschlucken: bei set -e bricht das Skript sonst ohne
+# jeden Hinweis ab und niemand weiß, ob npm-Registry, Proxy oder Platte schuld war.
+if ! npm ci --no-audit --no-fund > /tmp/azubiboard-npm.log 2>&1; then
+    info "⚠ npm ci fehlgeschlagen — Fallback auf npm install"
+    npm install --no-audit --no-fund >> /tmp/azubiboard-npm.log 2>&1 \
+        || err "npm install fehlgeschlagen (Log: /tmp/azubiboard-npm.log). Kein Internet/Proxy auf dem Server? Dann dist/ auf dem Laptop bauen und mitbringen."
+fi
 
 info "npm run build..."
-VITE_BASE_PATH=/azubiboard/ VITE_USE_API=true npm run build > /dev/null 2>&1
+if ! VITE_BASE_PATH=/azubiboard/ VITE_USE_API=true npm run build > /tmp/azubiboard-build.log 2>&1 \
+   || [ ! -f "$REPO_DIR/dist/index.html" ]; then
+    err "Frontend-Build fehlgeschlagen (Log: /tmp/azubiboard-build.log)"
+fi
 ok "Build erfolgreich (dist/ erstellt)"
 
 # composer install — für PHPUnit + zukünftige PHP-Pakete (vendor/ ist gitignored)

@@ -24,14 +24,21 @@
     - richtet eine taegliche DB-Sicherung (Scheduled Task) ein
 
   AUSFUEHREN:
-    Rechtsklick auf install_server.ps1 -> "Mit PowerShell ausfuehren"
-    (oder)  pwsh -ExecutionPolicy Bypass -File .\install_server.ps1
+    DOPPELKLICK auf install_server.cmd            <- der sichere Weg
+    (der Wrapper umgeht ExecutionPolicy/Mark-of-the-Web und haelt das Fenster offen)
+    (oder)  powershell -ExecutionPolicy Bypass -File .\install_server.ps1
 
-  XAMPP AUF DEN STICK:
-    Lege die echte xampp-windows-x64-8.2.x-installer.exe NEBEN dieses Skript
-    auf den USB-Stick. Das Skript findet sie automatisch und installiert offline
-    (zuverlaessiger als der SourceForge-Download). Ohne Stick-Datei wird als
-    Fallback heruntergeladen.
+  WAS AUF DEN STICK GEHOERT (fuer einen Server OHNE Internet):
+    1. xampp-windows-x64-8.2.x-installer.exe  neben dieses Skript
+       -> wird automatisch gefunden und offline installiert
+    2. node-v22.x.x-x64.msi (von nodejs.org)   neben dieses Skript
+       -> wird genommen, wenn Node fehlt oder zu alt ist
+    3. Ordner 'dist-server' = auf dem Laptop vorgebautes Frontend:
+          $env:VITE_BASE_PATH='/azubiboard/'; $env:VITE_USE_API='true'
+          npm run build ; Rename-Item dist dist-server
+       -> ersetzt npm ci + Build auf dem Server komplett
+    4. Ordner 'vendor' (aus composer install) -> ersetzt Composer auf dem Server
+    Fehlt Punkt 1/2, wird heruntergeladen. Fehlen 3/4, wird auf dem Server gebaut.
 
   OPTIONEN:
     -Interactive          .env-Werte abfragen statt automatisch wuerfeln
@@ -55,6 +62,11 @@
                           echt; XAMPP-/Node-Install, Dienste/Config/Deploy/
                           DB-Anlage/Firewall/Task werden nur simuliert
                           (veraendert das System nicht)
+    -NoPause              am Ende nicht auf Tastendruck warten (fuer Automatik)
+
+  PROTOKOLL:
+    Jeder Lauf schreibt azubiboard-install-<zeitstempel>.log neben das Skript
+    (oder ins %TEMP%, wenn der Stick schreibgeschuetzt ist).
 ============================================================
 #>
 [CmdletBinding()]
@@ -71,12 +83,17 @@ param(
     [string]$XamppPath = 'C:\xampp',
     [switch]$SkipXampp,
     [switch]$SkipBackupTask,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$NoPause
 )
 
 # ── Versionen der externen Downloads (bei Bedarf hier aktualisieren) ──
 $XAMPP_URL = 'https://sourceforge.net/projects/xampp/files/XAMPP%20Windows/8.2.12/xampp-windows-x64-8.2.12-0-VS16-installer.exe/download'
-$NODE_URL  = 'https://nodejs.org/dist/v22.11.0/node-v22.11.0-x64.msi'
+# Vite 7 verlangt Node ^20.19 || >=22.12 (siehe node_modules/vite/package.json).
+# 22.11 war ZU ALT und liess den Build auf einem frischen Server scheitern.
+$NODE_URL  = 'https://nodejs.org/dist/v22.23.2/node-v22.23.2-x64.msi'
+$NODE_MIN  = '22.12.0'   # Untergrenze fuer den 22er-Zweig
+$NODE_MIN_20 = '20.19.0' # ein vorhandenes Node 20 ist ab hier ebenfalls ok
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -108,8 +125,26 @@ $dbRemote = $DbHost -notin @('localhost', '127.0.0.1', '::1')
 function Hdr ($t) { Write-Host ""; Write-Host "[$t]" -ForegroundColor Cyan }
 function Ok  ($t) { Write-Host "  + $t" -ForegroundColor Green }
 function Info($t) { Write-Host "  > $t" -ForegroundColor Yellow }
-function Die ($t) { Write-Host "  x $t" -ForegroundColor Red; exit 1 }
 function Dry ($t) { Write-Host "  ~ [TROCKEN] wuerde: $t" -ForegroundColor DarkGray }
+
+# Der Installer startet sich fuer die Adminrechte in einem NEUEN Fenster neu.
+# Das schliesst sich beim Beenden sofort - ohne die Pause haette man weder das
+# Ergebnis (App-URL, SQL-Befehl) noch die Fehlermeldung je gesehen.
+function Wait-Taste {
+    if (-not $script:pauseAtEnd) { return }
+    Write-Host ""
+    Write-Host "  --- Fenster bleibt offen. Beliebige Taste zum Schliessen. ---" -ForegroundColor DarkGray
+    try { $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') }
+    catch { try { Read-Host "  (Enter)" | Out-Null } catch { } }
+}
+function Stop-Log {
+    if ($script:logPath) {
+        Write-Host ""
+        Write-Host "  Protokoll: $script:logPath" -ForegroundColor DarkGray
+    }
+    try { Stop-Transcript | Out-Null } catch { }
+}
+function Die ($t) { Write-Host "  x $t" -ForegroundColor Red; Stop-Log; Wait-Taste; exit 1 }
 
 function New-RandomSecret([int]$len) {
     $chars = (48..57) + (65..90) + (97..122)   # 0-9 A-Z a-z
@@ -152,10 +187,41 @@ if (-not $isAdmin -and -not $DryRun) {
     $argList += @('-XamppPath', "`"$XamppPath`"")
     if ($SkipXampp)          { $argList += '-SkipXampp' }
     if ($SkipBackupTask)     { $argList += '-SkipBackupTask' }
+    if ($NoPause)            { $argList += '-NoPause' }
     # Mit derselben Engine neu starten (pwsh bleibt pwsh, 5.1 bleibt 5.1)
     $psExe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' }
     Start-Process -FilePath $psExe -ArgumentList $argList -Verb RunAs
     exit
+}
+
+# Ab hier laeuft der echte Durchlauf (die nicht-elevierte Instanz ist oben raus).
+# Trockenlauf pausiert nie - der laeuft in Test-Automatik und duerfte nicht haengen.
+$script:pauseAtEnd = (-not $NoPause) -and (-not $DryRun) -and [Environment]::UserInteractive
+$script:logPath    = $null
+try {
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $logDir = if ([string]::IsNullOrEmpty($repoRoot)) { $env:TEMP } else { $repoRoot }
+    # Der Stick kann schreibgeschuetzt sein - dann ins TEMP ausweichen
+    try { [System.IO.File]::WriteAllText("$logDir\.azubiboard-write-test", 'x'); Remove-Item "$logDir\.azubiboard-write-test" -Force }
+    catch { $logDir = $env:TEMP }
+    $script:logPath = "$logDir\azubiboard-install-$stamp.log"
+    Start-Transcript -Path $script:logPath -Force | Out-Null
+} catch {
+    $script:logPath = $null   # ohne Protokoll weitermachen, nie deswegen scheitern
+}
+
+# Auffangnetz: $ErrorActionPreference='Stop' laesst jeden unerwarteten Fehler das
+# Skript beenden - ohne trap waere das Fenster weg, bevor man die Ursache liest.
+trap {
+    Write-Host ""
+    Write-Host "  x ABBRUCH durch unerwarteten Fehler:" -ForegroundColor Red
+    Write-Host "    $($_.Exception.Message)" -ForegroundColor Red
+    if ($_.InvocationInfo) {
+        Write-Host "    Zeile $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())" -ForegroundColor DarkGray
+    }
+    Stop-Log
+    Wait-Taste
+    exit 1
 }
 
 Write-Host ""
@@ -288,25 +354,59 @@ if (Get-Service -Name $APACHE_SVC -ErrorAction SilentlyContinue) {
 
 # ── 3. Node.js sicherstellen ─────────────────────────────────
 Hdr "3/10 Node.js (fuer den Frontend-Build)"
-function Test-Node { (Get-Command node -ErrorAction SilentlyContinue) -ne $null }
-if (Test-Node) {
-    Ok "Node.js vorhanden: $(node -v)"
-} elseif ($DryRun) {
-    Dry "Node.js LTS herunterladen + installieren (fehlt aktuell)"
-} else {
-    Info "Node.js LTS wird installiert..."
-    $msi = "$env:TEMP\node-lts.msi"
+
+# Vorhandenes Node reicht NICHT automatisch: Vite 7 bricht mit einer alten
+# Version ab (z.B. Node 18 auf einem aelteren Arbeitsserver). Darum echte
+# Versionspruefung statt blossem "ist node im PATH?".
+function Get-NodeVersion {
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) { return $null }
     try {
-        Invoke-WebRequest -Uri $NODE_URL -OutFile $msi -UseBasicParsing
+        $raw = (& node -v 2>$null | Select-Object -First 1)
+        if ($raw -match 'v?(\d+)\.(\d+)\.(\d+)') { return [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])" }
+    } catch { }
+    return $null
+}
+function Test-NodeOk([version]$v) {
+    if (-not $v) { return $false }
+    if ($v.Major -eq 20) { return $v -ge [version]$NODE_MIN_20 }
+    return $v -ge [version]$NODE_MIN
+}
+# "Kann gebaut werden?" - auch von Abschnitt 4 benutzt
+function Test-Node { Test-NodeOk (Get-NodeVersion) }
+
+$nodeVer = Get-NodeVersion
+if (Test-NodeOk $nodeVer) {
+    Ok "Node.js vorhanden: v$nodeVer"
+} elseif ($DryRun) {
+    if ($nodeVer) { Dry "Node.js v$nodeVer ist zu alt (noetig: 20.19+ oder 22.12+) - LTS installieren" }
+    else          { Dry "Node.js LTS herunterladen + installieren (fehlt aktuell)" }
+} else {
+    if ($nodeVer) { Info "Node.js v$nodeVer ist zu alt fuer den Build (noetig: 20.19+ oder 22.12+) - LTS wird installiert..." }
+    else          { Info "Node.js LTS wird installiert..." }
+    $msi = "$env:TEMP\node-lts.msi"
+    # Node darf auch vom Stick kommen (Server ohne Internet)
+    $localMsi = Get-ChildItem -Path $repoRoot -Filter 'node-v*-x64.msi' -ErrorAction SilentlyContinue | Select-Object -First 1
+    try {
+        if ($localMsi) {
+            Info "Node-Installer vom Stick: $($localMsi.Name)"
+            $msi = $localMsi.FullName
+        } else {
+            Invoke-WebRequest -Uri $NODE_URL -OutFile $msi -UseBasicParsing
+        }
         Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait
+        # PATH der aktuellen Sitzung auffrischen (Maschinen- + Benutzer-PATH)
+        $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+                    [Environment]::GetEnvironmentVariable('Path', 'User')
     } catch {
-        Die "Node.js-Installation fehlgeschlagen: $_"
+        # KEIN Abbruch: Abschnitt 4 kann auf ein vorgebautes dist/ vom Stick ausweichen
+        Info "Node.js-Installation fehlgeschlagen: $_"
     }
-    # PATH der aktuellen Sitzung auffrischen (Maschinen- + Benutzer-PATH)
-    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
-                [Environment]::GetEnvironmentVariable('Path', 'User')
-    if (-not (Test-Node)) { Die "Node.js nicht im PATH nach Installation. Neu anmelden und Skript erneut starten." }
-    Ok "Node.js installiert: $(node -v)"
+    $nodeVer = Get-NodeVersion
+    if (Test-NodeOk $nodeVer) {
+        Ok "Node.js installiert: v$nodeVer"
+    } else {
+        Info "Kein brauchbares Node.js - Abschnitt 4 weicht auf einen vorgebauten dist/-Ordner aus"
+    }
 }
 
 # ── 4. Frontend bauen + PHP-Setup ────────────────────────────
@@ -315,16 +415,35 @@ if (-not (Test-Path "$repoRoot\package.json")) {
     Die "package.json nicht gefunden in $repoRoot - liegt das Skript im Projekt-Stammordner?"
 }
 
-if ($DryRun -and -not (Test-Node)) {
-    Dry "Quellcode spiegeln + npm ci + build (uebersprungen: Node fehlt im Trockenlauf)"
-} else {
+# Vorgebautes Frontend auf dem Stick (Server ohne Internet/ohne Node):
+# 'dist-server' ist der eindeutige Ordner (mit VITE_BASE_PATH=/azubiboard/ gebaut),
+# 'dist' wird als Zweitkandidat akzeptiert - aber nur nach Base-Path-Pruefung,
+# sonst deployt der Installer still ein Frontend, das nur eine weisse Seite zeigt.
+function Get-PrebuiltDist {
+    foreach ($cand in "$repoRoot\dist-server", "$repoRoot\dist") {
+        $idx = "$cand\index.html"
+        if (-not (Test-Path $idx)) { continue }
+        $html = Get-Content $idx -Raw
+        if ($html -match '/azubiboard/assets/') { return @{ Path = $cand; Ok = $true } }
+        return @{ Path = $cand; Ok = $false }   # gefunden, aber falscher Base-Path
+    }
+    return $null
+}
+
+$haveNode = Test-Node
+
+# Dieser Abschnitt laeuft AUCH im Trockenlauf echt (er fasst nur den Build-Ordner
+# an, nichts am System): nur so beantwortet der Trockenlauf die eigentliche Frage
+# vor der Fahrt zum Server - reicht das, was auf dem Stick liegt?
 
 # Quellcode auf lokale Platte spiegeln (USB ist langsam; node_modules/dist/.git ausschliessen)
 Info "Quellcode nach $buildDir spiegeln..."
 New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
 # .env* ausschliessen: eine mitkopierte Dev-.env wuerde sonst von Vite gelesen
 # (Dev-Secrets/VITE_-Flags im Produktions-Build); der Server bekommt seine .env in Schritt 7
-robocopy $repoRoot $buildDir /MIR /XD node_modules dist .git vendor test-results /XF *.exe .env .env.* /NFL /NDL /NJH /NJS /NP | Out-Null
+# dist-server (vorgebautes Frontend) + *.msi/*.exe (Installer vom Stick) + das
+# laufende Protokoll gehoeren nicht in den Build-Ordner
+robocopy $repoRoot $buildDir /MIR /XD node_modules dist dist-server .git vendor test-results /XF *.exe *.msi .env .env.* azubiboard-install-*.log /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { Die "robocopy (Quellcode) fehlgeschlagen (Code $LASTEXITCODE)." }
 
 # 'prepare'-Script aus der Build-Kopie entfernen: es ruft 'git config core.hooksPath
@@ -343,28 +462,67 @@ try {
     Info "package.json prepare-Strip uebersprungen: $_"
 }
 
-Push-Location $buildDir
-try {
-    Info "npm ci ..."
-    # Playwright-Browser-Download verhindern (haengt auf Windows; Build braucht ihn nicht)
-    $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'
-    npm ci --no-audit --no-fund
-    if ($LASTEXITCODE -ne 0) {
-        Info "npm ci fehlgeschlagen - Fallback auf npm install"
-        npm install --no-audit --no-fund
-        if ($LASTEXITCODE -ne 0) { Die "npm install fehlgeschlagen." }
+$buildOk = $false
+if ($haveNode) {
+    Push-Location $buildDir
+    try {
+        Info "npm ci ..."
+        # Playwright-Browser-Download verhindern (haengt auf Windows; Build braucht ihn nicht)
+        $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'
+        npm ci --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) {
+            Info "npm ci fehlgeschlagen - Fallback auf npm install"
+            npm install --no-audit --no-fund
+        }
+        if ($LASTEXITCODE -eq 0) {
+            Info "npm run build ..."
+            $env:VITE_BASE_PATH = '/azubiboard/'
+            $env:VITE_USE_API   = 'true'
+            npm run build
+            if ($LASTEXITCODE -eq 0 -and (Test-Path "$buildDir\dist\index.html")) {
+                $buildOk = $true
+                Ok "Build erfolgreich (dist/ erstellt)"
+            }
+        }
+    } finally {
+        Pop-Location
     }
-    Info "npm run build ..."
-    $env:VITE_BASE_PATH = '/azubiboard/'
-    $env:VITE_USE_API   = 'true'
-    npm run build
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$buildDir\dist\index.html")) { Die "Frontend-Build fehlgeschlagen." }
-    Ok "Build erfolgreich (dist/ erstellt)"
-} finally {
-    Pop-Location
+    if (-not $buildOk) { Info "Build auf dem Server fehlgeschlagen (kein Internet? npm-Registry nicht erreichbar?)" }
+} else {
+    Info "Kein brauchbares Node.js - es wird nicht gebaut"
 }
 
-}  # Ende DryRun/Node-Guard Abschnitt 4
+# Rettungsweg: fertiges Frontend vom Stick. Ohne den steht der Installer auf
+# einem abgeschotteten Firmenserver (kein Internet -> npm ci scheitert) still.
+if (-not $buildOk) {
+    $pre = Get-PrebuiltDist
+    if ($pre -and $pre.Ok) {
+        Info "Uebernehme vorgebautes Frontend: $($pre.Path)"
+        robocopy $pre.Path "$buildDir\dist" /E /NFL /NDL /NJH /NJS /NP | Out-Null
+        if ($LASTEXITCODE -ge 8) { Die "Kopieren des vorgebauten dist/ fehlgeschlagen (robocopy $LASTEXITCODE)." }
+        if (-not (Test-Path "$buildDir\dist\index.html")) { Die "Vorgebautes dist/ unvollstaendig - index.html fehlt." }
+        $buildOk = $true
+        Ok "Vorgebautes Frontend uebernommen (kein Build noetig)"
+    } elseif ($pre) {
+        Die @"
+Kein Build moeglich UND '$($pre.Path)' passt nicht: dieser Ordner wurde ohne
+VITE_BASE_PATH=/azubiboard/ gebaut (das ist z.B. der Firebase-Build) - im Browser
+kaeme nur eine weisse Seite. So richtig bauen (auf dem Laptop, mit Internet):
+    cd <Projektordner>
+    `$env:VITE_BASE_PATH='/azubiboard/'; `$env:VITE_USE_API='true'; npm run build
+    Rename-Item dist dist-server
+Danach 'dist-server' mit auf den Stick legen und den Installer erneut starten.
+"@
+    } else {
+        Die @"
+Frontend konnte nicht gebaut werden und es liegt kein vorgebautes Frontend bei.
+Auf einem Server ohne Internet: auf dem Laptop bauen und mitnehmen -
+    `$env:VITE_BASE_PATH='/azubiboard/'; `$env:VITE_USE_API='true'; npm run build
+    Rename-Item dist dist-server
+'dist-server' neben install_server.ps1 auf den Stick legen, dann erneut starten.
+"@
+    }
+}
 
 # PHP: zip-Extension + Upload-Limits
 Hdr "5/10 PHP konfigurieren + Composer"
@@ -418,6 +576,20 @@ if ((Test-Path $composer) -and (Test-Path "$buildDir\composer.json")) {
         Info "composer install fehlgeschlagen: $_"
     } finally {
         Pop-Location
+    }
+}
+
+# Ohne Internet scheitert Composer. Dann vendor/ vom Stick uebernehmen, sofern
+# mitkopiert (haengt nur SMTP-Versand dran - api/mailer.php faellt sonst auf mail()
+# zurueck, die App selbst laeuft auch ohne).
+if ((Test-Path $buildDir) -and -not (Test-Path "$buildDir\vendor\autoload.php")) {
+    if (Test-Path "$repoRoot\vendor\autoload.php") {
+        Info "Uebernehme vendor/ vom Stick (Composer war nicht moeglich)..."
+        robocopy "$repoRoot\vendor" "$buildDir\vendor" /E /NFL /NDL /NJH /NJS /NP | Out-Null
+        if (Test-Path "$buildDir\vendor\autoload.php") { Ok "vendor/ vom Stick uebernommen" }
+        else { Info "vendor/ vom Stick unvollstaendig - SMTP-Versand faellt auf mail() zurueck" }
+    } else {
+        Info "Kein vendor/ vorhanden - E-Mail laeuft ueber mail() statt SMTP (App unbeeintraechtigt)"
     }
 }
 
@@ -805,6 +977,7 @@ if ($DryRun) {
     Write-Host "  TROCKENLAUF abgeschlossen - nichts veraendert" -ForegroundColor Magenta
     Write-Host "==========================================" -ForegroundColor Magenta
     Write-Host "  Echt gelaufen: Build, Composer, DB-Verbindung. Rest war simuliert." -ForegroundColor Magenta
+    Stop-Log
     Write-Host ""
     exit 0
 }
@@ -828,5 +1001,6 @@ Write-Host "   2. Ausbilder-Rolle setzen:"
 # Passwort bewusst NICHT ausgeben (-p fragt interaktiv nach)
 $hintAuth = if ($dbRemote) { "-h $DbHost -P $DbPort -u $DbAdminUser -p" } else { "-u $DbAdminUser" }
 Write-Host "      & '$mysqlCli' $hintAuth azubiboard -e `"UPDATE users SET role='ausbilder' WHERE email='DEINE@EMAIL.DE';`"" -ForegroundColor White
-Write-Host ""
+Stop-Log
+Wait-Taste
 exit 0
