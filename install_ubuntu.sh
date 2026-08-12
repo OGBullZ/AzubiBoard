@@ -927,8 +927,13 @@ hdr "Selbsttest"
 
 SELBSTTEST_PROBLEME=0
 melde_problem() { info "⚠ $1"; SELBSTTEST_PROBLEME=$((SELBSTTEST_PROBLEME + 1)); }
-# -s still, -S Fehler zeigen, -o Body, -w Statuscode; 127.0.0.1 statt localhost
-hole() { curl -s -S -o /tmp/azubiboard-check.body -w '%{http_code}' --max-time 15 "$1" 2>/dev/null || echo "000"; }
+# -s still, -S Fehler zeigen, -o Body, -w Statuscode; 127.0.0.1 statt localhost.
+# -L folgt Weiterleitungen: mit Domain richtet Schritt 8a einen dauerhaften
+# HTTPS-Redirect ein, ohne -L meldete der Selbsttest sonst "HTTP 301 statt 200"
+# und behauptete einen Fehler, obwohl alles richtig ist.
+# -k ignoriert dabei das Zertifikat - geprüft wird die eigene Anwendung, nicht
+# die Vertrauenskette (bei frisch ausgestelltem Zertifikat sonst Fehlalarm).
+hole() { curl -s -S -L -k -o /tmp/azubiboard-check.body -w '%{http_code}' --max-time 15 "$1" 2>/dev/null || echo "000"; }
 
 BASIS="http://127.0.0.1:${WEB_PORT}/azubiboard"
 

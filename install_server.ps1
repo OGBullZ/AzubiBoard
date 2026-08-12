@@ -460,13 +460,18 @@ function Invoke-Selbsttest {
     # wirft Invoke-WebRequest, und der Antworttext ist dann je nach PowerShell-
     # Version nicht mehr lesbar - der Selbsttest haette einen korrekt
     # antwortenden API-Router als "nicht erreichbar" gemeldet (nachgestellt).
-    function Test-Url([string]$Url, [int]$Timeout = 15) {
+    # $Folgen: Weiterleitungen mitgehen. Fuer den Frontend-Aufruf sinnvoll (eine
+    # vorhandene HTTPS-Umleitung ist kein Fehler), fuer die Sperr-Pruefungen
+    # (.env, vendor) NICHT - dort interessiert genau die erste Antwort.
+    function Test-Url([string]$Url, [int]$Timeout = 15, [switch]$Folgen) {
         $resp = $null
         try {
             $req = [System.Net.HttpWebRequest]::Create($Url)
             $req.Timeout           = $Timeout * 1000
             $req.ReadWriteTimeout  = $Timeout * 1000
-            $req.AllowAutoRedirect = $false
+            $req.AllowAutoRedirect = [bool]$Folgen
+            if ($Folgen) { $req.MaximumAutomaticRedirections = 3 }
+            $req.ServerCertificateValidationCallback = { $true }   # Selbsttest, keine Vertrauenskette
             $req.UserAgent         = 'AzubiBoard-Installer'
             try { $resp = $req.GetResponse() }
             catch [System.Net.WebException] {
@@ -490,10 +495,10 @@ function Invoke-Selbsttest {
 
     # 1) Frontend. Apache braucht nach dem Neustart einen Moment, bis er
     # Anfragen annimmt - ein einzelner Fehlversuch waere ein Fehlalarm.
-    $r1 = Test-Url "$basis/"
+    $r1 = Test-Url "$basis/" -Folgen
     if ($r1.Code -eq 0) {
         Start-Sleep -Seconds 4
-        $r1 = Test-Url "$basis/"
+        $r1 = Test-Url "$basis/" -Folgen
     }
     $webErreichbar = $r1.Code -ne 0
     if ($r1.Code -eq 200 -and $r1.Text -match 'id="root"') { Ok "Frontend antwortet (HTTP 200)" }
