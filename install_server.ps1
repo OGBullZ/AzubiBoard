@@ -114,20 +114,27 @@ $ErrorActionPreference = 'Stop'
 
 # ── Pfade ────────────────────────────────────────────────────
 $repoRoot   = $PSScriptRoot
-$xamppPath  = $XamppPath
-$appPath    = "$xamppPath\htdocs\azubiboard"
 $buildDir   = 'C:\azubiboard-src'
 $backupDir  = 'C:\azubiboard-backups'
-$mysqlExe   = "$xamppPath\mysql\bin\mysqld.exe"
-$mysqlCli   = "$xamppPath\mysql\bin\mysql.exe"
-$mysqlDump  = "$xamppPath\mysql\bin\mysqldump.exe"
-$apacheExe  = "$xamppPath\apache\bin\httpd.exe"
-$apacheConf = "$xamppPath\apache\conf\httpd.conf"
-$phpExe     = "$xamppPath\php\php.exe"
-$phpIni     = "$xamppPath\php\php.ini"
-$composer   = "$xamppPath\php\composer"
 $APACHE_SVC = 'Apache2.4'
 $MYSQL_SVC  = 'mysql'
+
+# Alle XAMPP-Pfade an EINER Stelle - der Ordner kann sich nach der Suche nach
+# einer vorhandenen Installation noch aendern (siehe Schritt 0).
+function Set-XamppPfade([string]$basis) {
+    $script:xamppPath  = $basis
+    $script:appPath    = "$basis\htdocs\azubiboard"
+    $script:mysqlExe   = "$basis\mysql\bin\mysqld.exe"
+    $script:mysqlCli   = "$basis\mysql\bin\mysql.exe"
+    $script:mysqlDump  = "$basis\mysql\bin\mysqldump.exe"
+    $script:apacheExe  = "$basis\apache\bin\httpd.exe"
+    $script:apacheConf = "$basis\apache\conf\httpd.conf"
+    $script:sslConf    = "$basis\apache\conf\extra\httpd-ssl.conf"
+    $script:phpExe     = "$basis\php\php.exe"
+    $script:phpIni     = "$basis\php\php.ini"
+    $script:composer   = "$basis\php\composer"
+}
+Set-XamppPfade $XamppPath
 
 # ── Koexistenz auf einem belegten Server ─────────────────────
 # Der Zielserver ist KEINE frische Maschine: IIS oder ein anderer Webserver
@@ -184,6 +191,45 @@ function Test-EigenerDienst([string]$Name) {
     $pfad = $s.PathName
     if ($pfad -and $pfad.Replace('"','') -like "$xamppPath*") { return $true }
     return $false                        # existiert, gehoert aber nicht uns
+}
+
+# Wo liegt ein bereits installiertes XAMPP? Ohne diese Suche haette der
+# Installer bei abweichendem Installationsort (z.B. E:\xampp) ein ZWEITES XAMPP
+# nach C:\xampp gelegt - zwei Apache/MariaDB um dieselben Ports.
+function Find-VorhandenesXampp {
+    # 1) Registry (der XAMPP-Installer traegt InstallLocation ein)
+    foreach ($k in 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*') {
+        $treffer = Get-ItemProperty $k -ErrorAction SilentlyContinue |
+                   Where-Object { $_.DisplayName -match 'XAMPP' -and $_.InstallLocation } |
+                   Select-Object -First 1
+        if ($treffer -and (Test-Path "$($treffer.InstallLocation)\mysql\bin\mysqld.exe")) {
+            return $treffer.InstallLocation.TrimEnd('\')
+        }
+    }
+    # 2) laufende Prozesse (XAMPP laeuft gerade ueber das Control Panel)
+    foreach ($pn in 'mysqld', 'httpd') {
+        $p = Get-Process -Name $pn -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($p) {
+            $pfad = $null
+            try { $pfad = (Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)" -EA SilentlyContinue).ExecutablePath } catch { }
+            if (-not $pfad) { try { $pfad = $p.Path } catch { } }
+            if ($pfad -match '^(.*)\\(mysql|apache)\\bin\\') { return $Matches[1] }
+        }
+    }
+    # 3) uebliche Orte
+    foreach ($lw in 'C', 'D', 'E', 'F', 'G') {
+        if (Test-Path "${lw}:\xampp\mysql\bin\mysqld.exe") { return "${lw}:\xampp" }
+    }
+    return $null
+}
+
+# Auf welchem Port lauscht der bereits konfigurierte Apache?
+function Get-ApacheListenPort([string]$ConfPfad) {
+    if (-not (Test-Path $ConfPfad)) { return 0 }
+    $treffer = Select-String -Path $ConfPfad -Pattern '^\s*Listen\s+(\d+)\s*$' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($treffer) { return [int]$treffer.Matches[0].Groups[1].Value }
+    return 0
 }
 
 # Freien Dienstnamen finden, wenn der Wunschname fremd belegt ist
@@ -416,8 +462,13 @@ function Invoke-Selbsttest {
         }
     }
 
-    # 1) Frontend
+    # 1) Frontend. Apache braucht nach dem Neustart einen Moment, bis er
+    # Anfragen annimmt - ein einzelner Fehlversuch waere ein Fehlalarm.
     $r1 = Test-Url "$basis/"
+    if ($r1.Code -eq 0) {
+        Start-Sleep -Seconds 4
+        $r1 = Test-Url "$basis/"
+    }
     $webErreichbar = $r1.Code -ne 0
     if ($r1.Code -eq 200 -and $r1.Text -match 'id="root"') { Ok "Frontend antwortet (HTTP 200)" }
     elseif ($r1.Code -eq 200) { Ok "Frontend antwortet (HTTP 200)"; $probleme += "Die Startseite sieht untypisch aus - stammt sie wirklich aus dist/?" }
@@ -491,6 +542,29 @@ catch (Throwable `$e) { echo 'DBFEHLER: ' . `$e->getMessage(); }
         else { $probleme += "Die App kommt nicht an die Datenbank: $($dbAntwort.Trim())" }
     }
 
+    # 6) Uebersteht die Installation einen Neustart des Servers? Ohne Autostart
+    # laeuft alles bis zum naechsten Wartungsfenster - und dann nicht mehr.
+    foreach ($svc in @($APACHE_SVC) + $(if (-not $dbRemote) { @($MYSQL_SVC) } else { @() })) {
+        $s = Get-CimInstance Win32_Service -Filter "Name='$svc'" -ErrorAction SilentlyContinue
+        if (-not $s) { $probleme += "Dienst '$svc' ist nicht registriert - nach einem Neustart des Servers laeuft die App nicht wieder an." }
+        elseif ($s.StartMode -ne 'Auto') { $probleme += "Dienst '$svc' steht auf '$($s.StartMode)' statt Automatisch - nach einem Neustart bliebe er aus." }
+        elseif ($s.State -ne 'Running') { $probleme += "Dienst '$svc' laeuft nicht (Status $($s.State))." }
+        else { Ok "Dienst '$svc' laeuft und startet automatisch mit" }
+    }
+
+    # 7) .env darf nicht fuer jeden lesbar sein (DB-Passwort, JWT-Secret)
+    if (Test-Path "$appPath\.env") {
+        try {
+            $aclPruef = Get-Acl "$appPath\.env"
+            $offen = $aclPruef.Access | Where-Object {
+                $_.AccessControlType -eq 'Allow' -and
+                $_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value -in @($SID_USERS, 'S-1-1-0', 'S-1-5-11')
+            }
+            if ($offen) { $probleme += "Die .env ist fuer normale Benutzerkonten lesbar (enthaelt DB-Passwort + JWT-Secret)." }
+            else { Ok ".env ist gegen normale Benutzerkonten gesperrt" }
+        } catch { }
+    }
+
     if ($probleme.Count -eq 0) {
         Ok "Selbsttest bestanden - die Anwendung laeuft"
         return $true
@@ -507,7 +581,32 @@ catch (Throwable `$e) { echo 'DBFEHLER: ' . `$e->getMessage(); }
 # fremden Dienst anfassen.
 Hdr "0/11 Umgebung pruefen (belegte Ports, fremde Dienste)"
 
+# --- Ist XAMPP schon da, nur woanders? ---
+# Ohne diese Suche haette ein Aufruf ohne -XamppPath bei vorhandener
+# Installation unter z.B. E:\xampp ein ZWEITES XAMPP nach C:\xampp gelegt.
+if (-not (Test-Path $mysqlExe) -and -not $PSBoundParameters.ContainsKey('XamppPath')) {
+    # Achtung: PowerShell unterscheidet keine Gross-/Kleinschreibung bei
+    # Variablen - $script:xamppPath ueberschreibt auch den Parameter
+    # $XamppPath. Den Ausgangswert deshalb vorher merken.
+    $vorherPfad = $xamppPath
+    $gefunden = Find-VorhandenesXampp
+    if ($gefunden) {
+        Set-XamppPfade $gefunden
+        Ok "Vorhandenes XAMPP gefunden: $gefunden (Vorgabe war $vorherPfad)"
+    }
+}
+
 # --- Webserver-Port ---
+# Beim Wiederholungslauf gilt der Port, der bereits konfiguriert ist: eine
+# einmal vergebene Adresse soll stabil bleiben (Lesezeichen, Dokumentation).
+$konfigPort = Get-ApacheListenPort $apacheConf
+if ($WebPort -eq 0 -and $konfigPort -gt 0 -and $konfigPort -ne 80) {
+    $besitzerAlt = Get-PortBesitzer $konfigPort
+    if (-not $besitzerAlt -or (Test-UnserProzess $besitzerAlt)) {
+        $WebPort = $konfigPort
+        Info "Apache ist bereits auf Port $konfigPort eingerichtet - der Port bleibt"
+    }
+}
 $webPortGewuenscht = if ($WebPort -gt 0) { $WebPort } else { 80 }
 $besitzer = Get-PortBesitzer $webPortGewuenscht
 if (-not $besitzer) {
@@ -532,10 +631,19 @@ if (-not $besitzer) {
 # belegt in aller Regel 80 UND 443), bricht Apache den Start KOMPLETT ab -
 # "no listening sockets available, shutting down" - und zwar egal, welchen
 # HTTP-Port wir gewaehlt haben. Nachgestellt und im error.log belegt.
-$sslConf = "$xamppPath\apache\conf\extra\httpd-ssl.conf"
 $SslPort = 443
+# Beim Wiederholungslauf den bereits umgelegten HTTPS-Port beibehalten, sonst
+# wandert er bei jedem Lauf weiter (8443 -> 8444 -> ...), weil der alte Port
+# dann ja von unserem eigenen Apache belegt ist.
+$konfigSsl = Get-ApacheListenPort $sslConf
+if ($konfigSsl -gt 0 -and $konfigSsl -ne 443) {
+    $besitzerSsl = Get-PortBesitzer $konfigSsl
+    if (-not $besitzerSsl -or (Test-UnserProzess $besitzerSsl)) { $SslPort = $konfigSsl }
+}
 $sslBesitzer = Get-PortBesitzer 443
-if ($sslBesitzer -and -not (Test-UnserProzess $sslBesitzer)) {
+if ($SslPort -ne 443) {
+    Ok "HTTPS-Lauscher ist bereits auf Port $SslPort eingerichtet - bleibt so"
+} elseif ($sslBesitzer -and -not (Test-UnserProzess $sslBesitzer)) {
     $SslPort = Get-FreierPort @(8443, 8444, 4443, 9443)
     if ($SslPort -eq 0) {
         Info "Port 443 ist von '$($sslBesitzer.Name)' belegt und kein Ausweich-Port frei - HTTPS-Lauscher wird abgeschaltet"
@@ -969,7 +1077,7 @@ if ((Test-Path $buildDir) -and -not (Test-Path "$buildDir\vendor\autoload.php"))
 Hdr "6/11 Dateien nach $appPath deployen"
 if ($DryRun) {
     Dry "dist/ + api/ + database/ + vendor/ + composer.* nach $appPath kopieren"
-    Dry "uploads/ anlegen + fuer 'Users' beschreibbar machen"
+    Dry "uploads/ anlegen + fuer die Gruppe Benutzer beschreibbar machen"
 } else {
 New-Item -ItemType Directory -Path "$appPath\uploads" -Force | Out-Null
 # uploads/ enthaelt nur User-Bilder - Skript-Ausfuehrung hart unterbinden (Polyglot-RCE-Schutz)
@@ -1100,6 +1208,36 @@ if ($DryRun) {
 } else {
     Set-Utf8NoBom "$appPath\.env" $envContent
     Ok ".env erstellt (ALLOWED_ORIGIN=$appUrlBasis)"
+    # Die .env enthaelt DB-Passwort und JWT-Secret. Unter htdocs erbt sie sonst
+    # "Benutzer: Lesen" - jeder angemeldete Nutzer des Servers koennte sie lesen.
+    # Pendant zum chmod 640 im Ubuntu-Installer (Apache laeuft als SYSTEM).
+    # Wichtig: PHP muss die Datei weiter lesen koennen. Als Dienst laeuft Apache
+    # unter LocalSystem (= SYSTEM, hat Zugriff). Laeuft er unter einem eigenen
+    # Konto, muss dieses mit hinein - sonst steht die App nach dem Absichern
+    # ohne Konfiguration da.
+    $apDienst = Get-CimInstance Win32_Service -Filter "Name='$APACHE_SVC'" -ErrorAction SilentlyContinue
+    if (-not $apDienst) {
+        Info ".env-Rechte NICHT eingeschraenkt: Apache laeuft nicht als Dienst (sonst koennte PHP sie nicht mehr lesen)"
+    } else {
+        try {
+            $aclEnv = Get-Acl "$appPath\.env"
+            $aclEnv.SetAccessRuleProtection($true, $false)
+            foreach ($sid in $SID_SYSTEM, $SID_ADMINS) {
+                $aclEnv.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    (New-Object System.Security.Principal.SecurityIdentifier($sid)), 'FullControl', 'Allow')))
+            }
+            $konto = $apDienst.StartName
+            if ($konto -and $konto -notmatch '^(LocalSystem|NT AUTHORITY\\SYSTEM)$') {
+                $aclEnv.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    $konto, 'Read', 'Allow')))
+                Info "Apache laeuft als '$konto' - Lesezugriff auf die .env ergaenzt"
+            }
+            Set-Acl "$appPath\.env" $aclEnv
+            Ok ".env abgesichert (nur SYSTEM + Administratoren + Apache-Konto)"
+        } catch {
+            Info "Rechte der .env konnten nicht eingeschraenkt werden: $_"
+        }
+    }
     if (-not $Interactive) { Info "DB-Pass + JWT-Secret automatisch generiert (in .env nachschlagbar)" }
 }
 
@@ -1214,13 +1352,16 @@ if (Test-Path $apacheConf) {
     if ($conf -match '(?m)^#LoadModule rewrite_module') { $conf = $conf -replace '(?m)^#LoadModule rewrite_module', 'LoadModule rewrite_module'; $changed = $true; Ok "mod_rewrite aktiviert" } else { Ok "mod_rewrite aktiv" }
     if ($conf -match '(?m)^#LoadModule headers_module') { $conf = $conf -replace '(?m)^#LoadModule headers_module', 'LoadModule headers_module'; $changed = $true; Ok "mod_headers aktiviert" } else { Ok "mod_headers aktiv" }
 
-    # Lauscht Apache schon woanders? 'Listen 80' nur anfassen, wenn wir wegen
-    # eines fremden Dienstes ausweichen mussten - sonst bleibt fremde
-    # Konfiguration unberuehrt.
-    if ($WebPort -ne 80 -and $conf -match '(?m)^\s*Listen\s+80\s*$') {
-        $conf = [regex]::Replace($conf, '(?m)^(\s*)Listen\s+80\s*$', "`$1Listen $WebPort")
+    # Der konfigurierte Listen-Port MUSS zu dem passen, der in .env, Firewall
+    # und App-URL steht. Beim Wiederholungslauf drifteten die sonst auseinander
+    # (Config blieb auf 8080, alles andere sagte 80 -> App nicht erreichbar).
+    $istPort = Get-ApacheListenPort $apacheConf
+    if ($istPort -ne $WebPort -and $istPort -gt 0) {
+        $conf = [regex]::Replace($conf, "(?m)^(\s*)Listen\s+$istPort\s*$", "`$1Listen $WebPort")
         $changed = $true
-        Ok "Apache lauscht auf Port $WebPort (Port 80 ist fremd belegt)"
+        Ok "Apache lauscht auf Port $WebPort (vorher $istPort)"
+    } elseif ($istPort -eq $WebPort) {
+        Ok "Apache lauscht auf Port $WebPort"
     }
 
     # HTTPS-Lauscher umlegen/abschalten, sonst verhindert ein belegter Port 443
@@ -1359,7 +1500,15 @@ if (Get-Service -Name $APACHE_SVC -ErrorAction SilentlyContinue) {
     Info "Apache nicht als Dienst - via XAMPP Control Panel starten"
 }
 
-# Firewall: nur ergaenzen, nie bestehende Regeln aendern
+# Firewall: nur ergaenzen, nie bestehende Regeln aendern. Eigene Regeln von
+# einem frueheren Port raeumen wir aber auf - sonst bleibt bei jedem Portwechsel
+# eine offene Regel fuer einen Port zurueck, den niemand mehr benutzt.
+foreach ($alt in (Get-NetFirewallRule -DisplayName 'AzubiBoard HTTP (*)' -ErrorAction SilentlyContinue)) {
+    if ($alt.DisplayName -ne $fwName) {
+        Remove-NetFirewallRule -DisplayName $alt.DisplayName -ErrorAction SilentlyContinue
+        Info "Alte Firewall-Regel entfernt: $($alt.DisplayName)"
+    }
+}
 if (-not (Get-NetFirewallRule -DisplayName $fwName -ErrorAction SilentlyContinue)) {
     New-NetFirewallRule -DisplayName $fwName -Direction Inbound -Protocol TCP -LocalPort $WebPort -Action Allow -Profile Any | Out-Null
     Ok "Firewall-Regel fuer Port $WebPort angelegt"
@@ -1421,6 +1570,20 @@ Get-ChildItem '$backupDir' -Filter '*.zip' | Where-Object { `$_.LastWriteTime -l
         Ok "Taegliche Sicherung 03:00 -> $backupDir (30 Tage Aufbewahrung)"
     } catch {
         Info "Scheduled Task konnte nicht angelegt werden: $_"
+    }
+
+    # Die Sicherung EINMAL wirklich laufen lassen. Ein Backup, das nie lief,
+    # ist keins - und nur so faellt jetzt auf, wenn mysqldump die Zugangsdaten
+    # oder den Port nicht akzeptiert (statt erst im Ernstfall).
+    Info "Sicherung wird einmal zur Probe erstellt..."
+    Invoke-Native { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $backupScript 2>&1 | Out-Null }
+    $probe = Get-ChildItem $backupDir -Filter '*.zip' -ErrorAction SilentlyContinue |
+             Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($probe -and $probe.Length -gt 1024) {
+        Ok "Probe-Sicherung erfolgreich: $($probe.Name) ($([math]::Round($probe.Length/1KB)) KB)"
+    } else {
+        Info "ACHTUNG: Die Probe-Sicherung hat keine brauchbare Datei erzeugt."
+        Info "  Von Hand pruefen: powershell -File `"$backupScript`" - dann $backupDir ansehen."
     }
 }
 

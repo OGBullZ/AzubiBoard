@@ -121,11 +121,38 @@ if [ -n "$DOMAIN" ]; then
     read -p "  E-Mail für Let's Encrypt (für Zertifikat-Ablauf-Benachrichtigungen): " CERT_EMAIL
 fi
 
+# ── Webserver-Port: der Server ist nicht leer ─────────────────
+# Liegt auf Port 80 schon etwas anderes (nginx, ein zweiter Apache, ein
+# Container), startet apache2 nicht. Statt daran zu scheitern weichen wir aus —
+# fremde Dienste bleiben unangetastet.
+WEB_PORT=80
+PORT80_HALTER=$( (ss -ltnp 2>/dev/null || netstat -ltnp 2>/dev/null) | awk '$4 ~ /:80$/ {print $NF}' | head -1 )
+if [ -n "$PORT80_HALTER" ] && ! echo "$PORT80_HALTER" | grep -qi 'apache'; then
+    for KANDIDAT in 8080 8081 8088 8000; do
+        if ! (ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null) | awk '{print $4}' | grep -q ":${KANDIDAT}$"; then
+            WEB_PORT=$KANDIDAT
+            break
+        fi
+    done
+    if [ "$WEB_PORT" = "80" ]; then
+        err "Port 80 ist belegt ($PORT80_HALTER) und 8080/8081/8088/8000 ebenfalls. Bitte einen Port freimachen."
+    fi
+    info "Port 80 ist belegt ($PORT80_HALTER) — AzubiBoard läuft auf Port ${WEB_PORT}"
+    # Die Apache-Dateien werden erst in Schritt 6 angefasst — hier steht evtl.
+    # noch gar kein Apache, und ein früher sed liefe ins Leere.
+elif [ -n "$PORT80_HALTER" ]; then
+    ok "Port 80 wird bereits von Apache bedient"
+fi
+
 # Basis-URL einmal zentral: mit Domain HTTPS, sonst IP. Zweistufig, weil die
 # Kombi ${DOMAIN:+...}${DOMAIN:-...} bei gesetzter Domain doppelt expandiert
 # ("https://foo.defoo.de") und damit CORS/Links kaputt wären.
 APP_ORIGIN=${DOMAIN:+https://${DOMAIN}}
-APP_ORIGIN=${APP_ORIGIN:-http://${SERVER_IP}}
+if [ "$WEB_PORT" = "80" ]; then
+    APP_ORIGIN=${APP_ORIGIN:-http://${SERVER_IP}}
+else
+    APP_ORIGIN=${APP_ORIGIN:-http://${SERVER_IP}:${WEB_PORT}}
+fi
 
 echo ""
 
@@ -455,6 +482,29 @@ fi
 # ── 6. Apache konfigurieren ────────────────────────────────────
 hdr "6/9 Apache konfigurieren"
 
+# Apache muss vorhanden sein — auf einem Server mit nginx ist er es evtl. nicht
+if ! command -v apache2ctl &> /dev/null; then
+    info "Apache ist nicht installiert — wird nachinstalliert..."
+    apt-get install -y apache2 libapache2-mod-php > /tmp/azubiboard-apache-install.log 2>&1 \
+        || err "Apache konnte nicht installiert werden (Log: /tmp/azubiboard-apache-install.log)"
+    ok "Apache installiert"
+fi
+
+# Ausweich-Port eintragen (in Schritt 0 ermittelt). Idempotent: die vorhandene
+# Listen-Zeile wird auf WEB_PORT gesetzt, egal welcher Port dort steht.
+if [ "$WEB_PORT" != "80" ]; then
+    if [ -f /etc/apache2/ports.conf ]; then
+        cp -n /etc/apache2/ports.conf /etc/apache2/ports.conf.azubiboard.bak 2>/dev/null || true
+        sed -i -E "s/^Listen [0-9]+$/Listen ${WEB_PORT}/" /etc/apache2/ports.conf
+        ok "Apache lauscht auf Port ${WEB_PORT} (Sicherung: ports.conf.azubiboard.bak)"
+    fi
+    VHOST=/etc/apache2/sites-available/000-default.conf
+    if [ -f "$VHOST" ]; then
+        cp -n "$VHOST" "${VHOST}.azubiboard.bak" 2>/dev/null || true
+        sed -i -E "s/<VirtualHost \*:[0-9]+>/<VirtualHost *:${WEB_PORT}>/" "$VHOST"
+    fi
+fi
+
 # mod_rewrite + mod_headers + mod_expires aktivieren
 a2enmod rewrite  > /dev/null 2>&1
 a2enmod headers  > /dev/null 2>&1
@@ -543,6 +593,19 @@ cat > /etc/cron.d/azubiboard-backup << 'CRON'
 CRON
 chmod 644 /etc/cron.d/azubiboard-backup
 ok "Cron-Job eingerichtet (täglich 03:00 → $BACKUP_DIR)"
+
+# Die Sicherung EINMAL wirklich laufen lassen. Ein Backup, das nie lief, ist
+# keins — und nur so fällt sofort auf, wenn mysqldump die Zugangsdaten oder den
+# Port nicht akzeptiert, statt erst im Ernstfall.
+info "Sicherung wird einmal zur Probe erstellt..."
+/usr/local/bin/azubiboard-backup.sh > /tmp/azubiboard-backup-probe.log 2>&1 || true
+PROBE=$(find "$BACKUP_DIR" -name '*.sql.gz' -newermt '-5 minutes' -size +1k 2>/dev/null | head -1)
+if [ -n "$PROBE" ]; then
+    ok "Probe-Sicherung erfolgreich: $(basename "$PROBE") ($(du -h "$PROBE" | cut -f1))"
+else
+    info "⚠ Die Probe-Sicherung hat keine brauchbare Datei erzeugt."
+    info "  Von Hand prüfen: /usr/local/bin/azubiboard-backup.sh && ls -l $BACKUP_DIR"
+fi
 
 # ── 8. HTTPS + Auto-Deploy ────────────────────────────────────
 hdr "8/9 HTTPS + Auto-Deploy einrichten"
@@ -789,7 +852,7 @@ elif command -v ufw &>/dev/null || apt-get install -y -q ufw &>/dev/null; then
         ufw default allow outgoing > /dev/null 2>&1
     fi
 
-    ufw allow 80/tcp  > /dev/null 2>&1   # HTTP
+    ufw allow "${WEB_PORT}/tcp" > /dev/null 2>&1   # HTTP (ggf. Ausweich-Port)
     ufw allow 443/tcp > /dev/null 2>&1   # HTTPS
 
     if [ "$SETUP_UFW" = "ja" ]; then
@@ -858,7 +921,7 @@ melde_problem() { info "⚠ $1"; SELBSTTEST_PROBLEME=$((SELBSTTEST_PROBLEME + 1)
 # -s still, -S Fehler zeigen, -o Body, -w Statuscode; 127.0.0.1 statt localhost
 hole() { curl -s -S -o /tmp/azubiboard-check.body -w '%{http_code}' --max-time 15 "$1" 2>/dev/null || echo "000"; }
 
-BASIS="http://127.0.0.1/azubiboard"
+BASIS="http://127.0.0.1:${WEB_PORT}/azubiboard"
 
 CODE=$(hole "$BASIS/")
 if [ "$CODE" = "200" ] && grep -q 'id="root"' /tmp/azubiboard-check.body 2>/dev/null; then
