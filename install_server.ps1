@@ -433,6 +433,12 @@ if (-not $ServerIp) { $ServerIp = 'localhost' }
 # Schritt 2 entscheidet anhand von $dbRemote, ob der lokale MariaDB-Dienst
 # registriert wird. Kaeme die Frage erst in Schritt 7, liefe dieser Dienst
 # laengst und belegte Port 3306, obwohl die Datenbank woanders liegt.
+if ($Interactive -and -not [Environment]::UserInteractive) {
+    # Read-Host -AsSecureString nimmt keine Eingabe aus einer Pipe entgegen -
+    # in einer nicht-interaktiven Sitzung (Aufgabenplanung, Fernwartung ohne
+    # Konsole) wuerde der Installer sonst endlos auf eine Antwort warten.
+    Die "-Interactive braucht eine Konsole. Ohne Konsole die Werte als Parameter uebergeben: -ServerIp, -DbHost, -DbPort, -DbPass, -DbRootPass."
+}
 if ($Interactive) {
     Write-Host ""
     $inIp = Read-Host "  Server-IP [$ServerIp]"
@@ -449,6 +455,19 @@ if ($Interactive) {
             $sr = Read-Host "  Passwort fuer $DbAdminUser@$DbHost" -AsSecureString
             $DbRootPass = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sr))
         }
+    }
+    # Auch das Passwort des App-Benutzers HIER erfragen. Frueher kam die Frage
+    # erst in Schritt 7 - also nach npm ci und Build. Wer den Installer startet
+    # und weggeht, findet ihn Minuten spaeter wartend vor statt fertig.
+    while (-not $DbPass) {
+        $s1 = Read-Host "  DB-Passwort fuer 'azubiboard_user'" -AsSecureString
+        $s2 = Read-Host "  Passwort bestaetigen" -AsSecureString
+        $p1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s1))
+        $p2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s2))
+        if (-not $p1 -or $p1 -ne $p2) { Write-Host "  Passwoerter stimmen nicht / leer - nochmal." -ForegroundColor Red; continue }
+        # Landet in SQL-Literalen ('...') und in der .env - Quotes/Backslash brechen beides
+        if ($p1 -match "['`"\\]") { Write-Host "  Bitte ohne ' `" und \ - die brechen SQL und .env." -ForegroundColor Red; continue }
+        $DbPass = $p1
     }
 }
 
@@ -1171,21 +1190,6 @@ try {
 
 # ── 7. .env erstellen ────────────────────────────────────────
 Hdr "7/11 Konfiguration (.env)"
-if ($Interactive) {
-    Write-Host ""
-    # Server-IP, DB-Host/Port/Admin wurden bereits vor Schritt 0 abgefragt -
-    # die Ports/Dienste in Schritt 0 und die .env haengen davon ab.
-    while (-not $DbPass) {
-        $s1 = Read-Host "  DB-Passwort fuer 'azubiboard_user'" -AsSecureString
-        $s2 = Read-Host "  Passwort bestaetigen" -AsSecureString
-        $p1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s1))
-        $p2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s2))
-        if (-not $p1 -or $p1 -ne $p2) { Write-Host "  Passwoerter stimmen nicht / leer - nochmal." -ForegroundColor Red; continue }
-        # Landet in SQL-Literalen ('...') und in der .env - Quotes/Backslash brechen beides
-        if ($p1 -match "['`"\\]") { Write-Host "  Bitte ohne ' `" und \ - die brechen SQL und .env." -ForegroundColor Red; continue }
-        $DbPass = $p1
-    }
-}
 
 # Gilt auch fuer ein per -DbPass uebergebenes Passwort
 if ($DbPass -match "['`"\\]") {

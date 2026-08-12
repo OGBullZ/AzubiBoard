@@ -620,14 +620,22 @@ fi
 hdr "8/9 HTTPS + Auto-Deploy einrichten"
 
 # ── 8a. HTTPS via Let's Encrypt (nur wenn Domain angegeben) ──
-if [ -n "$DOMAIN" ]; then
+if [ -n "$DOMAIN" ] && [ "$WEB_PORT" != "80" ]; then
+    # Let's Encrypt validiert über Port 80 (HTTP-01). Der ist hier von fremder
+    # Software belegt — deshalb sind wir ja ausgewichen. Ein Zertifikat ist so
+    # nicht zu bekommen; das ehrlich sagen statt es scheitern zu lassen.
+    info "⚠ HTTPS übersprungen: Let's Encrypt braucht Port 80, der ist belegt (${PORT80_HALTER:-fremder Dienst})."
+    info "  Möglichkeiten: den fremden Dienst auf Port 80 beenden und erneut laufen lassen,"
+    info "  oder ein Zertifikat per DNS-Challenge holen: certbot certonly --manual --preferred-challenges dns -d $DOMAIN"
+    info "  Die Anwendung läuft solange über http://${SERVER_IP}:${WEB_PORT}/azubiboard/"
+elif [ -n "$DOMAIN" ]; then
     info "Certbot installieren..."
     apt-get install -y certbot python3-certbot-apache > /dev/null 2>&1
     ok "Certbot installiert"
 
     # VirtualHost für die Domain anlegen (Certbot braucht ServerName)
     cat > /etc/apache2/sites-available/azubiboard-ssl.conf << EOF
-<VirtualHost *:80>
+<VirtualHost *:${WEB_PORT}>
     ServerName ${DOMAIN}
     DocumentRoot /var/www/html
     RewriteEngine On
@@ -638,14 +646,21 @@ EOF
     systemctl reload apache2
 
     info "Let's Encrypt Zertifikat für $DOMAIN holen..."
-    certbot --apache -d "$DOMAIN" --non-interactive --agree-tos \
-        --email "$CERT_EMAIL" --redirect > /dev/null 2>&1 \
-        && ok "HTTPS eingerichtet (https://$DOMAIN)" \
-        || info "⚠ Certbot fehlgeschlagen — DNS für $DOMAIN korrekt gesetzt? Manuell nachholen: certbot --apache -d $DOMAIN"
-
-    # .env ALLOWED_ORIGIN auf HTTPS aktualisieren
-    sed -i "s|ALLOWED_ORIGIN=.*|ALLOWED_ORIGIN=https://${DOMAIN}|" "$APP_DIR/.env"
-    ok ".env: ALLOWED_ORIGIN=https://$DOMAIN"
+    if certbot --apache -d "$DOMAIN" --non-interactive --agree-tos \
+        --email "$CERT_EMAIL" --redirect > /tmp/azubiboard-certbot.log 2>&1; then
+        ok "HTTPS eingerichtet (https://$DOMAIN)"
+        # ALLOWED_ORIGIN NUR bei Erfolg auf HTTPS umstellen. Vorher geschah das
+        # bedingungslos — nach einem gescheiterten Certbot-Lauf stand dann eine
+        # https-Adresse in der .env, die es nicht gab: CORS tot, App unbenutzbar,
+        # und die Ursache stand nirgends.
+        sed -i "s|ALLOWED_ORIGIN=.*|ALLOWED_ORIGIN=https://${DOMAIN}|" "$APP_DIR/.env"
+        APP_ORIGIN="https://${DOMAIN}"
+        ok ".env: ALLOWED_ORIGIN=https://$DOMAIN"
+    else
+        info "⚠ Certbot fehlgeschlagen (Log: /tmp/azubiboard-certbot.log) — DNS für $DOMAIN korrekt gesetzt?"
+        info "  ALLOWED_ORIGIN bleibt auf ${APP_ORIGIN} — die App funktioniert weiter über HTTP."
+        info "  Nachholen: certbot --apache -d $DOMAIN --redirect  (danach ALLOWED_ORIGIN in $APP_DIR/.env auf https umstellen)"
+    fi
 else
     ok "HTTPS übersprungen (keine Domain angegeben)"
 fi
@@ -852,7 +867,7 @@ SSH_PORT_LIST=${SSH_PORTS//$'\n'/,}
 # auf einem Server laufen andere Dienste (DB, Monitoring, abweichender SSH-Port),
 # und ein Installer, der die Firewall plattmacht, sperrt genau die aus.
 if [ "$SETUP_UFW" = "nein" ]; then
-    info "Firewall unverändert gelassen — AzubiBoard braucht eingehend Port 80 (und 443 mit HTTPS)"
+    info "Firewall unverändert gelassen — AzubiBoard braucht eingehend Port ${WEB_PORT}$([ -n "$DOMAIN" ] && echo ' (und 443 für HTTPS)')"
 elif command -v ufw &>/dev/null || apt-get install -y -q ufw &>/dev/null; then
     if [ "$SETUP_UFW" = "ja" ]; then
         # Erst die Regeln, dann enable — sonst kappt das Aktivieren die eigene SSH-Sitzung
