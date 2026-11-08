@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "frischfach/bon-extraktion/v1",
+  "title": "Frischfach – Ergebnis der Kassenbon-Extraktion",
+  "description": "Ausgabeformat für das Vision-Modell (Structured Output). Bewusst OHNE Felder für Zahlungsdaten, Kartennummern, Kundenkarten oder Kassierer: was kein Feld hat, kann nicht extrahiert werden. Beträge in Cent (Ganzzahl), Rabatte und Leergut negativ. Prüfungen (Summe, Gewicht × Preis) macht der Server-Code, nicht das Modell.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["store", "purchased_at", "currency", "total_cents", "lines", "tax_summary", "fingerprint_hint", "warnings"],
+  "properties": {
+    "store": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chain", "branch_city"],
+      "properties": {
+        "chain": { "type": ["string", "null"], "description": "Name der Handelskette wie auf dem Bon, z. B. 'Markt Beispielstadt'. null, wenn nicht lesbar." },
+        "branch_city": { "type": ["string", "null"], "description": "Nur der Ort der Filiale, keine Straße. Wird nur auf Wunsch gespeichert." }
+      }
+    },
+    "purchased_at": { "type": ["string", "null"], "description": "Kaufzeitpunkt im Format YYYY-MM-DDTHH:MM:SS (lokale Zeit). null, wenn nicht lesbar." },
+    "currency": { "type": "string", "enum": ["EUR"] },
+    "total_cents": { "type": ["integer", "null"], "description": "Endsumme laut Bon (Zeile SUMME/ZU ZAHLEN) in Cent." },
+    "lines": {
+      "type": "array",
+      "description": "Alle Positionszeilen in Bon-Reihenfolge. Gewichts- und Mengenzeilen (z. B. '0,412 kg x 3,99 EUR/kg', '2 x 0,89') werden mit ihrem Artikel zu EINER Zeile zusammengefasst.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["line_no", "raw_text", "line_type", "name_normalized", "quantity", "unit", "unit_price_cents", "total_cents", "tax_code", "is_food", "category_guess", "applies_to_line_no", "confidence"],
+        "properties": {
+          "line_no": { "type": "integer", "description": "Laufende Nummer ab 1." },
+          "raw_text": { "type": "string", "description": "Originaltext der Zeile(n) genau wie gedruckt, inkl. Gewichtszeile." },
+          "line_type": {
+            "type": "string",
+            "enum": ["item", "deposit", "deposit_return", "discount", "non_food", "info"],
+            "description": "item = Lebensmittel/Artikel, deposit = Pfand, deposit_return = Leergut (negativ), discount = Rabatt/Coupon (negativ), non_food = Haushalt/Drogerie/Tüte, info = keine Position (z. B. Zwischensumme)."
+          },
+          "name_normalized": { "type": "string", "description": "Ausgeschriebener deutscher Produktname ohne Marke, z. B. 'Hähnchenbrustfilet', 'Bio-Vollmilch 3,8 %'." },
+          "quantity": { "type": "number", "description": "Menge in der angegebenen Einheit, z. B. 412 bei 0,412 kg (unit = g) oder 2 bei '2 x'." },
+          "unit": { "type": "string", "enum": ["piece", "g", "ml", "pack"] },
+          "unit_price_cents": { "type": ["integer", "null"], "description": "Preis pro kg/l bzw. pro Stück, falls gedruckt; sonst null." },
+          "total_cents": { "type": "integer", "description": "Zeilenbetrag in Cent; negativ bei Rabatt und Leergut." },
+          "tax_code": { "type": ["string", "null"], "description": "Steuerkennzeichen wie gedruckt (z. B. 'A', 'B', '1'). Bedeutung ist händlerspezifisch." },
+          "is_food": { "type": "boolean" },
+          "category_guess": { "type": ["string", "null"], "description": "Kategorie-Schlüssel aus der mitgegebenen Kategorienliste (z. B. 'gefluegel_roh', 'milch_frisch'); null bei Nicht-Lebensmitteln." },
+          "applies_to_line_no": { "type": ["integer", "null"], "description": "Bei discount/deposit: line_no des zugehörigen Artikels, sonst null." },
+          "confidence": { "type": "number", "description": "0 bis 1: wie sicher die Zuordnung von Name, Menge und Preis ist." }
+        }
+      }
+    },
+    "tax_summary": {
+      "type": "array",
+      "description": "Steueraufschlüsselung am Bon-Ende, falls vorhanden.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tax_code", "rate_percent"],
+        "properties": {
+          "tax_code": { "type": "string" },
+          "rate_percent": { "type": "number" }
+        }
+      }
+    },
+    "fingerprint_hint": {
+      "type": ["string", "null"],
+      "description": "TSE-Transaktionsnummer oder Bon-Nummer, falls lesbar. Nur für die Erkennung doppelter Importe."
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Kurze Hinweise auf unlesbare oder abgeschnittene Stellen, z. B. 'Zeile 7 Preis unleserlich', 'Bon unten abgeschnitten'.",
+      "items": { "type": "string" }
+    }
+  }
+}
